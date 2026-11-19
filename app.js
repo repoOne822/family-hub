@@ -33,8 +33,10 @@ const sName = x => x ? ((lang === "zh" && x.name_zh) ? x.name_zh : x.name) : "";
 const sDesc = x => (lang === "zh" && x.description_zh) ? x.description_zh : (x.description || "");
 const subjOf = id => S.subjects.find(x => x.id === id);
 const mKidLabel = m => (lang === "zh" && m.kid_label_zh) ? m.kid_label_zh : (m.kid_label || "✅ " + m.name);
+const heroPills = () => `<div class="pills" aria-hidden="true">${T().tags.map((x, i) => `<span class="pill p${i + 1}">${esc(x)}</span>`).join("")}<span class="blob b1">✦</span><span class="blob b2">♥</span><span class="blob b3">★</span><span class="blob b4">↗</span></div>`;
+const marquee = () => { const w = T().marquee.map(x => `<b>${esc(x)}</b><i>/</i>`).join(""); return `<div class="marquee" aria-hidden="true"><span>${w}${w}</span></div>`; };
 function setStatus(msg, warn) { const s = $("#status"); if (s) { s.textContent = msg || ""; s.classList.toggle("warn", !!warn); } }
-function applyStatic() { document.querySelectorAll("[data-t]").forEach(el => { const v = T()[el.dataset.t]; if (typeof v === "string") el.textContent = v; }); document.documentElement.lang = lang === "zh" ? "zh-CN" : "en"; document.body.style.fontFamily = lang === "zh" ? "Inter,'Noto Sans SC',system-ui,sans-serif" : ""; }
+function applyStatic() { document.querySelectorAll("[data-t]").forEach(el => { const v = T()[el.dataset.t]; if (typeof v === "string") el.textContent = v; }); document.documentElement.lang = lang === "zh" ? "zh-CN" : "en"; }
 
 /* ---------------- data ---------------- */
 async function loadMe() {
@@ -65,8 +67,8 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden && S.
 /* ---------------- auth ---------------- */
 let siMode = "parent";
 function renderSignIn(msg) {
-  $("#root").innerHTML = `<div class="signin">
-    <div style="display:flex;justify-content:space-between;align-items:center"><h1>🌱 ${T().signInTitle}</h1><button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button></div>
+  $("#root").innerHTML = `<div class="headline" style="margin-top:7vh">${T().signInHero}</div><div class="signin" style="margin-top:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h1><span class="dotlogo" style="width:26px;height:26px;border-radius:50%;background:var(--lime);display:inline-grid;place-items:center;color:#0a0a0a;font-size:14px;vertical-align:3px">✦</span> ${T().signInTitle}</h1><button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button></div>
     <p class="meta">${T().signInSub}</p>
     <div class="tabs" style="margin:8px 0 14px"><button class="${siMode === "parent" ? "on" : ""}" data-mode="parent">${T().iAmParent}</button><button class="${siMode === "kid" ? "on" : ""}" data-mode="kid">${T().iAmKid}</button></div>
     ${siMode === "parent" ? `<form id="siForm"><label>${T().emailLabel}</label><input type="email" id="siEmail" required autocomplete="email"><button class="btn primary" style="width:100%;margin-top:12px">${T().sendLink}</button></form>`
@@ -110,7 +112,7 @@ async function boot() {
 const ROUTES = ["today", "dashboard", "subjects", "log", "plans", "reports", "family"];
 function renderShell() {
   $("#root").innerHTML = `<div class="topbar"><div class="in">
-    <div class="brand">🌱 ${T().appTitle}</div>
+    <div class="brand"><span class="dotlogo">✦</span>${T().appTitle}</div>
     <nav class="nav">${ROUTES.map(r => `<a href="#${r}" data-r="${r}">${T()["nav" + { today: "Today", dashboard: "Dash", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" }[r]]}</a>`).join("")}</nav>
     <button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button>
     <button class="btn sm ghost" id="soBtn">${T().signOut}</button></div></div>
@@ -133,16 +135,16 @@ function route() {
 /* ---------------- TODAY ---------------- */
 function viewToday() {
   const d = today();
-  $("#view").innerHTML = `<div class="hero">
-      <button class="herobtn" style="background:var(--k0)" id="goKids">🧒 ${T().kidsTapIn}<small>${T().kidsTapInSub}</small></button>
-      <button class="herobtn" style="background:var(--accent)" id="goQuick">⚡ ${T().parentCheckin}<small>${T().parentCheckinSub}</small></button>
+  $("#view").innerHTML = `<div class="headline">${T().heroHtml}</div>${heroPills()}<div class="hero">
+      <button class="herobtn" style="background:var(--lime)" id="goKids">🧒 ${T().kidsTapIn}<small>${T().kidsTapInSub}</small></button>
+      <button class="herobtn" style="background:var(--pink)" id="goQuick">⚡ ${T().parentCheckin}<small>${T().parentCheckinSub}</small></button>
     </div>
     <div class="section-h"><h3>${T().todayStatus} · ${fmtDate(d)}</h3><button class="btn sm" id="goLog">${T().logEntry}</button></div>
     <div class="todayrow">${S.kids.map((k, i) => { const c = S.checkins.find(c => c.kid === k.id && c.date === d) || {};
       const habits = S.metrics.filter(m => m.kid === k.id && m.type === "rate").map(m => { const r = S.readings.find(r => r.metric === m.id && r.date === d); return r && +r.value ? mKidLabel(m) : null; }).filter(Boolean);
       return `<div class="tcard" style="border-top:4px solid ${KC[i % 3]}"><b>${esc(kidName(k.id))}</b>
         <div class="meta">${c.kid_mood ? `${T().heSaid} ${FACES[c.kid_mood - 1]}` : T().notYet} · ${c.focus ? `${T().parentRated} ✓` : `${T().parentRated} —`}</div>
-        ${habits.length ? `<div class="meta">${esc(habits.join(" · "))}</div>` : ""}</div>`; }).join("")}</div>`;
+        ${habits.length ? `<div class="meta">${esc(habits.join(" · "))}</div>` : ""}</div>`; }).join("")}</div>${marquee()}`;
   $("#goKids").onclick = openKidMode; $("#goQuick").onclick = openQuick; $("#goLog").onclick = () => openEntry();
 }
 
@@ -583,15 +585,16 @@ function kidRender() {
   const journal = S.journal.slice().sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
   const days = []; for (let i = 13; i >= 0; i--) { const dd = addDays(d, -i); days.push({ dd, m: S.moods.find(x => x.date === dd)?.kid_mood }); }
   const color = KC[0];
-  $("#root").innerHTML = `<div class="topbar"><div class="in"><div class="brand">🌱 ${t.hi(esc(kidName(k.id)))}</div>
+  $("#root").innerHTML = `<div class="topbar"><div class="in"><div class="brand"><span class="dotlogo">✦</span>${t.hi(esc(kidName(k.id)))}</div>
       <button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button><button class="btn sm ghost" id="soBtn">${t.signOut}</button></div></div>
     <div class="wrap" style="max-width:860px"><div class="status" id="status"></div>
-      <button class="herobtn" style="background:${color};width:100%;margin-bottom:18px" id="kTap">${myMood ? FACES[myMood - 1] + " " + t.tapInDone : "👋 " + t.myTapIn}</button>
+      <div class="headline" style="font-size:clamp(26px,4vw,40px)">${t.kidHero(esc(kidName(k.id)))}</div>
+      <button class="herobtn" style="background:${myMood ? "var(--lime)" : "var(--pink)"};width:100%;margin:18px 0" id="kTap">${myMood ? FACES[myMood - 1] + " " + t.tapInDone : "👋 " + t.myTapIn}</button>
       <div class="section-h"><h3>${t.myGoals}</h3></div>
       ${(() => { const groups = S.subjects.filter(x => x.active).map(x => ({ x, ms: S.metrics.filter(m => m.subject_id === x.id), docs: S.docs.filter(d => d.subject_id === x.id) })).filter(g => g.ms.length || g.docs.length);
         const rowL = m => { const cur = curLevel(m), span = (+m.target) - (+m.baseline), p = span ? clamp01((cur - (+m.baseline)) / span) : 1, u = esc(m.unit || ""); return `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><b style="font-weight:500">${esc(mName(m))}</b><span class="meta">${t.nowAt} <b style="color:var(--ink)">${cur}${u}</b> → ${+m.target}${u}</span></div><div class="prog" style="margin-top:6px"><i style="width:${Math.round(p * 100)}%;background:var(--accent)"></i></div></div>`; };
         const rowR = m => { const c = cnt(m), p = m.per_week ? clamp01(c / m.per_week) : 0; return `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><b style="font-weight:500">${esc(mKidLabel(m))}</b><span class="meta">${t.ofTarget(c, m.per_week)}${p >= 1 ? " 🎉" : ""}</span></div><div class="prog" style="margin-top:6px"><i style="width:${Math.round(p * 100)}%;background:${p >= 1 ? "var(--pos)" : "var(--accent)"}"></i></div></div>`; };
-        return groups.map(g => `<div class="coach" style="margin-bottom:12px"><h3 style="font-family:Fraunces,Georgia,serif;font-weight:600;margin:0 0 4px">${g.x.icon} ${esc(sName(g.x))}</h3>${sDesc(g.x) ? `<div class="meta" style="margin-bottom:10px">${esc(sDesc(g.x))}</div>` : ""}
+        return groups.map(g => `<div class="coach" style="margin-bottom:12px"><h3 style="font-family:var(--display);font-weight:600;margin:0 0 4px">${g.x.icon} ${esc(sName(g.x))}</h3>${sDesc(g.x) ? `<div class="meta" style="margin-bottom:10px">${esc(sDesc(g.x))}</div>` : ""}
           ${g.ms.map(m => m.type === "rate" ? rowR(m) : rowL(m)).join("")}${g.docs.map(dc => `<a href="#" data-kdoc="${esc(dc.slug)}" style="display:inline-block;margin-top:4px;color:var(--accent)">📄 ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" · ")}</div>`).join(""); })()}
       <div class="coach">
         ${levels.filter(m => !S.subjects.some(x => x.active && x.id === m.subject_id)).map(m => { const cur = curLevel(m), span = (+m.target) - (+m.baseline), p = span ? clamp01((cur - (+m.baseline)) / span) : 1, u = esc(m.unit || ""); return `<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between"><b style="font-weight:500">${esc(mName(m))}</b><span class="meta">${t.nowAt} <b style="color:var(--ink)">${cur}${u}</b> → ${+m.target}${u}</span></div><div class="prog" style="margin-top:6px"><i style="width:${Math.round(p * 100)}%;background:var(--accent)"></i></div></div>`; }).join("")}
@@ -612,6 +615,7 @@ function kidRender() {
         <form id="jForm"><textarea id="jIn" maxlength="4000" placeholder="${t.journalPh}" required></textarea><button class="btn sm primary" style="margin-top:8px">${t.saveEntry}</button></form>
         <div style="margin-top:12px">${journal.length ? journal.map(j => `<div class="rec info"><div class="meta" style="display:flex;justify-content:space-between">${fmtDate(j.date)}<button class="x" style="opacity:.6;border:0;background:none;cursor:pointer;color:var(--muted)" data-delj="${j.id}">✕</button></div><div style="white-space:pre-wrap">${esc(j.body)}</div></div>`).join("") : `<div class="meta">${t.noJournal}</div>`}</div>
       </div>
+      ${marquee()}
       ${S.docs.filter(dc => !S.subjects.some(x => x.active && x.id === dc.subject_id)).length ? `<div class="section-h" style="margin-top:22px"><h3>${t.myPlans}</h3></div><div class="feed doclist">${S.docs.filter(dc => !S.subjects.some(x => x.active && x.id === dc.subject_id)).map(dc => `<a href="#" data-kdoc="${esc(dc.slug)}"><b>${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</b></a>`).join("")}</div>` : ""}<div id="kDocView" style="margin-top:12px"></div>
     </div>`;
   $("#langBtn").onclick = toggleLang; $("#soBtn").onclick = () => sb.auth.signOut();

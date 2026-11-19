@@ -1,6 +1,10 @@
 // UI strings in English and Simplified Chinese. No personal data lives in this file.
 export const STR = {
   en: {
+    heroHtml: `Every <i class="ico c1">★</i> day a little <em class="hl-lime">stronger</em>, <em class="hl-pink">kinder</em> <i class="ico c2">↗</i> and <em class="hl-orange">braver</em> <i class="ico c3">♥</i>`,
+    tags: ["Curiosity", "Courage", "Kindness", "Focus", "Growth"], marquee: ["growth", "curiosity", "courage", "focus", "kindness", "joy"],
+    kidHero: n => `Hey <em class="hl-lime">${n}</em> <i class="ico c1">★</i> let's <em class="hl-pink">grow</em> today`,
+    signInHero: `Our <i class="ico c1">★</i> family's <em class="hl-lime">growth</em> <i class="ico c2">↗</i> hub`,
     navSubjects: "Subjects", subjectsTitle: "Subjects", addSubject: "+ Add subject", editSubject: "Edit subject", newSubject: "New subject",
     subjName: "Name", subjNameZh: "Chinese name", subjIcon: "Emoji", subjDesc: "What it's about (optional)", subjDescZh: "Chinese description (optional)",
     archive: "Archive", noSubjects: "No subjects yet. Add one, e.g. Fencing, AMC, Piano.", other: "Other goals",
@@ -60,7 +64,7 @@ export const STR = {
     statusTxt: {g:"On track", a:"Watch", r:"Ease off", n:"Not enough data"},
     goalsPace: "Goals: progress vs expected pace",
     paceNote: "Bar = progress toward target. Tick = where he should be today on a straight line to the deadline.",
-    last28: "Last 28 days", chartNote: "Grey bars = share of planned sessions done. Blue line = engagement trend.",
+    last28: "Last 28 days", chartNote: "Grey bars = share of planned sessions done. Purple line = engagement trend.",
     whatToAdjust: "What to adjust",
     pace: {ahead:"Ahead", ontrack:"On track", behind:"Behind", done:"Reached", met:"Met", close:"Close", stale:"Update needed"},
     thisWeek: "this week", lastWk: "last wk", daysLeft: n => `${n} days left`,
@@ -105,6 +109,10 @@ export const STR = {
     }
   },
   zh: {
+    heroHtml: `每一天 <i class="ico c1">★</i> 都更 <em class="hl-lime">强大</em>、更 <em class="hl-pink">善良</em> <i class="ico c2">↗</i>、更 <em class="hl-orange">勇敢</em> <i class="ico c3">♥</i>`,
+    tags: ["好奇", "勇气", "善良", "专注", "成长"], marquee: ["成长", "好奇", "勇气", "专注", "善良", "快乐"],
+    kidHero: n => `嗨 <em class="hl-lime">${n}</em> <i class="ico c1">★</i> 今天也要 <em class="hl-pink">成长</em>`,
+    signInHero: `我们家的 <i class="ico c1">★</i> <em class="hl-lime">成长</em> <i class="ico c2">↗</i> 中心`,
     navSubjects: "科目", subjectsTitle: "科目", addSubject: "+ 添加科目", editSubject: "编辑科目", newSubject: "新科目",
     subjName: "英文名", subjNameZh: "中文名", subjIcon: "图标", subjDesc: "简介（可选）", subjDescZh: "中文简介（可选）",
     archive: "归档", noSubjects: "还没有科目。添加一个，比如击剑、AMC、钢琴。", other: "其他目标",
@@ -164,7 +172,7 @@ export const STR = {
     statusTxt: {g:"进展良好", a:"需关注", r:"放慢节奏", n:"数据不足"},
     goalsPace: "目标：实际进度 vs 应有进度",
     paceNote: "进度条＝离目标多远。竖线＝按截止日期匀速推进，今天应在的位置。",
-    last28: "近28天", chartNote: "灰柱＝计划学习完成比例。蓝线＝投入度趋势。",
+    last28: "近28天", chartNote: "灰柱＝计划学习完成比例。紫线＝投入度趋势。",
     whatToAdjust: "怎么调整",
     pace: {ahead:"超前", ontrack:"按计划", behind:"落后", done:"已达成", met:"达标", close:"接近", stale:"需要更新"},
     thisWeek: "本周", lastWk: "上周", daysLeft: n => `剩 ${n} 天`,
