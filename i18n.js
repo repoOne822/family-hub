@@ -1,6 +1,21 @@
 // UI strings in English and Simplified Chinese. No personal data lives in this file.
 export const STR = {
   en: {
+    // kid accounts
+    iAmParent: "Parent", iAmKid: "Kid", username: "Username", pin: "PIN (6 digits)", signIn: "Sign in",
+    badLogin: "Username or PIN didn't work. Ask Mom or Dad.",
+    hi: n => `Hi, ${n}!`, myTapIn: "Today's check-in", tapInDone: "Checked in today ✓ — tap to change",
+    myGoals: "My goals", myWins: "My wins", myJournal: "My journal", myPlans: "My plans", myWeek: "My last 2 weeks",
+    logWin: "Log a win", winPh: "What went well? e.g. 98% on my science quiz", addWin: "Add win",
+    journalPh: "Write anything: how practice went, what you're proud of, what was hard…", saveEntry: "Save entry",
+    suggestGoal: "Suggest a goal", suggestPh: "A goal you want to work on", suggest: "Suggest",
+    pending: "waiting for a parent to approve", noWinsYet: "No wins logged yet. Add one!", noJournal: "Nothing here yet. Only you and your parents can read this.",
+    journalPrivate: "Only you and your parents can read your journal.", ofTarget: (c,t) => `${c} of ${t} this week`, nowAt: "now",
+    navFamily: "Family", familyTitle: "Family settings", kidLogins: "Kids' logins", setPin: "Set PIN", pinSet: "PIN saved ✓",
+    pinHelp: "Each boy signs in with his username and a PIN you choose (at least 6 characters). Setting a new PIN replaces the old one.",
+    proposals: "Goals the boys suggested", approve: "Approve", decline: "Decline", noProposals: "No suggestions waiting.",
+    journals: "Journals", journalsHelp: "Read-only. These are the boys' own words — read with care, and talk, don't correct.",
+    showOnHisPage: "Show on his page", shownOnHisPage: "Shown on his page", byHim: "logged by him",
     appTitle: "Family Hub",
     signInTitle: "Family Hub",
     signInSub: "Private. Only family members on the list can sign in.",
@@ -81,6 +96,21 @@ export const STR = {
     }
   },
   zh: {
+    // kid accounts
+    iAmParent: "家长", iAmKid: "孩子", username: "用户名", pin: "密码（6位数字）", signIn: "登录",
+    badLogin: "用户名或密码不对，请找爸爸妈妈。",
+    hi: n => `${n}，你好！`, myTapIn: "今天打卡", tapInDone: "今天已打卡 ✓ — 点击修改",
+    myGoals: "我的目标", myWins: "我的进步", myJournal: "我的日记", myPlans: "我的计划", myWeek: "最近两周",
+    logWin: "记录一个进步", winPh: "今天什么做得好？比如：科学小测98分", addWin: "添加",
+    journalPh: "随便写：训练怎么样、哪里让你骄傲、哪里比较难……", saveEntry: "保存",
+    suggestGoal: "提一个目标", suggestPh: "你想努力的目标", suggest: "提交",
+    pending: "等爸爸妈妈确认", noWinsYet: "还没有记录，加一个吧！", noJournal: "这里还没有内容。只有你和爸爸妈妈能看。",
+    journalPrivate: "日记只有你和爸爸妈妈能看。", ofTarget: (c,t) => `本周 ${c}/${t}`, nowAt: "现在",
+    navFamily: "家庭", familyTitle: "家庭设置", kidLogins: "孩子账号", setPin: "设置密码", pinSet: "密码已保存 ✓",
+    pinHelp: "孩子用用户名和你设置的密码登录（至少6位）。设置新密码会替换旧密码。",
+    proposals: "孩子提出的目标", approve: "同意", decline: "不同意", noProposals: "没有待确认的目标。",
+    journals: "日记", journalsHelp: "只读。这是孩子自己的话——用心看，多聊天，不要纠正。",
+    showOnHisPage: "在他的页面显示", shownOnHisPage: "已在他的页面显示", byHim: "他自己记录",
     appTitle: "家庭成长中心",
     signInTitle: "家庭成长中心",
     signInSub: "私密网站，只有名单上的家人可以登录。",
