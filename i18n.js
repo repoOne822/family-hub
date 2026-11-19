@@ -1,6 +1,7 @@
 // UI strings in English and Simplified Chinese. No personal data lives in this file.
 export const STR = {
   en: {
+    hisVoice: "From him · 7 days", hisMood: "his mood", hisWins: "wins he logged", hisJournal: "journal entries", hisIdeas: "goals suggested", hisTaps: "habit taps",
     // kid accounts
     iAmParent: "Parent", iAmKid: "Kid", username: "Username", pin: "PIN (6 digits)", signIn: "Sign in",
     badLogin: "Username or PIN didn't work. Ask Mom or Dad.",
@@ -96,6 +97,7 @@ export const STR = {
     }
   },
   zh: {
+    hisVoice: "他自己的记录 · 7天", hisMood: "自评心情", hisWins: "自己记录的进步", hisJournal: "日记", hisIdeas: "提出的目标", hisTaps: "习惯打卡",
     // kid accounts
     iAmParent: "家长", iAmKid: "孩子", username: "用户名", pin: "密码（6位数字）", signIn: "登录",
     badLogin: "用户名或密码不对，请找爸爸妈妈。",
