@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Family Hub</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="root"><div class="signin"><div class="meta">Loading…</div></div></div>
+
+<!-- Entry modal -->
+<div class="modal-bg" id="entryModal">
+  <form class="modal" id="entryForm" autocomplete="off">
+    <h3 id="entryTitle"></h3>
+    <div class="field"><label data-t="who"></label><div class="seg" id="eKid"></div></div>
+    <div class="grid2">
+      <div class="field"><label data-t="date"></label><input type="date" id="eDate" required></div>
+      <div class="field"><label data-t="category"></label><select id="eCat"></select></div>
+    </div>
+    <div class="field"><label data-t="tone"></label>
+      <div class="seg tone" id="eTone">
+        <button type="button" data-v="positive" data-t="toneWin"></button>
+        <button type="button" data-v="neutral" data-t="toneNote"></button>
+        <button type="button" data-v="concern" data-t="toneConcern"></button>
+      </div>
+    </div>
+    <div class="field"><label data-t="whatHappened"></label><input id="eT" maxlength="140" required></div>
+    <div class="grid2">
+      <div class="field"><label data-t="score"></label><input id="eScore" maxlength="20"></div>
+      <div class="field"><label data-t="loggedBy"></label><input id="eBy" maxlength="30"></div>
+    </div>
+    <div class="field"><label data-t="details"></label><textarea id="eN" maxlength="2000"></textarea></div>
+    <div class="err" id="eErr"></div>
+    <div class="modal-f">
+      <button type="button" class="btn" data-close data-t="cancel"></button>
+      <button type="submit" class="btn primary" data-t="save"></button>
+    </div>
+  </form>
+</div>
+
+<!-- Kid profile modal -->
+<div class="modal-bg" id="kidModal">
+  <form class="modal" id="kidForm" autocomplete="off">
+    <h3 data-t="profile"></h3>
+    <div class="grid2">
+      <div class="field"><label data-t="name"></label><input id="kName" maxlength="40" required></div>
+      <div class="field"><label data-t="nameZh"></label><input id="kNameZh" maxlength="20"></div>
+      <div class="field"><label data-t="age"></label><input id="kAge" maxlength="10"></div>
+      <div class="field"><label data-t="grade"></label><input id="kGrade" maxlength="30"></div>
+    </div>
+    <div class="field"><label data-t="school"></label><input id="kSchool" maxlength="60"></div>
+    <div class="field"><label data-t="activities"></label><input id="kAct" maxlength="160"></div>
+    <div class="field"><label data-t="focusNow"></label><input id="kFocus" maxlength="160"></div>
+    <div class="err" id="kErr"></div>
+    <div class="modal-f">
+      <button type="button" class="btn" data-close data-t="cancel"></button>
+      <button type="submit" class="btn primary" data-t="save"></button>
+    </div>
+  </form>
+</div>
+
+<!-- Kid mode -->
+<div class="fs" id="kidMode"><div class="fs-in">
+  <div class="fs-top"><span class="meta" data-t="kidsTapIn"></span><button class="btn sm" data-fsclose data-t="cancel"></button></div>
+  <div id="kidStage"></div>
+</div></div>
+
+<!-- Parent quick check-in -->
+<div class="fs" id="quickMode"><div class="fs-in">
+  <div class="fs-top">
+    <div><b style="font-family:Fraunces,Georgia,serif;font-size:22px" data-t="pcTitle"></b><div class="meta" data-t="pcSub"></div></div>
+    <button class="btn sm" data-fsclose data-t="cancel"></button>
+  </div>
+  <div class="grid2" style="margin-bottom:10px"><div><label data-t="date"></label><input type="date" id="qDate"></div></div>
+  <div id="quickRows"></div>
+  <div class="err" id="qErr"></div>
+  <button class="go" id="quickSave" data-t="saveAll"></button>
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
