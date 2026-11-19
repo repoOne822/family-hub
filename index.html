@@ -22,6 +22,7 @@
       <div class="field"><label data-t="date"></label><input type="date" id="eDate" required></div>
       <div class="field"><label data-t="category"></label><select id="eCat"></select></div>
     </div>
+    <div class="field"><label data-t="subject"></label><select id="eSubj"></select></div>
     <div class="field"><label data-t="tone"></label>
       <div class="seg tone" id="eTone">
         <button type="button" data-v="positive" data-t="toneWin"></button>
@@ -58,6 +59,26 @@
     <div class="field"><label data-t="focusNow"></label><input id="kFocus" maxlength="160"></div>
     <div class="err" id="kErr"></div>
     <div class="modal-f">
+      <button type="button" class="btn" data-close data-t="cancel"></button>
+      <button type="submit" class="btn primary" data-t="save"></button>
+    </div>
+  </form>
+</div>
+
+<!-- Subject modal -->
+<div class="modal-bg" id="subjModal">
+  <form class="modal" id="subjForm" autocomplete="off">
+    <h3 id="subjTitle"></h3>
+    <div class="grid2">
+      <div class="field"><label data-t="subjName"></label><input id="sName" maxlength="40" required></div>
+      <div class="field"><label data-t="subjNameZh"></label><input id="sNameZh" maxlength="20"></div>
+    </div>
+    <div class="field"><label data-t="subjIcon"></label><input id="sIcon" maxlength="4" style="width:90px;font-size:22px"></div>
+    <div class="field"><label data-t="subjDesc"></label><input id="sDesc" maxlength="200"></div>
+    <div class="field"><label data-t="subjDescZh"></label><input id="sDescZh" maxlength="120"></div>
+    <div class="err" id="sErr"></div>
+    <div class="modal-f">
+      <button type="button" class="btn ghost" id="sArchive" style="margin-right:auto;color:var(--neg)" data-t="archive"></button>
       <button type="button" class="btn" data-close data-t="cancel"></button>
       <button type="submit" class="btn primary" data-t="save"></button>
     </div>

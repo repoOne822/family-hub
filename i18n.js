@@ -1,6 +1,14 @@
 // UI strings in English and Simplified Chinese. No personal data lives in this file.
 export const STR = {
   en: {
+    navSubjects: "Subjects", subjectsTitle: "Subjects", addSubject: "+ Add subject", editSubject: "Edit subject", newSubject: "New subject",
+    subjName: "Name", subjNameZh: "Chinese name", subjIcon: "Emoji", subjDesc: "What it's about (optional)", subjDescZh: "Chinese description (optional)",
+    archive: "Archive", noSubjects: "No subjects yet. Add one, e.g. Fencing, AMC, Piano.", other: "Other goals",
+    addGoal2: "+ Add goal", goalName: "Goal name", goalNameZh: "Chinese name (optional)", goalType: "Type",
+    typeRate: "Habit (times per week)", typeLevel: "Score to reach", perWeek: "Times per week", kidLabel: "Button he taps (emoji + words)", kidMax: "Max per day",
+    startVal: "Starting value", targetVal: "Target", deadlineL: "Deadline", unitL: "Unit (%, pts…)",
+    recordResult: "Record result", record: "Save", noteIn: "Quick note for this subject…", addNote: "Add", plansIn: "Plans & logs", subject: "Subject", none: "None",
+    removeGoal: "Remove goal", sure: "Sure?",
     hisVoice: "From him · 7 days", hisMood: "his mood", hisWins: "wins he logged", hisJournal: "journal entries", hisIdeas: "goals suggested", hisTaps: "habit taps",
     // kid accounts
     iAmParent: "Parent", iAmKid: "Kid", username: "Username", pin: "PIN (6 digits)", signIn: "Sign in",
@@ -97,6 +105,14 @@ export const STR = {
     }
   },
   zh: {
+    navSubjects: "科目", subjectsTitle: "科目", addSubject: "+ 添加科目", editSubject: "编辑科目", newSubject: "新科目",
+    subjName: "英文名", subjNameZh: "中文名", subjIcon: "图标", subjDesc: "简介（可选）", subjDescZh: "中文简介（可选）",
+    archive: "归档", noSubjects: "还没有科目。添加一个，比如击剑、AMC、钢琴。", other: "其他目标",
+    addGoal2: "+ 添加目标", goalName: "目标名称", goalNameZh: "中文名称（可选）", goalType: "类型",
+    typeRate: "习惯（每周次数）", typeLevel: "要达到的分数", perWeek: "每周次数", kidLabel: "孩子点的按钮（图标+文字）", kidMax: "每天最多",
+    startVal: "起点", targetVal: "目标", deadlineL: "截止日期", unitL: "单位（%、分…）",
+    recordResult: "记录成绩", record: "保存", noteIn: "这个科目的简短备注…", addNote: "添加", plansIn: "计划与记录", subject: "科目", none: "无",
+    removeGoal: "删除目标", sure: "确定？",
     hisVoice: "他自己的记录 · 7天", hisMood: "自评心情", hisWins: "自己记录的进步", hisJournal: "日记", hisIdeas: "提出的目标", hisTaps: "习惯打卡",
     // kid accounts
     iAmParent: "家长", iAmKid: "孩子", username: "用户名", pin: "密码（6位数字）", signIn: "登录",

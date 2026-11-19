@@ -11,7 +11,7 @@ const sb = window.__SB_MOCK || createClient(SUPABASE_URL, SUPABASE_KEY, { auth: 
 let lang = "en";
 try { lang = localStorage.getItem("fh_lang") || (navigator.language?.startsWith("zh") ? "zh" : "en"); } catch (e) {}
 const T = () => STR[lang];
-const S = { user: null, me: null, kids: [], entries: [], goals: [], metrics: [], checkins: [], readings: [], docs: [], journal: [], moods: [] };
+const S = { user: null, me: null, kids: [], entries: [], goals: [], metrics: [], checkins: [], readings: [], docs: [], journal: [], moods: [], subjects: [] };
 const KID_DOMAIN = "kids.family-hub.local"; // kid logins are username@this; no real email needed
 let coachKid = null, selKid = "";
 
@@ -29,6 +29,9 @@ const FACES = ["😣", "🙁", "😐", "🙂", "😄"];
 const kidName = id => { const k = S.kids.find(k => k.id === id); return k ? (lang === "zh" && k.name_zh ? k.name_zh : k.name) : ""; };
 const kidColor = id => KC[Math.max(0, S.kids.findIndex(k => k.id === id)) % 3];
 const mName = m => (lang === "zh" && m.name_zh) ? m.name_zh : m.name;
+const sName = x => x ? ((lang === "zh" && x.name_zh) ? x.name_zh : x.name) : "";
+const sDesc = x => (lang === "zh" && x.description_zh) ? x.description_zh : (x.description || "");
+const subjOf = id => S.subjects.find(x => x.id === id);
 const mKidLabel = m => (lang === "zh" && m.kid_label_zh) ? m.kid_label_zh : (m.kid_label || "✅ " + m.name);
 function setStatus(msg, warn) { const s = $("#status"); if (s) { s.textContent = msg || ""; s.classList.toggle("warn", !!warn); } }
 function applyStatic() { document.querySelectorAll("[data-t]").forEach(el => { const v = T()[el.dataset.t]; if (typeof v === "string") el.textContent = v; }); document.documentElement.lang = lang === "zh" ? "zh-CN" : "en"; document.body.style.fontFamily = lang === "zh" ? "Inter,'Noto Sans SC',system-ui,sans-serif" : ""; }
@@ -41,17 +44,17 @@ async function loadMe() {
 const isKid = () => S.me?.role === "kid";
 async function loadAll() {
   if (isKid()) {
-    const tables = ["kids", "entries", "goals", "metrics", "readings", "docs", "journal"];
+    const tables = ["kids", "entries", "goals", "metrics", "readings", "docs", "journal", "subjects"];
     const res = await Promise.all(tables.map(t => sb.from(t).select("*")));
     res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
     const m = await sb.rpc("kid_moods", { p_days: 60 }); S.moods = m.data || []; S.checkins = [];
-    S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); return;
+    S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); S.subjects.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); return;
   }
-  const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal"];
+  const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects"];
   const res = await Promise.all(tables.map(t => sb.from(t).select("*")));
   res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
   S.kids.sort((a, b) => (a.sort ?? 9) - (b.sort ?? 9));
-  S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+  S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); S.subjects.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
   if (!coachKid || !S.kids.some(k => k.id === coachKid)) coachKid = S.kids[0]?.id || null;
 }
 async function upsert(table, row, onConflict) { const { error } = await sb.from(table).upsert(row, onConflict ? { onConflict } : undefined); if (error) throw error; }
@@ -104,11 +107,11 @@ async function boot() {
 }
 
 /* ---------------- shell + routing ---------------- */
-const ROUTES = ["today", "dashboard", "log", "plans", "reports", "family"];
+const ROUTES = ["today", "dashboard", "subjects", "log", "plans", "reports", "family"];
 function renderShell() {
   $("#root").innerHTML = `<div class="topbar"><div class="in">
     <div class="brand">🌱 ${T().appTitle}</div>
-    <nav class="nav">${ROUTES.map(r => `<a href="#${r}" data-r="${r}">${T()["nav" + { today: "Today", dashboard: "Dash", log: "Log", plans: "Plans", reports: "Reports", family: "Family" }[r]]}</a>`).join("")}</nav>
+    <nav class="nav">${ROUTES.map(r => `<a href="#${r}" data-r="${r}">${T()["nav" + { today: "Today", dashboard: "Dash", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" }[r]]}</a>`).join("")}</nav>
     <button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button>
     <button class="btn sm ghost" id="soBtn">${T().signOut}</button></div></div>
     <div class="wrap"><div class="status" id="status"></div><div id="view"></div></div>`;
@@ -124,7 +127,7 @@ function route() {
   if (h.startsWith("doc-")) { doc = h.slice(4); h = "doc"; }
   if (!ROUTES.includes(h) && h !== "doc") h = "today";
   document.querySelectorAll(".nav a").forEach(a => a.classList.toggle("on", a.dataset.r === h || (h === "doc" && a.dataset.r === (S.docs.find(d => d.slug === doc)?.section === "report" ? "reports" : "plans"))));
-  ({ today: viewToday, dashboard: viewDash, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, doc: () => viewDoc(doc) })[h]();
+  ({ today: viewToday, dashboard: viewDash, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, doc: () => viewDoc(doc) })[h]();
 }
 
 /* ---------------- TODAY ---------------- */
@@ -353,7 +356,7 @@ function renderCoach() {
     const fill = g.status === "behind" ? "var(--neg)" : ["ahead", "done", "met"].includes(g.status) ? "var(--pos)" : "var(--accent)", u = esc(g.m.unit || "");
     const label = g.kind === "rate" ? `${g.c7} / ${g.m.per_week} ${t.thisWeek} <span class="meta">(${t.lastWk} ${g.cPrev})</span>` : `${+g.m.baseline}${u} → <b>${g.cur}${u}</b> → ${+g.m.target}${u} <span class="meta">${g.daysLeft != null ? "· " + t.daysLeft(g.daysLeft) : ""}</span>`;
     const st = g.kind === "level" && g.stale ? `<span class="pace stale">${t.pace.stale}</span>` : `<span class="pace ${g.status}">${t.pace[g.status]}</span>`;
-    return `<tr><td><b style="font-weight:500">${esc(mName(g.m))}</b><div class="meta">${label}</div></td><td style="width:36%"><div class="prog"><i style="width:${Math.round(clamp01(g.progress) * 100)}%;background:${fill}"></i>${g.kind === "level" ? `<b style="left:${Math.round(g.expected * 100)}%"></b>` : ""}</div></td><td style="text-align:right">${st}</td></tr>`;
+    return `<tr><td><b style="font-weight:500">${subjOf(g.m.subject_id) ? subjOf(g.m.subject_id).icon + " " : ""}${esc(mName(g.m))}</b><div class="meta">${label}</div></td><td style="width:36%"><div class="prog"><i style="width:${Math.round(clamp01(g.progress) * 100)}%;background:${fill}"></i>${g.kind === "level" ? `<b style="left:${Math.round(g.expected * 100)}%"></b>` : ""}</div></td><td style="text-align:right">${st}</td></tr>`;
   }).join("") : `<tr><td class="meta">${t.noGoals}</td></tr>`;
   $("#coach").innerHTML = `<div class="kpis">
     <div class="kpi"><div class="l">${t.status}</div><div class="n" style="font-size:18px;margin-top:4px"><span class="light ${r.status}"></span>${t.statusTxt[r.status]}</div><div class="s">${t.daysChecked(r.logged7)}</div></div>
@@ -392,7 +395,7 @@ function viewLog() {
       <select id="fRange">${["30", "90", "365", "0"].map(r => `<option value="${r}">${t.range[r]}</option>`).join("")}</select>
       <button class="btn sm primary" id="newEntry">${t.logEntry}</button></div></div>
     <div class="feed">${list.length ? list.map(e => `<div class="row"><div class="date">${fmtDate(e.date)}</div><div class="who"><span class="dot" style="--kc:${kidColor(e.kid)}"></span>${esc(kidName(e.kid))}</div>
-      <div><div><span class="tag ${e.tone}">${{ positive: t.toneWin, concern: t.toneConcern, neutral: t.toneNote }[e.tone]}</span><span class="tag cat">${t.cats[e.cat] || esc(e.cat)}</span><span class="t">${esc(e.title)}</span>${e.score ? ` <b>· ${esc(e.score)}</b>` : ""}${e.by_kid ? ` <span class="tag cat">${t.byHim}</span>` : ""}</div>${e.note ? `<div class="n">${esc(e.note)}</div>` : ""}${e.logged_by ? `<div class="meta">— ${esc(e.logged_by)}</div>` : ""}</div>
+      <div><div><span class="tag ${e.tone}">${{ positive: t.toneWin, concern: t.toneConcern, neutral: t.toneNote }[e.tone]}</span><span class="tag cat">${t.cats[e.cat] || esc(e.cat)}</span>${subjOf(e.subject_id) ? `<span class="tag cat">${subjOf(e.subject_id).icon} ${esc(sName(subjOf(e.subject_id)))}</span>` : ""}<span class="t">${esc(e.title)}</span>${e.score ? ` <b>· ${esc(e.score)}</b>` : ""}${e.by_kid ? ` <span class="tag cat">${t.byHim}</span>` : ""}</div>${e.note ? `<div class="n">${esc(e.note)}</div>` : ""}${e.logged_by ? `<div class="meta">— ${esc(e.logged_by)}</div>` : ""}</div>
       <div class="acts"><button class="btn sm ghost" data-ee="${e.id}">${t.edit}</button><button class="btn sm ghost" data-de="${e.id}">${t.delete}</button></div></div>`).join("") : `<div class="emptystate">${S.entries.length ? t.noMatch : t.emptyLog}</div>`}</div>`;
   ["Kid", "Cat", "Tone", "Range"].forEach(k => { const el = $("#f" + k); el.value = logF[k.toLowerCase()]; el.onchange = () => { logF[k.toLowerCase()] = el.value; viewLog(); }; });
   $("#newEntry").onclick = () => openEntry(logF.kid || null);
@@ -411,17 +414,20 @@ function openEntry(kid, entry) {
   $("#entryTitle").textContent = entry ? t.edit : t.logEntry.replace("+ ", "");
   $("#eKid").innerHTML = S.kids.map(k => `<button type="button" data-v="${esc(k.id)}">${esc(kidName(k.id))}</button>`).join("");
   $("#eCat").innerHTML = CAT_KEYS.map(c => `<option value="${c}">${t.cats[c]}</option>`).join("");
-  form.kid = entry?.kid || kid || S.kids[0]?.id; form.tone = entry?.tone || "positive";
+  form.kid = entry?.kid || kid || S.kids[0]?.id; form.tone = entry?.tone || "positive"; form.subj = entry?.subject_id || entrySubj || "";
+  fillSubjSel();
   setSeg($("#eKid"), form.kid); setSeg($("#eTone"), form.tone);
   $("#eDate").value = entry?.date || today(); $("#eCat").value = entry?.cat || "academic";
   $("#eT").value = entry?.title || ""; $("#eScore").value = entry?.score || ""; $("#eBy").value = entry?.logged_by || ""; $("#eN").value = entry?.note || ""; $("#eErr").textContent = "";
   $("#entryModal").classList.add("open");
 }
-$("#eKid").onclick = e => { const b = e.target.closest("button"); if (b) { form.kid = b.dataset.v; setSeg($("#eKid"), form.kid); } };
+let entrySubj = "";
+function fillSubjSel() { $("#eSubj").innerHTML = `<option value="">${T().none}</option>` + S.subjects.filter(x => x.kid === form.kid && x.active).map(x => `<option value="${x.id}">${x.icon} ${esc(sName(x))}</option>`).join(""); $("#eSubj").value = S.subjects.some(x => x.id === form.subj && x.kid === form.kid) ? form.subj : ""; }
+$("#eKid").onclick = e => { const b = e.target.closest("button"); if (b) { form.kid = b.dataset.v; setSeg($("#eKid"), form.kid); fillSubjSel(); } };
 $("#eTone").onclick = e => { const b = e.target.closest("button"); if (b) { form.tone = b.dataset.v; setSeg($("#eTone"), form.tone); } };
 $("#entryForm").onsubmit = async ev => {
   ev.preventDefault();
-  const row = { kid: form.kid, tone: form.tone, date: $("#eDate").value, cat: $("#eCat").value, title: $("#eT").value.trim(), score: $("#eScore").value.trim() || null, logged_by: $("#eBy").value.trim() || null, note: $("#eN").value.trim() || null, updated_at: new Date().toISOString() };
+  const row = { kid: form.kid, tone: form.tone, date: $("#eDate").value, cat: $("#eCat").value, title: $("#eT").value.trim(), score: $("#eScore").value.trim() || null, logged_by: $("#eBy").value.trim() || null, note: $("#eN").value.trim() || null, subject_id: $("#eSubj").value || null, updated_at: new Date().toISOString() };
   try { if (editingEntry) { const { error } = await sb.from("entries").update(row).eq("id", editingEntry.id); if (error) throw error; } else { const { error } = await sb.from("entries").insert(row); if (error) throw error; } $("#entryModal").classList.remove("open"); refresh(); }
   catch (err) { $("#eErr").textContent = err.message; }
 };
@@ -486,6 +492,79 @@ async function viewFamily() {
   };
 }
 
+/* ---------------- SUBJECTS (parents): per-boy focus areas with goals, results, notes, plans ---------------- */
+let subjKid = null, editingSubj = null;
+function goalProgress(m) {
+  const w1 = daysAgo(6), rs = S.readings.filter(r => r.metric === m.id).sort((a, b) => a.date.localeCompare(b.date));
+  if (m.type === "rate") { const c = rs.filter(r => r.date >= w1).reduce((s, r) => s + (+r.value || 0), 0); return { c, p: m.per_week ? clamp01(c / m.per_week) : 0 }; }
+  const cur = rs.length ? +rs[rs.length - 1].value : +m.baseline, span = (+m.target) - (+m.baseline);
+  return { cur, last: rs[rs.length - 1]?.date, p: span ? clamp01((cur - (+m.baseline)) / span) : 1 };
+}
+function viewSubjects() {
+  const t = T(); if (!subjKid || !S.kids.some(k => k.id === subjKid)) subjKid = S.kids[0]?.id;
+  const subs = S.subjects.filter(x => x.kid === subjKid && x.active);
+  const loose = S.metrics.filter(m => m.kid === subjKid && !S.subjects.some(x => x.id === m.subject_id && x.active));
+  const goalRow = m => { const g = goalProgress(m), u = esc(m.unit || "");
+    return `<div style="margin:10px 0"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b style="font-weight:500">${esc(mName(m))}</b>
+      <span class="meta">${m.type === "rate" ? t.ofTarget(g.c, m.per_week) : `${+m.baseline}${u} → <b style="color:var(--ink)">${g.cur}${u}</b> → ${+m.target}${u}${m.deadline ? " · " + fmtDate(m.deadline) : ""}`} <button class="x" style="opacity:.5" data-delm="${esc(m.id)}" title="${t.removeGoal}">✕</button></span></div>
+      <div class="prog" style="margin-top:5px"><i style="width:${Math.round(g.p * 100)}%;background:${g.p >= 1 ? "var(--pos)" : "var(--accent)"}"></i></div>
+      ${m.type === "level" ? `<div class="addgoal" style="margin-top:6px;max-width:320px"><input type="number" step="any" placeholder="${t.recordResult}${u ? " (" + u + ")" : ""}" data-resin="${esc(m.id)}"><button class="btn sm" data-res="${esc(m.id)}">${t.record}</button></div>` : ""}</div>`; };
+  const goalForm = sid => `<details style="margin-top:8px"><summary class="qmore" style="list-style:none;cursor:pointer">${t.addGoal2}</summary>
+      <form class="gform" data-sid="${sid}" style="margin-top:8px">
+        <div class="grid2"><div class="field"><label>${t.goalName}</label><input name="name" required maxlength="60"></div><div class="field"><label>${t.goalNameZh}</label><input name="name_zh" maxlength="30"></div></div>
+        <div class="field"><label>${t.goalType}</label><select name="type"><option value="rate">${t.typeRate}</option><option value="level">${t.typeLevel}</option></select></div>
+        <div class="grid2 g-rate"><div class="field"><label>${t.perWeek}</label><input name="per_week" type="number" min="1" max="21" value="3"></div><div class="field"><label>${t.kidMax}</label><input name="kid_max" type="number" min="1" max="5" value="1"></div></div>
+        <div class="field g-rate"><label>${t.kidLabel}</label><input name="kid_label" maxlength="40" placeholder="🏆 AMC practice"></div>
+        <div class="grid2 g-level" style="display:none"><div class="field"><label>${t.startVal}</label><input name="baseline" type="number" step="any"></div><div class="field"><label>${t.targetVal}</label><input name="target" type="number" step="any"></div>
+          <div class="field"><label>${t.deadlineL}</label><input name="deadline" type="date"></div><div class="field"><label>${t.unitL}</label><input name="unit" maxlength="8"></div></div>
+        <button class="btn sm primary">${t.save}</button></form></details>`;
+  const card = x => { const ms = S.metrics.filter(m => m.subject_id === x.id), notes = S.entries.filter(e => e.subject_id === x.id).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5), docs = S.docs.filter(d => d.subject_id === x.id);
+    return `<div class="kid" style="--kc:${kidColor(x.kid)};cursor:default"><div class="kid-top"><div><h2>${x.icon} ${esc(sName(x))}</h2>${sDesc(x) ? `<div class="meta">${esc(sDesc(x))}</div>` : ""}</div><button class="btn sm ghost" data-esubj="${x.id}">${t.edit}</button></div>
+      <div class="goals"><h4>${t.goals}</h4>${ms.length ? ms.map(goalRow).join("") : `<div class="meta">${t.noGoals}</div>`}${goalForm(x.id)}</div>
+      <div class="latest"><h4>${t.notes}</h4>${notes.map(e => `<div class="meta" style="color:var(--ink)"><span class="tag ${e.tone}">${{ positive: t.toneWin, concern: t.toneConcern, neutral: t.toneNote }[e.tone]}</span>${esc(e.title)} <span class="meta">· ${fmtDate(e.date)}</span></div>`).join("")}
+        <form class="nform addgoal" data-sid="${x.id}" style="margin-top:6px"><select name="tone" style="width:auto"><option value="positive">${t.toneWin}</option><option value="neutral">${t.toneNote}</option><option value="concern">${t.toneConcern}</option></select><input name="title" maxlength="140" placeholder="${t.noteIn}" required><button class="btn sm">${t.addNote}</button></form></div>
+      ${docs.length ? `<div class="latest"><h4>${t.plansIn}</h4>${docs.map(d => `<div><a href="#doc-${encodeURIComponent(d.slug)}" style="color:var(--accent)">${esc(lang === "zh" && d.title_zh ? d.title_zh : d.title)}</a>${d.kid_visible ? ` <span class="meta">· ${t.shownOnHisPage}</span>` : ""}</div>`).join("")}</div>` : ""}</div>`; };
+  $("#view").innerHTML = `<div class="section-h"><h3>${t.subjectsTitle}</h3><div style="display:flex;gap:8px;align-items:center"><div class="tabs" id="subjTabs">${S.kids.map(k => `<button class="${k.id === subjKid ? "on" : ""}" data-sk="${esc(k.id)}">${esc(kidName(k.id))}</button>`).join("")}</div><button class="btn sm primary" id="addSubj">${t.addSubject}</button></div></div>
+    <div class="kids" style="grid-template-columns:repeat(auto-fill,minmax(330px,1fr))">${subs.length ? subs.map(card).join("") : `<div class="emptystate">${t.noSubjects}</div>`}
+      ${loose.length ? `<div class="kid" style="--kc:var(--neu);cursor:default"><h2>${t.other}</h2><div class="goals" style="border:0;padding-top:4px">${loose.map(goalRow).join("")}</div></div>` : ""}</div>`;
+  $("#subjTabs").onclick = e => { const b = e.target.closest("button"); if (b) { subjKid = b.dataset.sk; viewSubjects(); } };
+  $("#addSubj").onclick = () => openSubj(null);
+  $("#view").querySelectorAll(".gform select[name=type]").forEach(sel => sel.onchange = () => { const f = sel.form; f.querySelectorAll(".g-rate").forEach(x => x.style.display = sel.value === "rate" ? "" : "none"); f.querySelectorAll(".g-level").forEach(x => x.style.display = sel.value === "level" ? "" : "none"); });
+  $("#view").querySelectorAll(".gform").forEach(f => f.onsubmit = async ev => {
+    ev.preventDefault(); const v = Object.fromEntries(new FormData(f)), type = v.type;
+    const id = `${subjKid}-${(v.name || "goal").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24)}-${Math.random().toString(36).slice(2, 6)}`;
+    const row = { id, kid: subjKid, subject_id: f.dataset.sid, type, name: v.name.trim(), name_zh: v.name_zh?.trim() || null, sort: 100 + S.metrics.length };
+    if (type === "rate") Object.assign(row, { per_week: +v.per_week || 1, kid_max: +v.kid_max || 1, kid_label: v.kid_label?.trim() || "✅ " + v.name.trim(), unit: null });
+    else { if (v.baseline === "" || v.target === "") return setStatus(t.startVal + " / " + t.targetVal + "?", true); Object.assign(row, { baseline: +v.baseline, target: +v.target, start: today(), deadline: v.deadline || null, unit: v.unit || null }); }
+    const { error } = await sb.from("metrics").insert(row); if (error) return setStatus(error.message, true); await refresh();
+  });
+  $("#view").querySelectorAll(".nform").forEach(f => f.onsubmit = async ev => {
+    ev.preventDefault(); const v = Object.fromEntries(new FormData(f));
+    const { error } = await sb.from("entries").insert({ kid: subjKid, subject_id: f.dataset.sid, date: today(), cat: "activity", tone: v.tone, title: v.title.trim() }); if (error) return setStatus(error.message, true); await refresh();
+  });
+  $("#view").onclick = async e => {
+    const x = e.target.closest("[data-esubj],[data-res],[data-delm]"); if (!x) return;
+    try {
+      if (x.dataset.esubj) return openSubj(S.subjects.find(y => y.id === x.dataset.esubj));
+      if (x.dataset.res) { const inp = document.querySelector(`[data-resin="${CSS.escape(x.dataset.res)}"]`); if (inp.value === "") return; await upsert("readings", { metric: x.dataset.res, date: today(), kid: subjKid, value: +inp.value, updated_at: new Date().toISOString() }, "metric,date"); await refresh(); }
+      if (x.dataset.delm) { if (x.dataset.armed) { await del("metrics", { id: x.dataset.delm }); await refresh(); } else { x.dataset.armed = 1; x.textContent = T().sure; x.style.opacity = 1; x.style.color = "var(--neg)"; } }
+    } catch (err) { setStatus(err.message, true); }
+  };
+}
+function openSubj(x) {
+  editingSubj = x; const t = T();
+  $("#subjTitle").textContent = x ? t.editSubject : t.newSubject;
+  $("#sName").value = x?.name || ""; $("#sNameZh").value = x?.name_zh || ""; $("#sIcon").value = x?.icon || "⭐"; $("#sDesc").value = x?.description || ""; $("#sDescZh").value = x?.description_zh || ""; $("#sErr").textContent = "";
+  $("#sArchive").style.display = x ? "" : "none"; $("#subjModal").classList.add("open");
+}
+$("#subjForm").onsubmit = async ev => {
+  ev.preventDefault();
+  const row = { name: $("#sName").value.trim(), name_zh: $("#sNameZh").value.trim() || null, icon: $("#sIcon").value.trim() || "⭐", description: $("#sDesc").value.trim() || null, description_zh: $("#sDescZh").value.trim() || null };
+  const { error } = editingSubj ? await sb.from("subjects").update(row).eq("id", editingSubj.id) : await sb.from("subjects").insert({ ...row, kid: subjKid, sort: S.subjects.filter(x => x.kid === subjKid).length + 1 });
+  if (error) { $("#sErr").textContent = error.message; return; } $("#subjModal").classList.remove("open"); await refresh();
+};
+$("#sArchive").onclick = async () => { if (!editingSubj) return; const { error } = await sb.from("subjects").update({ active: false }).eq("id", editingSubj.id); if (error) { $("#sErr").textContent = error.message; return; } $("#subjModal").classList.remove("open"); await refresh(); };
+
 /* ---------------- KID APP: his own page ---------------- */
 let kidTap = null;
 async function kidBoot() {
@@ -509,9 +588,14 @@ function kidRender() {
     <div class="wrap" style="max-width:860px"><div class="status" id="status"></div>
       <button class="herobtn" style="background:${color};width:100%;margin-bottom:18px" id="kTap">${myMood ? FACES[myMood - 1] + " " + t.tapInDone : "👋 " + t.myTapIn}</button>
       <div class="section-h"><h3>${t.myGoals}</h3></div>
+      ${(() => { const groups = S.subjects.filter(x => x.active).map(x => ({ x, ms: S.metrics.filter(m => m.subject_id === x.id), docs: S.docs.filter(d => d.subject_id === x.id) })).filter(g => g.ms.length || g.docs.length);
+        const rowL = m => { const cur = curLevel(m), span = (+m.target) - (+m.baseline), p = span ? clamp01((cur - (+m.baseline)) / span) : 1, u = esc(m.unit || ""); return `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><b style="font-weight:500">${esc(mName(m))}</b><span class="meta">${t.nowAt} <b style="color:var(--ink)">${cur}${u}</b> → ${+m.target}${u}</span></div><div class="prog" style="margin-top:6px"><i style="width:${Math.round(p * 100)}%;background:var(--accent)"></i></div></div>`; };
+        const rowR = m => { const c = cnt(m), p = m.per_week ? clamp01(c / m.per_week) : 0; return `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><b style="font-weight:500">${esc(mKidLabel(m))}</b><span class="meta">${t.ofTarget(c, m.per_week)}${p >= 1 ? " 🎉" : ""}</span></div><div class="prog" style="margin-top:6px"><i style="width:${Math.round(p * 100)}%;background:${p >= 1 ? "var(--pos)" : "var(--accent)"}"></i></div></div>`; };
+        return groups.map(g => `<div class="coach" style="margin-bottom:12px"><h3 style="font-family:Fraunces,Georgia,serif;font-weight:600;margin:0 0 4px">${g.x.icon} ${esc(sName(g.x))}</h3>${sDesc(g.x) ? `<div class="meta" style="margin-bottom:10px">${esc(sDesc(g.x))}</div>` : ""}
+          ${g.ms.map(m => m.type === "rate" ? rowR(m) : rowL(m)).join("")}${g.docs.map(dc => `<a href="#" data-kdoc="${esc(dc.slug)}" style="display:inline-block;margin-top:4px;color:var(--accent)">📄 ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" · ")}</div>`).join(""); })()}
       <div class="coach">
-        ${levels.map(m => { const cur = curLevel(m), span = (+m.target) - (+m.baseline), p = span ? clamp01((cur - (+m.baseline)) / span) : 1, u = esc(m.unit || ""); return `<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between"><b style="font-weight:500">${esc(mName(m))}</b><span class="meta">${t.nowAt} <b style="color:var(--ink)">${cur}${u}</b> → ${+m.target}${u}</span></div><div class="prog" style="margin-top:6px"><i style="width:${Math.round(p * 100)}%;background:var(--accent)"></i></div></div>`; }).join("")}
-        ${rates.map(m => { const c = cnt(m), p = m.per_week ? clamp01(c / m.per_week) : 0; return `<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between"><b style="font-weight:500">${esc(mKidLabel(m))}</b><span class="meta">${t.ofTarget(c, m.per_week)}${p >= 1 ? " 🎉" : ""}</span></div><div class="prog" style="margin-top:6px"><i style="width:${Math.round(p * 100)}%;background:${p >= 1 ? "var(--pos)" : "var(--accent)"}"></i></div></div>`; }).join("")}
+        ${levels.filter(m => !S.subjects.some(x => x.active && x.id === m.subject_id)).map(m => { const cur = curLevel(m), span = (+m.target) - (+m.baseline), p = span ? clamp01((cur - (+m.baseline)) / span) : 1, u = esc(m.unit || ""); return `<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between"><b style="font-weight:500">${esc(mName(m))}</b><span class="meta">${t.nowAt} <b style="color:var(--ink)">${cur}${u}</b> → ${+m.target}${u}</span></div><div class="prog" style="margin-top:6px"><i style="width:${Math.round(p * 100)}%;background:var(--accent)"></i></div></div>`; }).join("")}
+        ${rates.filter(m => !S.subjects.some(x => x.active && x.id === m.subject_id)).map(m => { const c = cnt(m), p = m.per_week ? clamp01(c / m.per_week) : 0; return `<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between"><b style="font-weight:500">${esc(mKidLabel(m))}</b><span class="meta">${t.ofTarget(c, m.per_week)}${p >= 1 ? " 🎉" : ""}</span></div><div class="prog" style="margin-top:6px"><i style="width:${Math.round(p * 100)}%;background:${p >= 1 ? "var(--pos)" : "var(--accent)"}"></i></div></div>`; }).join("")}
         ${goals.length ? `<div style="margin-top:6px">${goals.map(g => `<div class="goal ${g.done ? "done" : ""}"><span>${g.done ? "✅" : "⬜"}</span><span>${esc(g.text)}</span></div>`).join("")}</div>` : ""}
         ${mine.map(g => `<div class="goal"><span>💡</span><span>${esc(g.text)} <span class="meta">· ${t.pending}</span></span><button class="x" style="opacity:1" data-unprop="${g.id}">✕</button></div>`).join("")}
         <div class="addgoal" style="margin-top:10px"><input id="propIn" maxlength="120" placeholder="${t.suggestPh}"><button class="btn sm" id="propBtn">${t.suggest}</button></div>
@@ -528,7 +612,7 @@ function kidRender() {
         <form id="jForm"><textarea id="jIn" maxlength="4000" placeholder="${t.journalPh}" required></textarea><button class="btn sm primary" style="margin-top:8px">${t.saveEntry}</button></form>
         <div style="margin-top:12px">${journal.length ? journal.map(j => `<div class="rec info"><div class="meta" style="display:flex;justify-content:space-between">${fmtDate(j.date)}<button class="x" style="opacity:.6;border:0;background:none;cursor:pointer;color:var(--muted)" data-delj="${j.id}">✕</button></div><div style="white-space:pre-wrap">${esc(j.body)}</div></div>`).join("") : `<div class="meta">${t.noJournal}</div>`}</div>
       </div>
-      ${S.docs.length ? `<div class="section-h" style="margin-top:22px"><h3>${t.myPlans}</h3></div><div class="feed doclist">${S.docs.map(dc => `<a href="#" data-kdoc="${esc(dc.slug)}"><b>${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</b></a>`).join("")}</div><div id="kDocView" style="margin-top:12px"></div>` : ""}
+      ${S.docs.filter(dc => !S.subjects.some(x => x.active && x.id === dc.subject_id)).length ? `<div class="section-h" style="margin-top:22px"><h3>${t.myPlans}</h3></div><div class="feed doclist">${S.docs.filter(dc => !S.subjects.some(x => x.active && x.id === dc.subject_id)).map(dc => `<a href="#" data-kdoc="${esc(dc.slug)}"><b>${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</b></a>`).join("")}</div>` : ""}<div id="kDocView" style="margin-top:12px"></div>
     </div>`;
   $("#langBtn").onclick = toggleLang; $("#soBtn").onclick = () => sb.auth.signOut();
   const R = async fn => { try { await fn(); await loadAll(); kidRender(); } catch (err) { setStatus(err.message || "Save failed", true); } };
