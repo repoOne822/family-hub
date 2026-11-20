@@ -110,6 +110,13 @@ button{font:inherit;cursor:pointer}
 .band{margin-top:12px}.bh{font-weight:700}
 .focus{margin:6px 0 10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .modes{grid-template-columns:repeat(4,1fr) !important}
+.plan{margin-top:14px}.plan .q{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.task{display:flex;align-items:center;gap:10px;padding:10px 12px;border:2px solid var(--line);border-radius:14px;margin-top:8px;background:#fff}
+.task .tk{font-size:20px}.task .tt{flex:1;min-width:0}.task .tt small{display:block;color:#666}
+.task.ok{background:#eaffd0;border-color:#3a3}.task.ok .tt b{text-decoration:line-through;opacity:.7}
+.cal{display:grid;gap:10px;margin-top:12px}.calw{border:2px solid var(--line);border-radius:16px;padding:10px 12px;background:#fff}
+.calw h3{margin:0 0 6px;font-size:16px}.cald{display:grid;grid-template-columns:92px 1fr;gap:8px;padding:5px 0;border-top:1px dashed #0002;font-size:14.5px}
+.cald.today{background:#fff6c2;border-radius:8px}.cald b{white-space:nowrap}.cald .ok{color:#2a2}
 .exams{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
 .exam{border:3px solid var(--line);border-radius:20px;padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:2px;background:#ece6ff;box-shadow:4px 4px 0 var(--line)}
 .exam .et{font-size:20px;font-weight:700}
@@ -144,10 +151,10 @@ button{font:inherit;cursor:pointer}
 </head>
 <body>
 <div class="wrap" id="app"></div>
-<script src="lessons.js?v=20261119p"></script>
-<script src="gym.js?v=20261119p"></script>
-<script src="visuals.js?v=20261119p"></script>
-<script src="realtests.js?v=20261119p"></script>
+<script src="lessons.js?v=20261119q"></script>
+<script src="gym.js?v=20261119q"></script>
+<script src="visuals.js?v=20261119q"></script>
+<script src="realtests.js?v=20261119q"></script>
 <script>
 (() => {
 const KID = ((new URLSearchParams(location.search).get("k")) || "eric").toLowerCase().replace(/[^a-z]/g, "") || "eric";
@@ -197,11 +204,113 @@ const starStr = (n, of = 5) => "★".repeat(n) + "☆".repeat(of - n);
 const total = () => LES.reduce((a, l) => a + starsOf(l.id), 0);
 const confetti = () => { for (let i = 0; i < 26; i++) { const d = document.createElement("div"); d.className = "conf"; d.textContent = ["⭐", "🎉", "✨", "🏆", "💫"][i % 5]; d.style.left = Math.random() * 100 + "vw"; d.style.animationDelay = Math.random() * .5 + "s"; document.body.appendChild(d); setTimeout(() => d.remove(), 2400); } };
 
+// ---- Day-by-day study plan (per kid). Tasks tick themselves from what he actually did in the app. ----
+const TEST_DAY = "2027-01-21";
+const REAL_DAYS = KID === "eric" ? ["2026-12-13", "2026-12-27", "2027-01-10", "2027-01-17"] : ["2027-01-17"];
+const addDays = (d, n) => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDate() + n); return x.toLocaleDateString("en-CA"); };
+const dow = d => new Date(d + "T12:00:00").getDay(); // 0 Sun … 6 Sat
+const weekOf = d => (WEEKS.filter(w => w[0] <= d).pop() || null);
+function weakestTopic() {
+  const cov = coveredSoFar(), st = {};
+  (P.events || []).filter(e => e.m !== "read" && !e.blank && e.t).slice(-200).forEach(e => { const r = st[e.t] = st[e.t] || [0, 0]; r[1]++; if (e.ok) r[0]++; });
+  const cands = LES.filter(l => cov.has(l.n) && CFG.chapters.includes(l.n)).map(l => [l, st[l.id] ? st[l.id][0] / st[l.id][1] : 0.5, st[l.id] ? st[l.id][1] : 0]);
+  cands.sort((a, b) => a[1] - b[1] || a[2] - b[2]);
+  return (cands[0] || [LES[CFG.chapters[0] - 1]])[0];
+}
+function dayPlan(d) {
+  if (d < WEEKS[0][0] || d >= TEST_DAY) return d >= TEST_DAY ? [{ k: "test", t: "🏆 AMC 8 test window (Jan 21–27). Sleep well, eat breakfast, never leave a blank!" }] : [];
+  const w = weekOf(d); if (!w) return [];
+  const ch = w[1].map(n => LES[n - 1]), wd = dow(d), T = [];
+  if (d >= "2027-01-18") { // final days before the test
+    if (wd === 1) T.push({ k: "mixed", t: "🔀 One light mixed review, then relax" }); else T.push({ k: "rest", t: "😌 Rest. You're ready." });
+    return T;
+  }
+  if (KID === "eric") {
+    if (wd === 0) { REAL_DAYS.includes(d) ? T.push({ k: "real", t: "📝 Real past AMC 8 with Mom or Dad: exactly 40 min" }) : T.push({ k: "rest", t: "😌 Rest day (or redo 2 problems from your error log)" }); return T; }
+    if (wd === 6) { T.push({ k: "weekly", t: "🏁 Weekly exam: 25 problems in 40 min" }, { k: "fix", t: "✏️ Write every miss in your error log" }); return T; }
+    if (!ch.length) { // review weeks
+      if (wd === 5) T.push({ k: "mixed", t: "🔀 Mixed review (10 problems)" }); else T.push({ k: "gymweak", t: `♾️ Gym on your weakest topic: ${weakestTopic().emoji} ${weakestTopic().title} (15 problems)`, l: weakestTopic() });
+    } else if (ch.length === 2) {
+      const [a, b] = ch;
+      if (wd === 1) T.push({ k: "learn", l: a, t: `📖 Lesson ${a.n}: read all 4 sections + ⭐ Starter (aim 4/5)` });
+      if (wd === 2) T.push({ k: "deep", l: a, t: `⬆️ Lesson ${a.n}: Challenge (aim 2/3) + ♾️ Gym 15` });
+      if (wd === 3) T.push({ k: "learn", l: b, t: `📖 Lesson ${b.n}: read all 4 sections + ⭐ Starter (aim 4/5)` });
+      if (wd === 4) T.push({ k: "deep", l: b, t: `⬆️ Lesson ${b.n}: Challenge (aim 2/3) + ♾️ Gym 15` });
+      if (wd === 5) T.push({ k: "mixed", t: "🔀 Mixed review (10 problems), then fix anything below the gates" });
+    } else {
+      const [a, b, c] = ch;
+      if (wd === 1) T.push({ k: "learn", l: a, t: `📖 Lesson ${a.n} + ⭐ Starter` });
+      if (wd === 2) T.push({ k: "learn", l: b, t: `📖 Lesson ${b.n} + ⭐ Starter` });
+      if (wd === 3) T.push({ k: "learn", l: c, t: `📖 Lesson ${c.n} + ⭐ Starter` });
+      if (wd === 4) T.push({ k: "deep", l: a, t: `⬆️ Challenge + Gym: Lesson ${a.n}` }, { k: "deep", l: b, t: `⬆️ Challenge + Gym: Lesson ${b.n}` });
+      if (wd === 5) T.push({ k: "deep", l: c, t: `⬆️ Challenge + Gym: Lesson ${c.n}` }, { k: "mixed", t: "🔀 Mixed review" });
+    }
+    T.push({ k: "daily", t: "📅 Daily exam: 5 problems in 10 min" });
+    return T;
+  }
+  // Ellis: light. Session 1 on Wednesday, session 2 on Sunday. Everything else is a free day.
+  const [a, b] = ch;
+  if (wd === 3) { if (a) T.push({ k: "learn", l: a, t: `📖 Lesson ${a.n} ${a.emoji}: read the 4 sections + try ⭐ Starter` }); else T.push({ k: "mixed", t: "🔀 Mixed review: just for fun" }); }
+  else if (wd === 0) {
+    if (REAL_DAYS.includes(d)) T.push({ k: "real", t: "📝 Try a real past AMC 8 with Mom or Dad (just problems 1–15 is fine!)" });
+    else if (b) T.push({ k: "learn", l: b, t: `📖 Lesson ${b.n} ${b.emoji}: read the 4 sections + try ⭐ Starter` });
+    else T.push({ k: "weekly", t: "🏁 Weekly exam: 15 problems in 25 min (do your best, it's practice!)" });
+  } else if (wd === 5) T.push({ k: "daily", t: "📅 Optional: daily exam (3 problems)", opt: true });
+  else T.push({ k: "free", t: "🎈 Free day. No AMC today." });
+  return T;
+}
+function taskDone(x, d) {
+  const r = x.l ? (P.lessons[x.l.id] || {}) : {}, ev = (P.events || []).filter(e => e.d === d);
+  if (x.k === "learn") return readOf(x.l.id) >= 3 && r.best != null && (KID !== "eric" || r.best >= 4);
+  if (x.k === "deep") return (r.chBest ?? -1) >= 2 && ((r.gym || {}).done || 0) >= 15;
+  if (x.k === "daily") return !!P.exams.daily[d];
+  if (x.k === "weekly") return !!P.exams.weekly[mondayOf(d)];
+  if (x.k === "mixed") return P.mixed.some(m => m.date === d);
+  if (x.k === "gymweak") return ev.filter(e => e.m === "gym").length >= 15;
+  if (x.k === "fix") return !!P.exams.weekly[mondayOf(d)];
+  if (x.k === "real") return Object.values(P.tests || {}).some(t => t.date === d);
+  return null;
+}
+function todayHtml() {
+  const T = dayPlan(today);
+  if (!T.length && today < WEEKS[0][0]) return `<div class="card plan"><div class="q">📆 Your plan starts Monday, Nov 23<span class="spacer"></span><button class="btn sm" id="calBtn">See my whole plan →</button></div><p class="sub">Until then, explore any lesson you like.</p></div>`;
+  if (!T.length) return "";
+  const left = Math.ceil((new Date(TEST_DAY) - new Date(today)) / 864e5);
+  return `<div class="card plan"><div class="q">📆 Today's plan <span class="pill">${left > 0 ? `${left} days to the AMC 8` : "Test time!"}</span><span class="spacer"></span><button class="btn sm" id="calBtn">See my whole plan →</button></div>
+    ${T.map((x, i) => { const ok = taskDone(x, today); return `<div class="task ${ok ? "ok" : ""}"><span class="tk">${ok ? "✅" : ok === null ? "•" : "⬜"}</span><div class="tt"><b>${esc(x.t)}</b></div>${ok === false ? `<button class="btn sm go" data-task="${i}">Go →</button>` : ""}</div>`; }).join("")}</div>`;
+}
+function wireToday() {
+  const T = dayPlan(today);
+  app.querySelectorAll("[data-task]").forEach(b => b.onclick = () => { const x = T[+b.dataset.task];
+    if (x.k === "learn") lesson(LES.indexOf(x.l), 0);
+    else if (x.k === "deep") lesson(LES.indexOf(x.l), 4, readOf(x.l.id) >= 3 ? "challenge" : undefined);
+    else if (x.k === "gymweak") lesson(LES.indexOf(x.l), 4, "gym");
+    else if (x.k === "daily" || x.k === "weekly" || x.k === "fix") exam(x.k === "fix" ? "weekly" : x.k);
+    else if (x.k === "mixed") mixed();
+    else if (x.k === "real") window.scrollTo(0, document.body.scrollHeight); });
+  const c = $("#calBtn"); if (c) c.onclick = calendar;
+}
+function calendar() {
+  window.scrollTo(0, 0);
+  const DN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], MN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const lab = d => { const x = new Date(d + "T12:00:00"); return `${DN[x.getDay()]} ${MN[x.getMonth()]} ${x.getDate()}`; };
+  const weeks = [];
+  for (let m = WEEKS[0][0]; m < TEST_DAY; m = addDays(m, 7)) weeks.push(m);
+  app.innerHTML = `<div class="top"><button class="btn" id="back">← Lessons</button><h1 style="font-size:24px">📆 ${esc(CFG.name)}'s AMC 8 plan</h1></div>
+    <p class="sub">${KID === "eric" ? "Rigorous plan: 5 sessions a week + daily exams, weekly exam on Saturday, real past tests on 4 Sundays. Gates: ⭐ 4/5 · ⬆️ 2/3 · ♾️ 15 at 80%." : "Light plan: two relaxed sessions a week (Wednesday + Sunday). Everything else is free time. Have fun!"} Ticks fill in by themselves.</p>
+    <div class="cal">${weeks.map(m => { const w = weekOf(m); return `<div class="calw"><h3>Week of ${lab(m).slice(4)}${w && w[1].length ? ` · ${w[1].map(n => LES[n - 1].emoji + " " + LES[n - 1].title).join(", ")}` : " · Review"}</h3>
+      ${[0, 1, 2, 3, 4, 5, 6].map(k => { const d = addDays(m, k); if (d >= TEST_DAY) return ""; const T = dayPlan(d); if (!T.length) return "";
+        return `<div class="cald ${d === today ? "today" : ""}"><b>${lab(d)}</b><div>${T.map(x => { const ok = d <= today ? taskDone(x, d) : null; return `${ok ? `<span class="ok">✅</span> ` : ""}${esc(x.t)}`; }).join("<br>")}</div></div>`; }).join("")}</div>`; }).join("")}
+      <div class="calw"><h3>🏆 Jan 21–27: AMC 8 test window</h3><div>Your school picks the day. Never leave a blank: a guess is free.</div></div></div>`;
+  $("#back").onclick = home;
+}
+
 function home() {
   window.scrollTo(0, 0);
   const lastMix = P.mixed[P.mixed.length - 1];
   app.innerHTML = `<div class="top"><h1>🏆 AMC 8 Lessons</h1><span class="pill">⭐ ${total()} / ${LES.length * 5}</span></div>
     <p class="sub">${esc(CFG.intro)}</p>
+    ${todayHtml()}
     ${examsHtml()}
     <div class="row"><button class="btn pink" id="mixBtn">🔀 Mixed review (10 problems)</button>${lastMix ? `<span class="sub">Last mixed review: ${lastMix.score}/${lastMix.of} on ${lastMix.date}</span>` : `<span class="sub">Mixing chapters is how the real test feels.</span>`}</div>
     <div class="grid">${LES.map((l, i) => `<button class="tile ${COLORS[i % 6]}" data-l="${i}">${thisWeek.includes(l.n) ? `<span class="wk">This week</span>` : !CFG.chapters.includes(l.n) ? `<span class="wk" style="background:#bbb">Bonus</span>` : ""}<div class="em">${l.emoji}</div><div class="n">Lesson ${l.n}</div><div class="t">${esc(l.title)}</div><div class="z">${esc(l.zh)}</div><div class="st">${starStr(starsOf(l.id))}</div><div class="pg">${(P.lessons[l.id] || {}).chBest != null ? `⬆️ ${(P.lessons[l.id]).chBest}/3 · ` : ""}${((P.lessons[l.id] || {}).gym || {}).done ? `♾️ ${(P.lessons[l.id]).gym.done} · ` : ""}Book p. ${esc(l.pages)}</div></button>`).join("")}</div>
@@ -211,6 +320,7 @@ function home() {
       <div class="tests">${TESTS.map(y => { const t = P.tests[y]; return `<div class="test"><b>${y} AMC 8</b>${REAL[y] ? `<button class="btn sm go" data-take="${y}">▶ Take it here</button>` : ""}<a href="https://artofproblemsolving.com/wiki/index.php/${y}_AMC_8_Problems" target="_blank" rel="noopener">Problems ↗</a><a href="https://artofproblemsolving.com/wiki/index.php/${y}_AMC_8_Answer_Key" target="_blank" rel="noopener">Answer key ↗</a>${y <= 2024 ? `<a href="https://wiki.randommath.com/amc8/${y}" target="_blank" rel="noopener">Step-by-step solutions (Random Math) ↗</a>` : ""}
         <span class="score">${t ? `<b>${t.score}/25</b> <span class="sub">${t.date}</span>${t.marks ? ` <button class="btn sm" data-review="${y}">Review</button>` : ""}` : ""}</span></div>`; }).join("")}</div>
       <p class="sub" style="margin-top:8px">Score guide: 15+ = Achievement Roll (for 6th grade and below). Honor Roll (top 5%) has needed about 18–21. Keep the answer keys away from ${CFG.name} until done. ▶ Take it here gives a timed bubble sheet; you grade it with the key.</p></div>`}`;
+  wireToday();
   app.querySelectorAll("[data-l]").forEach(b => b.onclick = () => lesson(+b.dataset.l, 0));
   app.querySelectorAll("[data-take]").forEach(b => b.onclick = () => realTest(+b.dataset.take));
   app.querySelectorAll("[data-review]").forEach(b => b.onclick = () => realResults(+b.dataset.review));
