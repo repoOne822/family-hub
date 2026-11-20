@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261120e";
-import * as Pix from "./pixel.js?v=20261120e";
+import { STR } from "./i18n.js?v=20261120f";
+import * as Pix from "./pixel.js?v=20261120f";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -67,13 +67,13 @@ async function loadMe() {
 const isKid = () => S.me?.role === "kid";
 async function loadAll() {
   if (isKid()) {
-    const tables = ["kids", "entries", "goals", "metrics", "readings", "docs", "journal", "subjects"];
+    const tables = ["kids", "entries", "goals", "metrics", "readings", "docs", "journal", "subjects", "calendar_events", "fencing_results", "fencing_lessons"];
     const res = await Promise.all(tables.map(t => sb.from(t).select("*")));
     res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
     const m = await sb.rpc("kid_moods", { p_days: 400 }); S.moods = m.data || []; S.checkins = [];
     S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); S.subjects.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); return;
   }
-  const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects", "feedback", "insights", "assessments", "app_saves", "roadmap_items", "parent_checks", "fencing_lessons", "askfred_sync", "fencing_results"];
+  const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects", "feedback", "insights", "assessments", "app_saves", "roadmap_items", "parent_checks", "fencing_lessons", "askfred_sync", "fencing_results", "calendar_events"];
   const res = await Promise.all(tables.map(t => sb.from(t).select("*")));
   res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
   S.kids.sort((a, b) => (a.sort ?? 9) - (b.sort ?? 9));
@@ -156,11 +156,11 @@ async function boot() {
 }
 
 /* ---------------- shell + routing ---------------- */
-const ROUTES = ["today", "dashboard", "roadmap", "performance", "feedback", "subjects", "log", "plans", "reports", "family"];
+const ROUTES = ["today", "calendar", "dashboard", "roadmap", "performance", "feedback", "subjects", "log", "plans", "reports", "family"];
 function renderShell() {
   $("#root").innerHTML = `<div class="topbar"><div class="in">
     <div class="brand"><span class="dotlogo">✦</span>${T().appTitle}</div>
-    <nav class="nav">${ROUTES.map(r => `<a href="#${r}" data-r="${r}">${T()["nav" + { today: "Today", dashboard: "Dash", roadmap: "Roadmap", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" }[r]]}</a>`).join("")}</nav>
+    <nav class="nav">${ROUTES.map(r => `<a href="#${r}" data-r="${r}">${T()["nav" + { today: "Today", calendar: "Cal", dashboard: "Dash", roadmap: "Roadmap", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" }[r]]}</a>`).join("")}</nav>
     <button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button>
     <button class="btn sm" id="lockBtn">${T().kidsMode}</button>
     <button class="btn sm ghost" id="soBtn">${T().signOut}</button></div></div>
@@ -179,7 +179,7 @@ function route() {
   if (h.startsWith("doc-")) { doc = h.slice(4); h = "doc"; }
   if (!ROUTES.includes(h) && h !== "doc") h = "today";
   document.querySelectorAll(".nav a").forEach(a => a.classList.toggle("on", a.dataset.r === h || (h === "doc" && a.dataset.r === (S.docs.find(d => d.slug === doc)?.section === "report" ? "reports" : "plans"))));
-  ({ today: viewToday, dashboard: viewDash, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, roadmap: viewRoadmap, doc: () => viewDoc(doc) })[h]();
+  ({ today: viewToday, calendar: viewCalendar, dashboard: viewDash, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, roadmap: viewRoadmap, doc: () => viewDoc(doc) })[h]();
 }
 
 /* ---------------- TODAY ---------------- */
@@ -194,7 +194,8 @@ function viewToday() {
       const habits = S.metrics.filter(m => m.kid === k.id && m.type === "rate").map(m => { const r = S.readings.find(r => r.metric === m.id && r.date === d); return r && +r.value ? mKidLabel(m) : null; }).filter(Boolean);
       return `<div class="tcard" style="border-top:4px solid ${KC[i % 3]};display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center"><span style="width:52px;height:52px;border-radius:14px;background:#fff;display:grid;place-items:center">${avatarHtml(k.avatar, 46)}</span><div><b>${esc(kidName(k.id))}</b>
         <div class="meta">${c.kid_mood ? `${T().heSaid} ${FACES[c.kid_mood - 1]}` : T().notYet} · ${c.focus ? `${T().parentRated} ✓` : `${T().parentRated} —`}</div>
-        ${habits.length ? `<div class="meta">${esc(habits.join(" · "))}</div>` : ""}<button class="btn sm" style="margin-top:8px" data-pv="${esc(k.id)}">👀 ${T().viewHisPage}</button></div></div>`; }).join("")}</div>${marquee()}`;
+        ${habits.length ? `<div class="meta">${esc(habits.join(" · "))}</div>` : ""}<button class="btn sm" style="margin-top:8px" data-pv="${esc(k.id)}">👀 ${T().viewHisPage}</button></div></div>`; }).join("")}</div>
+    <div class="section-h" style="margin-top:22px"><h3>📅 ${CL().upcoming}</h3><a class="btn sm" href="#calendar">${CL().h} →</a></div><div class="tcard">${calUpcoming("all", 14, true)}</div>${marquee()}`;
   $("#goKids").onclick = openKidMode; $("#goQuick").onclick = openQuick; $("#goLog").onclick = () => openEntry();
 }
 
@@ -1026,7 +1027,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120e${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120f${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; };
   fs.querySelector(".appclose").onclick = () => appOpen();
@@ -1118,6 +1119,7 @@ function kidRender() {
         <button class="kw-tap ${myMood ? "done" : "todo"}" id="kTap"><span class="big">${myMood ? FACES[myMood - 1] : "👋"}</span>${myMood ? t.checkedIn : t.tapToStart}</button>
         <div class="kw-streak ${g.streak ? "" : "rest"}"><span class="fire">🔥</span><div>${g.streak ? t.streak(g.streak) : t.streakRest}<div class="kw-sub" style="opacity:.7">${g.best ? "🏆 " + g.best : ""}</div></div></div>
       </div>
+      ${kidCalendarHtml(k.id)}
       ${worlds.length || loose.length || goals.length || mine.length ? `<div class="kw-h">🗺️ ${t.myWorlds}</div>
       <div class="kw-worlds">${worlds.map((w, i) => `<div class="kw-world" style="background:${worldColors[i % worldColors.length]}"><div class="wi">${w.x.icon}</div><h3>${esc(sName(w.x))}</h3>${sDesc(w.x) ? `<div class="wd">${esc(sDesc(w.x))}</div>` : ""}${w.x.app_url ? `<button class="kw-play" data-app="${esc(w.x.app_url)}" data-appkid="${esc(w.x.kid)}">▶ ${esc(appLabel(w.x.app_url))}</button>` : ""}${w.ms.map(goalHtml).join("")}${w.docs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">📖 ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}</div>`).join("")}
         ${loose.length || goals.length || mine.length || looseDocs.length ? `<div class="kw-world" style="background:#e9e9e4"><div class="wi">🎯</div><h3>${t.myGoals}</h3>${loose.map(goalHtml).join("")}
@@ -1218,3 +1220,120 @@ function kidTapIn() {
 }
 
 start();
+
+/* ---------------- CALENDAR (parents' page + each kid's page) ---------------- */
+const CALS = {
+  en: { h: "Calendar", all: "Everyone", family: "Family", add: "+ Add event", today: "Today", upcoming: "Coming up", none: "Nothing on the calendar.", noneDay: "Nothing this day.",
+    dows: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], more: n => `+${n} more`, who: "Who", date: "Date", end: "Ends (optional)", time: "Time (optional)", title: "What", titleZh: "中文标题 (optional)",
+    kind: "Type", loc: "Where (optional)", notes: "Notes (optional)", vis: "Who can see it", visAll: "Kids can see it", visPar: "Parents only", rep: "Repeats", repNone: "Doesn't repeat", repWeekly: "Every week", until: "Until",
+    save: "Save", cancel: "Cancel", saved: "Saved to the calendar.", del: "Delete", delOk: "Removed.", parentsOnly: "parents only", every: "every week", lesson: "Fencing lesson", myCal: "My calendar", fromFred: "from askFRED",
+    kinds: { school: "🏫 School", fencing: "🤺 Fencing", competition: "🏆 Competition", swim: "🏊 Swim", amc: "🧮 AMC / math", debate: "🎤 Debate", family: "🏡 Family", appointment: "🩺 Appointment", other: "📌 Other" } },
+  zh: { h: "日历", all: "全部", family: "全家", add: "+ 添加日程", today: "今天", upcoming: "接下来", none: "日历上还没有安排。", noneDay: "这天没有安排。",
+    dows: ["一", "二", "三", "四", "五", "六", "日"], more: n => `还有 ${n} 项`, who: "谁", date: "日期", end: "结束日期（可选）", time: "时间（可选）", title: "内容", titleZh: "中文标题（可选）",
+    kind: "类型", loc: "地点（可选）", notes: "备注（可选）", vis: "谁能看到", visAll: "孩子能看到", visPar: "仅家长", rep: "重复", repNone: "不重复", repWeekly: "每周", until: "直到",
+    save: "保存", cancel: "取消", saved: "已加入日历。", del: "删除", delOk: "已删除。", parentsOnly: "仅家长", every: "每周", lesson: "击剑私教课", myCal: "我的日历", fromFred: "来自 askFRED",
+    kinds: { school: "🏫 学校", fencing: "🤺 击剑", competition: "🏆 比赛", swim: "🏊 游泳", amc: "🧮 AMC / 数学", debate: "🎤 辩论", family: "🏡 家庭", appointment: "🩺 预约", other: "📌 其他" } } };
+const CL = () => CALS[lang] || CALS.en;
+const KCOL = { eric: "var(--k0)", ellis: "var(--k1)", jonah: "var(--k2)" };
+const calCol = kid => kid ? (KCOL[kid] || "var(--sky)") : "#e9e9e4";
+const calSt = { month: null, kid: "all", day: null, kmonth: null };
+const monthStart = d => d.slice(0, 8) + "01";
+const addMonths = (m, n) => { const [y, mo] = m.split("-").map(Number); const d = new Date(y, mo - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`; };
+const calTitle = e => lang === "zh" && e.title_zh ? e.title_zh : e.title;
+// every occurrence (one per day) of every item between from..to (inclusive), from the calendar table plus fencing history and lessons
+function calItems(from, to, kidFilter) {
+  const out = [], push = (e, d) => { if (d >= from && d <= to) out.push({ ...e, day: d }); };
+  const kidPage = document.body.classList.contains("kidmode");
+  for (const e of S.calendar_events || []) {
+    if (kidPage && e.visibility === "parents") continue;
+    if (e.repeat === "weekly") { const stop = e.repeat_until && e.repeat_until < to ? e.repeat_until : to; for (let d = e.date, i = 0; d <= stop && i < 200; d = addDays(d, 7), i++) push(e, d); }
+    else { const last = e.end_date && e.end_date > e.date ? e.end_date : e.date; for (let d = e.date, i = 0; d <= last && i < 31; d = addDays(d, 1), i++) push(e, d); }
+  }
+  for (const r of S.fencing_results || []) push({ id: "fr-" + r.id, kid: r.kid, kind: "competition", title: `🤺 #${r.place ?? "?"}${r.field ? "/" + r.field : ""} · ${r.event}`, location: r.tournament, derived: true, date: r.date }, r.date);
+  for (const l of S.fencing_lessons || []) push({ id: "fl-" + l.id, kid: l.kid, kind: "fencing", title: `🦉 ${CL().lesson}${l.focus ? ": " + l.focus : ""}`, derived: true, date: l.date }, l.date);
+  return out.filter(x => kidFilter === "all" || !x.kid || x.kid === kidFilter)
+    .sort((a, b) => a.day.localeCompare(b.day) || String(a.time || "").localeCompare(String(b.time || "")) || String(a.kid || "").localeCompare(String(b.kid || "")));
+}
+function calGrid(month, kidFilter, sel, compact) {
+  const L = CL(), first = month, dow = (new Date(first + "T12:00").getDay() + 6) % 7, start = addDays(first, -dow);
+  const last = addDays(addMonths(month, 1), -1), cells = Math.ceil((dow + +last.slice(8)) / 7) * 7, end = addDays(start, cells - 1);
+  const items = calItems(start, end, kidFilter), t = today();
+  const byDay = {}; items.forEach(x => (byDay[x.day] ||= []).push(x));
+  const label = new Date(first + "T12:00").toLocaleDateString(lang === "zh" ? "zh-CN" : undefined, { month: "long", year: "numeric" });
+  let html = `<div class="calhead"><button class="btn sm" data-calm="-1" aria-label="previous month">‹</button><b>${label}</b><button class="btn sm" data-calm="1" aria-label="next month">›</button><button class="btn sm ghost" data-calm="0">${L.today}</button></div>
+    <div class="calgrid ${compact ? "compact" : ""}">${L.dows.map(d => `<div class="caldow">${d}</div>`).join("")}`;
+  for (let i = 0; i < cells; i++) {
+    const d = addDays(start, i), list = byDay[d] || [], out = d.slice(0, 7) !== month.slice(0, 7);
+    html += `<button class="calday ${out ? "out" : ""} ${d === t ? "now" : ""} ${d === sel ? "sel" : ""}" data-calday="${d}"><span class="caln">${+d.slice(8)}</span>
+      <span class="caldots">${list.slice(0, 4).map(x => `<i style="background:${calCol(x.kid)}"></i>`).join("")}</span>
+      <span class="callabels">${list.slice(0, 3).map(x => `<em style="border-left-color:${calCol(x.kid)}">${esc(calTitle(x))}</em>`).join("")}${list.length > 3 ? `<em class="m">${L.more(list.length - 3)}</em>` : ""}</span></button>`;
+  }
+  return html + `</div>`;
+}
+function calRow(x, parent) {
+  const L = CL(), range = x.end_date && x.end_date !== x.date ? `${fmtDate(x.date)} – ${fmtDate(x.end_date)}` : fmtDate(x.day);
+  const who = x.kid ? kidName(x.kid) : L.family;
+  return `<div class="calrow" style="border-left-color:${calCol(x.kid)}"><div><b>${esc(calTitle(x))}</b>
+    <div class="meta">${range}${x.time ? " · " + esc(x.time) : ""}${who ? " · " + esc(who) : ""}${x.location ? " · " + esc(x.location) : ""}${x.repeat === "weekly" ? " · " + L.every : ""}${parent && x.visibility === "parents" ? ` · <span class="chip">${L.parentsOnly}</span>` : ""}${x.source === "askfred" ? " · " + L.fromFred : ""}</div>
+    ${x.notes ? `<div class="meta">${esc(x.notes)}</div>` : ""}</div>${parent && !x.derived ? `<button class="x" data-caldel="${x.id}" title="${L.del}">✕</button>` : ""}</div>`;
+}
+function calUpcoming(kidFilter, days, parent) {
+  const t = today(), seen = new Set();
+  const list = calItems(t, addDays(t, days), kidFilter).filter(x => { if (seen.has(x.id)) return false; seen.add(x.id); return true; }); // weekly items appear once (next time)
+  return list.length ? list.slice(0, 12).map(x => calRow(x, parent)).join("") : `<div class="meta">${CL().none}</div>`;
+}
+function calForm(day) {
+  const L = CL(), kinds = Object.entries(L.kinds).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+  return `<form class="calform" id="calForm"><div class="calf2">
+    <label>${L.who}<select name="kid"><option value="">${L.family}</option>${S.kids.map(k => `<option value="${esc(k.id)}" ${calSt.kid === k.id ? "selected" : ""}>${esc(kidName(k.id))}</option>`).join("")}</select></label>
+    <label>${L.kind}<select name="kind">${kinds}</select></label></div>
+    <label>${L.title}<input name="title" required maxlength="140"></label>
+    <label>${L.titleZh}<input name="title_zh" maxlength="140"></label>
+    <div class="calf2"><label>${L.date}<input type="date" name="date" required value="${day || today()}"></label><label>${L.end}<input type="date" name="end_date"></label></div>
+    <div class="calf2"><label>${L.time}<input name="time" maxlength="40" placeholder="5:00–6:30pm"></label><label>${L.loc}<input name="location" maxlength="140"></label></div>
+    <div class="calf2"><label>${L.rep}<select name="repeat"><option value="none">${L.repNone}</option><option value="weekly">${L.repWeekly}</option></select></label><label>${L.until}<input type="date" name="repeat_until"></label></div>
+    <div class="calf2"><label>${L.vis}<select name="visibility"><option value="all">${L.visAll}</option><option value="parents">${L.visPar}</option></select></label><span></span></div>
+    <label>${L.notes}<textarea name="notes" rows="2" maxlength="600"></textarea></label>
+    <div class="modal-f"><button type="button" class="btn" data-calcancel>${L.cancel}</button><button class="btn primary">${L.save}</button></div></form>`;
+}
+function viewCalendar() {
+  const L = CL(); calSt.month ||= monthStart(today());
+  const sel = calSt.day, dayList = sel ? calItems(sel, sel, calSt.kid) : [];
+  $("#view").innerHTML = `<div class="section-h"><h3>📅 ${L.h}</h3><button class="btn sm primary" data-caladd>${L.add}</button></div>
+    <div class="tabs" style="margin-bottom:14px;width:max-content;max-width:100%">${[["all", L.all], ...S.kids.map(k => [k.id, kidName(k.id)])].map(([id, l]) => `<button class="${calSt.kid === id ? "on" : ""}" data-calkid="${esc(id)}">${id !== "all" ? `<i class="caldot" style="background:${calCol(id)}"></i>` : ""}${esc(l)}</button>`).join("")}</div>
+    <div class="calwrap"><div class="card calcard">${calGrid(calSt.month, calSt.kid, sel, false)}
+      ${sel ? `<div class="calsel"><div class="section-h" style="margin:14px 0 6px"><h4>${fmtDate(sel)}</h4><button class="btn sm" data-caladd="${sel}">${L.add}</button></div>${dayList.length ? dayList.map(x => calRow(x, true)).join("") : `<div class="meta">${L.noneDay}</div>`}</div>` : ""}</div>
+      <div class="card"><h4 style="margin:0 0 8px">${L.upcoming}</h4>${calUpcoming(calSt.kid, 45, true)}</div></div>
+    <div class="modal-bg" id="calModal"><div class="modal" style="max-width:560px"><h3 style="margin-top:0">${L.add}</h3><div id="calFormBox"></div></div></div>`;
+}
+function kidCalendarHtml(kid) {
+  const L = CL(); calSt.kmonth ||= monthStart(today());
+  const sel = calSt.day, dayList = sel ? calItems(sel, sel, kid) : [];
+  return `<div class="kw-h">📅 ${L.myCal}</div><div class="kw-card kcal">${calGrid(calSt.kmonth, kid, sel, true)}
+    ${sel ? `<div class="calsel"><b style="font-family:var(--kfont)">${fmtDate(sel)}</b>${dayList.length ? dayList.map(x => calRow(x, false)).join("") : `<div class="meta">${L.noneDay}</div>`}</div>` : ""}
+    <div style="margin-top:14px"><b style="font-family:var(--kfont)">${L.upcoming}</b>${calUpcoming(kid, 30, false)}</div></div>`;
+}
+// one click handler for both pages (parents re-route, kids re-render)
+document.addEventListener("click", async e => {
+  const kidPage = document.body.classList.contains("kidmode");
+  const rerender = () => kidPage ? kidRender() : route();
+  const m = e.target.closest("[data-calm]");
+  if (m) { const key = kidPage ? "kmonth" : "month", n = +m.dataset.calm; calSt[key] = n ? addMonths(calSt[key] || monthStart(today()), n) : monthStart(today()); if (!n) calSt.day = today(); return rerender(); }
+  const d = e.target.closest("[data-calday]");
+  if (d) { calSt.day = calSt.day === d.dataset.calday ? null : d.dataset.calday; const key = kidPage ? "kmonth" : "month"; if (d.dataset.calday.slice(0, 7) !== (calSt[key] || "").slice(0, 7)) calSt[key] = monthStart(d.dataset.calday); rerender(); return; }
+  if (kidPage) return;
+  const k = e.target.closest("[data-calkid]"); if (k) { calSt.kid = k.dataset.calkid; return route(); }
+  const a = e.target.closest("[data-caladd]");
+  if (a) { $("#calFormBox").innerHTML = calForm(a.dataset.caladd || calSt.day); $("#calModal").classList.add("open"); return; }
+  if (e.target.id === "calModal" || e.target.closest("[data-calcancel]")) return $("#calModal")?.classList.remove("open");
+  const x = e.target.closest("[data-caldel]");
+  if (x) { if (!x.dataset.armed) { x.dataset.armed = 1; x.textContent = CL().del + "?"; return; } try { await del("calendar_events", { id: x.dataset.caldel }); setStatus(CL().delOk); refresh(); } catch (err) { setStatus(err.message, true); } }
+});
+document.addEventListener("submit", async e => {
+  if (e.target.id !== "calForm") return; e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target)), v = s => (s || "").trim() || null;
+  const row = { kid: f.kid || null, date: f.date, end_date: v(f.end_date), time: v(f.time), title: f.title.trim(), title_zh: v(f.title_zh), kind: f.kind, location: v(f.location), notes: v(f.notes),
+    visibility: f.visibility, repeat: f.repeat, repeat_until: f.repeat === "weekly" ? v(f.repeat_until) : null, source: "manual", created_by: S.user?.email || null };
+  try { const { error } = await sb.from("calendar_events").insert(row); if (error) throw error; $("#calModal").classList.remove("open"); calSt.day = row.date; calSt.month = monthStart(row.date); setStatus(CL().saved); refresh(); }
+  catch (err) { setStatus(err.message, true); }
+});
