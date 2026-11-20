@@ -346,3 +346,8 @@ body.kidmode{--kfont:"Fredoka","Noto Sans SC",system-ui,sans-serif;background:va
 .kw-opts button.on{border-color:var(--lime);box-shadow:0 0 0 2px var(--lime)}
 .kw-avatar svg,.bigkid svg{image-rendering:pixelated}
 .kw-preview .btn{color:#0a0a0a;border-color:#0a0a0a;background:#ffe066}
+
+.gbtn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#1f1f1f;border-color:#fff;padding:12px;font-weight:600}
+.gbtn:hover{background:#f1f1f1}
+.ordiv{display:flex;align-items:center;gap:10px;margin:16px 0 6px;color:var(--mute,#888);font-size:12.5px}
+.ordiv::before,.ordiv::after{content:"";flex:1;height:1px;background:var(--line2)}
