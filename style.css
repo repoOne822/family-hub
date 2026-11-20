@@ -327,3 +327,15 @@ body.kidmode{--kfont:"Fredoka","Noto Sans SC",system-ui,sans-serif;background:va
 .fs .bigfaces button.on{background:var(--lime)}
 .fs h2{font-family:"Fredoka","Noto Sans SC",sans-serif;font-weight:700}
 .fs .go{border:3px solid #000;box-shadow:5px 5px 0 #000;font-family:"Fredoka","Noto Sans SC",sans-serif;font-weight:700}
+/* pixel avatar builder */
+.kw-builder{display:grid;grid-template-columns:200px 1fr;gap:18px;align-items:start}
+@media (max-width:560px){.kw-builder{grid-template-columns:1fr;justify-items:center}}
+.kw-preview{display:grid;justify-items:center;gap:10px;background:#fff;border:3px solid #000;border-radius:22px;padding:14px;box-shadow:5px 5px 0 #000;position:sticky;top:0}
+.kw-optrow{margin-bottom:10px}
+.kw-optl{font:700 12px var(--kfont, var(--body));text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:5px}
+.kw-opts{display:flex;flex-wrap:wrap;gap:6px}
+.kw-opts button{border:2px solid var(--line2);background:var(--card2);color:var(--ink);border-radius:999px;padding:5px 12px;font:600 13px var(--kfont, var(--body));cursor:pointer;min-width:34px;min-height:32px}
+.kw-opts button[style]{border-radius:50%;width:32px;padding:0}
+.kw-opts button.on{border-color:var(--lime);box-shadow:0 0 0 2px var(--lime)}
+.kw-avatar svg,.bigkid svg{image-rendering:pixelated}
+.kw-preview .btn{color:#0a0a0a;border-color:#0a0a0a;background:#ffe066}

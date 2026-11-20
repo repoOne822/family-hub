@@ -2,6 +2,7 @@
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 import { STR } from "./i18n.js";
+import * as Pix from "./pixel.js";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -52,6 +53,7 @@ function lockPinForm(mode, onOk) {
 function lockDevice() { const go = () => { LS.set("fh_locked", "1"); lockedMem = true; openLobby(); }; LS.get("fh_lock_hash") ? go() : lockPinForm("set", go); }
 function openLobby() { $("#kidMode").classList.add("open"); const c = $("#kidMode [data-fsclose]"); c.textContent = T().parentUnlock; kidStage("who"); }
 function unlockDevice() { lockPinForm("check", () => { LS.set("fh_locked", null); lockedMem = false; $("#kidMode").classList.remove("open"); $("#kidMode [data-fsclose]").textContent = T().cancel; renderShell(); route(); }); }
+function avatarHtml(av, size) { const sp = Pix.parse(av); return sp ? Pix.svg(sp, size) : `<span style="font-size:${Math.round(size * .6)}px;line-height:1">${esc(av || "⭐")}</span>`; }
 const heroPills = () => `<div class="pills" aria-hidden="true">${T().tags.map((x, i) => `<span class="pill p${i + 1}">${esc(x)}</span>`).join("")}<span class="blob b1">✦</span><span class="blob b2">♥</span><span class="blob b3">★</span><span class="blob b4">↗</span></div>`;
 const marquee = () => { const w = T().marquee.map(x => `<b>${esc(x)}</b><i>/</i>`).join(""); return `<div class="marquee" aria-hidden="true"><span>${w}${w}</span></div>`; };
 function setStatus(msg, warn) { const s = $("#status"); if (s) { s.textContent = msg || ""; s.classList.toggle("warn", !!warn); } }
@@ -164,9 +166,9 @@ function viewToday() {
     <div class="section-h"><h3>${T().todayStatus} · ${fmtDate(d)}</h3><button class="btn sm" id="goLog">${T().logEntry}</button></div>
     <div class="todayrow">${S.kids.map((k, i) => { const c = S.checkins.find(c => c.kid === k.id && c.date === d) || {};
       const habits = S.metrics.filter(m => m.kid === k.id && m.type === "rate").map(m => { const r = S.readings.find(r => r.metric === m.id && r.date === d); return r && +r.value ? mKidLabel(m) : null; }).filter(Boolean);
-      return `<div class="tcard" style="border-top:4px solid ${KC[i % 3]}"><b>${esc(kidName(k.id))}</b>
+      return `<div class="tcard" style="border-top:4px solid ${KC[i % 3]};display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center"><span style="width:52px;height:52px;border-radius:14px;background:#fff;display:grid;place-items:center">${avatarHtml(k.avatar, 46)}</span><div><b>${esc(kidName(k.id))}</b>
         <div class="meta">${c.kid_mood ? `${T().heSaid} ${FACES[c.kid_mood - 1]}` : T().notYet} · ${c.focus ? `${T().parentRated} ✓` : `${T().parentRated} —`}</div>
-        ${habits.length ? `<div class="meta">${esc(habits.join(" · "))}</div>` : ""}</div>`; }).join("")}</div>${marquee()}`;
+        ${habits.length ? `<div class="meta">${esc(habits.join(" · "))}</div>` : ""}</div></div>`; }).join("")}</div>${marquee()}`;
   $("#goKids").onclick = openKidMode; $("#goQuick").onclick = openQuick; $("#goLog").onclick = () => openEntry();
 }
 
@@ -176,7 +178,7 @@ function openKidMode() { $("#kidMode").classList.add("open"); kidStage("who"); }
 function kidStage(step) {
   const el = $("#kidStage"), d = today();
   if (step === "who") {
-    el.innerHTML = `<h2>${T().whoChecking}</h2><div class="bigkids">${S.kids.map((k, i) => { const done = S.checkins.find(c => c.kid === k.id && c.date === d && c.kid_mood); return `<button class="bigkid" style="background:${KC[i % 3]}" data-kid="${esc(k.id)}"><span style="font-size:54px;display:block">${esc(k.avatar || "⭐")}</span>${esc(kidName(k.id))}<small>${done ? T().doneToday : T().tapMe}</small></button>`; }).join("")}</div>`;
+    el.innerHTML = `<h2>${T().whoChecking}</h2><div class="bigkids">${S.kids.map((k, i) => { const done = S.checkins.find(c => c.kid === k.id && c.date === d && c.kid_mood); return `<button class="bigkid" style="background:${KC[i % 3]}" data-kid="${esc(k.id)}"><span style="display:block;height:84px">${avatarHtml(k.avatar || "⭐", 84)}</span>${esc(kidName(k.id))}<small>${done ? T().doneToday : T().tapMe}</small></button>`; }).join("")}</div>`;
     el.querySelectorAll("[data-kid]").forEach(b => b.onclick = () => {
       kidSt.kid = b.dataset.kid; kidSt.mood = S.checkins.find(c => c.kid === kidSt.kid && c.date === d)?.kid_mood || null; kidSt.counts = {};
       S.metrics.filter(m => m.kid === kidSt.kid && m.type === "rate").forEach(m => { const r = S.readings.find(r => r.metric === m.id && r.date === d); kidSt.counts[m.id] = r ? +r.value : 0; });
@@ -342,7 +344,7 @@ function viewDash() {
     const s = stats(k.id, 30), kg = S.goals.filter(g => g.kid === k.id && g.status !== "proposed").sort((a, b) => (a.done - b.done)), last = S.entries.filter(e => e.kid === k.id).sort((a, b) => b.date.localeCompare(a.date))[0];
     const meta = [k.age ? `${t.age} ${esc(k.age)}` : "", k.grade ? esc(k.grade) : "", k.school ? esc(k.school) : ""].filter(Boolean).join(" · ");
     return `<div class="kid ${selKid === k.id ? "sel" : ""}" style="--kc:${KC[i % 3]}" data-kid="${esc(k.id)}">
-      <div class="kid-top"><div><h2>${esc(kidName(k.id))}</h2><div class="meta">${meta}</div>${k.focus ? `<div class="meta"><b style="color:var(--ink)">${t.focusNow}:</b> ${esc(k.focus)}</div>` : ""}</div>
+      <div class="kid-top"><div><h2 style="display:flex;align-items:center;gap:8px"><span style="display:inline-flex;width:40px;height:40px;border-radius:12px;background:#fff;align-items:center;justify-content:center;overflow:hidden">${avatarHtml(k.avatar, 36)}</span>${esc(kidName(k.id))}</h2><div class="meta">${meta}</div>${k.focus ? `<div class="meta"><b style="color:var(--ink)">${t.focusNow}:</b> ${esc(k.focus)}</div>` : ""}</div>
       <div style="display:flex"><button class="btn sm ghost" data-log="${esc(k.id)}">${t.logBtn}</button><button class="btn sm ghost" data-edit="${esc(k.id)}">${t.edit}</button></div></div>
       <div class="stats"><div class="stat pos"><div class="n">${s.pos}</div><div class="l">${t.wins}</div></div><div class="stat neg"><div class="n">${s.neg}</div><div class="l">${t.concerns}</div></div><div class="stat neu"><div class="n">${s.neu}</div><div class="l">${t.notes}</div></div></div>
       ${spark(k.id)}
@@ -649,7 +651,7 @@ function kidRender() {
       <button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button><button class="btn sm ghost" id="soBtn">${t.signOut}</button></div></div>
     <div class="wrap"><div class="status" id="status"></div>
       <div class="kw-hero" style="--kc:${kc}">
-        <div class="kw-avatar" id="avBtn" title="${t.pickAvatar}">${esc(k.avatar || "🦊")}</div>
+        <div class="kw-avatar" id="avBtn" title="${t.pickAvatar}">${avatarHtml(k.avatar || "🦊", 92)}</div>
         <div><h1>${t.hi(esc(kidName(k.id)))}</h1>
           <div class="kw-level"><span class="kw-lvl">${t.levelWord} ${g.lvlNum}</span><span>${esc(g.levelName)}</span><span style="margin-left:auto">${g.xp} ${t.xp}</span></div>
           <div class="kw-xpbar"><i style="width:${pct}%"></i></div><div class="kw-sub">${t.toNext(Math.max(0, g.nextAt - g.xp))}</div></div>
@@ -684,14 +686,35 @@ function kidRender() {
       <div class="kw-card" style="margin-top:22px"><b style="font-family:var(--kfont)">✨ ${t.howEarn}</b><div class="kw-earn">${t.earnList.map(x => `<span>${esc(x)}</span>`).join("")}</div></div>
       ${marquee()}
     </div>
-    <div class="modal-bg" id="avModal"><div class="modal"><h3>${t.pickAvatar}</h3><div class="kw-avpick">${AVATARS.map(a => `<button data-av="${a}" class="${a === k.avatar ? "on" : ""}">${a}</button>`).join("")}</div><div class="modal-f"><button class="btn" id="avClose">${t.cancel}</button></div></div></div>`;
+    <div class="modal-bg" id="avModal"><div class="modal" style="max-width:640px" id="avBody"></div></div>`;
   if (newly.length) { confetti(); setStatus(t.newBadge + " " + newly.map(b => BADGES.find(x => x[0] === b)[1]).join(" ")); }
   $("#langBtn").onclick = toggleLang; $("#soBtn").onclick = () => { document.body.classList.remove("kidmode"); sb.auth.signOut(); };
   const R = async fn => { try { await fn(); await loadAll(); kidRender(); } catch (err) { setStatus(err.message || "Save failed", true); } };
   $("#kTap").onclick = () => kidTapIn();
-  $("#avBtn").onclick = () => $("#avModal").classList.add("open");
-  $("#avClose").onclick = () => $("#avModal").classList.remove("open");
-  $("#avModal").onclick = e => { const b = e.target.closest("[data-av]"); if (b) R(async () => { const { error } = await sb.rpc("kid_set_avatar", { p_avatar: b.dataset.av }); if (error) throw error; }); else if (e.target.id === "avModal") $("#avModal").classList.remove("open"); };
+  let avTab = Pix.parse(k.avatar) || !k.avatar ? "build" : "animals", avSpec = Pix.parse(k.avatar) || Pix.random();
+  const saveAv = v => R(async () => { const { error } = await sb.rpc("kid_set_avatar", { p_avatar: v }); if (error) throw error; confetti(); });
+  const drawAv = () => {
+    const opt = (key, n, labelFn, swatch) => `<div class="kw-optrow"><div class="kw-optl">${labelFn.title}</div><div class="kw-opts">${Array.from({ length: n }, (_, i) => `<button class="${avSpec[key] === i ? "on" : ""}" data-k="${key}" data-v="${i}" ${swatch ? `style="background:${swatch[i]}" aria-label="${i + 1}"` : ""}>${swatch ? "" : esc(labelFn.names[i])}</button>`).join("")}</div></div>`;
+    $("#avBody").innerHTML = `<div class="tabs" style="margin-bottom:16px;width:max-content"><button class="${avTab === "build" ? "on" : ""}" data-tab="build">🎨 ${t.tabBuild}</button><button class="${avTab === "animals" ? "on" : ""}" data-tab="animals">🐾 ${t.tabAnimals}</button></div>
+      ${avTab === "build" ? `<div class="kw-builder"><div class="kw-preview">${Pix.svg(avSpec, 168)}<button class="btn sm" data-rand>${t.randomize}</button></div><div>
+        ${opt("s", Pix.PX.skin.length, { title: t.skinL }, Pix.PX.skin)}
+        ${opt("h", Pix.PX.hair.length, { title: t.hairL, names: t.hairNames })}
+        ${opt("c", Pix.PX.hairC.length, { title: t.hairColorL }, Pix.PX.hairC)}
+        ${opt("k", Pix.PX.outfit.length, { title: t.outfitL, names: t.outfitNames })}
+        ${opt("o", Pix.PX.outC.length, { title: t.colorL }, Pix.PX.outC)}
+        ${opt("x", Pix.PX.extra.length, { title: t.extraL, names: t.extraNames })}</div></div>
+        <div class="modal-f"><button class="btn" data-avclose>${t.cancel}</button><button class="btn primary" data-savepx>${t.saveBuddy}</button></div>`
+      : `<div class="kw-avpick">${AVATARS.map(a => `<button data-av="${a}" class="${a === k.avatar ? "on" : ""}">${a}</button>`).join("")}</div><div class="modal-f"><button class="btn" data-avclose>${t.cancel}</button></div>`}`;
+  };
+  $("#avBtn").onclick = () => { drawAv(); $("#avModal").classList.add("open"); };
+  $("#avModal").onclick = e => {
+    if (e.target.id === "avModal" || e.target.closest("[data-avclose]")) return $("#avModal").classList.remove("open");
+    const tb = e.target.closest("[data-tab]"); if (tb) { avTab = tb.dataset.tab; return drawAv(); }
+    const o = e.target.closest("[data-k]"); if (o) { avSpec[o.dataset.k] = +o.dataset.v; return drawAv(); }
+    if (e.target.closest("[data-rand]")) { avSpec = Pix.random(); return drawAv(); }
+    if (e.target.closest("[data-savepx]")) return saveAv(Pix.encode(avSpec));
+    const b = e.target.closest("[data-av]"); if (b) saveAv(b.dataset.av);
+  };
   if ($("#propBtn")) $("#propBtn").onclick = () => { const v = $("#propIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("goals").insert({ kid: k.id, text: v, status: "proposed", proposed_by_kid: true }); if (error) throw error; }); };
   if ($("#winForm")) $("#winForm").onsubmit = e => { e.preventDefault(); const v = $("#winIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("entries").insert({ kid: k.id, date: today(), cat: "other", tone: "positive", title: v, by_kid: true }); if (error) throw error; }); };
   if ($("#jForm")) $("#jForm").onsubmit = e => { e.preventDefault(); const v = $("#jIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("journal").insert({ kid: k.id, date: today(), body: v }); if (error) throw error; }); };
