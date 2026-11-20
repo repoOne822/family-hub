@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261119d";
-import * as Pix from "./pixel.js?v=20261119d";
+import { STR } from "./i18n.js?v=20261119e";
+import * as Pix from "./pixel.js?v=20261119e";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -86,13 +86,14 @@ async function refresh() { try { await loadAll(); route(); } catch (e) { setStat
 document.addEventListener("visibilitychange", () => { if (!document.hidden && S.user) refresh(); });
 
 /* ---------------- auth ---------------- */
-let siMode = "parent";
+let siMode = "parent", pMode = (() => { try { return localStorage.getItem("fh_pmode") || "link"; } catch (e) { return "link"; } })();
 function renderSignIn(msg) {
   $("#root").innerHTML = `<div class="headline" style="margin-top:7vh">${T().signInHero}</div><div class="signin" style="margin-top:20px">
     <div style="display:flex;justify-content:space-between;align-items:center"><h1><span class="dotlogo" style="width:26px;height:26px;border-radius:50%;background:var(--lime);display:inline-grid;place-items:center;color:#0a0a0a;font-size:14px;vertical-align:3px">✦</span> ${T().signInTitle}</h1><button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button></div>
     <p class="meta">${T().signInSub}</p>
     <div class="tabs signin" style="margin:8px 0 14px"><button class="${siMode === "parent" ? "on" : ""}" data-mode="parent">${T().iAmParent}</button><button class="${siMode === "kid" ? "on" : ""}" data-mode="kid">${T().iAmKid}</button></div>
-    ${siMode === "parent" ? `<form id="siForm"><label>${T().emailLabel}</label><input type="email" id="siEmail" required autocomplete="email"><button class="btn primary" style="width:100%;margin-top:12px">${T().sendLink}</button></form>`
+    ${siMode === "parent" ? `<form id="siForm"><label>${T().emailLabel}</label><input type="email" id="siEmail" required autocomplete="email" value="${esc(lastEmail())}">${pMode === "pw" ? `<label style="margin-top:10px">${T().passwordL}</label><input type="password" id="siPw" required autocomplete="current-password" minlength="8">` : ""}<button class="btn primary" style="width:100%;margin-top:12px">${pMode === "pw" ? T().signIn : T().sendLink}</button></form>
+      <button class="linkbtn" id="pModeBtn" type="button">${pMode === "pw" ? T().useLink : T().usePassword}</button>`
       : `<form id="kidForm2"><label>${T().username}</label><input id="kUser" required autocomplete="username" autocapitalize="none" spellcheck="false"><label style="margin-top:10px">${T().pin}</label><input id="kPin" type="password" inputmode="numeric" required autocomplete="current-password" minlength="6"><button class="btn primary" style="width:100%;margin-top:12px">${T().signIn}</button></form>`}
     <p class="meta" id="siMsg" style="margin-top:12px">${msg ? esc(msg) : ""}</p></div>`;
   $("#langBtn").onclick = toggleLang;
@@ -103,13 +104,21 @@ function renderSignIn(msg) {
     const { error } = await sb.auth.signInWithPassword({ email: `${u}@${KID_DOMAIN}`, password: $("#kPin").value });
     if (error) $("#siMsg").textContent = T().badLogin;
   }; return; }
+  $("#pModeBtn").onclick = () => { pMode = pMode === "pw" ? "link" : "pw"; try { localStorage.setItem("fh_pmode", pMode); } catch (e) {} renderSignIn(); };
   $("#siForm").onsubmit = async e => {
     e.preventDefault();
     const email = $("#siEmail").value.trim();
+    try { localStorage.setItem("fh_email", email); } catch (e2) {}
+    if (pMode === "pw") {
+      const { error } = await sb.auth.signInWithPassword({ email, password: $("#siPw").value });
+      if (error) $("#siMsg").textContent = /rate limit/i.test(error.message) ? T().rateLimited : T().badParentPw;
+      return;
+    }
     const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
-    $("#siMsg").textContent = error ? (/not on the family list|Database error/i.test(error.message) ? T().notListed : error.message) : T().linkSent;
+    $("#siMsg").textContent = error ? (/not on the family list|Database error/i.test(error.message) ? T().notListed : /rate limit/i.test(error.message) ? T().rateLimited : error.message) : T().linkSent;
   };
 }
+function lastEmail() { try { return localStorage.getItem("fh_email") || ""; } catch (e) { return ""; } }
 function toggleLang() { lang = lang === "en" ? "zh" : "en"; try { localStorage.setItem("fh_lang", lang); } catch (e) {} applyStatic(); S.user ? (isKid() ? kidRender() : (renderShell(), route())) : renderSignIn(); }
 
 async function start() {
@@ -495,6 +504,9 @@ async function viewFamily() {
   const props = S.goals.filter(g => g.status === "proposed");
   const jByKid = id => S.journal.filter(j => j.kid === id).sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
   $("#view").innerHTML = `<div class="section-h"><h3>${t.familyTitle}</h3></div>
+    <div class="coach" style="margin-bottom:16px"><h4>🔑 ${t.myPassword}</h4><p class="meta">${t.myPasswordHelp} <b>${esc(S.user?.email || "")}</b></p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;max-width:560px;margin-top:8px"><input type="password" id="pw1" minlength="8" autocomplete="new-password" placeholder="${t.newPw}" style="flex:1;min-width:160px"><input type="password" id="pw2" minlength="8" autocomplete="new-password" placeholder="${t.confirmPw}" style="flex:1;min-width:160px"><button class="btn sm primary" id="pwSave" style="white-space:nowrap">${t.savePw}</button></div>
+      <div class="err" id="pwMsg" style="margin-top:8px"></div></div>
     <div class="coach"><h4>${t.kidLogins}</h4><p class="meta">${t.pinHelp}</p>
       ${S.kids.map((k, i) => { const u = kidUsers.find(x => x.kid_id === k.id); return u ? `<div class="qgrid" style="grid-template-columns:150px 1fr;margin-top:10px">
         <div><span class="dot" style="--kc:${KC[i % 3]};display:inline-block"></span> <b>${esc(kidName(k.id))}</b><div class="meta">${t.username}: <code>${esc(u.email.split("@")[0])}</code></div></div>
@@ -511,6 +523,14 @@ async function viewFamily() {
         const inp = document.querySelector(`[data-pinfor="${CSS.escape(x.dataset.setpin)}"]`);
         const { error } = await sb.rpc("set_kid_pin", { p_kid: x.dataset.setpin, p_pin: inp.value });
         $("#pinMsg").style.color = error ? "var(--neg)" : "var(--pos)"; $("#pinMsg").textContent = error ? error.message : `${kidName(x.dataset.setpin)}: ${t.pinSet}`; if (!error) inp.value = "";
+      }
+      if (x.id === "pwSave") {
+        const a = $("#pw1").value, b = $("#pw2").value, m = $("#pwMsg");
+        const bad = a.length < 8 ? t.pwShort : a !== b ? t.pwMismatch : "";
+        if (bad) { m.style.color = "var(--neg)"; m.textContent = bad; return; }
+        const { error } = await sb.auth.updateUser({ password: a });
+        m.style.color = error ? "var(--neg)" : "var(--pos)"; m.textContent = error ? error.message : t.pwSaved;
+        if (!error) { $("#pw1").value = $("#pw2").value = ""; try { localStorage.setItem("fh_pmode", "pw"); pMode = "pw"; } catch (e2) {} }
       }
       if (x.dataset.approve) { const { error } = await sb.from("goals").update({ status: "active" }).eq("id", x.dataset.approve); if (error) throw error; await refresh(); }
       if (x.dataset.decline) { await del("goals", { id: x.dataset.decline }); await refresh(); }

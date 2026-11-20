@@ -346,3 +346,5 @@ body.kidmode{--kfont:"Fredoka","Noto Sans SC",system-ui,sans-serif;background:va
 .kw-opts button.on{border-color:var(--lime);box-shadow:0 0 0 2px var(--lime)}
 .kw-avatar svg,.bigkid svg{image-rendering:pixelated}
 .kw-preview .btn{color:#0a0a0a;border-color:#0a0a0a;background:#ffe066}
+
+.linkbtn{display:block;margin:12px auto 0;background:none;border:0;color:var(--lime);font:600 13.5px var(--body);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
