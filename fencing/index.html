@@ -425,6 +425,7 @@ body.duelfocus main{padding-top:6px}
 <!-- HOME -->
 <section id="home" class="on">
   <div class="hoot" style="margin-top:6px"><div class="owl">🦉</div><div class="say"><b>Hi Ellis!</b> What do you want to do today?</div></div>
+  <div id="coachBanner"></div>
   <div class="hgroup"><h3>▶️ Play</h3><div class="tiles">
     <button class="tile big t-play" data-go="duel"><span class="ti">⚔️</span><b>Piste Duel</b><small>You make every decision</small></button>
     <button class="tile big t-play" data-go="boss"><span class="ti">👹</span><b>Boss Bouts</b><small>Find each boss's weakness</small></button>
@@ -505,16 +506,7 @@ body.duelfocus main{padding-top:6px}
     </div>
   </div>
   <div class="tip">💡 Say it in your head before every bout: <b>Look. Trap. Zap!</b></div>
-  <div class="card">
-    <h2>What Coach taught you (Nov 16)</h2>
-    <ul style="font-size:18px;margin:0;padding-left:22px">
-      <li>Defend well against an attack at the right distance</li>
-      <li>Retreat FAST</li>
-      <li>Counter-attack only after you've read it</li>
-      <li>Big focus: <b>control the other guy's blade</b></li>
-    </ul>
-    <p class="small" style="margin-top:10px">🏠 Homework: How do I bother him while I retreat? How do I take control? How do I mess up his plan? Write your ideas in <b>My Journal</b>.</p>
-  </div>
+  <div id="coachNotes"></div>
 </section>
 
 <!-- PISTE DUEL -->
@@ -657,7 +649,7 @@ body.duelfocus main{padding-top:6px}
     <label>🪤 One touch I <b>created</b>. How did I set it up?</label><textarea id="j1" placeholder="e.g. I stepped back slow twice, then went FAST and he wasn't ready"></textarea>
     <label>👀 One touch I <b>got hit</b>. What did I misread?</label><textarea id="j2" placeholder="e.g. I attacked from too far and fell short"></textarea>
     <label>⚡ Next time I'll try…</label><textarea id="j3" placeholder="e.g. a fake attack first to see what he does"></textarea>
-    <label>🏠 Homework idea: how I bother my opponent while retreating</label><textarea id="j4" placeholder="e.g. change my speed, then stop suddenly and counter"></textarea>
+    <label id="j4L">🏠 Homework idea: how I bother my opponent while retreating</label><textarea id="j4" placeholder="e.g. change my speed, then stop suddenly and counter"></textarea>
     <div class="row" style="margin-top:12px"><button class="btn" id="jSave">Save entry (+20 XP)</button><button class="btn ghost" id="jCopy">Copy all for coach</button></div>
   </div>
   <div class="card">
@@ -2227,6 +2219,25 @@ document.querySelector('#nav [data-s=perf]').addEventListener('click',()=>render
 
 // ---------- home navigation ----------
 function goTo(s){const b=document.querySelector(`#nav [data-s="${s}"]`);if(b)b.click();window.scrollTo(0,0)}
+// ---- Coach notes: written by Mom/Dad in the Family Hub after each lesson, loaded here automatically ----
+(function coachNotes(){
+  const raw = store.get('coachNotes', null), list = Array.isArray(raw) ? raw : [];
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const fmt = d => { try { return new Date(d + 'T12:00:00').toLocaleDateString(undefined, {month:'short', day:'numeric'}); } catch(e) { return d; } };
+  const kindName = k => k === 'tournament' ? 'tournament' : k === 'practice' ? 'practice' : 'lesson';
+  const one = (l, big) => `<div class="${big ? '' : 'small'}" style="margin-top:6px">
+      ${l.focus ? `<div style="font-size:${big ? 20 : 16}px;margin:4px 0">🎯 Big focus: <b>${esc(l.focus)}</b></div>` : ''}
+      ${(l.points || []).length ? `<ul style="font-size:${big ? 18 : 15}px;margin:6px 0;padding-left:22px">${l.points.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+      ${(l.homework || []).length ? `<p class="small" style="margin-top:8px">🏠 Homework: ${l.homework.map(esc).join(' ')} Write your ideas in <b>My Journal</b>.</p>` : ''}</div>`;
+  const box = document.getElementById('coachNotes'), ban = document.getElementById('coachBanner');
+  if (!list.length) { if (box) box.innerHTML = `<div class="card"><h2>What Coach taught you</h2><p class="small">No lesson notes yet. After your next lesson, Mom or Dad will add what Coach said, and it will show up here.</p></div>`; return; }
+  const last = list[0];
+  if (box) box.innerHTML = `<div class="card"><h2>What Coach taught you (${fmt(last.date)} ${kindName(last.kind)})</h2>${one(last, true)}
+    ${list.length > 1 ? `<details style="margin-top:12px"><summary class="small" style="cursor:pointer">📚 Earlier lessons (${list.length - 1})</summary>${list.slice(1).map(l => `<div style="border-top:1px dashed #0002;margin-top:10px;padding-top:6px"><b>${fmt(l.date)} ${kindName(l.kind)}</b>${one(l, false)}</div>`).join('')}</details>` : ''}</div>`;
+  if (ban && last.focus) ban.innerHTML = `<div class="tip" style="margin:10px 0;cursor:pointer" data-go="map">🦉 From your last ${kindName(last.kind)} (${fmt(last.date)}): <b>${esc(last.focus)}</b> <span class="small">· tap to see what Coach said</span></div>`;
+  const hw = (last.homework || [])[0], lab = document.getElementById('j4L');
+  if (hw && lab) lab.textContent = '🏠 Coach\'s homework: ' + hw;
+})();
 document.querySelectorAll('[data-go]').forEach(t=>t.onclick=()=>goTo(t.dataset.go));
 $('homeBtn').onclick=()=>goTo('home');
 document.querySelectorAll('#nav button').forEach(b=>b.addEventListener('click',()=>{
