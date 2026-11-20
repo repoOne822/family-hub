@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261119i";
-import * as Pix from "./pixel.js?v=20261119i";
+import { STR } from "./i18n.js?v=20261119j";
+import * as Pix from "./pixel.js?v=20261119j";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -704,7 +704,9 @@ $("#sArchive").onclick = async () => { if (!editingSubj) return; const { error }
 /* ---------------- KID APP: his own page ---------------- */
 let kidTap = null;
 /* ---- kid apps (e.g. Ellis's Fencing Brain Academy): full-screen, progress synced to app_saves ---- */
-const APPS = { "fencing/": { id: "fencing", prefix: "ellis_", skip: ["ellis_pin"] } };
+const APPS = { "fencing/": { id: "fencing", prefix: "ellis_", skip: ["ellis_pin"], label: { en: "Play Fencing Brain Academy", zh: "进入击剑大脑学院" } },
+  "amc/": { id: "amc", prefix: "eric_amc_", skip: [], label: { en: "Open my AMC 8 lessons", zh: "打开我的 AMC 8 课程" } } };
+const appLabel = url => (APPS[url]?.label || {})[lang] || T().openApp;
 let appOpen = null;
 async function openApp(url, kid) {
   const cfg = APPS[url]; if (!cfg) return;
@@ -726,7 +728,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(cfg.prefix) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261119i" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261119j" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; };
   fs.querySelector(".appclose").onclick = () => appOpen();
@@ -819,7 +821,7 @@ function kidRender() {
         <div class="kw-streak ${g.streak ? "" : "rest"}"><span class="fire">🔥</span><div>${g.streak ? t.streak(g.streak) : t.streakRest}<div class="kw-sub" style="opacity:.7">${g.best ? "🏆 " + g.best : ""}</div></div></div>
       </div>
       ${worlds.length || loose.length || goals.length || mine.length ? `<div class="kw-h">🗺️ ${t.myWorlds}</div>
-      <div class="kw-worlds">${worlds.map((w, i) => `<div class="kw-world" style="background:${worldColors[i % worldColors.length]}"><div class="wi">${w.x.icon}</div><h3>${esc(sName(w.x))}</h3>${sDesc(w.x) ? `<div class="wd">${esc(sDesc(w.x))}</div>` : ""}${w.x.app_url ? `<button class="kw-play" data-app="${esc(w.x.app_url)}" data-appkid="${esc(w.x.kid)}">▶ ${t.playApp(esc(sName(w.x)))}</button>` : ""}${w.ms.map(goalHtml).join("")}${w.docs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">📖 ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}</div>`).join("")}
+      <div class="kw-worlds">${worlds.map((w, i) => `<div class="kw-world" style="background:${worldColors[i % worldColors.length]}"><div class="wi">${w.x.icon}</div><h3>${esc(sName(w.x))}</h3>${sDesc(w.x) ? `<div class="wd">${esc(sDesc(w.x))}</div>` : ""}${w.x.app_url ? `<button class="kw-play" data-app="${esc(w.x.app_url)}" data-appkid="${esc(w.x.kid)}">▶ ${esc(appLabel(w.x.app_url))}</button>` : ""}${w.ms.map(goalHtml).join("")}${w.docs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">📖 ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}</div>`).join("")}
         ${loose.length || goals.length || mine.length || looseDocs.length ? `<div class="kw-world" style="background:#e9e9e4"><div class="wi">🎯</div><h3>${t.myGoals}</h3>${loose.map(goalHtml).join("")}
           ${goals.map(x => `<div class="kw-goal"><span class="gn">${x.done ? "✅" : "⬜"} ${esc(x.text)}</span></div>`).join("")}
           ${mine.map(x => `<div class="kw-goal"><span class="gn">💡 ${esc(x.text)}</span><div class="kw-sub">${t.pending} <button class="x" style="opacity:1" data-unprop="${x.id}">✕</button></div></div>`).join("")}
