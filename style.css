@@ -348,3 +348,8 @@ body.kidmode{--kfont:"Fredoka","Noto Sans SC",system-ui,sans-serif;background:va
 .kw-preview .btn{color:#0a0a0a;border-color:#0a0a0a;background:#ffe066}
 
 .linkbtn{display:block;margin:12px auto 0;background:none;border:0;color:var(--lime);font:600 13.5px var(--body);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+
+.landing{max-width:1100px;margin:0 auto;padding:18px 20px 0}
+.landtop{display:flex;justify-content:space-between;align-items:center}
+.landtop .brand{font:700 20px var(--display,var(--body));display:flex;align-items:center;gap:10px}
+.dotlogo{width:26px;height:26px;border-radius:50%;background:var(--lime);display:inline-grid;place-items:center;color:#0a0a0a;font-size:14px}

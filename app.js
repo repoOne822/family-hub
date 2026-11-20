@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261119e";
-import * as Pix from "./pixel.js?v=20261119e";
+import { STR } from "./i18n.js?v=20261119f";
+import * as Pix from "./pixel.js?v=20261119f";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -86,18 +86,35 @@ async function refresh() { try { await loadAll(); route(); } catch (e) { setStat
 document.addEventListener("visibilitychange", () => { if (!document.hidden && S.user) refresh(); });
 
 /* ---------------- auth ---------------- */
-let siMode = "parent", pMode = (() => { try { return localStorage.getItem("fh_pmode") || "link"; } catch (e) { return "link"; } })();
+let siStage = "landing", siMode = "parent", pMode = (() => { try { return localStorage.getItem("fh_pmode") || "link"; } catch (e) { return "link"; } })();
+function renderLanding() {
+  const t = T();
+  $("#root").innerHTML = `<div class="landing">
+    <div class="landtop"><span class="brand"><span class="dotlogo">✦</span> ${t.signInTitle}</span><button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button></div>
+    <div class="headline" style="margin-top:6vh">${t.heroHtml}</div>${heroPills()}
+    <div class="hero">
+      <button class="herobtn" style="background:var(--lime)" data-door="kid">🧒 ${t.kidDoor}<small>${t.kidDoorSub}</small></button>
+      <button class="herobtn" style="background:var(--pink)" data-door="parent">👨‍👩‍👦 ${t.parentDoor}<small>${t.parentDoorSub}</small></button>
+    </div>
+    <p class="meta" style="text-align:center;margin-top:18px">🔒 ${t.signInSub}</p>
+    ${marquee()}</div>`;
+  $("#langBtn").onclick = toggleLang;
+  document.querySelectorAll("[data-door]").forEach(b => b.onclick = () => { siMode = b.dataset.door; siStage = "form"; renderSignIn(); });
+}
 function renderSignIn(msg) {
-  $("#root").innerHTML = `<div class="headline" style="margin-top:7vh">${T().signInHero}</div><div class="signin" style="margin-top:20px">
-    <div style="display:flex;justify-content:space-between;align-items:center"><h1><span class="dotlogo" style="width:26px;height:26px;border-radius:50%;background:var(--lime);display:inline-grid;place-items:center;color:#0a0a0a;font-size:14px;vertical-align:3px">✦</span> ${T().signInTitle}</h1><button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button></div>
-    <p class="meta">${T().signInSub}</p>
-    <div class="tabs signin" style="margin:8px 0 14px"><button class="${siMode === "parent" ? "on" : ""}" data-mode="parent">${T().iAmParent}</button><button class="${siMode === "kid" ? "on" : ""}" data-mode="kid">${T().iAmKid}</button></div>
+  if (siStage === "landing" && !msg) return renderLanding();
+  siStage = "form";
+  const kidSide = siMode === "kid";
+  $("#root").innerHTML = `<div class="signin" style="margin-top:9vh">
+    <div style="display:flex;justify-content:space-between;align-items:center"><button class="linkbtn" id="backBtn" style="margin:0;text-decoration:none">${T().back}</button><button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button></div>
+    <h1 style="margin-top:14px">${kidSide ? `🧒 ${T().kidSignInTitle}` : `👨‍👩‍👦 ${T().parentSignInTitle}`}</h1>
+    <p class="meta" style="margin-bottom:14px">${kidSide ? T().kidSignInSub : T().parentSignInSub}</p>
     ${siMode === "parent" ? `<form id="siForm"><label>${T().emailLabel}</label><input type="email" id="siEmail" required autocomplete="email" value="${esc(lastEmail())}">${pMode === "pw" ? `<label style="margin-top:10px">${T().passwordL}</label><input type="password" id="siPw" required autocomplete="current-password" minlength="8">` : ""}<button class="btn primary" style="width:100%;margin-top:12px">${pMode === "pw" ? T().signIn : T().sendLink}</button></form>
       <button class="linkbtn" id="pModeBtn" type="button">${pMode === "pw" ? T().useLink : T().usePassword}</button>`
       : `<form id="kidForm2"><label>${T().username}</label><input id="kUser" required autocomplete="username" autocapitalize="none" spellcheck="false"><label style="margin-top:10px">${T().pin}</label><input id="kPin" type="password" inputmode="numeric" required autocomplete="current-password" minlength="6"><button class="btn primary" style="width:100%;margin-top:12px">${T().signIn}</button></form>`}
     <p class="meta" id="siMsg" style="margin-top:12px">${msg ? esc(msg) : ""}</p></div>`;
   $("#langBtn").onclick = toggleLang;
-  document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { siMode = b.dataset.mode; renderSignIn(); });
+  $("#backBtn").onclick = () => { siStage = "landing"; renderLanding(); };
   if (siMode === "kid") { $("#kidForm2").onsubmit = async e => {
     e.preventDefault();
     const u = $("#kUser").value.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "");
@@ -129,7 +146,7 @@ async function start() {
   boot();
 }
 async function boot() {
-  if (!S.user) return renderSignIn();
+  if (!S.user) { siStage = "landing"; return renderLanding(); }
   try { await loadMe(); } catch (e) { S.me = null; }
   if (!S.me) { $("#root").innerHTML = `<div class="signin"><p>${T().notListed}</p><button class="btn" id="soBtn">${T().signOut}</button></div>`; $("#soBtn").onclick = () => sb.auth.signOut(); return; }
   if (isKid()) return kidBoot();
