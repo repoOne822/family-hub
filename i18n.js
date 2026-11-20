@@ -3,7 +3,8 @@ export const STR = {
   en: {
     kidsMode: "🔒 Kids mode", parentUnlock: "Parent 🔒", setLockPin: "Choose a 4-digit parent PIN for this device", enterLockPin: "Parent PIN", unlock: "Unlock", wrongPin: "Wrong PIN", lockHelp: "Locks this device to the kids' tap-in. Your pages and menu are hidden until you enter the PIN.",
     tabBuild: "Build my buddy", tabAnimals: "Animals", skinL: "Skin", hairL: "Hair", hairColorL: "Hair color", outfitL: "Outfit", colorL: "Color", extraL: "Extra", randomize: "🎲 Surprise me", saveBuddy: "Save my buddy",
-    hairNames: ["Short", "Spiky", "Long", "Buns", "Mohawk", "Cap"], outfitNames: ["Tee", "Hoodie", "Armor", "Gi"], extraNames: ["None", "Headband", "Glasses", "Crown", "Fencing mask", "Cape"],
+    hairNames: ["Short", "Spiky", "Long", "Buns", "Mohawk", "Cap", "Curly", "Ponytail"], outfitNames: ["Tee", "Hoodie", "Armor", "Gi", "Jersey", "Hero suit"], extraNames: ["None", "Headband", "Glasses", "Crown", "Ninja mask", "Cape", "Headphones", "Wizard hat"],
+    tabPets: "Pixel pets", tabEmoji: "Emoji", petL: "Pick a pet", petExtraL: "Dress up", petExtraNames: ["None", "Crown", "Bow", "Glasses", "Party hat"], savePet: "Save my pet",
     // kid world
     levels: ["Seedling", "Sprout", "Explorer", "Adventurer", "Champion", "Legend"], levelWord: "Level", xp: "points", toNext: n => `${n} more to level up`,
     streak: n => n > 0 ? `${n}-day streak` : "Start a streak today!", streakRest: "Streak resting — check in to start again",
@@ -125,7 +126,8 @@ export const STR = {
   zh: {
     kidsMode: "🔒 孩子模式", parentUnlock: "家长 🔒", setLockPin: "为这台设备设置4位家长密码", enterLockPin: "家长密码", unlock: "解锁", wrongPin: "密码不对", lockHelp: "把这台设备锁定为孩子打卡模式。输入密码前，家长页面和菜单都会隐藏。",
     tabBuild: "设计我的小伙伴", tabAnimals: "动物", skinL: "肤色", hairL: "发型", hairColorL: "发色", outfitL: "衣服", colorL: "颜色", extraL: "配饰", randomize: "🎲 随机一个", saveBuddy: "保存小伙伴",
-    hairNames: ["短发", "刺猬头", "长发", "丸子头", "莫西干", "帽子"], outfitNames: ["T恤", "卫衣", "盔甲", "道服"], extraNames: ["无", "头带", "眼镜", "皇冠", "击剑面罩", "披风"],
+    hairNames: ["短发", "刺猬头", "长发", "丸子头", "莫西干", "帽子", "卷发", "马尾"], outfitNames: ["T恤", "卫衣", "盔甲", "道服", "球衣", "英雄服"], extraNames: ["无", "头带", "眼镜", "皇冠", "忍者面罩", "披风", "耳机", "巫师帽"],
+    tabPets: "像素宠物", tabEmoji: "表情", petL: "选一个宠物", petExtraL: "装扮", petExtraNames: ["无", "皇冠", "蝴蝶结", "眼镜", "派对帽"], savePet: "保存我的宠物",
     // kid world
     levels: ["种子", "嫩芽", "探险家", "冒险王", "冠军", "传奇"], levelWord: "等级", xp: "积分", toNext: n => `再得 ${n} 分升级`,
     streak: n => n > 0 ? `连续 ${n} 天` : "今天开始连续打卡！", streakRest: "连续打卡休息中——打卡重新开始",

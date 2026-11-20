@@ -91,7 +91,7 @@ function renderSignIn(msg) {
   $("#root").innerHTML = `<div class="headline" style="margin-top:7vh">${T().signInHero}</div><div class="signin" style="margin-top:20px">
     <div style="display:flex;justify-content:space-between;align-items:center"><h1><span class="dotlogo" style="width:26px;height:26px;border-radius:50%;background:var(--lime);display:inline-grid;place-items:center;color:#0a0a0a;font-size:14px;vertical-align:3px">✦</span> ${T().signInTitle}</h1><button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button></div>
     <p class="meta">${T().signInSub}</p>
-    <div class="tabs" style="margin:8px 0 14px"><button class="${siMode === "parent" ? "on" : ""}" data-mode="parent">${T().iAmParent}</button><button class="${siMode === "kid" ? "on" : ""}" data-mode="kid">${T().iAmKid}</button></div>
+    <div class="tabs signin" style="margin:8px 0 14px"><button class="${siMode === "parent" ? "on" : ""}" data-mode="parent">${T().iAmParent}</button><button class="${siMode === "kid" ? "on" : ""}" data-mode="kid">${T().iAmKid}</button></div>
     ${siMode === "parent" ? `<form id="siForm"><label>${T().emailLabel}</label><input type="email" id="siEmail" required autocomplete="email"><button class="btn primary" style="width:100%;margin-top:12px">${T().sendLink}</button></form>`
       : `<form id="kidForm2"><label>${T().username}</label><input id="kUser" required autocomplete="username" autocapitalize="none" spellcheck="false"><label style="margin-top:10px">${T().pin}</label><input id="kPin" type="password" inputmode="numeric" required autocomplete="current-password" minlength="6"><button class="btn primary" style="width:100%;margin-top:12px">${T().signIn}</button></form>`}
     <p class="meta" id="siMsg" style="margin-top:12px">${msg ? esc(msg) : ""}</p></div>`;
@@ -691,28 +691,40 @@ function kidRender() {
   $("#langBtn").onclick = toggleLang; $("#soBtn").onclick = () => { document.body.classList.remove("kidmode"); sb.auth.signOut(); };
   const R = async fn => { try { await fn(); await loadAll(); kidRender(); } catch (err) { setStatus(err.message || "Save failed", true); } };
   $("#kTap").onclick = () => kidTapIn();
-  let avTab = Pix.parse(k.avatar) || !k.avatar ? "build" : "animals", avSpec = Pix.parse(k.avatar) || Pix.random();
+  const curPx = Pix.parse(k.avatar);
+  let avTab = curPx ? (curPx.a > 0 ? "pets" : "build") : (little || !k.avatar ? (little ? "pets" : "build") : "animals");
+  let avSpec = curPx && !curPx.a ? curPx : Pix.random(), petSpec = curPx && curPx.a ? curPx : { ...Pix.defaultSpec(), a: 1 };
   const saveAv = v => R(async () => { const { error } = await sb.rpc("kid_set_avatar", { p_avatar: v }); if (error) throw error; confetti(); });
   const drawAv = () => {
     const opt = (key, n, labelFn, swatch) => `<div class="kw-optrow"><div class="kw-optl">${labelFn.title}</div><div class="kw-opts">${Array.from({ length: n }, (_, i) => `<button class="${avSpec[key] === i ? "on" : ""}" data-k="${key}" data-v="${i}" ${swatch ? `style="background:${swatch[i]}" aria-label="${i + 1}"` : ""}>${swatch ? "" : esc(labelFn.names[i])}</button>`).join("")}</div></div>`;
-    $("#avBody").innerHTML = `<div class="tabs" style="margin-bottom:16px;width:max-content"><button class="${avTab === "build" ? "on" : ""}" data-tab="build">🎨 ${t.tabBuild}</button><button class="${avTab === "animals" ? "on" : ""}" data-tab="animals">🐾 ${t.tabAnimals}</button></div>
-      ${avTab === "build" ? `<div class="kw-builder"><div class="kw-preview">${Pix.svg(avSpec, 168)}<button class="btn sm" data-rand>${t.randomize}</button></div><div>
+    const tabs = [["pets", "🐾 " + t.tabPets], ["build", "🎨 " + t.tabBuild], ["animals", "😀 " + t.tabEmoji]];
+    if (!little) tabs.push(tabs.shift());
+    const foot = save => `<div class="modal-f"><button class="btn" data-avclose>${t.cancel}</button>${save || ""}</div>`;
+    let body;
+    if (avTab === "build") body = `<div class="kw-builder"><div class="kw-preview">${Pix.svg(avSpec, 168)}<button class="btn sm" data-rand>${t.randomize}</button></div><div>
         ${opt("s", Pix.PX.skin.length, { title: t.skinL }, Pix.PX.skin)}
         ${opt("h", Pix.PX.hair.length, { title: t.hairL, names: t.hairNames })}
         ${opt("c", Pix.PX.hairC.length, { title: t.hairColorL }, Pix.PX.hairC)}
         ${opt("k", Pix.PX.outfit.length, { title: t.outfitL, names: t.outfitNames })}
         ${opt("o", Pix.PX.outC.length, { title: t.colorL }, Pix.PX.outC)}
-        ${opt("x", Pix.PX.extra.length, { title: t.extraL, names: t.extraNames })}</div></div>
-        <div class="modal-f"><button class="btn" data-avclose>${t.cancel}</button><button class="btn primary" data-savepx>${t.saveBuddy}</button></div>`
-      : `<div class="kw-avpick">${AVATARS.map(a => `<button data-av="${a}" class="${a === k.avatar ? "on" : ""}">${a}</button>`).join("")}</div><div class="modal-f"><button class="btn" data-avclose>${t.cancel}</button></div>`}`;
+        ${opt("x", Pix.PX.extra.length, { title: t.extraL, names: t.extraNames })}</div></div>${foot(`<button class="btn primary" data-savepx>${t.saveBuddy}</button>`)}`;
+    else if (avTab === "pets") body = `<div class="kw-builder"><div class="kw-preview">${Pix.svg(petSpec, 168)}<button class="btn sm" data-prand>${t.randomize}</button></div><div>
+        <div class="kw-optrow"><div class="kw-optl">${t.petL}</div><div class="kw-pets ${little ? "big" : ""}">${Pix.PX.animals.map((_, i) => `<button class="${petSpec.a === i + 1 ? "on" : ""}" data-pet="${i + 1}">${Pix.svg({ a: i + 1, x: 0 }, little ? 72 : 56)}</button>`).join("")}</div></div>
+        <div class="kw-optrow"><div class="kw-optl">${t.petExtraL}</div><div class="kw-opts">${t.petExtraNames.map((n, i) => `<button class="${petSpec.x === i ? "on" : ""}" data-px="${i}">${esc(n)}</button>`).join("")}</div></div></div></div>${foot(`<button class="btn primary" data-savepet>${t.savePet}</button>`)}`;
+    else body = `<div class="kw-avpick">${AVATARS.map(a => `<button data-av="${a}" class="${a === k.avatar ? "on" : ""}">${a}</button>`).join("")}</div>${foot()}`;
+    $("#avBody").innerHTML = `<div class="tabs" style="margin-bottom:16px;width:max-content;max-width:100%">${tabs.map(([id, l]) => `<button class="${avTab === id ? "on" : ""}" data-tab="${id}">${l}</button>`).join("")}</div>${body}`;
   };
   $("#avBtn").onclick = () => { drawAv(); $("#avModal").classList.add("open"); };
   $("#avModal").onclick = e => {
     if (e.target.id === "avModal" || e.target.closest("[data-avclose]")) return $("#avModal").classList.remove("open");
     const tb = e.target.closest("[data-tab]"); if (tb) { avTab = tb.dataset.tab; return drawAv(); }
     const o = e.target.closest("[data-k]"); if (o) { avSpec[o.dataset.k] = +o.dataset.v; return drawAv(); }
+    const pt = e.target.closest("[data-pet]"); if (pt) { petSpec.a = +pt.dataset.pet; return drawAv(); }
+    const px = e.target.closest("[data-px]"); if (px) { petSpec.x = +px.dataset.px; return drawAv(); }
     if (e.target.closest("[data-rand]")) { avSpec = Pix.random(); return drawAv(); }
+    if (e.target.closest("[data-prand]")) { petSpec = Pix.randomPet(); return drawAv(); }
     if (e.target.closest("[data-savepx]")) return saveAv(Pix.encode(avSpec));
+    if (e.target.closest("[data-savepet]")) return saveAv(Pix.encode(petSpec));
     const b = e.target.closest("[data-av]"); if (b) saveAv(b.dataset.av);
   };
   if ($("#propBtn")) $("#propBtn").onclick = () => { const v = $("#propIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("goals").insert({ kid: k.id, text: v, status: "proposed", proposed_by_kid: true }); if (error) throw error; }); };
