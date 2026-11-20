@@ -92,7 +92,7 @@ function renderSignIn(msg) {
     <div style="display:flex;justify-content:space-between;align-items:center"><h1><span class="dotlogo" style="width:26px;height:26px;border-radius:50%;background:var(--lime);display:inline-grid;place-items:center;color:#0a0a0a;font-size:14px;vertical-align:3px">✦</span> ${T().signInTitle}</h1><button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button></div>
     <p class="meta">${T().signInSub}</p>
     <div class="tabs signin" style="margin:8px 0 14px"><button class="${siMode === "parent" ? "on" : ""}" data-mode="parent">${T().iAmParent}</button><button class="${siMode === "kid" ? "on" : ""}" data-mode="kid">${T().iAmKid}</button></div>
-    ${siMode === "parent" ? `<button class="btn gbtn" id="gBtn" type="button"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg> ${T().withGoogle}</button><div class="ordiv"><span>${T().orEmail}</span></div><form id="siForm"><label>${T().emailLabel}</label><input type="email" id="siEmail" required autocomplete="email"><button class="btn primary" style="width:100%;margin-top:12px">${T().sendLink}</button></form>`
+    ${siMode === "parent" ? `<form id="siForm"><label>${T().emailLabel}</label><input type="email" id="siEmail" required autocomplete="email"><button class="btn primary" style="width:100%;margin-top:12px">${T().sendLink}</button></form>`
       : `<form id="kidForm2"><label>${T().username}</label><input id="kUser" required autocomplete="username" autocapitalize="none" spellcheck="false"><label style="margin-top:10px">${T().pin}</label><input id="kPin" type="password" inputmode="numeric" required autocomplete="current-password" minlength="6"><button class="btn primary" style="width:100%;margin-top:12px">${T().signIn}</button></form>`}
     <p class="meta" id="siMsg" style="margin-top:12px">${msg ? esc(msg) : ""}</p></div>`;
   $("#langBtn").onclick = toggleLang;
@@ -103,10 +103,6 @@ function renderSignIn(msg) {
     const { error } = await sb.auth.signInWithPassword({ email: `${u}@${KID_DOMAIN}`, password: $("#kPin").value });
     if (error) $("#siMsg").textContent = T().badLogin;
   }; return; }
-  $("#gBtn").onclick = async () => {
-    const { error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + location.pathname, queryParams: { prompt: "select_account" } } });
-    if (error) $("#siMsg").textContent = /provider is not enabled|Unsupported provider/i.test(error.message) ? T().googleOff : error.message;
-  };
   $("#siForm").onsubmit = async e => {
     e.preventDefault();
     const email = $("#siEmail").value.trim();
@@ -118,14 +114,9 @@ function toggleLang() { lang = lang === "en" ? "zh" : "en"; try { localStorage.s
 
 async function start() {
   applyStatic();
-  // Google sign-in comes back with an error in the URL when the account isn't on the family list
-  const qs = new URLSearchParams(location.search + "&" + location.hash.slice(1));
-  const authErr = qs.get("error_description");
-  if (authErr) history.replaceState(null, "", location.pathname);
   const { data } = await sb.auth.getSession();
   S.user = data?.session?.user || null;
   sb.auth.onAuthStateChange((_e, session) => { const was = !!S.user; S.user = session?.user || null; if (!!S.user !== was) boot(); });
-  if (authErr && !S.user) return renderSignIn(/family list|Database error/i.test(authErr) ? T().notListed : authErr);
   boot();
 }
 async function boot() {
