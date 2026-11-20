@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261119q";
-import * as Pix from "./pixel.js?v=20261119q";
+import { STR } from "./i18n.js?v=20261120a";
+import * as Pix from "./pixel.js?v=20261120a";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -73,7 +73,7 @@ async function loadAll() {
     const m = await sb.rpc("kid_moods", { p_days: 400 }); S.moods = m.data || []; S.checkins = [];
     S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); S.subjects.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); return;
   }
-  const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects", "feedback", "insights", "assessments", "app_saves"];
+  const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects", "feedback", "insights", "assessments", "app_saves", "roadmap_items", "parent_checks"];
   const res = await Promise.all(tables.map(t => sb.from(t).select("*")));
   res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
   S.kids.sort((a, b) => (a.sort ?? 9) - (b.sort ?? 9));
@@ -156,11 +156,11 @@ async function boot() {
 }
 
 /* ---------------- shell + routing ---------------- */
-const ROUTES = ["today", "dashboard", "performance", "feedback", "subjects", "log", "plans", "reports", "family"];
+const ROUTES = ["today", "dashboard", "roadmap", "performance", "feedback", "subjects", "log", "plans", "reports", "family"];
 function renderShell() {
   $("#root").innerHTML = `<div class="topbar"><div class="in">
     <div class="brand"><span class="dotlogo">✦</span>${T().appTitle}</div>
-    <nav class="nav">${ROUTES.map(r => `<a href="#${r}" data-r="${r}">${T()["nav" + { today: "Today", dashboard: "Dash", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" }[r]]}</a>`).join("")}</nav>
+    <nav class="nav">${ROUTES.map(r => `<a href="#${r}" data-r="${r}">${T()["nav" + { today: "Today", dashboard: "Dash", roadmap: "Roadmap", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" }[r]]}</a>`).join("")}</nav>
     <button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button>
     <button class="btn sm" id="lockBtn">${T().kidsMode}</button>
     <button class="btn sm ghost" id="soBtn">${T().signOut}</button></div></div>
@@ -179,7 +179,7 @@ function route() {
   if (h.startsWith("doc-")) { doc = h.slice(4); h = "doc"; }
   if (!ROUTES.includes(h) && h !== "doc") h = "today";
   document.querySelectorAll(".nav a").forEach(a => a.classList.toggle("on", a.dataset.r === h || (h === "doc" && a.dataset.r === (S.docs.find(d => d.slug === doc)?.section === "report" ? "reports" : "plans"))));
-  ({ today: viewToday, dashboard: viewDash, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, doc: () => viewDoc(doc) })[h]();
+  ({ today: viewToday, dashboard: viewDash, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, roadmap: viewRoadmap, doc: () => viewDoc(doc) })[h]();
 }
 
 /* ---------------- TODAY ---------------- */
@@ -566,6 +566,78 @@ async function viewFamily() {
 let fbKid = null, fbTone = "neutral";
 document.addEventListener("click", e => { const a = e.target.closest("[data-fbkid]"); if (a) fbKid = a.dataset.fbkid; }, true);
 const KINDS = ["strength", "struggle", "what_works", "watch", "interest"];
+/* ---------------- ROADMAP: how we raise them + a one-direction map for each boy ---------------- */
+const RMS = {
+  en: { title: "Roadmap", principlesH: "How we raise them", principlesSub: "Confidence comes from being good at something real, making their own choices, and feeling they belong. Standing out comes from depth, not from doing everything.",
+    checkH: "This week's parent checklist", checkSub: "Tick as you go. Both parents share one list.", weekOf: d => `Week of ${d}`, last8: "Last 8 weeks",
+    mapH: n => `${n}'s road`, mapSub: "One direction only: where he is now and where he's heading. Each boy is measured against his own path, never against his brothers.",
+    stages: { now: "Now – Jan 27", spring27: "Spring 2027", summer27: "Summer 2027", fall27: "Fall 2027", later: "Further ahead" },
+    kinds: { activity: "Activity", habit: "Habit", milestone: "Milestone", focus: "Parent focus" },
+    status: { planned: "Planned", active: "In progress", done: "Done", skipped: "Skipped" }, tap: "Tap a status to change it.",
+    add: "Add to this road", addTitle: "What is it?", addWhy: "Why (optional)", save: "Add", del: "Remove", focusH: "Parent focus for him", progress: (d, t) => `${d} of ${t} done` },
+  zh: { title: "成长路线", principlesH: "我们的养育原则", principlesSub: "自信来自真正擅长某件事、能自己做选择、以及有归属感。脱颖而出来自深度，而不是什么都做。",
+    checkH: "本周家长清单", checkSub: "做完就打勾。父母共用一份清单。", weekOf: d => `${d} 这一周`, last8: "最近8周",
+    mapH: n => `${n} 的成长路线`, mapSub: "只有一个方向：他现在在哪里、要往哪里去。每个孩子只和自己的路线比，从不和兄弟比较。",
+    stages: { now: "现在 – 1月27日", spring27: "2027 春季", summer27: "2027 夏季", fall27: "2027 秋季", later: "更远的将来" },
+    kinds: { activity: "活动", habit: "习惯", milestone: "里程碑", focus: "家长关注" },
+    status: { planned: "计划中", active: "进行中", done: "已完成", skipped: "跳过" }, tap: "点击状态可以更改。",
+    add: "添加到路线", addTitle: "内容是什么？", addWhy: "原因（可选）", save: "添加", del: "删除", focusH: "家长对他的关注点", progress: (d, t) => `已完成 ${d} / ${t}` } };
+const PRINCIPLES = [
+  ["🎯", "Help each boy build one spike", "Find what he returns to without being pushed, then help him go deep and make something real from it.", "帮每个孩子培养一个特长", "找到他不用催也会主动做的事，帮他深入下去，做出真正的成果。"],
+  ["💬", "Praise effort and strategy, not talent", "“You planned that speech well” builds confidence that survives failure; “you're so smart” builds fear of looking dumb.", "表扬努力和方法，不表扬天赋", "“你这次演讲准备得很好”培养能经得起失败的自信；“你真聪明”会让孩子害怕显得笨。"],
+  ["⚖️", "Never compare them", "Each boy's yardstick is his own progress — in what we say, our tone, and who gets asked about grades first.", "永远不比较", "每个孩子只和自己的进步比——包括我们说的话、语气，以及先问谁的成绩。"],
+  ["🫶", "One-on-one time every week", "30 minutes with one parent, on something he chooses.", "每周一对一时间", "每周和一位家长单独相处30分钟，做他选择的事。"],
+  ["🧭", "Let them make real decisions", "Choosing activities, a small budget, planning an outing. Kids who decide become adults who lead.", "让他们做真正的决定", "选活动、管小预算、计划出游。会做决定的孩子长大会成为领导者。"],
+  ["🌱", "Let them fail small", "A lost bout, a bad round, a messy robot — then talk about what to do differently.", "允许小失败", "输一场比赛、一轮辩论没发挥好、机器人做得乱——然后聊聊下次怎么做。"],
+  ["🏮", "Make the bilingual heritage a strength", "Keep Chinese alive at home as something special about them, not a chore.", "把双语和文化传承变成优势", "在家保持中文，让它成为他们的特别之处，而不是负担。"],
+  ["🤝", "Teach them to serve and teach others", "Helping younger kids builds empathy and a quiet kind of confidence.", "教他们帮助和教导别人", "帮助年幼的孩子能培养同理心和沉稳的自信。"],
+  ["😴", "Protect sleep, exercise and one free day", "They affect focus, mood and confidence more than any class.", "保护睡眠、运动和每周一天空闲", "它们对专注、情绪和自信的影响比任何课程都大。"]];
+const CHECKS = [["one_on_one", "1:1 time", "一对一时间", true], ["praise", "Praised effort or strategy (not talent)", "表扬了努力或方法（不是天赋）", false], ["no_compare", "No comparisons between the boys", "没有比较兄弟", false], ["planning", "Sunday planning session with Eric", "和 Eric 的周日计划时间", false], ["read", "Read together / reading time", "一起阅读 / 阅读时间", false], ["free_day", "One free day for each boy", "每个孩子有一天空闲", false], ["games", "Family logic-game night", "家庭逻辑游戏之夜", false]];
+const RM_STAGES = ["now", "spring27", "summer27", "fall27", "later"];
+let rmKid = null;
+const mondayISO = (off = 0) => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7 * off); return d.toLocaleDateString("en-CA"); };
+function viewRoadmap() {
+  const t = T(), L = RMS[lang] || RMS.en, zh = lang === "zh";
+  rmKid = rmKid && S.kids.some(k => k.id === rmKid) ? rmKid : S.kids[0]?.id; if (!rmKid) return;
+  const ki = S.kids.findIndex(k => k.id === rmKid), name = esc(kidName(rmKid));
+  const wk = mondayISO(), checks = S.parent_checks || [];
+  const isDone = (w, item, kid = "") => checks.some(c => c.week === w && c.item === item && c.kid === kid && c.done);
+  const weekCount = w => CHECKS.reduce((n, [id, , , per]) => n + (per ? S.kids.filter(k => isDone(w, id, k.id)).length : isDone(w, id) ? 1 : 0), 0);
+  const maxPer = CHECKS.reduce((n, c) => n + (c[3] ? S.kids.length : 1), 0);
+  const items = (S.roadmap_items || []).filter(r => r.kid === rmKid).sort((a, b) => a.sort - b.sort || a.created_at.localeCompare(b.created_at));
+  const focus = items.filter(r => r.kind === "focus"), path = items.filter(r => r.kind !== "focus");
+  const doneN = path.filter(r => r.status === "done").length;
+  const tx = (r, f) => esc(zh && r[f + "_zh"] ? r[f + "_zh"] : r[f] || "");
+  $("#view").innerHTML = `<div class="section-h"><h3>🧭 ${L.title}</h3></div>
+  <details class="coach rmprin" ${localStorage.getItem("fh_rm_prin") === "0" ? "" : "open"}><summary><h4 style="display:inline">🌟 ${L.principlesH}</h4></summary><p class="meta">${L.principlesSub}</p>
+    <div class="rmgrid">${PRINCIPLES.map(p => `<div class="rmp"><div class="rmpi">${p[0]}</div><b>${esc(zh ? p[3] : p[1])}</b><div class="meta">${esc(zh ? p[4] : p[2])}</div></div>`).join("")}</div></details>
+  <div class="coach"><div class="section-h" style="margin:0"><h4>✅ ${L.checkH}</h4><span class="meta">${L.weekOf(fmtDate(wk))} · ${weekCount(wk)}/${maxPer}</span></div><p class="meta">${L.checkSub}</p>
+    <div class="rmchecks">${CHECKS.map(([id, en, z, per]) => `<div class="rmck"><span>${esc(zh ? z : en)}</span><span class="rmckb">${per ? S.kids.map(k => `<button class="ckb ${isDone(wk, id, k.id) ? "on" : ""}" data-ck="${id}" data-ckk="${esc(k.id)}">${isDone(wk, id, k.id) ? "✓ " : ""}${esc(kidName(k.id))}</button>`).join("") : `<button class="ckb ${isDone(wk, id) ? "on" : ""}" data-ck="${id}" data-ckk="">${isDone(wk, id) ? "✓" : "○"}</button>`}</span></div>`).join("")}</div>
+    <div class="rmhist"><span class="meta">${L.last8}:</span>${[7, 6, 5, 4, 3, 2, 1, 0].map(o => { const w = mondayISO(o), n = weekCount(w); return `<span class="rmh" title="${esc(w)}: ${n}/${maxPer}" style="opacity:${0.25 + 0.75 * n / maxPer}"></span>`; }).join("")}</div></div>
+  <div class="section-h" style="margin-top:20px"><h3 style="font-size:18px">🛤️ ${L.mapH(name)}</h3><div class="tabs" id="rmTabs">${S.kids.map(x => `<button class="${x.id === rmKid ? "on" : ""}" data-rk="${esc(x.id)}">${esc(kidName(x.id))}</button>`).join("")}</div></div>
+  <p class="meta">${L.mapSub} ${L.tap} <b>${L.progress(doneN, path.length)}</b></p>
+  <div class="rmroad" style="--kc:${KC[ki % 3]}">${RM_STAGES.map((st, i) => { const list = path.filter(r => r.stage === st); return `<div class="rmstage"><div class="rmsh"><span class="rmdot">${i + 1}</span>${L.stages[st]}</div>
+    ${list.map(r => `<div class="rmi ${r.status}"><div class="rmik">${L.kinds[r.kind]}</div><b>${tx(r, "title")}</b>${r.why ? `<div class="meta">${tx(r, "why")}</div>` : ""}<div class="rmia"><button class="rmst ${r.status}" data-rst="${r.id}">${L.status[r.status]}</button><button class="x" data-rdel="${r.id}" title="${L.del}">×</button></div></div>`).join("")}
+    <details class="rmadd"><summary>+ ${L.add}</summary><input data-rat="${st}" placeholder="${esc(L.addTitle)}" maxlength="120"><input data-raw="${st}" placeholder="${esc(L.addWhy)}" maxlength="200"><select data-rak="${st}">${["activity", "habit", "milestone"].map(k => `<option value="${k}">${L.kinds[k]}</option>`).join("")}</select><button class="btn sm primary" data-radd="${st}">${L.save}</button></details></div>${i < RM_STAGES.length - 1 ? `<div class="rmarrow">→</div>` : ""}`; }).join("")}</div>
+  ${focus.length ? `<div class="coach rmfocus" style="--kc:${KC[ki % 3]}"><h4>🎯 ${L.focusH}</h4>${focus.map(r => `<div class="rmf"><b>${tx(r, "title")}</b>${r.why ? ` — <span class="meta">${tx(r, "why")}</span>` : ""}</div>`).join("")}</div>` : ""}`;
+  const pr = $("#view").querySelector(".rmprin"); pr.ontoggle = () => { try { localStorage.setItem("fh_rm_prin", pr.open ? "1" : "0"); } catch (e) {} };
+  $("#rmTabs").onclick = e => { const b = e.target.closest("[data-rk]"); if (b) { rmKid = b.dataset.rk; viewRoadmap(); } };
+  $("#view").onclick = async e => {
+    const b = e.target.closest("button"); if (!b) return;
+    try {
+      if (b.dataset.ck) {
+        const kid = b.dataset.ckk, ex = checks.find(c => c.week === wk && c.item === b.dataset.ck && c.kid === kid);
+        const { error } = await sb.from("parent_checks").upsert({ week: wk, item: b.dataset.ck, kid, done: !(ex && ex.done), author: S.user?.email || null, updated_at: new Date().toISOString() }, { onConflict: "week,item,kid" }); if (error) throw error; return refresh();
+      }
+      if (b.dataset.rst) { const r = items.find(x => x.id === b.dataset.rst), order = ["planned", "active", "done", "skipped"], next = order[(order.indexOf(r.status) + 1) % 4];
+        const { error } = await sb.from("roadmap_items").update({ status: next, updated_at: new Date().toISOString() }).eq("id", r.id); if (error) throw error; return refresh(); }
+      if (b.dataset.rdel) { if (!b.dataset.armed) { b.dataset.armed = 1; b.textContent = t.confirm; return; } await del("roadmap_items", { id: b.dataset.rdel }); return refresh(); }
+      if (b.dataset.radd) { const st = b.dataset.radd, title = $(`[data-rat="${st}"]`).value.trim(); if (!title) return;
+        const { error } = await sb.from("roadmap_items").insert({ kid: rmKid, stage: st, sort: 100 + items.length, kind: $(`[data-rak="${st}"]`).value, title, why: $(`[data-raw="${st}"]`).value.trim() || null }); if (error) throw error; return refresh(); }
+    } catch (err) { setStatus(err.message, true); }
+  };
+}
+
 /* ---------------- PERFORMANCE: AMC timing, strengths, parent assessments ---------------- */
 const AMC_T = { factors: ["🧱", "Factors & Primes", "因数与质数"], parity: ["🧦", "Even, Odd & Divisibility", "奇偶与整除"], bases: ["👽", "Bases & Digits", "进制与数位"], sequences: ["🪜", "Sequences & Series", "数列与求和"], ratios: ["🧃", "Ratios, Rates & Percents", "比率与百分比"], equations: ["⚖️", "Equations", "方程与不等式"], venn: ["⭕", "Sets & Venn", "集合与韦恩图"], triangles: ["🔺", "Triangles", "三角形与相似"], polygons: ["🛑", "Polygons", "多边形"], circles: ["🍕", "Circles", "圆"], volumes: ["🧊", "Volumes", "体积"], stats: ["📊", "Statistics", "统计"], counting: ["👕", "Counting", "排列组合"], probability: ["🎲", "Probability", "概率"] };
 const amcTopic = id => { const x = AMC_T[id]; return x ? `${x[0]} ${lang === "zh" ? x[2] : x[1]}` : (lang === "zh" ? "🧩 逻辑与趣题" : "🧩 Logic & puzzles"); };
@@ -819,7 +891,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261119q${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120a${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; };
   fs.querySelector(".appclose").onclick = () => appOpen();
