@@ -188,6 +188,71 @@ window.AMC_LESSONS = [
     "GCF: the biggest number that divides both. LCM: the smallest number that both divide into.",
     "8 and 12: GCF = 4, LCM = 24."
    ]
+  ],
+  "ch": [
+   {
+    "q": "How many positive whole numbers less than 100 have exactly 3 positive factors?",
+    "c": [
+     "4",
+     "3",
+     "9",
+     "6",
+     "5"
+    ],
+    "a": 0,
+    "hint": "Factors come in pairs, except for square numbers. A square of a prime, p², has exactly 1, p, p².",
+    "why": "Squares of primes below 100: 2² = 4, 3² = 9, 5² = 25, 7² = 49. (11² = 121 is too big.) That's 4 numbers.",
+    "steps": [
+     "Exactly 3 factors is unusual. Which numbers have an odd number of factors?",
+     "Factors come in pairs, except for square numbers. A square of a prime, p², has exactly 1, p, p².",
+     "Squares of primes below 100: 2² = 4, 3² = 9, 5² = 25, 7² = 49. (11² = 121 is too big.) That's 4 numbers.",
+     "Factors of 25: 1, 5, 25. Exactly 3. ✅"
+    ],
+    "trap": "9 is a square, but 16 = 2⁴ has 5 factors. Only squares of PRIMES work.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "Two positive whole numbers multiply to 144, and their greatest common factor is 4. What is their least common multiple?",
+    "c": [
+     "48",
+     "12",
+     "72",
+     "36",
+     "24"
+    ],
+    "a": 3,
+    "hint": "Power fact: GCF × LCM = the product of the two numbers.",
+    "why": "4 × LCM = 144, so LCM = 144 ÷ 4 = 36. (For example, the numbers 4 and 36 have GCF 4 and LCM 36.)",
+    "steps": [
+     "We know the product and the GCF.",
+     "Power fact: GCF × LCM = the product of the two numbers.",
+     "4 × LCM = 144, so LCM = 144 ÷ 4 = 36. (For example, the numbers 4 and 36 have GCF 4 and LCM 36.)",
+     "4 and 36: GCF 4, LCM 36, product 144. ✅"
+    ],
+    "trap": "Don't divide by 2 or guess. Use GCF × LCM = product.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "What is the smallest positive whole number with exactly 10 positive factors?",
+    "c": [
+     "72",
+     "48",
+     "60",
+     "96",
+     "80"
+    ],
+    "a": 1,
+    "hint": "Factor count = (powers + 1) multiplied. 10 = 10 or 5 × 2, so the shape is p⁹ or p⁴ × q.",
+    "why": "p⁹: 2⁹ = 512. p⁴ × q: use the smallest primes, with the big power on 2: 2⁴ × 3 = 48. 48 is smaller.",
+    "steps": [
+     "We want the SMALLEST number whose factor count is 10.",
+     "Factor count = (powers + 1) multiplied. 10 = 10 or 5 × 2, so the shape is p⁹ or p⁴ × q.",
+     "p⁹: 2⁹ = 512. p⁴ × q: use the smallest primes, with the big power on 2: 2⁴ × 3 = 48. 48 is smaller.",
+     "48 = 2⁴ × 3 → (4 + 1)(1 + 1) = 10. ✅"
+    ],
+    "trap": "80 = 2⁴ × 5 also has 10 factors, but it isn't the smallest.",
+    "lvl": "challenge"
+   }
   ]
  },
  {
@@ -244,13 +309,13 @@ window.AMC_LESSONS = [
    {
     "q": "Which number is divisible by 9?",
     "c": [
-     "2345",
      "1234",
+     "2345",
      "5678",
-     "4567",
-     "3456"
+     "3456",
+     "4567"
     ],
-    "a": 4,
+    "a": 3,
     "hint": "Add the digits of each one.",
     "why": "Digit sums: 10, 14, 18, 22, 26. Only 18 divides by 9, so 3456.",
     "steps": [
@@ -264,13 +329,13 @@ window.AMC_LESSONS = [
    {
     "q": "a is odd and b is even. Which one MUST be odd?",
     "c": [
+     "a × b",
+     "2a + b",
      "b × b",
      "a + b",
-     "2(a + b)",
-     "2a + b",
-     "a × b"
+     "2(a + b)"
     ],
-    "a": 1,
+    "a": 3,
     "hint": "Try a = 3 and b = 2 in each.",
     "why": "Odd + even = odd. Every other choice has an even part multiplied in.",
     "steps": [
@@ -284,11 +349,11 @@ window.AMC_LESSONS = [
    {
     "q": "52d4 is a four-digit number with missing digit d. It is divisible by 3. What is the smallest d?",
     "c": [
-     "2",
+     "4",
      "0",
      "1",
-     "4",
-     "3"
+     "3",
+     "2"
     ],
     "a": 2,
     "hint": "Digit sum = 5 + 2 + d + 4. Make it a multiple of 3.",
@@ -304,13 +369,13 @@ window.AMC_LESSONS = [
    {
     "q": "How many whole numbers from 1 to 100 are divisible by 3 or by 5?",
     "c": [
+     "53",
      "40",
      "45",
-     "53",
-     "47",
-     "50"
+     "50",
+     "47"
     ],
-    "a": 3,
+    "a": 4,
     "hint": "Count multiples of 3, add multiples of 5, then remove the ones you counted twice (multiples of 15).",
     "why": "33 + 20 − 6 = 47.",
     "steps": [
@@ -324,13 +389,13 @@ window.AMC_LESSONS = [
    {
     "q": "Which number is divisible by 11?",
     "c": [
-     "2453",
-     "3141",
-     "4567",
+     "5432",
      "1352",
-     "5432"
+     "4567",
+     "3141",
+     "2453"
     ],
-    "a": 0,
+    "a": 4,
     "hint": "Alternate: first − second + third − fourth.",
     "why": "2 − 4 + 5 − 3 = 0, so 2453 = 11 × 223.",
     "steps": [
@@ -379,6 +444,71 @@ window.AMC_LESSONS = [
     "Numbers in a row with no gaps.",
     "8, 9, 10"
    ]
+  ],
+  "ch": [
+   {
+    "q": "How many three-digit numbers are divisible by 7?",
+    "c": [
+     "128",
+     "127",
+     "142",
+     "129",
+     "126"
+    ],
+    "a": 0,
+    "hint": "Multiples of 7 up to 999, minus multiples of 7 up to 99.",
+    "why": "999 ÷ 7 = 142 (and a bit) → 142 multiples up to 999. 99 ÷ 7 = 14 (and a bit) → 14 multiples up to 99. 142 − 14 = 128.",
+    "steps": [
+     "Count multiples of 7 from 100 to 999.",
+     "Multiples of 7 up to 999, minus multiples of 7 up to 99.",
+     "999 ÷ 7 = 142 (and a bit) → 142 multiples up to 999. 99 ÷ 7 = 14 (and a bit) → 14 multiples up to 99. 142 − 14 = 128.",
+     "The first is 105 = 7 × 15, the last is 994 = 7 × 142: 142 − 15 + 1 = 128. ✅"
+    ],
+    "trap": "142 counts the small ones (7, 14, …, 98) too.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "The four-digit number 3AA1 is divisible by 9. What digit is A?",
+    "c": [
+     "6",
+     "5",
+     "3",
+     "7",
+     "4"
+    ],
+    "a": 3,
+    "hint": "Digit-sum rule: 3 + A + A + 1 must be a multiple of 9.",
+    "why": "4 + 2A must be 9, 18 or 27. 4 + 2A = 18 gives A = 7. (9 and 27 would need A = 2.5 or 11.5.)",
+    "steps": [
+     "Both missing digits are the same digit A.",
+     "Digit-sum rule: 3 + A + A + 1 must be a multiple of 9.",
+     "4 + 2A must be 9, 18 or 27. 4 + 2A = 18 gives A = 7. (9 and 27 would need A = 2.5 or 11.5.)",
+     "3771: 3 + 7 + 7 + 1 = 18, and 3771 ÷ 9 = 419. ✅"
+    ],
+    "trap": "Remember A appears twice: 2A, not A.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "What is the sum of all the odd numbers from 1 to 99?",
+    "c": [
+     "2475",
+     "2550",
+     "4950",
+     "2450",
+     "2500"
+    ],
+    "a": 4,
+    "hint": "Count the terms, then pair first + last. Or spot the pattern: 1, 1 + 3 = 4, 1 + 3 + 5 = 9, …",
+    "why": "There are 50 odd numbers. Pairs: 1 + 99 = 100, 3 + 97 = 100, … 25 pairs × 100 = 2500.",
+    "steps": [
+     "A long list: 1, 3, 5, …, 99.",
+     "Count the terms, then pair first + last. Or spot the pattern: 1, 1 + 3 = 4, 1 + 3 + 5 = 9, …",
+     "There are 50 odd numbers. Pairs: 1 + 99 = 100, 3 + 97 = 100, … 25 pairs × 100 = 2500.",
+     "Pattern: the sum of the first n odd numbers is n². 50² = 2500. ✅"
+    ],
+    "trap": "4950 is 1 + 2 + … + 99 (all the numbers), not just the odd ones.",
+    "lvl": "challenge"
+   }
   ]
  },
  {
@@ -435,13 +565,13 @@ window.AMC_LESSONS = [
    {
     "q": "What is 212 in base 3, written as a normal number?",
     "c": [
-     "25",
-     "21",
-     "22",
      "24",
-     "23"
+     "23",
+     "25",
+     "22",
+     "21"
     ],
-    "a": 4,
+    "a": 1,
     "hint": "Base 3 places are 9, 3, 1.",
     "why": "2×9 + 1×3 + 2×1 = 23.",
     "steps": [
@@ -455,13 +585,13 @@ window.AMC_LESSONS = [
    {
     "q": "What is 25 written in base 2?",
     "c": [
+     "11001",
      "11100",
      "10011",
-     "11001",
-     "10101",
-     "11010"
+     "11010",
+     "10101"
     ],
-    "a": 2,
+    "a": 0,
     "hint": "25 = 16 + 8 + 1.",
     "why": "16, 8, 4, 2, 1 → 1, 1, 0, 0, 1 → 11001.",
     "steps": [
@@ -475,13 +605,13 @@ window.AMC_LESSONS = [
    {
     "q": "What is the ones digit of 7²⁰²⁶?",
     "c": [
-     "9",
+     "3",
      "1",
-     "7",
+     "9",
      "5",
-     "3"
+     "7"
     ],
-    "a": 0,
+    "a": 2,
     "hint": "Ones digits of 7, 7², 7³, 7⁴ are 7, 9, 3, 1, and then it repeats.",
     "why": "2026 ÷ 4 leaves remainder 2, so it's the 2nd in the cycle: 9.",
     "steps": [
@@ -495,13 +625,13 @@ window.AMC_LESSONS = [
    {
     "q": "Take a two-digit number, reverse its digits, and subtract the smaller from the bigger. The answer is always divisible by:",
     "c": [
-     "7",
-     "9",
-     "5",
      "11",
-     "4"
+     "4",
+     "9",
+     "7",
+     "5"
     ],
-    "a": 1,
+    "a": 2,
     "hint": "(10a + b) − (10b + a) = ?",
     "why": "It equals 9a − 9b = 9(a − b), so 9 always divides it.",
     "steps": [
@@ -515,13 +645,13 @@ window.AMC_LESSONS = [
    {
     "q": "What is the sum of the digits of 10¹⁰ − 1?",
     "c": [
-     "10",
      "90",
      "81",
-     "9",
-     "100"
+     "10",
+     "100",
+     "9"
     ],
-    "a": 1,
+    "a": 0,
     "hint": "Try smaller: 10² − 1 = 99, 10³ − 1 = 999.",
     "why": "10¹⁰ − 1 is ten 9s in a row, so the digit sum is 90.",
     "steps": [
@@ -570,6 +700,71 @@ window.AMC_LESSONS = [
     "A pattern that repeats.",
     "Last digits of 2, 4, 8, 16, 32, …: 2, 4, 8, 6, 2, 4, 8, 6, …"
    ]
+  ],
+  "ch": [
+   {
+    "q": "In base 5, what is 34 + 23? (Give the answer in base 5.)",
+    "c": [
+     "102",
+     "57",
+     "121",
+     "112",
+     "111"
+    ],
+    "a": 3,
+    "hint": "Change both to normal numbers, add, then change back to base 5.",
+    "why": "34₅ = 3 × 5 + 4 = 19. 23₅ = 2 × 5 + 3 = 13. 19 + 13 = 32. 32 = 1 × 25 + 1 × 5 + 2 → 112₅.",
+    "steps": [
+     "Add, but in base 5 (places 25, 5, 1).",
+     "Change both to normal numbers, add, then change back to base 5.",
+     "34₅ = 3 × 5 + 4 = 19. 23₅ = 2 × 5 + 3 = 13. 19 + 13 = 32. 32 = 1 × 25 + 1 × 5 + 2 → 112₅.",
+     "Or add column by column: 4 + 3 = 7 = 1 five + 2, write 2 and carry 1. 3 + 2 + 1 = 6 = 1 five + 1 → 112. ✅"
+    ],
+    "trap": "57 is the answer in base 10 thinking. Base 5 can't even have a 7!",
+    "lvl": "challenge"
+   },
+   {
+    "q": "What is the ones digit of 2¹⁰⁰ + 3¹⁰⁰?",
+    "c": [
+     "7",
+     "3",
+     "1",
+     "9",
+     "5"
+    ],
+    "a": 0,
+    "hint": "Find each cycle of last digits, then add.",
+    "why": "2: 2, 4, 8, 6 (cycle of 4). 100 ÷ 4 remainder 0 → the 4th → 6. 3: 3, 9, 7, 1. Remainder 0 → 1. 6 + 1 = 7.",
+    "steps": [
+     "Two huge powers. We only need the last digits.",
+     "Find each cycle of last digits, then add.",
+     "2: 2, 4, 8, 6 (cycle of 4). 100 ÷ 4 remainder 0 → the 4th → 6. 3: 3, 9, 7, 1. Remainder 0 → 1. 6 + 1 = 7.",
+     "2⁴ = 16 ends in 6 and 3⁴ = 81 ends in 1, and 100 is a multiple of 4. ✅"
+    ],
+    "trap": "Remainder 0 means the LAST item in the cycle.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "How many two-digit numbers get 27 bigger when you reverse their digits?",
+    "c": [
+     "9",
+     "7",
+     "3",
+     "5",
+     "6"
+    ],
+    "a": 4,
+    "hint": "Write it as 10a + b, reversed 10b + a. Their difference is 9(b − a).",
+    "why": "9(b − a) = 27 → b − a = 3. a can be 1 to 6 (b = 4 to 9): 14, 25, 36, 47, 58, 69 → 6 numbers.",
+    "steps": [
+     "Reversing makes it bigger by exactly 27.",
+     "Write it as 10a + b, reversed 10b + a. Their difference is 9(b − a).",
+     "9(b − a) = 27 → b − a = 3. a can be 1 to 6 (b = 4 to 9): 14, 25, 36, 47, 58, 69 → 6 numbers.",
+     "41 − 14 = 27. ✅"
+    ],
+    "trap": "a can't be 0 (it would not be two-digit), so 03 → 30 doesn't count.",
+    "lvl": "challenge"
+   }
   ]
  },
  {
@@ -627,8 +822,8 @@ window.AMC_LESSONS = [
     "q": "What is the 20th term of 3, 7, 11, 15, …?",
     "c": [
      "75",
-     "80",
      "83",
+     "80",
      "79",
      "87"
     ],
@@ -647,12 +842,12 @@ window.AMC_LESSONS = [
     "q": "What is 2 + 4 + 6 + … + 50?",
     "c": [
      "675",
-     "650",
-     "1300",
+     "600",
      "625",
-     "600"
+     "1300",
+     "650"
     ],
-    "a": 1,
+    "a": 4,
     "hint": "How many even numbers from 2 to 50? Then pair them.",
     "why": "25 terms. (2 + 50) × 25 ÷ 2 = 650.",
     "steps": [
@@ -666,13 +861,13 @@ window.AMC_LESSONS = [
    {
     "q": "What comes next: 2, 6, 18, 54, …?",
     "c": [
-     "108",
+     "162",
      "148",
      "216",
      "324",
-     "162"
+     "108"
     ],
-    "a": 4,
+    "a": 0,
     "hint": "What do you multiply by each time?",
     "why": "Times 3 each step: 54 × 3 = 162.",
     "steps": [
@@ -686,13 +881,13 @@ window.AMC_LESSONS = [
    {
     "q": "In 1, 1, 2, 3, 5, 8, … each term is the sum of the two before it. What is the 10th term?",
     "c": [
-     "34",
      "55",
      "44",
-     "89",
-     "144"
+     "144",
+     "34",
+     "89"
     ],
-    "a": 1,
+    "a": 0,
     "hint": "Keep going: 13, 21, …",
     "why": "1, 1, 2, 3, 5, 8, 13, 21, 34, 55.",
     "steps": [
@@ -707,12 +902,12 @@ window.AMC_LESSONS = [
     "q": "The letters ABCDE repeat forever: ABCDEABCDE… What is the 2026th letter?",
     "c": [
      "C",
-     "A",
-     "E",
      "D",
-     "B"
+     "E",
+     "B",
+     "A"
     ],
-    "a": 1,
+    "a": 4,
     "hint": "2026 ÷ 5 = ? Look at the remainder.",
     "why": "2026 = 5 × 405 + 1. Remainder 1 means the 1st letter: A.",
     "steps": [
@@ -761,6 +956,71 @@ window.AMC_LESSONS = [
     "Adding up the terms.",
     "2 + 5 + 8 + 11 = 26"
    ]
+  ],
+  "ch": [
+   {
+    "q": "How many multiples of 6 are between 100 and 400?",
+    "c": [
+     "48",
+     "50",
+     "51",
+     "49",
+     "300"
+    ],
+    "a": 1,
+    "hint": "Then use (last − first) ÷ step + 1.",
+    "why": "First: 102 (6 × 17). Last: 396 (6 × 66). (396 − 102) ÷ 6 + 1 = 49 + 1 = 50.",
+    "steps": [
+     "Find the first and last multiples of 6 in the range.",
+     "Then use (last − first) ÷ step + 1.",
+     "First: 102 (6 × 17). Last: 396 (6 × 66). (396 − 102) ÷ 6 + 1 = 49 + 1 = 50.",
+     "66 − 17 + 1 = 50. ✅"
+    ],
+    "trap": "Forgetting the +1 gives 49.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "The sum of 10 numbers in a row is 155. What is the largest of them?",
+    "c": [
+     "16",
+     "21",
+     "15",
+     "19",
+     "20"
+    ],
+    "a": 4,
+    "hint": "Average = 155 ÷ 10 = 15.5. With 10 numbers, 15.5 sits between the 5th and 6th.",
+    "why": "The 5th is 15 and the 6th is 16, so the list is 11, 12, …, 20. The largest is 20.",
+    "steps": [
+     "10 consecutive numbers. The average is in the middle.",
+     "Average = 155 ÷ 10 = 15.5. With 10 numbers, 15.5 sits between the 5th and 6th.",
+     "The 5th is 15 and the 6th is 16, so the list is 11, 12, …, 20. The largest is 20.",
+     "11 + 20 = 31, and 5 pairs × 31 = 155. ✅"
+    ],
+    "trap": "15.5 is the middle, not the largest.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "In the list 1, 4, 9, 16, 25, … (the square numbers), which term is the first one bigger than 2026?",
+    "c": [
+     "45",
+     "44",
+     "48",
+     "46",
+     "47"
+    ],
+    "a": 3,
+    "hint": "Find the square numbers near 2026. 45 × 45 is a good guess (45² = 2025).",
+    "why": "45² = 2025 is NOT bigger than 2026. 46² = 2116 is. So it's the 46th term.",
+    "steps": [
+     "Term n is n × n.",
+     "Find the square numbers near 2026. 45 × 45 is a good guess (45² = 2025).",
+     "45² = 2025 is NOT bigger than 2026. 46² = 2116 is. So it's the 46th term.",
+     "45² = 2025 < 2026 < 2116 = 46². ✅"
+    ],
+    "trap": "2025 is so close you might stop at 45. Check: it has to be BIGGER.",
+    "lvl": "challenge"
+   }
   ]
  },
  {
@@ -817,13 +1077,13 @@ window.AMC_LESSONS = [
    {
     "q": "Red and blue marbles are in the ratio 2 : 7. There are 36 marbles. How many are red?",
     "c": [
-     "6",
      "12",
      "4",
-     "8",
-     "9"
+     "6",
+     "9",
+     "8"
     ],
-    "a": 3,
+    "a": 4,
     "hint": "How many parts in total?",
     "why": "9 parts, so 36 ÷ 9 = 4 per part. Red = 2 × 4 = 8.",
     "steps": [
@@ -837,13 +1097,13 @@ window.AMC_LESSONS = [
    {
     "q": "5 pencils cost $1.25. How much do 12 pencils cost?",
     "c": [
-     "$2.75",
-     "$2.50",
-     "$3.50",
      "$3.00",
-     "$3.25"
+     "$3.25",
+     "$3.50",
+     "$2.75",
+     "$2.50"
     ],
-    "a": 3,
+    "a": 0,
     "hint": "Find the price of 1 pencil first.",
     "why": "$1.25 ÷ 5 = $0.25 each. 12 × $0.25 = $3.00.",
     "steps": [
@@ -857,11 +1117,11 @@ window.AMC_LESSONS = [
    {
     "q": "A $40 shirt is 25% off. Then you pay 10% tax on the sale price. What do you pay?",
     "c": [
-     "$35",
-     "$31",
+     "$32",
      "$34",
+     "$31",
      "$33",
-     "$32"
+     "$35"
     ],
     "a": 3,
     "hint": "Sale price first, then add 10%.",
@@ -877,13 +1137,13 @@ window.AMC_LESSONS = [
    {
     "q": "You walk at 3 mph for 2 hours, then run at 6 mph for 1 hour. What is your average speed?",
     "c": [
-     "5.5 mph",
-     "5 mph",
-     "4.5 mph",
      "6 mph",
-     "4 mph"
+     "4.5 mph",
+     "5.5 mph",
+     "4 mph",
+     "5 mph"
     ],
-    "a": 4,
+    "a": 3,
     "hint": "Total distance ÷ total time.",
     "why": "3×2 + 6×1 = 12 miles in 3 hours = 4 mph.",
     "steps": [
@@ -897,13 +1157,13 @@ window.AMC_LESSONS = [
    {
     "q": "3 painters paint a fence in 6 hours. How long would 9 painters take, working at the same speed?",
     "c": [
+     "3",
+     "4",
      "1",
      "18",
-     "3",
-     "2",
-     "4"
+     "2"
     ],
-    "a": 3,
+    "a": 4,
     "hint": "Total work = 3 painters × 6 hours.",
     "why": "18 painter-hours ÷ 9 painters = 2 hours.",
     "steps": [
@@ -952,6 +1212,71 @@ window.AMC_LESSONS = [
     "Out of 100.",
     "25% = 25/100 = 1/4"
    ]
+  ],
+  "ch": [
+   {
+    "q": "A class has boys and girls in the ratio 3 : 4. After 6 more boys join, the ratio is 1 : 1. How many students are in the class now?",
+    "c": [
+     "48",
+     "56",
+     "52",
+     "42",
+     "44"
+    ],
+    "a": 0,
+    "hint": "Let one part = k: boys 3k, girls 4k. Afterwards 3k + 6 = 4k.",
+    "why": "k = 6, so there were 18 boys and 24 girls. Now 24 boys and 24 girls = 48.",
+    "steps": [
+     "The girls didn't change. The boys went up by 6.",
+     "Let one part = k: boys 3k, girls 4k. Afterwards 3k + 6 = 4k.",
+     "k = 6, so there were 18 boys and 24 girls. Now 24 boys and 24 girls = 48.",
+     "24 : 24 = 1 : 1. ✅"
+    ],
+    "trap": "42 is the class BEFORE the 6 boys joined.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "A price goes up 20%, then the new price goes down 20%. The final price is what percent of the original?",
+    "c": [
+     "104%",
+     "90%",
+     "100%",
+     "96%",
+     "120%"
+    ],
+    "a": 3,
+    "hint": "Try $100 as the starting price.",
+    "why": "$100 + 20% = $120. 20% of $120 is $24, so $120 − $24 = $96. That's 96% of the original.",
+    "steps": [
+     "Two percent changes, each on a DIFFERENT amount.",
+     "Try $100 as the starting price.",
+     "$100 + 20% = $120. 20% of $120 is $24, so $120 − $24 = $96. That's 96% of the original.",
+     "1.2 × 0.8 = 0.96. ✅"
+    ],
+    "trap": "Up 20% and down 20% don't cancel. The 20% down is taken from a bigger number.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "Alice can paint a room in 3 hours. Bob can paint it in 6 hours. How long if they work together?",
+    "c": [
+     "3 hours",
+     "9 hours",
+     "2 hours",
+     "1.5 hours",
+     "4.5 hours"
+    ],
+    "a": 2,
+    "hint": "Think about how much of the room each person paints in ONE hour.",
+    "why": "Alice: 1/3 of the room per hour. Bob: 1/6 per hour. Together: 1/3 + 1/6 = 1/2 per hour, so the whole room takes 2 hours.",
+    "steps": [
+     "Working together is faster than either one alone.",
+     "Think about how much of the room each person paints in ONE hour.",
+     "Alice: 1/3 of the room per hour. Bob: 1/6 per hour. Together: 1/3 + 1/6 = 1/2 per hour, so the whole room takes 2 hours.",
+     "In 2 hours Alice does 2/3 and Bob does 1/3 = 1 room. ✅"
+    ],
+    "trap": "4.5 hours averages their times. Together must be LESS than 3 hours.",
+    "lvl": "challenge"
+   }
   ]
  },
  {
@@ -1008,13 +1333,13 @@ window.AMC_LESSONS = [
    {
     "q": "Solve 5x − 3 = 2x + 12.",
     "c": [
-     "3",
      "5",
-     "15",
+     "6",
      "4",
-     "6"
+     "3",
+     "15"
     ],
-    "a": 1,
+    "a": 0,
     "hint": "Get all the x's on one side first.",
     "why": "3x = 15, so x = 5.",
     "steps": [
@@ -1028,13 +1353,13 @@ window.AMC_LESSONS = [
    {
     "q": "Three numbers in a row add up to 72. What is the largest?",
     "c": [
-     "26",
-     "24",
+     "25",
      "23",
      "27",
-     "25"
+     "26",
+     "24"
     ],
-    "a": 4,
+    "a": 0,
     "hint": "The middle one is 72 ÷ 3.",
     "why": "Middle = 24, so 23 + 24 + 25. Largest is 25.",
     "steps": [
@@ -1048,13 +1373,13 @@ window.AMC_LESSONS = [
    {
     "q": "How many positive whole numbers x make 2x + 3 < 20 true?",
     "c": [
-     "8",
+     "17",
      "10",
      "9",
-     "7",
-     "17"
+     "8",
+     "7"
     ],
-    "a": 0,
+    "a": 3,
     "hint": "Solve like an equation: 2x < 17.",
     "why": "x < 8.5, so x = 1 to 8: eight numbers.",
     "steps": [
@@ -1068,13 +1393,13 @@ window.AMC_LESSONS = [
    {
     "q": "Pens cost $2 and notebooks cost $5. Eric buys 10 items for $35. How many notebooks?",
     "c": [
-     "3",
-     "6",
-     "7",
      "4",
-     "5"
+     "5",
+     "6",
+     "3",
+     "7"
     ],
-    "a": 4,
+    "a": 1,
     "hint": "If n are notebooks, then 10 − n are pens.",
     "why": "2(10 − n) + 5n = 35 → 20 + 3n = 35 → n = 5.",
     "steps": [
@@ -1088,13 +1413,13 @@ window.AMC_LESSONS = [
    {
     "q": "Solve 4(x − 2) = x + 10.",
     "c": [
-     "7",
-     "4",
      "5",
-     "8",
-     "6"
+     "6",
+     "4",
+     "7",
+     "8"
     ],
-    "a": 4,
+    "a": 1,
     "hint": "Open the brackets: 4x − 8.",
     "why": "4x − 8 = x + 10 → 3x = 18 → x = 6.",
     "steps": [
@@ -1143,6 +1468,71 @@ window.AMC_LESSONS = [
     "A whole number: positive, negative or zero.",
     "−2, 0, 7"
    ]
+  ],
+  "ch": [
+   {
+    "q": "Eric has 3 times as many dimes as quarters. Together they're worth $2.75. How many coins does he have?",
+    "c": [
+     "25",
+     "15",
+     "18",
+     "20",
+     "22"
+    ],
+    "a": 3,
+    "hint": "Let q = quarters, so dimes = 3q. Work in cents: 25q + 10(3q) = 275.",
+    "why": "25q + 30q = 55q = 275 → q = 5. Dimes = 15. Coins = 5 + 15 = 20.",
+    "steps": [
+     "Two coin types, connected by '3 times as many'.",
+     "Let q = quarters, so dimes = 3q. Work in cents: 25q + 10(3q) = 275.",
+     "25q + 30q = 55q = 275 → q = 5. Dimes = 15. Coins = 5 + 15 = 20.",
+     "5 quarters ($1.25) + 15 dimes ($1.50) = $2.75. ✅"
+    ],
+    "trap": "Answering 5 or 15 gives just one type of coin. The question asks for ALL coins.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "How many pairs of positive whole numbers (x, y) make 2x + 3y = 30 true?",
+    "c": [
+     "10",
+     "3",
+     "5",
+     "6",
+     "4"
+    ],
+    "a": 4,
+    "hint": "Try each y and see whether x comes out a positive whole number.",
+    "why": "2x = 30 − 3y must be even and positive, so y must be even: y = 2, 4, 6, 8 → x = 12, 9, 6, 3. (y = 10 gives x = 0, not positive.) 4 pairs.",
+    "steps": [
+     "x and y must both be positive whole numbers.",
+     "Try each y and see whether x comes out a positive whole number.",
+     "2x = 30 − 3y must be even and positive, so y must be even: y = 2, 4, 6, 8 → x = 12, 9, 6, 3. (y = 10 gives x = 0, not positive.) 4 pairs.",
+     "2 × 3 + 3 × 8 = 30. ✅"
+    ],
+    "trap": "y = 10, x = 0 isn't allowed: 0 is not positive.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "The average of x and 2x is 18. What is x?",
+    "c": [
+     "12",
+     "6",
+     "18",
+     "9",
+     "24"
+    ],
+    "a": 0,
+    "hint": "Write (x + 2x) ÷ 2 = 18.",
+    "why": "3x ÷ 2 = 18 → 3x = 36 → x = 12.",
+    "steps": [
+     "The average of two numbers = their sum ÷ 2.",
+     "Write (x + 2x) ÷ 2 = 18.",
+     "3x ÷ 2 = 18 → 3x = 36 → x = 12.",
+     "12 and 24 average to 18. ✅"
+    ],
+    "trap": "18 is the average, not x.",
+    "lvl": "challenge"
+   }
   ]
  },
  {
@@ -1199,13 +1589,13 @@ window.AMC_LESSONS = [
    {
     "q": "25 kids: 14 have a cat, 12 have a dog, 5 have both. How many have neither?",
     "c": [
-     "4",
-     "3",
-     "5",
      "6",
-     "1"
+     "5",
+     "3",
+     "1",
+     "4"
     ],
-    "a": 0,
+    "a": 4,
     "hint": "Cat or dog = 14 + 12 − 5.",
     "why": "21 have at least one pet, so 25 − 21 = 4.",
     "steps": [
@@ -1219,13 +1609,13 @@ window.AMC_LESSONS = [
    {
     "q": "40 kids all do piano, swimming or both. 22 do piano and 25 swim. How many do both?",
     "c": [
-     "9",
-     "7",
-     "18",
      "5",
-     "15"
+     "15",
+     "7",
+     "9",
+     "18"
     ],
-    "a": 1,
+    "a": 2,
     "hint": "22 + 25 counts the 'both' kids twice.",
     "why": "22 + 25 − 40 = 7.",
     "steps": [
@@ -1239,13 +1629,13 @@ window.AMC_LESSONS = [
    {
     "q": "How many numbers from 1 to 60 are divisible by 4 or 6?",
     "c": [
-     "25",
-     "30",
+     "22",
      "35",
      "20",
-     "22"
+     "25",
+     "30"
     ],
-    "a": 3,
+    "a": 2,
     "hint": "The middle is multiples of 12 (the LCM).",
     "why": "15 + 10 − 5 = 20.",
     "steps": [
@@ -1259,13 +1649,13 @@ window.AMC_LESSONS = [
    {
     "q": "30 kids are each in chess, art or both. 18 are in chess and 21 are in art. How many are in art only?",
     "c": [
-     "9",
-     "10",
-     "18",
      "21",
-     "12"
+     "12",
+     "18",
+     "9",
+     "10"
     ],
-    "a": 4,
+    "a": 1,
     "hint": "Find 'both' first.",
     "why": "Both = 18 + 21 − 30 = 9. Art only = 21 − 9 = 12.",
     "steps": [
@@ -1279,13 +1669,13 @@ window.AMC_LESSONS = [
    {
     "q": "In a class, 20 like math, 15 like art, 8 like both, and 5 like neither. How many students are in the class?",
     "c": [
-     "48",
      "32",
+     "28",
+     "48",
      "35",
-     "30",
-     "28"
+     "30"
     ],
-    "a": 1,
+    "a": 0,
     "hint": "Math or art = 20 + 15 − 8. Then add 'neither'.",
     "why": "27 + 5 = 32.",
     "steps": [
@@ -1334,6 +1724,71 @@ window.AMC_LESSONS = [
     "Outside every circle.",
     "Kids with no pets"
    ]
+  ],
+  "ch": [
+   {
+    "q": "How many numbers from 1 to 100 are divisible by 2, 3 or 5?",
+    "c": [
+     "70",
+     "80",
+     "76",
+     "72",
+     "74"
+    ],
+    "a": 4,
+    "hint": "Three-circle Venn: add the singles, subtract the pairs, then add back the triple overlap.",
+    "why": "Singles: 50 + 33 + 20 = 103. Pairs: ÷6 → 16, ÷10 → 10, ÷15 → 6, total 32. Triple (÷30): 3. 103 − 32 + 3 = 74.",
+    "steps": [
+     "Three overlapping groups.",
+     "Three-circle Venn: add the singles, subtract the pairs, then add back the triple overlap.",
+     "Singles: 50 + 33 + 20 = 103. Pairs: ÷6 → 16, ÷10 → 10, ÷15 → 6, total 32. Triple (÷30): 3. 103 − 32 + 3 = 74.",
+     "Not divisible by 2, 3 or 5: 26 numbers, and 100 − 26 = 74. ✅"
+    ],
+    "trap": "Forgetting to add the triple overlap back gives 71.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "In a group of 50, 30 like soccer, 25 like tennis, and 10 like neither. How many like soccer but NOT tennis?",
+    "c": [
+     "30",
+     "10",
+     "20",
+     "25",
+     "15"
+    ],
+    "a": 4,
+    "hint": "50 − 10 = 40 like at least one. Both = 30 + 25 − 40.",
+    "why": "Both = 15. Soccer only = 30 − 15 = 15.",
+    "steps": [
+     "Find 'both' first.",
+     "50 − 10 = 40 like at least one. Both = 30 + 25 − 40.",
+     "Both = 15. Soccer only = 30 − 15 = 15.",
+     "Soccer only 15, tennis only 10, both 15, neither 10: 50. ✅"
+    ],
+    "trap": "30 includes the 'both' people.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "Of 40 students, 6 play neither piano nor violin and 10 play only violin. Three times as many play only piano as play both. How many play piano?",
+    "c": [
+     "18",
+     "20",
+     "30",
+     "24",
+     "26"
+    ],
+    "a": 3,
+    "hint": "Let both = x, so piano only = 3x. All four regions add to 40.",
+    "why": "3x + x + 10 + 6 = 40 → 4x = 24 → x = 6. Piano = piano only + both = 18 + 6 = 24.",
+    "steps": [
+     "Four regions: piano only, both, violin only, neither.",
+     "Let both = x, so piano only = 3x. All four regions add to 40.",
+     "3x + x + 10 + 6 = 40 → 4x = 24 → x = 6. Piano = piano only + both = 18 + 6 = 24.",
+     "18 + 6 + 10 + 6 = 40. ✅"
+    ],
+    "trap": "18 is piano ONLY. Piano players include the 'both' group.",
+    "lvl": "challenge"
+   }
   ]
  },
  {
@@ -1391,13 +1846,13 @@ window.AMC_LESSONS = [
    {
     "q": "Two angles of a triangle are 47° and 68°. What is the third angle?",
     "c": [
+     "60°",
      "70°",
-     "65°",
-     "55°",
      "75°",
-     "60°"
+     "55°",
+     "65°"
     ],
-    "a": 1,
+    "a": 4,
     "hint": "All three add to 180°.",
     "why": "180 − 47 − 68 = 65°.",
     "steps": [
@@ -1411,13 +1866,13 @@ window.AMC_LESSONS = [
    {
     "q": "A right triangle has legs 5 and 12. How long is the longest side?",
     "c": [
-     "169",
-     "13",
+     "15",
      "14",
      "17",
-     "15"
+     "169",
+     "13"
     ],
-    "a": 1,
+    "a": 4,
     "hint": "5² + 12² = ?",
     "why": "25 + 144 = 169, and √169 = 13.",
     "steps": [
@@ -1431,13 +1886,13 @@ window.AMC_LESSONS = [
    {
     "q": "A triangle has base 10 and height 7. What is its area?",
     "c": [
-     "30",
-     "35",
-     "70",
      "24",
-     "17"
+     "70",
+     "30",
+     "17",
+     "35"
     ],
-    "a": 1,
+    "a": 4,
     "hint": "Half of base × height.",
     "why": "½ × 10 × 7 = 35.",
     "steps": [
@@ -1452,12 +1907,12 @@ window.AMC_LESSONS = [
     "q": "An isosceles triangle has a top angle of 40°. What is each base angle?",
     "c": [
      "50°",
-     "70°",
      "40°",
      "60°",
-     "140°"
+     "140°",
+     "70°"
     ],
-    "a": 1,
+    "a": 4,
     "hint": "The two base angles are equal and share 180 − 40.",
     "why": "140 ÷ 2 = 70°.",
     "steps": [
@@ -1472,12 +1927,12 @@ window.AMC_LESSONS = [
     "q": "A triangle with sides 3, 4, 5 is similar to a bigger triangle whose shortest side is 9. What is the bigger triangle's perimeter?",
     "c": [
      "60",
-     "27",
+     "36",
      "45",
-     "24",
-     "36"
+     "27",
+     "24"
     ],
-    "a": 4,
+    "a": 1,
     "hint": "How many times bigger is it?",
     "why": "9 ÷ 3 = 3 times bigger. Sides 9, 12, 15. Perimeter 36.",
     "steps": [
@@ -1532,6 +1987,71 @@ window.AMC_LESSONS = [
     "The straight distance from the top down to the base line, at 90°.",
     "Not the slanted side!"
    ]
+  ],
+  "ch": [
+   {
+    "q": "A 13-foot ladder leans against a wall. Its foot is 5 feet from the wall. How high up the wall does it reach?",
+    "c": [
+     "8",
+     "18",
+     "10",
+     "12",
+     "13"
+    ],
+    "a": 3,
+    "hint": "a² + b² = c² with c = 13 and a = 5.",
+    "why": "5² + h² = 13² → 25 + h² = 169 → h² = 144 → h = 12.",
+    "steps": [
+     "Wall, ground and ladder make a right triangle. The ladder is the hypotenuse.",
+     "a² + b² = c² with c = 13 and a = 5.",
+     "5² + h² = 13² → 25 + h² = 169 → h² = 144 → h = 12.",
+     "5-12-13 is a famous triple. ✅"
+    ],
+    "trap": "13 − 5 = 8 subtracts the sides instead of the squares.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "A right triangle has legs 9 and 12. How long is the height drawn to the hypotenuse?",
+    "c": [
+     "7.2",
+     "9",
+     "6",
+     "7.5",
+     "8"
+    ],
+    "a": 0,
+    "hint": "Find the area two ways: with the legs, and with the hypotenuse as the base.",
+    "why": "Hypotenuse = 15 (3-4-5 × 3). Area = ½ × 9 × 12 = 54. Also area = ½ × 15 × h → 54 = 7.5h → h = 7.2.",
+    "steps": [
+     "The hypotenuse can be the base, with a new height.",
+     "Find the area two ways: with the legs, and with the hypotenuse as the base.",
+     "Hypotenuse = 15 (3-4-5 × 3). Area = ½ × 9 × 12 = 54. Also area = ½ × 15 × h → 54 = 7.5h → h = 7.2.",
+     "7.2 is shorter than both legs, which it must be. ✅"
+    ],
+    "trap": "The height to the hypotenuse is NOT one of the legs.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "An exterior angle of a triangle is 110°. One of the two inside angles NOT next to it is 45°. What is the other one?",
+    "c": [
+     "55°",
+     "45°",
+     "135°",
+     "65°",
+     "70°"
+    ],
+    "a": 3,
+    "hint": "Exterior angle = the sum of the two far inside angles (they add to 180 minus the corner next to it, and so does the exterior angle).",
+    "why": "110 = 45 + x → x = 65°.",
+    "steps": [
+     "An exterior angle sits outside one corner.",
+     "Exterior angle = the sum of the two far inside angles (they add to 180 minus the corner next to it, and so does the exterior angle).",
+     "110 = 45 + x → x = 65°.",
+     "The corner next to it is 70°: 45 + 65 + 70 = 180, and 70 + 110 = 180. ✅"
+    ],
+    "trap": "70° is the corner NEXT to the exterior angle, not a far one.",
+    "lvl": "challenge"
+   }
   ]
  },
  {
@@ -1588,13 +2108,13 @@ window.AMC_LESSONS = [
    {
     "q": "What is the sum of the inside angles of a pentagon?",
     "c": [
-     "540°",
      "720°",
-     "360°",
+     "450°",
      "900°",
-     "450°"
+     "360°",
+     "540°"
     ],
-    "a": 0,
+    "a": 4,
     "hint": "(n − 2) × 180 with n = 5.",
     "why": "3 × 180 = 540°.",
     "steps": [
@@ -1608,8 +2128,8 @@ window.AMC_LESSONS = [
    {
     "q": "Each outside angle of a regular polygon is 30°. How many sides does it have?",
     "c": [
-     "10",
      "15",
+     "10",
      "12",
      "6",
      "8"
@@ -1628,13 +2148,13 @@ window.AMC_LESSONS = [
    {
     "q": "How many diagonals does a hexagon have?",
     "c": [
+     "12",
      "9",
-     "15",
      "6",
      "8",
-     "12"
+     "15"
     ],
-    "a": 0,
+    "a": 1,
     "hint": "n(n − 3) ÷ 2",
     "why": "6 × 3 ÷ 2 = 9.",
     "steps": [
@@ -1648,10 +2168,10 @@ window.AMC_LESSONS = [
    {
     "q": "What is each inside angle of a regular decagon (10 sides)?",
     "c": [
-     "150°",
-     "108°",
      "135°",
+     "150°",
      "120°",
+     "108°",
      "144°"
     ],
     "a": 4,
@@ -1669,12 +2189,12 @@ window.AMC_LESSONS = [
     "q": "An 8 by 6 rectangle has a 2 by 2 square cut from each corner. What area is left?",
     "c": [
      "40",
-     "24",
      "36",
-     "32",
-     "28"
+     "28",
+     "24",
+     "32"
     ],
-    "a": 3,
+    "a": 4,
     "hint": "Big area minus the four little squares.",
     "why": "48 − 4 × 4 = 32.",
     "steps": [
@@ -1723,6 +2243,71 @@ window.AMC_LESSONS = [
     "pentagon 5, hexagon 6, octagon 8, decagon 10",
     "五边形、六边形、八边形、十边形"
    ]
+  ],
+  "ch": [
+   {
+    "q": "Each inside angle of a regular polygon is 156°. How many sides does it have?",
+    "c": [
+     "12",
+     "14",
+     "16",
+     "13",
+     "15"
+    ],
+    "a": 4,
+    "hint": "Use the outside angle: 180 − 156 = 24°. The outside angles add to 360°.",
+    "why": "360 ÷ 24 = 15 sides.",
+    "steps": [
+     "Regular → every angle is the same.",
+     "Use the outside angle: 180 − 156 = 24°. The outside angles add to 360°.",
+     "360 ÷ 24 = 15 sides.",
+     "(15 − 2) × 180 = 2340, and 2340 ÷ 15 = 156. ✅"
+    ],
+    "trap": "Dividing 360 by 156 uses the inside angle. Use the outside angle.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "A polygon has 35 diagonals. How many sides does it have?",
+    "c": [
+     "12",
+     "8",
+     "11",
+     "9",
+     "10"
+    ],
+    "a": 4,
+    "hint": "n(n − 3) ÷ 2 = 35 → n(n − 3) = 70. Try numbers.",
+    "why": "10 × 7 = 70, so n = 10.",
+    "steps": [
+     "Work backwards from the diagonal count.",
+     "n(n − 3) ÷ 2 = 35 → n(n − 3) = 70. Try numbers.",
+     "10 × 7 = 70, so n = 10.",
+     "10 × 7 ÷ 2 = 35. ✅"
+    ],
+    "trap": "Don't forget the ÷ 2: n(n − 3) = 70, not 35.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "A regular hexagon can be cut into 6 equal equilateral triangles. If one of those triangles has area √3, what is the hexagon's area?",
+    "c": [
+     "√3",
+     "12√3",
+     "4√3",
+     "3√3",
+     "6√3"
+    ],
+    "a": 4,
+    "hint": "Area of the hexagon = 6 × the area of one triangle.",
+    "why": "6 × √3 = 6√3.",
+    "steps": [
+     "A hexagon = 6 triangles meeting at the center.",
+     "Area of the hexagon = 6 × the area of one triangle.",
+     "6 × √3 = 6√3.",
+     "Draw lines from the center to each corner: 6 triangles. ✅"
+    ],
+    "trap": "Cutting from one corner (4 triangles) gives triangles that are NOT equal. Use the center.",
+    "lvl": "challenge"
+   }
   ]
  },
  {
@@ -1779,13 +2364,13 @@ window.AMC_LESSONS = [
    {
     "q": "A circle has diameter 10. What is its area?",
     "c": [
-     "25π",
-     "100π",
      "50π",
+     "25π",
      "20π",
+     "100π",
      "10π"
     ],
-    "a": 0,
+    "a": 1,
     "hint": "Radius is half the diameter.",
     "why": "r = 5, so the area is 25π.",
     "steps": [
@@ -1799,9 +2384,9 @@ window.AMC_LESSONS = [
    {
     "q": "A circle's circumference is 12π. What is its radius?",
     "c": [
-     "12",
      "3",
      "24",
+     "12",
      "6",
      "36"
     ],
@@ -1819,13 +2404,13 @@ window.AMC_LESSONS = [
    {
     "q": "What is the area of a quarter circle with radius 4?",
     "c": [
-     "16π",
-     "8π",
-     "2π",
      "π",
-     "4π"
+     "4π",
+     "2π",
+     "16π",
+     "8π"
     ],
-    "a": 4,
+    "a": 1,
     "hint": "Full circle ÷ 4.",
     "why": "16π ÷ 4 = 4π.",
     "steps": [
@@ -1839,11 +2424,11 @@ window.AMC_LESSONS = [
    {
     "q": "What is the area of the ring between circles of radius 5 and radius 3 (same center)?",
     "c": [
-     "4π",
-     "16π",
      "8π",
-     "9π",
-     "25π"
+     "16π",
+     "4π",
+     "25π",
+     "9π"
     ],
     "a": 1,
     "hint": "Big circle − small circle.",
@@ -1859,13 +2444,13 @@ window.AMC_LESSONS = [
    {
     "q": "If a circle's radius doubles, its area becomes how many times bigger?",
     "c": [
-     "3",
-     "8",
      "2",
      "4",
-     "6"
+     "3",
+     "6",
+     "8"
     ],
-    "a": 3,
+    "a": 1,
     "hint": "Try r = 1, then r = 2.",
     "why": "π × 2² = 4π versus π × 1² = π. That's 4 times.",
     "steps": [
@@ -1914,6 +2499,71 @@ window.AMC_LESSONS = [
     "A pizza-slice part of a circle.",
     "A 90° sector is ¼ of the circle."
    ]
+  ],
+  "ch": [
+   {
+    "q": "A circle fits exactly inside a square with side 10 (it touches all four sides). What is the area inside the square but outside the circle?",
+    "c": [
+     "100 − 50π",
+     "75",
+     "100 − 100π",
+     "100 − 25π",
+     "25π"
+    ],
+    "a": 3,
+    "hint": "The circle's diameter equals the square's side, so r = 5.",
+    "why": "Square = 10 × 10 = 100. Circle = π × 5² = 25π. Shaded = 100 − 25π.",
+    "steps": [
+     "Shaded = square − circle.",
+     "The circle's diameter equals the square's side, so r = 5.",
+     "Square = 10 × 10 = 100. Circle = π × 5² = 25π. Shaded = 100 − 25π.",
+     "100 − 25π ≈ 21.5, about a fifth of the square: the four corners. ✅"
+    ],
+    "trap": "100 − 100π uses r = 10, which is the diameter.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "A wheel with radius 7 inches rolls in a straight line for 10 full turns. How far does it go? (Use π ≈ 22/7.)",
+    "c": [
+     "440",
+     "140",
+     "880",
+     "220",
+     "1540"
+    ],
+    "a": 0,
+    "hint": "Circumference = 2πr, then × 10 turns.",
+    "why": "2 × 22/7 × 7 = 44 inches per turn. 44 × 10 = 440 inches.",
+    "steps": [
+     "One full turn moves the wheel exactly one circumference.",
+     "Circumference = 2πr, then × 10 turns.",
+     "2 × 22/7 × 7 = 44 inches per turn. 44 × 10 = 440 inches.",
+     "Each turn is a bit more than 3 diameters (3 × 14 = 42, close to 44). ✅"
+    ],
+    "trap": "1540 uses the area (πr²), not the distance around.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "A semicircle is drawn outward on each side of a square with side 4. What is the total area of the whole shape?",
+    "c": [
+     "8 + 8π",
+     "32π",
+     "16 + 4π",
+     "16 + 8π",
+     "16 + 16π"
+    ],
+    "a": 3,
+    "hint": "Each semicircle has diameter 4, so r = 2.",
+    "why": "Square = 16. One semicircle = ½ × π × 2² = 2π. Four of them = 8π. Total = 16 + 8π.",
+    "steps": [
+     "The shape = 1 square + 4 half-circles.",
+     "Each semicircle has diameter 4, so r = 2.",
+     "Square = 16. One semicircle = ½ × π × 2² = 2π. Four of them = 8π. Total = 16 + 8π.",
+     "4 half-circles = 2 full circles of area 4π each = 8π. ✅"
+    ],
+    "trap": "16 + 16π counts 4 FULL circles.",
+    "lvl": "challenge"
+   }
   ]
  },
  {
@@ -1971,12 +2621,12 @@ window.AMC_LESSONS = [
     "q": "What is the volume of a box that is 4 by 5 by 6?",
     "c": [
      "240",
-     "120",
+     "100",
      "150",
      "60",
-     "100"
+     "120"
     ],
-    "a": 1,
+    "a": 4,
     "hint": "Multiply all three.",
     "why": "4 × 5 × 6 = 120.",
     "steps": [
@@ -1990,13 +2640,13 @@ window.AMC_LESSONS = [
    {
     "q": "A cube has volume 27. What is its surface area?",
     "c": [
-     "81",
      "54",
      "36",
+     "81",
      "9",
      "27"
     ],
-    "a": 1,
+    "a": 0,
     "hint": "Find the edge first: what number cubed is 27?",
     "why": "Edge 3. Six faces of 3 × 3 = 9 gives 54.",
     "steps": [
@@ -2010,13 +2660,13 @@ window.AMC_LESSONS = [
    {
     "q": "What is the volume of a cylinder with radius 2 and height 10?",
     "c": [
+     "400π",
      "80π",
-     "20π",
-     "100π",
      "40π",
-     "400π"
+     "100π",
+     "20π"
     ],
-    "a": 3,
+    "a": 2,
     "hint": "πr² × h",
     "why": "4π × 10 = 40π.",
     "steps": [
@@ -2030,13 +2680,13 @@ window.AMC_LESSONS = [
    {
     "q": "A cone has the same base and height as a cylinder of volume 60. What is the cone's volume?",
     "c": [
-     "180",
      "15",
+     "180",
+     "30",
      "20",
-     "60",
-     "30"
+     "60"
     ],
-    "a": 2,
+    "a": 3,
     "hint": "A cone holds ⅓ of the matching cylinder.",
     "why": "60 ÷ 3 = 20.",
     "steps": [
@@ -2050,13 +2700,13 @@ window.AMC_LESSONS = [
    {
     "q": "A 3×3×3 cube is painted on the outside, then cut into 27 small cubes. How many small cubes have exactly 2 painted faces?",
     "c": [
+     "6",
+     "8",
      "24",
      "18",
-     "8",
-     "12",
-     "6"
+     "12"
     ],
-    "a": 3,
+    "a": 4,
     "hint": "Corner cubes have 3 painted faces. Look at the middle of each edge.",
     "why": "Each of the 12 edges has 1 middle cube with 2 painted faces: 12.",
     "steps": [
@@ -2105,6 +2755,71 @@ window.AMC_LESSONS = [
     "Edge: where two faces meet. Face: a flat side.",
     "A cube has 12 edges and 6 faces."
    ]
+  ],
+  "ch": [
+   {
+    "q": "A 4×4×4 cube is painted on the outside, then cut into 1×1×1 cubes. How many small cubes have no paint at all?",
+    "c": [
+     "27",
+     "8",
+     "16",
+     "24",
+     "4"
+    ],
+    "a": 1,
+    "hint": "Peel off the outer layer: the inside is a smaller cube with edge 4 − 2.",
+    "why": "The inner cube is 2 × 2 × 2 = 8.",
+    "steps": [
+     "Unpainted cubes are hidden completely inside.",
+     "Peel off the outer layer: the inside is a smaller cube with edge 4 − 2.",
+     "The inner cube is 2 × 2 × 2 = 8.",
+     "Total 64: 8 corners + 24 edge cubes + 24 face cubes + 8 inside = 64. ✅"
+    ],
+    "trap": "4 − 1 = 3 is wrong. You peel a layer from BOTH sides, so subtract 2.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "A tank 10 by 8 by 5 is half full of water. A solid 2×2×2 block is dropped in and sinks. How many units does the water level rise?",
+    "c": [
+     "0.1",
+     "0.5",
+     "0.8",
+     "1",
+     "0.2"
+    ],
+    "a": 0,
+    "hint": "Rise = block volume ÷ the tank's floor area.",
+    "why": "Block = 2 × 2 × 2 = 8. Floor = 10 × 8 = 80. 8 ÷ 80 = 0.1.",
+    "steps": [
+     "The block pushes up water equal to its own volume.",
+     "Rise = block volume ÷ the tank's floor area.",
+     "Block = 2 × 2 × 2 = 8. Floor = 10 × 8 = 80. 8 ÷ 80 = 0.1.",
+     "80 × 0.1 = 8 units of volume. ✅"
+    ],
+    "trap": "The water already in the tank doesn't matter, as long as it doesn't overflow.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "How many cubes with edge 2 fit inside a box that is 6 by 8 by 10?",
+    "c": [
+     "60",
+     "240",
+     "30",
+     "120",
+     "480"
+    ],
+    "a": 0,
+    "hint": "Count how many fit along each edge, then multiply.",
+    "why": "6 ÷ 2 = 3, 8 ÷ 2 = 4, 10 ÷ 2 = 5. 3 × 4 × 5 = 60.",
+    "steps": [
+     "Bigger blocks, so fewer fit.",
+     "Count how many fit along each edge, then multiply.",
+     "6 ÷ 2 = 3, 8 ÷ 2 = 4, 10 ÷ 2 = 5. 3 × 4 × 5 = 60.",
+     "Volumes: 480 ÷ 8 = 60. ✅"
+    ],
+    "trap": "480 ÷ 2 = 240 divides by the edge, not the block's volume (8).",
+    "lvl": "challenge"
+   }
   ]
  },
  {
@@ -2161,13 +2876,13 @@ window.AMC_LESSONS = [
    {
     "q": "What is the mean of 4, 8, 9, 11, 13?",
     "c": [
+     "11",
      "45",
      "8",
-     "10",
-     "11",
-     "9"
+     "9",
+     "10"
     ],
-    "a": 4,
+    "a": 3,
     "hint": "Add them up, then divide by 5.",
     "why": "45 ÷ 5 = 9.",
     "steps": [
@@ -2181,13 +2896,13 @@ window.AMC_LESSONS = [
    {
     "q": "What is the median of 12, 3, 7, 9, 15, 6, 10?",
     "c": [
-     "6",
-     "7",
-     "12",
      "9",
-     "10"
+     "6",
+     "10",
+     "12",
+     "7"
     ],
-    "a": 3,
+    "a": 0,
     "hint": "Sort them first.",
     "why": "3, 6, 7, 9, 10, 12, 15 → the middle (4th) is 9.",
     "steps": [
@@ -2202,10 +2917,10 @@ window.AMC_LESSONS = [
     "q": "The mean of 5 numbers is 20. One number is removed, and the mean of the other 4 is 18. Which number was removed?",
     "c": [
      "20",
-     "26",
+     "22",
      "28",
-     "18",
-     "22"
+     "26",
+     "18"
     ],
     "a": 2,
     "hint": "Compare the totals before and after.",
@@ -2221,13 +2936,13 @@ window.AMC_LESSONS = [
    {
     "q": "What is the mode of 2, 3, 3, 5, 7, 7, 7, 9?",
     "c": [
+     "3",
      "7",
-     "5",
      "9",
-     "no mode",
-     "3"
+     "5",
+     "no mode"
     ],
-    "a": 0,
+    "a": 1,
     "hint": "Which appears most often?",
     "why": "7 appears three times.",
     "steps": [
@@ -2241,13 +2956,13 @@ window.AMC_LESSONS = [
    {
     "q": "What is the range of 14, 3, 22, 9, 17?",
     "c": [
-     "11",
-     "22",
-     "14",
      "8",
-     "19"
+     "22",
+     "19",
+     "11",
+     "14"
     ],
-    "a": 4,
+    "a": 2,
     "hint": "Biggest − smallest.",
     "why": "22 − 3 = 19.",
     "steps": [
@@ -2290,6 +3005,71 @@ window.AMC_LESSONS = [
     "The list of numbers you're studying.",
     "Test scores"
    ]
+  ],
+  "ch": [
+   {
+    "q": "The mean of 6 numbers is 15. A 7th number is added, and the mean becomes 16. What is the 7th number?",
+    "c": [
+     "21",
+     "17",
+     "16",
+     "31",
+     "22"
+    ],
+    "a": 4,
+    "hint": "Compare the total before and after.",
+    "why": "Before: 6 × 15 = 90. After: 7 × 16 = 112. 112 − 90 = 22.",
+    "steps": [
+     "Means → totals.",
+     "Compare the total before and after.",
+     "Before: 6 × 15 = 90. After: 7 × 16 = 112. 112 − 90 = 22.",
+     "(90 + 22) ÷ 7 = 16. ✅"
+    ],
+    "trap": "16 would leave the mean almost unchanged. The new number must pull it up.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "The numbers 3, 5, x, 9, 11 are in order, and their mean equals their median. What is x?",
+    "c": [
+     "9",
+     "8",
+     "6",
+     "7",
+     "5"
+    ],
+    "a": 3,
+    "hint": "Set mean = median: (3 + 5 + x + 9 + 11) ÷ 5 = x.",
+    "why": "(28 + x) ÷ 5 = x → 28 + x = 5x → 4x = 28 → x = 7.",
+    "steps": [
+     "In order, so the median is the middle one: x.",
+     "Set mean = median: (3 + 5 + x + 9 + 11) ÷ 5 = x.",
+     "(28 + x) ÷ 5 = x → 28 + x = 5x → 4x = 28 → x = 7.",
+     "3, 5, 7, 9, 11: mean 35 ÷ 5 = 7, median 7. ✅"
+    ],
+    "trap": "x must fit the order: between 5 and 9.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "Four positive whole numbers have mode 4, median 5 and mean 6. What is the largest?",
+    "c": [
+     "8",
+     "6",
+     "9",
+     "10",
+     "12"
+    ],
+    "a": 3,
+    "hint": "Mode 4 → 4 shows up twice. Median 5 → the middle two average to 5. Mean 6 → the total is 24.",
+    "why": "Sorted: 4, 4, c, d. Median (4 + c) ÷ 2 = 5 → c = 6. Total 4 + 4 + 6 + d = 24 → d = 10.",
+    "steps": [
+     "Three clues: mode, median, mean.",
+     "Mode 4 → 4 shows up twice. Median 5 → the middle two average to 5. Mean 6 → the total is 24.",
+     "Sorted: 4, 4, c, d. Median (4 + c) ÷ 2 = 5 → c = 6. Total 4 + 4 + 6 + d = 24 → d = 10.",
+     "4, 4, 6, 10: mode 4, median 5, mean 6. ✅"
+    ],
+    "trap": "The median of four numbers is the average of the 2nd and 3rd, not one of the numbers.",
+    "lvl": "challenge"
+   }
   ]
  },
  {
@@ -2346,13 +3126,13 @@ window.AMC_LESSONS = [
    {
     "q": "4 shirts, 3 pants and 2 hats. How many outfits use one of each?",
     "c": [
+     "36",
      "12",
      "9",
-     "18",
-     "36",
-     "24"
+     "24",
+     "18"
     ],
-    "a": 4,
+    "a": 3,
     "hint": "Pick one from each group: multiply.",
     "why": "4 × 3 × 2 = 24.",
     "steps": [
@@ -2366,13 +3146,13 @@ window.AMC_LESSONS = [
    {
     "q": "In how many ways can 5 different books be lined up on a shelf?",
     "c": [
+     "60",
+     "120",
      "720",
      "100",
-     "120",
-     "60",
      "25"
     ],
-    "a": 2,
+    "a": 1,
     "hint": "5!",
     "why": "5 × 4 × 3 × 2 × 1 = 120.",
     "steps": [
@@ -2386,13 +3166,13 @@ window.AMC_LESSONS = [
    {
     "q": "From 6 kids, choose a captain AND a co-captain. How many ways?",
     "c": [
-     "12",
      "720",
-     "15",
+     "12",
      "30",
+     "15",
      "36"
     ],
-    "a": 3,
+    "a": 2,
     "hint": "Order matters here: captain is different from co-captain.",
     "why": "6 × 5 = 30.",
     "steps": [
@@ -2407,10 +3187,10 @@ window.AMC_LESSONS = [
     "q": "A pizza place has 6 toppings. How many ways can you pick 3 different toppings?",
     "c": [
      "20",
-     "216",
+     "120",
      "18",
      "36",
-     "120"
+     "216"
     ],
     "a": 0,
     "hint": "Order doesn't matter: 6 × 5 × 4, then ÷ 3!.",
@@ -2427,12 +3207,12 @@ window.AMC_LESSONS = [
     "q": "How many three-digit numbers have at least one digit 7?",
     "c": [
      "243",
-     "225",
+     "271",
      "280",
-     "252",
-     "271"
+     "225",
+     "252"
     ],
-    "a": 3,
+    "a": 4,
     "hint": "Count all three-digit numbers, then subtract the ones with no 7.",
     "why": "900 total. No 7: 8 × 9 × 9 = 648. 900 − 648 = 252.",
     "steps": [
@@ -2481,6 +3261,71 @@ window.AMC_LESSONS = [
     "Everything that is NOT what you want.",
     "'No 7s' is the complement of 'at least one 7'."
    ]
+  ],
+  "ch": [
+   {
+    "q": "How many four-digit numbers have four DIFFERENT digits?",
+    "c": [
+     "3024",
+     "9000",
+     "4536",
+     "6561",
+     "5040"
+    ],
+    "a": 2,
+    "hint": "Fill the spots one at a time, from the left.",
+    "why": "First: 9 choices (1–9). Second: 9 (0–9 minus the first). Third: 8. Fourth: 7. 9 × 9 × 8 × 7 = 4536.",
+    "steps": [
+     "Four spots, no repeats, and the first digit can't be 0.",
+     "Fill the spots one at a time, from the left.",
+     "First: 9 choices (1–9). Second: 9 (0–9 minus the first). Third: 8. Fourth: 7. 9 × 9 × 8 × 7 = 4536.",
+     "Checked by computer: 4536. ✅"
+    ],
+    "trap": "10 × 9 × 8 × 7 = 5040 lets the first digit be 0.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "In how many ways can 4 people sit in a row if Ann and Bo must sit next to each other?",
+    "c": [
+     "6",
+     "48",
+     "24",
+     "18",
+     "12"
+    ],
+    "a": 4,
+    "hint": "Glue them into one 'block', arrange the 3 units, then let Ann and Bo swap inside the block.",
+    "why": "3 units → 3! = 6 orders. Inside the block: AB or BA → × 2. 6 × 2 = 12.",
+    "steps": [
+     "Ann and Bo stay together, like they're glued.",
+     "Glue them into one 'block', arrange the 3 units, then let Ann and Bo swap inside the block.",
+     "3 units → 3! = 6 orders. Inside the block: AB or BA → × 2. 6 × 2 = 12.",
+     "Of all 24 seatings, exactly half have them together. ✅"
+    ],
+    "trap": "6 forgets that Ann and Bo can swap.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "Walking only right or up on a grid, how many paths go 3 steps right and 2 steps up?",
+    "c": [
+     "6",
+     "8",
+     "20",
+     "12",
+     "10"
+    ],
+    "a": 4,
+    "hint": "Choose which 2 of the 5 steps are U.",
+    "why": "5 × 4 ÷ 2 = 10.",
+    "steps": [
+     "Every path is 5 steps: 3 R and 2 U in some order.",
+     "Choose which 2 of the 5 steps are U.",
+     "5 × 4 ÷ 2 = 10.",
+     "List starting with UU: UURRR, URURR, … there are 10 in all. ✅"
+    ],
+    "trap": "5! = 120 treats the R's as different from each other.",
+    "lvl": "challenge"
+   }
   ]
  },
  {
@@ -2537,13 +3382,13 @@ window.AMC_LESSONS = [
    {
     "q": "A spinner has 8 equal parts numbered 1 to 8. What is the chance of landing on a prime number?",
     "c": [
-     "5/8",
-     "3/8",
+     "1/2",
      "3/4",
+     "3/8",
      "1/4",
-     "1/2"
+     "5/8"
     ],
-    "a": 4,
+    "a": 0,
     "hint": "Which of 1 to 8 are prime?",
     "why": "2, 3, 5, 7: 4 out of 8 = 1/2.",
     "steps": [
@@ -2557,13 +3402,13 @@ window.AMC_LESSONS = [
    {
     "q": "Roll two dice. What is the chance the sum is 10?",
     "c": [
-     "1/4",
+     "1/12",
      "1/9",
      "1/6",
      "1/18",
-     "1/12"
+     "1/4"
     ],
-    "a": 4,
+    "a": 0,
     "hint": "List the pairs that make 10.",
     "why": "(4,6) (5,5) (6,4): 3/36 = 1/12.",
     "steps": [
@@ -2577,13 +3422,13 @@ window.AMC_LESSONS = [
    {
     "q": "A bag has 4 red and 6 blue marbles. Take 2 without putting the first back. What is the chance both are red?",
     "c": [
-     "4/15",
-     "1/5",
-     "2/15",
      "4/25",
-     "2/5"
+     "2/15",
+     "2/5",
+     "1/5",
+     "4/15"
     ],
-    "a": 2,
+    "a": 1,
     "hint": "First red: 4/10. Then only 3 reds are left out of 9.",
     "why": "4/10 × 3/9 = 12/90 = 2/15.",
     "steps": [
@@ -2597,13 +3442,13 @@ window.AMC_LESSONS = [
    {
     "q": "Flip 3 coins. What is the chance of at least one head?",
     "c": [
-     "1/2",
      "7/8",
-     "3/8",
+     "1/2",
      "1/8",
-     "3/4"
+     "3/4",
+     "3/8"
     ],
-    "a": 1,
+    "a": 0,
     "hint": "What is the chance of NO heads?",
     "why": "No heads (TTT) = 1/8, so at least one = 1 − 1/8 = 7/8.",
     "steps": [
@@ -2618,12 +3463,12 @@ window.AMC_LESSONS = [
     "q": "A whole number from 1 to 20 is picked at random. What is the chance it is divisible by 3 or by 4?",
     "c": [
      "11/20",
+     "9/20",
      "1/2",
      "2/5",
-     "1/4",
-     "9/20"
+     "1/4"
     ],
-    "a": 1,
+    "a": 2,
     "hint": "Venn trick: 3s + 4s − 12s.",
     "why": "6 + 5 − 1 = 10 numbers. 10/20 = 1/2.",
     "steps": [
@@ -2672,6 +3517,71 @@ window.AMC_LESSONS = [
     "P(not A) = 1 − P(A).",
     "P(not 6) = 5/6"
    ]
+  ],
+  "ch": [
+   {
+    "q": "Roll two dice. What is the chance that the product is even?",
+    "c": [
+     "3/4",
+     "2/3",
+     "1/4",
+     "1/2",
+     "5/6"
+    ],
+    "a": 0,
+    "hint": "Complement: the product is odd only when BOTH dice are odd.",
+    "why": "P(both odd) = 1/2 × 1/2 = 1/4. P(even product) = 1 − 1/4 = 3/4.",
+    "steps": [
+     "Even product: at least one die is even.",
+     "Complement: the product is odd only when BOTH dice are odd.",
+     "P(both odd) = 1/2 × 1/2 = 1/4. P(even product) = 1 − 1/4 = 3/4.",
+     "27 of the 36 outcomes give an even product: 27/36 = 3/4. ✅"
+    ],
+    "trap": "1/2 is the chance for ONE die to be even.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "A number from 1 to 50 is picked at random. What is the chance it is a perfect square?",
+    "c": [
+     "4/25",
+     "3/25",
+     "1/7",
+     "7/50",
+     "1/5"
+    ],
+    "a": 3,
+    "hint": "Good ÷ total.",
+    "why": "1, 4, 9, 16, 25, 36, 49 → 7 squares. 7/50.",
+    "steps": [
+     "List the perfect squares up to 50.",
+     "Good ÷ total.",
+     "1, 4, 9, 16, 25, 36, 49 → 7 squares. 7/50.",
+     "8² = 64 is too big. ✅"
+    ],
+    "trap": "Don't forget 1 = 1 × 1.",
+    "lvl": "challenge"
+   },
+   {
+    "q": "Flip a coin 4 times. What is the chance of EXACTLY 2 heads?",
+    "c": [
+     "1/4",
+     "5/16",
+     "3/4",
+     "3/8",
+     "1/2"
+    ],
+    "a": 3,
+    "hint": "Count the ways to choose which 2 of the 4 flips are heads.",
+    "why": "Choose 2 of 4: 4 × 3 ÷ 2 = 6 ways. 6/16 = 3/8.",
+    "steps": [
+     "There are 2 × 2 × 2 × 2 = 16 equally likely outcomes.",
+     "Count the ways to choose which 2 of the 4 flips are heads.",
+     "Choose 2 of 4: 4 × 3 ÷ 2 = 6 ways. 6/16 = 3/8.",
+     "HHTT, HTHT, HTTH, THHT, THTH, TTHH: 6 ✅"
+    ],
+    "trap": "1/2 feels right, but exactly 2 heads happens only 6 times out of 16.",
+    "lvl": "challenge"
+   }
   ]
  }
 ];
