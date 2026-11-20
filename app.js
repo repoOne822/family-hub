@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261120c";
-import * as Pix from "./pixel.js?v=20261120c";
+import { STR } from "./i18n.js?v=20261120d";
+import * as Pix from "./pixel.js?v=20261120d";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -887,8 +887,8 @@ function fencingLessonsHtml(kid) {
     ${askfredHtml(kid)}`;
 }
 /* ---- askFRED: competition results pulled by the askfred-sync edge function ---- */
-const AF = { en: { h: "🏟️ Competition results (askFRED)", never: "Not synced yet.", last: d => `Last synced ${d}`, sync: "↻ Sync askFRED", syncing: "Syncing…", none: "No results found for him yet.", token: "Add your askFRED API token first: Supabase → Edge Functions → Secrets → ASKFRED_TOKEN.", ok: "askFRED synced.", bouts: (w, l) => `Bouts: ${w} won · ${l} lost`, link: "Is he linked to your askFRED account? Check askFRED → My Fencers." },
-  zh: { h: "🏟️ 比赛成绩（askFRED）", never: "还没有同步。", last: d => `上次同步：${d}`, sync: "↻ 同步 askFRED", syncing: "同步中…", none: "还没有找到他的成绩。", token: "请先添加 askFRED API 令牌：Supabase → Edge Functions → Secrets → ASKFRED_TOKEN。", ok: "askFRED 已同步。", bouts: (w, l) => `对战：赢 ${w} · 输 ${l}`, link: "他是否已关联到你的 askFRED 账户？请查看 askFRED → My Fencers。" } };
+const AF = { en: { h: "🏟️ Competition results (askFRED)", never: "Not synced yet.", last: d => `Last synced ${d}`, sync: "↻ Sync askFRED", syncing: "Syncing…", none: "No results found for him yet.", token: "Add your askFRED API token first: Supabase → Edge Functions → Secrets → ASKFRED_TOKEN.", ok: "askFRED synced.", seen: "secrets the server sees", bouts: (w, l) => `Bouts: ${w} won · ${l} lost`, link: "Is he linked to your askFRED account? Check askFRED → My Fencers." },
+  zh: { h: "🏟️ 比赛成绩（askFRED）", never: "还没有同步。", last: d => `上次同步：${d}`, sync: "↻ 同步 askFRED", syncing: "同步中…", none: "还没有找到他的成绩。", token: "请先添加 askFRED API 令牌：Supabase → Edge Functions → Secrets → ASKFRED_TOKEN。", ok: "askFRED 已同步。", seen: "服务器看到的密钥", bouts: (w, l) => `对战：赢 ${w} · 输 ${l}`, link: "他是否已关联到你的 askFRED 账户？请查看 askFRED → My Fencers。" } };
 const afList = x => Array.isArray(x) ? x : Array.isArray(x?.data) ? x.data : [];
 const afPick = (o, keys) => { for (const k of keys) { const v = k.split(".").reduce((a, p) => a == null ? a : a[p], o); if (v != null && v !== "") return v; } return null; };
 function askfredHtml(kid) {
@@ -907,8 +907,9 @@ document.addEventListener("click", async e => {
   const b = e.target.closest("[data-afsync]"); if (!b) return; e.stopPropagation();
   const L = AF[lang] || AF.en; b.disabled = true; b.textContent = L.syncing;
   try { const { data, error } = await sb.functions.invoke("askfred-sync", { body: {} });
-    if (error) { let msg = error.message; try { const j = await error.context.json(); msg = j.error === "missing_token" ? L.token : (j.error || msg); } catch (x) {} throw new Error(msg); }
-    setStatus(L.ok); refresh(); } catch (err) { setStatus(err.message, true); b.disabled = false; b.textContent = L.sync; }
+    if (error) { let msg = error.message; try { const j = await error.context.json(); msg = j.error === "missing_token" ? L.token + (j.secret_names_seen ? ` (${L.seen}: ${j.secret_names_seen.length ? j.secret_names_seen.join(", ") : "—"})` : "") : (j.error || msg); } catch (x) {} throw new Error(msg); }
+    setStatus(L.ok); refresh(); } catch (err) { setStatus(err.message, true); b.disabled = false; b.textContent = L.sync;
+    let box = b.closest(".fl").querySelector(".aferr"); if (!box) { box = document.createElement("div"); box.className = "meta aferr"; box.style.cssText = "color:#e5484d;margin-top:6px"; b.closest(".fl").appendChild(box); } box.textContent = "⚠️ " + err.message; }
 }, true);
 document.addEventListener("submit", async e => {
   const f = e.target.closest(".flform"); if (!f) return; e.preventDefault();
@@ -1019,7 +1020,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120c${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120d${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; };
   fs.querySelector(".appclose").onclick = () => appOpen();
