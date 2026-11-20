@@ -38,6 +38,12 @@ button{font:inherit;cursor:pointer}
 .steps button{border:2px solid var(--line);background:#fff;border-radius:999px;padding:5px 12px;font-size:14.5px;font-weight:600}
 .steps button.on{background:var(--ink);color:var(--yellow)}
 .steps button.done{background:var(--lime)}
+.steps button.lock{opacity:.4;cursor:not-allowed}
+.gate{font-size:14px;color:#555;display:flex;align-items:center;gap:8px}
+.gate .gbar{width:90px;height:8px;border-radius:9px;background:#0001;overflow:hidden}.gate .gbar i{display:block;height:100%;background:var(--lime);transition:width .4s linear}
+.tick{margin-top:8px;border:2px solid var(--line);background:#fff;border-radius:999px;padding:4px 12px;font-weight:600;font-size:14px;cursor:pointer}
+.tick.on{background:var(--lime)}
+.word.ok,.move.ok{border-color:#3a3;border-style:solid}
 .big{font-size:64px;line-height:1;text-align:center}
 .six p{font-size:21px;margin:14px 0}
 .six p:first-of-type{margin-top:6px}
@@ -138,15 +144,38 @@ button{font:inherit;cursor:pointer}
 </head>
 <body>
 <div class="wrap" id="app"></div>
-<script src="lessons.js?v=20261119o"></script>
-<script src="gym.js?v=20261119o"></script>
-<script src="visuals.js?v=20261119o"></script>
-<script src="realtests.js?v=20261119o"></script>
+<script src="lessons.js?v=20261119p"></script>
+<script src="gym.js?v=20261119p"></script>
+<script src="visuals.js?v=20261119p"></script>
+<script src="realtests.js?v=20261119p"></script>
 <script>
 (() => {
-const LS = "eric_amc_progress";
+const KID = ((new URLSearchParams(location.search).get("k")) || "eric").toLowerCase().replace(/[^a-z]/g, "") || "eric";
+// Each boy gets his own intensity: Eric = rigorous plan, Ellis = lighter "first try" plan.
+const CFGS = {
+  eric: { name: "Eric", chapters: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+    weeks: [["2026-11-23", [1, 2]], ["2026-11-30", [3, 4]], ["2026-12-07", [5, 6]], ["2026-12-14", [7, 8]], ["2026-12-21", [9, 10, 11]], ["2026-12-28", [12, 13, 14]], ["2027-01-04", []], ["2027-01-11", []]],
+    daily: { levels: ["easy", "easy", "medium", "medium", "hard"], mins: 10, label: "5 problems · 10 min" },
+    weekly: { levels: [...Array(10).fill("easy"), ...Array(8).fill("medium"), ...Array(7).fill("hard")], mins: 40, label: "25 problems · 40 min · like the real AMC 8" },
+    intro: "Every chapter of your book, explained super simply. Your plan: 5 sessions a week, a daily exam, and a weekly exam on Saturday. Aim for ⭐⭐⭐⭐ on each lesson before moving on." },
+  ellis: { name: "Ellis", chapters: [1, 2, 4, 5, 7, 9, 12, 13, 14],
+    weeks: [["2026-11-23", [1]], ["2026-11-30", [2]], ["2026-12-07", [4]], ["2026-12-14", [5]], ["2026-12-21", [7, 9]], ["2026-12-28", [13]], ["2027-01-04", [14, 12]], ["2027-01-11", []]],
+    daily: { levels: ["easy", "easy", "medium"], mins: 6, label: "3 problems · 6 min" },
+    weekly: { levels: [...Array(8).fill("easy"), ...Array(7).fill("medium")], mins: 25, label: "15 problems · 25 min · like AMC problems 1–15" },
+    intro: "Your first AMC 8! We'll learn the friendliest chapters, a little at a time. Two relaxed sessions a week is plenty. It's about having fun with tricky puzzles, not about the score." } };
+const CFG = CFGS[KID] || CFGS.eric;
+const LS = `${KID}_amc_progress`;
 const load = () => { try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch (e) { return {}; } };
-let P = load(); P.lessons = P.lessons || {}; P.mixed = P.mixed || []; P.tests = P.tests || {}; P.exams = P.exams || { daily: {}, weekly: {}, log: [] };
+let P = load(); P.lessons = P.lessons || {}; P.mixed = P.mixed || []; P.tests = P.tests || {}; P.exams = P.exams || { daily: {}, weekly: {}, log: [] }; P.events = P.events || []; P.sessions = P.sessions || [];
+// ---- performance tracking: active time on the platform + every problem's time and result (synced for parents) ----
+const track = ev => { P.events.push(ev); if (P.events.length > 1500) P.events = P.events.slice(-1500); };
+let lastInput = Date.now(); ["click", "keydown", "touchstart", "scroll", "pointermove"].forEach(e => addEventListener(e, () => { lastInput = Date.now(); }, { passive: true }));
+const SESS = { id: Date.now(), date: new Date().toLocaleDateString("en-CA"), start: new Date().toISOString(), active: 0 };
+P.sessions.push(SESS); P.sessions = P.sessions.filter(x => x === SESS || x.active >= 15).slice(-300);
+setInterval(() => { if (document.visibilityState === "visible" && Date.now() - lastInput < 90000) SESS.active += 5; }, 5000);
+setInterval(() => { SESS.end = new Date().toISOString(); save(); }, 30000);
+addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") { SESS.end = new Date().toISOString(); save(); } });
+const levelOf = (p, mode) => p.level || (p.lvl === "challenge" ? "hard" : mode === "gym" || p.gen ? "medium" : "easy");
 const VIS = window.AMC_VIS || { main: {}, moves: {} }, GYM = window.AMC_GYM, REAL = window.AMC_REAL || {};
 const PARENT = new URLSearchParams(location.search).get("p") === "1";
 const probURL = (y, n) => `https://artofproblemsolving.com/wiki/index.php/${y}_AMC_8_Problems/Problem_${n}`;
@@ -159,9 +188,10 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const TESTS = [2026, 2025, 2024, 2023, 2022, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013];
 const LET = "ABCDE", LABELS = ["👀 Look", "🧠 Plan", "⚔️ Solve", "✅ Check"], COLORS = ["c1", "c2", "c3", "c4", "c5", "c6"];
 // week plan from "My AMC 8 plan" (Mondays)
-const WEEKS = [["2026-11-23", [1]], ["2026-11-30", [2, 3]], ["2026-12-07", [3, 4]], ["2026-12-14", [5]], ["2026-12-21", [6, 7, 8]], ["2026-12-28", [9, 10, 11]], ["2027-01-04", [12, 13]], ["2027-01-11", [14]]];
 const today = new Date().toLocaleDateString("en-CA");
+const WEEKS = CFG.weeks;
 const thisWeek = (WEEKS.filter(w => w[0] <= today).pop() || WEEKS[0])[1];
+const coveredSoFar = () => { const set = new Set(); WEEKS.filter(w => w[0] <= today).forEach(w => w[1].forEach(n => set.add(n))); if (!set.size) WEEKS[0][1].forEach(n => set.add(n)); return set; };
 const starsOf = id => (P.lessons[id] || {}).best || 0;
 const starStr = (n, of = 5) => "★".repeat(n) + "☆".repeat(of - n);
 const total = () => LES.reduce((a, l) => a + starsOf(l.id), 0);
@@ -171,16 +201,16 @@ function home() {
   window.scrollTo(0, 0);
   const lastMix = P.mixed[P.mixed.length - 1];
   app.innerHTML = `<div class="top"><h1>🏆 AMC 8 Lessons</h1><span class="pill">⭐ ${total()} / ${LES.length * 5}</span></div>
-    <p class="sub">Every chapter of your book, explained super simply. Each lesson: a simple story → power moves → watch me solve → your turn. Get it right on the first try to earn a star.</p>
+    <p class="sub">${esc(CFG.intro)}</p>
     ${examsHtml()}
     <div class="row"><button class="btn pink" id="mixBtn">🔀 Mixed review (10 problems)</button>${lastMix ? `<span class="sub">Last mixed review: ${lastMix.score}/${lastMix.of} on ${lastMix.date}</span>` : `<span class="sub">Mixing chapters is how the real test feels.</span>`}</div>
-    <div class="grid">${LES.map((l, i) => `<button class="tile ${COLORS[i % 6]}" data-l="${i}">${thisWeek.includes(l.n) ? `<span class="wk">This week</span>` : ""}<div class="em">${l.emoji}</div><div class="n">Lesson ${l.n}</div><div class="t">${esc(l.title)}</div><div class="z">${esc(l.zh)}</div><div class="st">${starStr(starsOf(l.id))}</div><div class="pg">${(P.lessons[l.id] || {}).chBest != null ? `⬆️ ${(P.lessons[l.id]).chBest}/3 · ` : ""}${((P.lessons[l.id] || {}).gym || {}).done ? `♾️ ${(P.lessons[l.id]).gym.done} · ` : ""}Book p. ${esc(l.pages)}</div></button>`).join("")}</div>
-    ${PARENT ? `<div class="card parent"><div class="q">👨‍👩‍👦 Parent corner <span class="sub">(Eric doesn't see this section)</span></div>${parentHistory()}</div>` : ""}
+    <div class="grid">${LES.map((l, i) => `<button class="tile ${COLORS[i % 6]}" data-l="${i}">${thisWeek.includes(l.n) ? `<span class="wk">This week</span>` : !CFG.chapters.includes(l.n) ? `<span class="wk" style="background:#bbb">Bonus</span>` : ""}<div class="em">${l.emoji}</div><div class="n">Lesson ${l.n}</div><div class="t">${esc(l.title)}</div><div class="z">${esc(l.zh)}</div><div class="st">${starStr(starsOf(l.id))}</div><div class="pg">${(P.lessons[l.id] || {}).chBest != null ? `⬆️ ${(P.lessons[l.id]).chBest}/3 · ` : ""}${((P.lessons[l.id] || {}).gym || {}).done ? `♾️ ${(P.lessons[l.id]).gym.done} · ` : ""}Book p. ${esc(l.pages)}</div></button>`).join("")}</div>
+    ${PARENT ? `<div class="card parent"><div class="q">👨‍👩‍👦 Parent corner <span class="sub">(${CFG.name} doesn't see this section)</span></div>${parentHistory()}</div>` : ""}
     ${!PARENT ? "" : `<div class="card parent"><div class="q">📝 Real AMC 8 tests (parents)</div><p class="sub">The truest practice: a real past test, timed at exactly 40 minutes, no calculator. Do it on AoPS (or print it), check the answer key, read the step-by-step solutions on Random Math for anything you missed, and type in your score. Start with the newer years; do one every week or two from mid-December. More years: <a href="https://www.randommath.com/past-contests/amc-8-tests-and-solutions" target="_blank" rel="noopener">Random Math archive ↗</a></p>
       ${focusHtml()}
       <div class="tests">${TESTS.map(y => { const t = P.tests[y]; return `<div class="test"><b>${y} AMC 8</b>${REAL[y] ? `<button class="btn sm go" data-take="${y}">▶ Take it here</button>` : ""}<a href="https://artofproblemsolving.com/wiki/index.php/${y}_AMC_8_Problems" target="_blank" rel="noopener">Problems ↗</a><a href="https://artofproblemsolving.com/wiki/index.php/${y}_AMC_8_Answer_Key" target="_blank" rel="noopener">Answer key ↗</a>${y <= 2024 ? `<a href="https://wiki.randommath.com/amc8/${y}" target="_blank" rel="noopener">Step-by-step solutions (Random Math) ↗</a>` : ""}
         <span class="score">${t ? `<b>${t.score}/25</b> <span class="sub">${t.date}</span>${t.marks ? ` <button class="btn sm" data-review="${y}">Review</button>` : ""}` : ""}</span></div>`; }).join("")}</div>
-      <p class="sub" style="margin-top:8px">Score guide: 15+ = Achievement Roll (for 6th grade and below). Honor Roll (top 5%) has needed about 18–21. Keep the answer keys away from Eric until he's done. ▶ Take it here gives him a timed bubble sheet; you grade it with the key.</p></div>`}`;
+      <p class="sub" style="margin-top:8px">Score guide: 15+ = Achievement Roll (for 6th grade and below). Honor Roll (top 5%) has needed about 18–21. Keep the answer keys away from ${CFG.name} until done. ▶ Take it here gives a timed bubble sheet; you grade it with the key.</p></div>`}`;
   app.querySelectorAll("[data-l]").forEach(b => b.onclick = () => lesson(+b.dataset.l, 0));
   app.querySelectorAll("[data-take]").forEach(b => b.onclick = () => realTest(+b.dataset.take));
   app.querySelectorAll("[data-review]").forEach(b => b.onclick = () => realResults(+b.dataset.review));
@@ -190,24 +220,67 @@ function home() {
   app.querySelectorAll("[data-erev]").forEach(b => b.onclick = () => { const e = P.exams.log[+b.dataset.erev]; if (e && e.items) examResults(e); });
 }
 
+// ---- Reading gate: each section must actually be read before the next one opens ----
+// Time needed = words ÷ reading speed (a calm pace for his age), plus he must scroll to the end,
+// and on Key words / Power moves he taps "✓ Got it" on every card. Already-read sections and parents skip it.
+const WPM = KID === "ellis" ? 130 : 160;
+const readSecs = text => Math.min(60, Math.max(6, Math.round(String(text).split(/\s+/).filter(Boolean).length / WPM * 60)));
+function gate(btn, secs, opts = {}) {
+  if (!btn) return () => true;
+  const need = opts.ticks || 0, label = btn.textContent, t0 = Date.now();
+  let ticked = 0, seenEnd = !opts.scroll, left = secs, done = false;
+  const g = document.createElement("span"); g.className = "gate"; btn.before(g);
+  const sentinel = opts.scroll ? btn.closest(".row") : null;
+  let io = null;
+  if (sentinel && "IntersectionObserver" in window) { io = new IntersectionObserver(es => { if (es.some(x => x.isIntersecting)) { seenEnd = true; upd(); } }); io.observe(sentinel); } else seenEnd = true;
+  const upd = () => {
+    const ready = left <= 0 && seenEnd && ticked >= need;
+    btn.disabled = !ready;
+    if (ready) { g.innerHTML = "✅ Nice reading!"; btn.textContent = label; if (!done) { done = true; clearInterval(iv); io && io.disconnect(); opts.onDone && opts.onDone(Math.round((Date.now() - t0) / 1000)); } return; }
+    const why = left > 0 ? `📖 Keep reading… ${left}s` : !seenEnd ? "👇 Scroll to the end" : `Tap ✓ on each card (${ticked}/${need})`;
+    g.innerHTML = `<span class="gbar"><i style="width:${Math.round((1 - Math.max(0, left) / secs) * 100)}%"></i></span>${why}`;
+  };
+  const iv = setInterval(() => { if (!btn.isConnected) { clearInterval(iv); io && io.disconnect(); return; } if (document.visibilityState === "visible") left--; upd(); }, 1000);
+  upd();
+  return { tick: () => { ticked++; upd(); } };
+}
+const readOf = id => { const r = P.lessons[id] || {}; return r.read ?? (Object.keys(r).length ? 3 : -1); }; // lessons started before the gate existed count as read
+function markRead(l, step, secs) {
+  const r = P.lessons[l.id] = P.lessons[l.id] || {};
+  if ((r.read ?? -1) < step) r.read = step;
+  if (secs != null) track({ ts: Date.now(), d: today, m: "read", t: l.id, step, s: secs });
+  save();
+}
+
 function lesson(i, step, mode) {
   window.scrollTo(0, 0);
+  if (!PARENT && step > readOf(LES[i].id) + 1) step = readOf(LES[i].id) + 1;
   const l = LES[i], names = ["1 · Like I'm 6", "2 · Key words", "3 · Power moves", "4 · Watch me solve", "5 · Your turn"];
   const head = `<div class="top"><button class="btn" id="back">← Lessons</button><h1 style="font-size:24px">${l.emoji} ${esc(l.title)} <span class="zh">${esc(l.zh)}</span></h1></div>
-    <div class="steps">${names.map((n, k) => `<button class="${k === step ? "on" : k < step ? "done" : ""}" data-s="${k}">${n}</button>`).join("")}</div>`;
+    <div class="steps">${names.map((n, k) => { const lock = !PARENT && k > readOf(l.id) + 1 && k !== step; return `<button class="${k === step ? "on" : k <= readOf(l.id) ? "done" : lock ? "lock" : ""}" data-s="${k}"${lock ? ` data-lock="1" title="Finish the earlier sections first"` : ""}>${lock ? "🔒 " : ""}${n}</button>`; }).join("")}</div>`;
   const nav = (next, label) => `<div class="row"><span class="spacer"></span><button class="btn go" id="next">${label || "Next →"}</button></div>`;
+  const needGate = k => !PARENT && readOf(l.id) < k;
   let body = "";
   if (step === 0) body = `<div class="card six"><div class="big" style="font-size:48px">${l.emoji}</div>${l.six.map(p => `<p>${esc(p)}</p>`).join("")}${VIS.main[l.id] ? `<div class="vwrap"><div class="vlab">👀 See it</div>${VIS.main[l.id]()}</div>` : ""}</div>${nav(1, "Got it! →")}`;
   if (step === 1) body = `<div class="card"><div class="q">📘 Key words: know these first</div><p class="sub">AMC problems use these words. If one is fuzzy, the whole problem gets fuzzy.</p>
-      <div class="words">${l.words.map(w => `<div class="word"><div class="wt">${esc(w[0])} <span class="zh">${esc(w[1])}</span></div><div>${esc(w[2])}</div><div class="eg">e.g. ${esc(w[3])}</div></div>`).join("")}</div></div>${nav(2, "I know these words →")}`;
-  if (step === 2) body = `<div class="card"><div class="q">⚡ Power moves</div><p class="sub">Each move comes with WHY it works. If you know why, you'll remember it on test day.</p>${l.moves.map((m, k) => `<div class="move"><b>${k + 1}</b><div style="flex:1;min-width:0"><div class="mm">${esc(m.m)}</div><div class="why"><span>🤔 Why it works:</span> ${esc(m.why)}</div>${(VIS.moves[l.id] || {})[k] ? VIS.moves[l.id][k]() : ""}</div></div>`).join("")}<p class="sub" style="margin-top:12px">📖 More in your book, pages ${esc(l.pages)}.</p></div>${nav(3)}`;
+      <div class="words">${l.words.map(w => `<div class="word"><div class="wt">${esc(w[0])} <span class="zh">${esc(w[1])}</span></div><div>${esc(w[2])}</div><div class="eg">e.g. ${esc(w[3])}</div>${needGate(1) ? `<button class="tick" data-tick>✓ Got it</button>` : ""}</div>`).join("")}</div></div>${nav(2, "I know these words →")}`;
+  if (step === 2) body = `<div class="card"><div class="q">⚡ Power moves</div><p class="sub">Each move comes with WHY it works. If you know why, you'll remember it on test day.</p>${l.moves.map((m, k) => `<div class="move"><b>${k + 1}</b><div style="flex:1;min-width:0"><div class="mm">${esc(m.m)}</div><div class="why"><span>🤔 Why it works:</span> ${esc(m.why)}</div>${(VIS.moves[l.id] || {})[k] ? VIS.moves[l.id][k]() : ""}${needGate(2) ? `<button class="tick" data-tick>✓ Got it</button>` : ""}</div></div>`).join("")}<p class="sub" style="margin-top:12px">📖 More in your book, pages ${esc(l.pages)}.</p></div>${nav(3)}`;
   if (step === 3) body = `<div id="exs"></div>`;
   if (step === 4) { mode = mode || "basic"; const rec = P.lessons[l.id] || {};
     body = `<div class="modes">${[["basic", `⭐ Starter (5)`, starStr(starsOf(l.id))], ["challenge", "⬆️ Challenge (3)", rec.chBest != null ? `best ${rec.chBest}/3` : "harder, multi-step"], ["gym", "♾️ Practice gym", (rec.gym || {}).done ? `${rec.gym.done} done` : "endless, new numbers"], ...(PARENT ? [["real", "🏆 Real AMC", "past test problems"]] : [])].map(([m, t, sub]) => `<button class="${m === mode ? "on" : ""}" data-mode="${m}"><b>${t}</b><span>${sub}</span></button>`).join("")}</div><div id="pr"></div>`; }
   app.innerHTML = head + body;
   $("#back").onclick = home;
   app.querySelectorAll("[data-s]").forEach(b => b.onclick = () => lesson(i, +b.dataset.s));
-  if ($("#next")) $("#next").onclick = () => lesson(i, step + 1);
+  app.querySelectorAll("[data-lock]").forEach(b => b.onclick = e => { e.stopPropagation(); b.animate([{ transform: "translateX(-4px)" }, { transform: "translateX(4px)" }, { transform: "none" }], 250); });
+  if ($("#next")) {
+    $("#next").onclick = () => { if (!needGate(step)) markRead(l, step); lesson(i, step + 1); };
+    if (step <= 2 && needGate(step)) {
+      const text = step === 0 ? l.six.join(" ") : step === 1 ? l.words.map(w => w[2] + " " + w[3]).join(" ") : l.moves.map(m => m.m + " " + m.why).join(" ");
+      const ticks = [...app.querySelectorAll("[data-tick]")];
+      const G = gate($("#next"), readSecs(text), { scroll: true, ticks: ticks.length, onDone: secs => markRead(l, step, secs) });
+      ticks.forEach(b => b.onclick = () => { if (b.classList.contains("on")) return; b.classList.add("on"); b.textContent = "✓ Got it!"; b.closest(".word,.move").classList.add("ok"); G.tick(); });
+    }
+  }
   if (step === 3) examples(l, i);
   if (step === 4) {
     app.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => lesson(i, 4, b.dataset.mode));
@@ -226,7 +299,11 @@ function examples(l, i) {
       <div class="row"><span class="sub">Try it yourself first, then tap to see the next step.</span><span class="spacer"></span>
       ${shown < 4 ? `<button class="btn alt" id="more">Show next step (${shown}/4)</button>` : e < l.ex.length - 1 ? `<button class="btn go" id="nx">Next example →</button>` : `<button class="btn go" id="nx">My turn! →</button>`}</div>`;
     if ($("#more")) $("#more").onclick = () => { shown++; draw(); };
-    if ($("#nx")) $("#nx").onclick = () => { if (e < l.ex.length - 1) { e++; shown = 1; draw(); window.scrollTo(0, 0); } else lesson(i, 4); };
+    if ($("#nx")) $("#nx").onclick = () => { if (e < l.ex.length - 1) { e++; shown = 1; draw(); window.scrollTo(0, 0); } else { markRead(l, 3); lesson(i, 4); } };
+    if (!PARENT && readOf(l.id) < 3) { // read each worked step before the next appears
+      const btn = $("#more") || $("#nx"), txt = (shown === 1 ? x.q + " " : "") + x.steps[shown - 1];
+      gate(btn, Math.max(4, readSecs(txt)), { onDone: secs => track({ ts: Date.now(), d: today, m: "read", t: l.id, step: 3, ex: e, part: shown, s: secs }) });
+    }
   };
   draw();
 }
@@ -237,7 +314,8 @@ function practice(list, i, mode) {
   let k = 0, right = 0, tries = 0, hinted = false; const t0 = Date.now(); let timerI = null;
   const box = $("#pr") || app;
   const draw = () => {
-    const p = list[k]; tries = 0; hinted = false; let hints = 0;
+    const p = list[k]; tries = 0; hinted = false; let hints = 0; const shown = Date.now(); let firstSecs = null;
+    const log = ok => track({ ts: Date.now(), d: today, m: mode, t: p.topic || p.from.id, lv: levelOf(p, mode), s: Math.round(firstSecs), total: Math.round((Date.now() - shown) / 1000), ok, tr: tries, h: hints, q: p.q.slice(0, 90) });
     const solution = () => `<div class="sol"><div class="solh">📝 How to solve it</div>${p.steps.map((st, n) => `<div class="step s${n}"><span class="lb">${LABELS[n]}</span><div>${esc(st)}</div></div>`).join("")}<div class="trap">⚠️ <b>Trap:</b> ${esc(p.trap)}</div></div>`;
     box.innerHTML = `<div class="card"><div class="row" style="margin-top:0"><span class="sub">${mode === "gym" ? `♾️ Gym problem ${k + 1}` : `Problem ${k + 1} of ${list.length}`}${p.lvl === "challenge" ? ` · <b style="color:#ff5a5a">⬆️ challenge</b>` : ""}${i < 0 ? ` · from <b>${esc(p.from.emoji + " " + p.from.title)}</b>` : ""}</span><span class="spacer"></span><span class="pill">⭐ ${right}</span>${i < 0 ? `<span class="pill timer" id="tm">0:00</span>` : ""}</div>
       ${mode === "gym" ? "" : `<div class="prog"><i style="width:${k / list.length * 100}%"></i></div>`}
@@ -250,15 +328,15 @@ function practice(list, i, mode) {
       $("#fb").innerHTML = `<div class="fb hint"><div><b>👀 What to notice:</b> ${esc(p.steps[0])}</div>${hints > 1 ? `<div style="margin-top:6px"><b>🧠 The plan:</b> ${esc(p.steps[1])}</div>` : ""}</div>`;
       $("#hint").textContent = hints > 1 ? "💡 No more hints. You've got this!" : "💡 Another hint"; if (hints > 1) $("#hint").disabled = true; };
     box.querySelectorAll("[data-j]").forEach(b => b.onclick = () => {
-      if (b.disabled) return; const j = +b.dataset.j; tries++;
+      if (b.disabled) return; const j = +b.dataset.j; tries++; if (firstSecs === null) firstSecs = (Date.now() - shown) / 1000;
       if (j === p.a) {
         b.classList.add("right"); box.querySelectorAll("[data-j]").forEach(x => x.disabled = true);
-        const star = tries === 1; if (star) right++;
+        const star = tries === 1; if (star) right++; log(star);
         $("#fb").innerHTML = `<div class="fb ok">${star ? "⭐ First try! " : "✅ Got it! "}${esc(p.why)}</div>${solution()}`;
         $("#nx").style.display = ""; $("#hint").style.display = "none";
       } else {
         b.classList.add("wrong"); b.disabled = true;
-        if (tries >= 2) {
+        if (tries >= 2) { log(false);
           box.querySelectorAll("[data-j]").forEach(x => x.disabled = true); box.querySelector(`[data-j="${p.a}"]`).classList.add("right");
           $("#fb").innerHTML = `<div class="fb no">The answer is <b>${LET[p.a]}</b>. Read the steps below, then write this one in your error log. 📒</div>${solution()}`;
           $("#nx").style.display = ""; $("#hint").style.display = "none";
@@ -383,26 +461,27 @@ function examItem(id, level, used) {
 function buildExam(kind) {
   const used = new Set();
   if (kind === "daily") {
-    const upTo = Math.max(...thisWeek);
-    let pool = LES.filter(l => P.lessons[l.id] || l.n <= upTo).map(l => l.id);
-    for (const l of LES) { if (pool.length >= 3) break; if (!pool.includes(l.id)) pool.push(l.id); }
-    return ["easy", "easy", "medium", "medium", "hard"].map(lv => examItem(pickTopic(pool), lv, used));
+    const cov = coveredSoFar();
+    let pool = LES.filter(l => P.lessons[l.id] || cov.has(l.n)).map(l => l.id);
+    for (const n of CFG.chapters) { if (pool.length >= 3) break; const id = LES[n - 1].id; if (!pool.includes(id)) pool.push(id); }
+    return CFG.daily.levels.map(lv => examItem(pickTopic(pool), lv, used));
   }
-  const all = LES.map(l => l.id), levels = [...Array(10).fill("easy"), ...Array(8).fill("medium"), ...Array(7).fill("hard")];
+  const all = LES.filter(l => CFG.chapters.includes(l.n)).map(l => l.id), levels = CFG.weekly.levels;
   // spread topics: no topic more than 3 times
   const count = {};
   return levels.map(lv => { let id; do { id = pickTopic(all); } while ((count[id] || 0) >= 3); count[id] = (count[id] || 0) + 1; return examItem(id, lv, used); });
 }
 function examsHtml() {
   const d = P.exams.daily[today], w = P.exams.weekly[mondayOf(today)];
-  return `<div class="exams"><button class="exam ${d ? "done" : ""}" data-exam="daily"><span class="et">📅 Daily exam</span><span>5 problems · 10 min</span><b>${d ? `Today: ${d.score}/${d.of} ✅` : "Not done yet today"}</b></button>
-    <button class="exam ${w ? "done" : ""}" data-exam="weekly"><span class="et">🏁 Weekly exam</span><span>25 problems · 40 min · like the real AMC 8</span><b>${w ? `This week: ${w.score}/25 ✅` : "Not done yet this week"}</b></button></div>`;
+  return `<div class="exams"><button class="exam ${d ? "done" : ""}" data-exam="daily"><span class="et">📅 Daily exam</span><span>${CFG.daily.label}</span><b>${d ? `Today: ${d.score}/${d.of} ✅` : "Not done yet today"}</b></button>
+    <button class="exam ${w ? "done" : ""}" data-exam="weekly"><span class="et">🏁 Weekly exam</span><span>${CFG.weekly.label}</span><b>${w ? `This week: ${w.score}/${w.of} ✅` : "Not done yet this week"}</b></button></div>`;
 }
 let exTimer = null;
 function exam(kind) {
   window.scrollTo(0, 0); clearInterval(exTimer);
-  const items = buildExam(kind), ans = Array(items.length).fill(-1), mins = kind === "daily" ? 10 : 40;
-  let k = 0, left = mins * 60; const t0 = Date.now();
+  const items = buildExam(kind), ans = Array(items.length).fill(-1), mins = kind === "daily" ? CFG.daily.mins : CFG.weekly.mins;
+  let k = 0, left = mins * 60; const t0 = Date.now(); const spent = Array(items.length).fill(0); let tIn = Date.now();
+  const leave = () => { spent[k] += (Date.now() - tIn) / 1000; tIn = Date.now(); };
   const official = kind === "daily" ? !P.exams.daily[today] : !P.exams.weekly[mondayOf(today)];
   const clock = () => `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
   const draw = () => {
@@ -413,20 +492,23 @@ function exam(kind) {
         <div class="ch">${p.c.map((c, j) => `<button class="${ans[k] === j ? "pick" : ""}" data-j="${j}"><span class="L">${LET[j]}</span><span>${esc(c)}</span></button>`).join("")}</div>
         <div class="row"><button class="btn" id="prev" ${k === 0 ? "disabled" : ""}>◀ Back</button><span class="spacer"></span>${k < items.length - 1 ? `<button class="btn alt" id="nxt">Next ▶</button>` : ""}<button class="btn go" id="sub">Hand it in ✅</button></div></div>`;
     $("#quit").onclick = () => { if (confirm("Quit the exam? It won't be saved.")) { clearInterval(exTimer); home(); } };
-    app.querySelectorAll("[data-jump]").forEach(b => b.onclick = () => { k = +b.dataset.jump; draw(); });
-    app.querySelectorAll("[data-j]").forEach(b => b.onclick = () => { ans[k] = ans[k] === +b.dataset.j ? -1 : +b.dataset.j; if (ans[k] >= 0 && k < items.length - 1) { k++; } draw(); });
-    $("#prev").onclick = () => { k--; draw(); };
-    if ($("#nxt")) $("#nxt").onclick = () => { k++; draw(); };
+    app.querySelectorAll("[data-jump]").forEach(b => b.onclick = () => { leave(); k = +b.dataset.jump; draw(); });
+    app.querySelectorAll("[data-j]").forEach(b => b.onclick = () => { ans[k] = ans[k] === +b.dataset.j ? -1 : +b.dataset.j; if (ans[k] >= 0 && k < items.length - 1) { leave(); k++; } draw(); });
+    $("#prev").onclick = () => { leave(); k--; draw(); };
+    if ($("#nxt")) $("#nxt").onclick = () => { leave(); k++; draw(); };
     $("#sub").onclick = () => { const blank = ans.filter(a => a < 0).length; if (blank && left > 0 && !confirm(`${blank} left blank. Guessing is free! Hand it in anyway?`)) return; finish(); };
   };
   const finish = () => {
-    clearInterval(exTimer);
+    clearInterval(exTimer); leave();
     const res = { kind, date: today, week: mondayOf(today), official, secs: Math.round((Date.now() - t0) / 1000), of: items.length,
       score: items.reduce((s, p, j) => s + (ans[j] === p.a ? 1 : 0), 0),
-      items: items.map((p, j) => ({ q: p.q, c: p.c, a: p.a, you: ans[j], steps: p.steps, trap: p.trap, topic: p.topic, level: p.level })) };
+      items: items.map((p, j) => ({ q: p.q, c: p.c, a: p.a, you: ans[j], secs: Math.round(spent[j]), steps: p.steps, trap: p.trap, topic: p.topic, level: p.level })) };
+    res.items.forEach(it => track({ ts: Date.now(), d: today, m: kind, t: it.topic, lv: it.level, s: it.secs, total: it.secs, ok: it.you === it.a, tr: it.you < 0 ? 0 : 1, h: 0, blank: it.you < 0, q: it.q.slice(0, 90) }));
     res.topics = {}; res.items.forEach(it => { const t = res.topics[it.topic] = res.topics[it.topic] || [0, 0]; t[1]++; if (it.you === it.a) t[0]++; });
     if (official) { if (kind === "daily") P.exams.daily[today] = { score: res.score, of: res.of }; else P.exams.weekly[res.week] = { score: res.score, of: res.of }; }
-    P.exams.log.push(res); P.exams.log = P.exams.log.slice(-40); save();
+    P.exams.log.push(res); P.exams.log = P.exams.log.slice(-40);
+    P.exams.log.slice(0, -10).forEach(e => (e.items || []).forEach(it => { delete it.steps; delete it.trap; delete it.c; }));
+    save();
     if (res.score >= Math.ceil(res.of * 0.8)) confetti();
     examResults(res);
   };
@@ -439,14 +521,14 @@ function examResults(r) {
   const weak = rows.filter(([, v]) => v[0] < v[1]).slice(0, 3);
   app.innerHTML = `<div class="top"><button class="btn" id="back">← Lessons</button><h1 style="font-size:22px">${r.kind === "daily" ? "📅 Daily exam" : "🏁 Weekly exam"} results</h1></div>
     <div class="card done"><div class="big">${r.score === r.of ? "🏆" : r.score >= r.of * 0.6 ? "🎉" : "💪"}</div><p class="q">${r.score} / ${r.of}</p>
-      <p class="sub">${r.date} · ${Math.floor(r.secs / 60)} min ${r.secs % 60} s${r.official ? "" : " · practice retake"}</p>
-      ${r.kind === "weekly" ? `<p>${r.score >= 21 ? "Honor Roll level!" : r.score >= 15 ? "Achievement Roll level (15+)!" : `Problems 1–10: ${r.items.slice(0, 10).filter(i => i.you === i.a).length}/10. Make those rock-solid first.`}</p>` : ""}
+      <p class="sub">${r.date} · ${Math.floor(r.secs / 60)} min ${r.secs % 60} s · about ${Math.round(r.secs / r.of)} s per problem (real-test pace: 96 s)${r.official ? "" : " · practice retake"}</p>
+      ${r.kind === "weekly" && r.of < 25 ? `<p>${r.score >= 12 ? "Super strong on the first-15 style problems! 🌟" : "Every week these get easier. Great effort!"}</p>` : ""}${r.kind === "weekly" && r.of === 25 ? `<p>${r.score >= 21 ? "Honor Roll level!" : r.score >= 15 ? "Achievement Roll level (15+)!" : `Problems 1–10: ${r.items.slice(0, 10).filter(i => i.you === i.a).length}/10. Make those rock-solid first.`}</p>` : ""}
       ${weak.length ? `<p>🎯 Work on: ${weak.map(([tp]) => `<button class="btn sm" data-go="${lessonOf(tp)}">${topicName(tp)}</button>`).join(" ")}</p>` : `<p>Every topic perfect. 🔥</p>`}</div>
     <div class="card"><div class="q">By topic</div>${rows.map(([tp, v]) => `<div class="trow"><span class="tn">${topicName(tp)}</span><span class="tbar"><i style="width:${v[0] / v[1] * 100}%"></i></span><b>${v[0]}/${v[1]}</b></div>`).join("")}</div>
     <div class="card"><div class="q">Every problem, with the solution</div><p class="sub">Tap a problem to see how to solve it. Add your misses to the error log. 📒</p>
       ${r.items.map((it, j) => `<details class="rev ${it.you === it.a ? "ok" : "no"}"><summary><b>${j + 1}.</b> ${it.you === it.a ? "✅" : it.you < 0 ? "⬜" : "❌"} ${esc(it.q)} <span class="sub">${topicName(it.topic)}${it.level === "hard" ? " · ⬆️ hard" : ""}</span></summary>
-        <p>Your answer: <b>${it.you >= 0 ? LET[it.you] + " (" + esc(it.c[it.you]) + ")" : "blank"}</b> · Correct: <b>${LET[it.a]} (${esc(it.c[it.a])})</b></p>
-        <div class="sol">${it.steps.map((st, n) => `<div class="step s${n}"><span class="lb">${LABELS[n]}</span><div>${esc(st)}</div></div>`).join("")}<div class="trap">⚠️ <b>Trap:</b> ${esc(it.trap)}</div></div></details>`).join("")}</div>`;
+        <p>Your answer: <b>${it.you >= 0 ? LET[it.you] + (it.c ? " (" + esc(it.c[it.you]) + ")" : "") : "blank"}</b> · Correct: <b>${LET[it.a]}${it.c ? " (" + esc(it.c[it.a]) + ")" : ""}</b>${it.secs != null ? ` · ⏱️ ${it.secs}s` : ""}</p>
+        ${!it.steps ? "" : `<div class="sol">${it.steps.map((st, n) => `<div class="step s${n}"><span class="lb">${LABELS[n]}</span><div>${esc(st)}</div></div>`).join("")}<div class="trap">⚠️ <b>Trap:</b> ${esc(it.trap)}</div></div>`}</details>`).join("")}</div>`;
   $("#back").onclick = home;
   app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => lesson(+b.dataset.go, 0));
 }
@@ -463,9 +545,9 @@ function parentHistory() {
 function mixed() {
   window.scrollTo(0, 0);
   // interleaved: prefer lessons he's started; otherwise draw from this week's and earlier chapters
-  const upTo = Math.max(...thisWeek);
-  let chosen = LES.filter(l => P.lessons[l.id] || l.n <= upTo);
-  for (const l of LES) { if (chosen.length >= 3) break; if (!chosen.includes(l)) chosen.push(l); }
+  const cov = coveredSoFar();
+  let chosen = LES.filter(l => P.lessons[l.id] || cov.has(l.n));
+  for (const n of CFG.chapters) { if (chosen.length >= 3) break; const l = LES[n - 1]; if (!chosen.includes(l)) chosen.push(l); }
   const pool = chosen.flatMap(l => [...l.pr, ...l.ch.slice(0, 1), GYM.make(l.id), GYM.make(l.id)].map(p => ({ ...p, from: l })));
   for (let a = pool.length - 1; a > 0; a--) { const b = Math.floor(Math.random() * (a + 1)); [pool[a], pool[b]] = [pool[b], pool[a]]; }
   const pick = []; const used = new Set();

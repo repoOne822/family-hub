@@ -402,3 +402,22 @@ body.kidmode{--kfont:"Fredoka","Noto Sans SC",system-ui,sans-serif;background:va
 .appbar{display:flex;align-items:center;gap:12px;padding:8px 12px;background:#0a0a0a;border-bottom:1px solid #222}
 .appclose{border:2px solid #fff;background:transparent;color:#fff;border-radius:999px;padding:5px 14px;font:700 13.5px var(--body);cursor:pointer}
 .appst{color:#9fb1c9;font-size:12.5px}
+/* performance page */
+.coach+.coach,.pfkpis+.meta+.coach{margin-top:12px}
+.pfkpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:6px}
+.pfk{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--kc);border-radius:14px;padding:12px}
+.pfk b{display:block;font-size:24px}.pfk b small{font-size:13px;font-weight:500}.pfk span{font-size:12.5px;color:var(--muted)}
+.pfk.warn{border-top-color:#e08a2b}
+.pfdays,.pfexams{display:flex;gap:8px;align-items:flex-end;overflow-x:auto;padding-top:6px}
+.pfdays>div,.pfexams>div{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:42px;font-size:12px}
+.pfcol{width:22px;height:80px;background:#ffffff12;border-radius:6px;display:flex;align-items:flex-end;overflow:hidden}.pfcol i{display:block;width:100%;background:var(--kc);border-radius:6px}
+.pft{width:100%;border-collapse:collapse;font-size:14px}.pft th{text-align:left;font-size:12px;color:var(--muted);font-weight:600}.pft td,.pft th{padding:6px 4px;border-bottom:1px solid var(--line)}.pft td:nth-child(3){white-space:nowrap}
+.pfbar{display:inline-block;width:56px;height:7px;border-radius:9px;background:#ffffff14;vertical-align:middle;overflow:hidden}.pfbar i{display:block;height:100%}
+.pfslow{padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+.pfdim{display:grid;grid-template-columns:110px auto 1fr;gap:8px;align-items:center;margin:8px 0}
+.pfseg button{min-width:34px}.pfseg button.was{outline:2px dashed var(--kc)}
+.pfchips{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}
+#pfNote{width:100%;margin-top:8px}
+@media (max-width:640px){.pfkpis{grid-template-columns:1fr 1fr}.pfdim{grid-template-columns:1fr}}
+.fbgrid>div{min-width:0}
+@media (max-width:640px){.pft .pfbar{display:none}.pft{font-size:13px}.pfdays>div{min-width:34px}}

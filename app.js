@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261119o";
-import * as Pix from "./pixel.js?v=20261119o";
+import { STR } from "./i18n.js?v=20261119p";
+import * as Pix from "./pixel.js?v=20261119p";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -73,7 +73,7 @@ async function loadAll() {
     const m = await sb.rpc("kid_moods", { p_days: 400 }); S.moods = m.data || []; S.checkins = [];
     S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); S.subjects.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); return;
   }
-  const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects", "feedback", "insights"];
+  const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects", "feedback", "insights", "assessments", "app_saves"];
   const res = await Promise.all(tables.map(t => sb.from(t).select("*")));
   res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
   S.kids.sort((a, b) => (a.sort ?? 9) - (b.sort ?? 9));
@@ -156,11 +156,11 @@ async function boot() {
 }
 
 /* ---------------- shell + routing ---------------- */
-const ROUTES = ["today", "dashboard", "feedback", "subjects", "log", "plans", "reports", "family"];
+const ROUTES = ["today", "dashboard", "performance", "feedback", "subjects", "log", "plans", "reports", "family"];
 function renderShell() {
   $("#root").innerHTML = `<div class="topbar"><div class="in">
     <div class="brand"><span class="dotlogo">✦</span>${T().appTitle}</div>
-    <nav class="nav">${ROUTES.map(r => `<a href="#${r}" data-r="${r}">${T()["nav" + { today: "Today", dashboard: "Dash", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" }[r]]}</a>`).join("")}</nav>
+    <nav class="nav">${ROUTES.map(r => `<a href="#${r}" data-r="${r}">${T()["nav" + { today: "Today", dashboard: "Dash", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" }[r]]}</a>`).join("")}</nav>
     <button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button>
     <button class="btn sm" id="lockBtn">${T().kidsMode}</button>
     <button class="btn sm ghost" id="soBtn">${T().signOut}</button></div></div>
@@ -179,7 +179,7 @@ function route() {
   if (h.startsWith("doc-")) { doc = h.slice(4); h = "doc"; }
   if (!ROUTES.includes(h) && h !== "doc") h = "today";
   document.querySelectorAll(".nav a").forEach(a => a.classList.toggle("on", a.dataset.r === h || (h === "doc" && a.dataset.r === (S.docs.find(d => d.slug === doc)?.section === "report" ? "reports" : "plans"))));
-  ({ today: viewToday, dashboard: viewDash, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, doc: () => viewDoc(doc) })[h]();
+  ({ today: viewToday, dashboard: viewDash, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, doc: () => viewDoc(doc) })[h]();
 }
 
 /* ---------------- TODAY ---------------- */
@@ -566,6 +566,97 @@ async function viewFamily() {
 let fbKid = null, fbTone = "neutral";
 document.addEventListener("click", e => { const a = e.target.closest("[data-fbkid]"); if (a) fbKid = a.dataset.fbkid; }, true);
 const KINDS = ["strength", "struggle", "what_works", "watch", "interest"];
+/* ---------------- PERFORMANCE: AMC timing, strengths, parent assessments ---------------- */
+const AMC_T = { factors: ["🧱", "Factors & Primes", "因数与质数"], parity: ["🧦", "Even, Odd & Divisibility", "奇偶与整除"], bases: ["👽", "Bases & Digits", "进制与数位"], sequences: ["🪜", "Sequences & Series", "数列与求和"], ratios: ["🧃", "Ratios, Rates & Percents", "比率与百分比"], equations: ["⚖️", "Equations", "方程与不等式"], venn: ["⭕", "Sets & Venn", "集合与韦恩图"], triangles: ["🔺", "Triangles", "三角形与相似"], polygons: ["🛑", "Polygons", "多边形"], circles: ["🍕", "Circles", "圆"], volumes: ["🧊", "Volumes", "体积"], stats: ["📊", "Statistics", "统计"], counting: ["👕", "Counting", "排列组合"], probability: ["🎲", "Probability", "概率"] };
+const amcTopic = id => { const x = AMC_T[id]; return x ? `${x[0]} ${lang === "zh" ? x[2] : x[1]}` : (lang === "zh" ? "🧩 逻辑与趣题" : "🧩 Logic & puzzles"); };
+const PFS = {
+  en: { title: "Performance", noData: n => `${n} hasn't opened the AMC app yet. Once he does, time on the platform, seconds per problem and strong / weak topics show up here automatically.`,
+    time: "Time on the platform", thisWeek: "This week", last7: "Last 7 days", total: "All time", min: "min",
+    attempts: "Problems tried", acc: "First-try accuracy", med: "Typical time / problem", pace: "Real AMC 8 pace is about 96 s per problem (25 in 40 min).",
+    byTopic: "By topic", byLevel: "By difficulty", topic: "Topic", n: "Tried", right: "1st try", secs: "Typical s", flag: "Read",
+    strong: "💪 Strong", weak: "🎯 Needs work", slow: "🐢 Knows it, needs speed", rush: "⚡ Rushing", early: "· too few yet",
+    exams: "Exam scores", slowest: "Slowest recent problems", reading: "Lesson reading", readTxt: (n, m) => `${n} lesson sections read · ${m} min reading`,
+    assessH: "Your assessment", assessSub: "Rate what you see at home. Saved next to the data, and the nightly coach reads it.", dims: { understanding: "Understanding", speed: "Speed", accuracy: "Carefulness", effort: "Effort", confidence: "Confidence" },
+    dataSays: "Data:", notePh: "What did you notice? (e.g. rushes word problems, lights up on counting)", save: "Save assessment", history: "Past assessments", none: "No assessments yet.", saved: "Assessment saved",
+    levels: { easy: "Easy", medium: "Medium", hard: "Hard" }, daily: "Daily", weekly: "Weekly" },
+  zh: { title: "学习表现", noData: n => `${n} 还没有打开 AMC 应用。打开后，这里会自动显示学习时长、每题用时和强弱项。`,
+    time: "平台学习时长", thisWeek: "本周", last7: "最近7天", total: "累计", min: "分钟",
+    attempts: "做题数", acc: "一次答对率", med: "每题典型用时", pace: "真实 AMC 8 节奏约每题 96 秒（40 分钟 25 题）。",
+    byTopic: "按知识点", byLevel: "按难度", topic: "知识点", n: "题数", right: "一次对", secs: "典型秒数", flag: "判断",
+    strong: "💪 强项", weak: "🎯 需加强", slow: "🐢 会做但偏慢", rush: "⚡ 太急", early: "· 数据还少",
+    exams: "考试成绩", slowest: "最近最慢的题", reading: "课程阅读", readTxt: (n, m) => `已读 ${n} 个课程环节 · 阅读 ${m} 分钟`,
+    assessH: "家长评估", assessSub: "根据你在家看到的情况打分。会和数据放在一起，每晚的教练也会参考。", dims: { understanding: "理解", speed: "速度", accuracy: "细心", effort: "努力", confidence: "自信" },
+    dataSays: "数据：", notePh: "你观察到什么？（例如：应用题太急、计数题很兴奋）", save: "保存评估", history: "历史评估", none: "还没有评估。", saved: "评估已保存",
+    levels: { easy: "简单", medium: "中等", hard: "难" }, daily: "每日", weekly: "每周" } };
+let pfKid = null;
+const median = a => { if (!a.length) return null; const b = [...a].sort((x, y) => x - y), m = b.length >> 1; return b.length % 2 ? b[m] : Math.round((b[m - 1] + b[m]) / 2); };
+function amcStats(P) {
+  const ev = (P.events || []).filter(e => e.m !== "read" && typeof e.s === "number" && !e.blank);
+  const rd = (P.events || []).filter(e => e.m === "read");
+  const grp = key => { const o = {}; ev.forEach(e => { const k = e[key] || "?"; (o[k] = o[k] || []).push(e); }); return o; };
+  const sum = list => ({ n: list.length, acc: list.length ? Math.round(list.filter(e => e.ok).length / list.length * 100) : null, med: median(list.map(e => e.s)) });
+  const flag = r => r.n < 4 ? "early" : r.acc >= 80 && r.med <= 96 ? "strong" : r.acc < 60 && r.med < 30 ? "rush" : r.acc < 60 ? "weak" : r.acc >= 75 && r.med > 120 ? "slow" : "";
+  const topics = Object.entries(grp("t")).map(([t, l]) => ({ t, ...sum(l) })).map(r => ({ ...r, flag: flag(r) })).sort((a, b) => (a.acc ?? 0) - (b.acc ?? 0));
+  const levels = ["easy", "medium", "hard"].map(lv => ({ lv, ...sum(ev.filter(e => e.lv === lv)) }));
+  const day = d => (P.sessions || []).filter(x => x.date === d).reduce((a, x) => a + (x.active || 0), 0);
+  const days = [...Array(7)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); const iso = d.toLocaleDateString("en-CA"); return { iso, sec: day(iso) }; });
+  const mon = (() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toLocaleDateString("en-CA"); })();
+  const week = (P.sessions || []).filter(x => x.date >= mon).reduce((a, x) => a + (x.active || 0), 0);
+  const total = (P.sessions || []).reduce((a, x) => a + (x.active || 0), 0);
+  const slow = ev.slice(-80).filter(e => e.s > 0).sort((a, b) => b.s - a.s).slice(0, 8);
+  return { all: sum(ev), topics, levels, days, week, total, slow, exams: ((P.exams || {}).log || []).slice(-12), readN: new Set(rd.filter(e => e.part == null).map(e => e.t + e.step)).size, readSec: rd.reduce((a, e) => a + (e.s || 0), 0) };
+}
+function viewPerformance() {
+  const t = T(), L = PFS[lang] || PFS.en;
+  pfKid = pfKid && S.kids.some(k => k.id === pfKid) ? pfKid : (S.kids.find(k => (S.app_saves || []).some(a => a.kid === k.id && a.app === "amc")) || S.kids[0])?.id; if (!pfKid) return;
+  const name = esc(kidName(pfKid)), ki = S.kids.findIndex(k => k.id === pfKid);
+  const save = (S.app_saves || []).find(a => a.kid === pfKid && a.app === "amc");
+  const P = save && save.data ? save.data[`${pfKid}_amc_progress`] : null;
+  const subj = S.subjects.find(x => x.kid === pfKid && x.app_url === "amc/");
+  const asses = (S.assessments || []).filter(a => a.kid === pfKid).sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
+  const st = P ? amcStats(P) : null;
+  const mins = s => Math.round((s || 0) / 60);
+  const pct = v => v == null ? "—" : v + "%";
+  const sec = v => v == null ? "—" : v + " s";
+  const bar = (v, max, c) => `<span class="pfbar"><i style="width:${Math.min(100, (v || 0) / (max || 1) * 100)}%;background:${c || "var(--kc)"}"></i></span>`;
+  const dataFor = { understanding: st && st.all.acc != null ? pct(st.all.acc) : "", accuracy: st && st.all.acc != null ? pct(st.all.acc) : "", speed: st && st.all.med != null ? sec(st.all.med) : "", effort: st ? `${mins(st.week)} ${L.min}/${L.thisWeek}` : "", confidence: "" };
+  const lastA = asses[0] || {};
+  const dims = Object.keys(L.dims);
+  const maxDay = Math.max(1, ...((st && st.days) || []).map(d => d.sec));
+  $("#view").innerHTML = `<div class="section-h"><h3>📈 ${L.title}</h3><div class="tabs" id="pfTabs">${S.kids.map(x => `<button class="${x.id === pfKid ? "on" : ""}" data-pk="${esc(x.id)}">${esc(kidName(x.id))}</button>`).join("")}</div></div>
+  <div class="fbgrid" style="--kc:${KC[ki % 3]}"><div>
+    ${!st ? `<div class="coach"><p>${L.noData(name)}</p></div>` : `
+    <div class="pfkpis">
+      <div class="pfk"><b>${mins(st.week)}<small> ${L.min}</small></b><span>⏱ ${L.time} · ${L.thisWeek}</span></div>
+      <div class="pfk"><b>${st.all.n}</b><span>✏️ ${L.attempts}</span></div>
+      <div class="pfk"><b>${pct(st.all.acc)}</b><span>🎯 ${L.acc}</span></div>
+      <div class="pfk ${st.all.med > 120 ? "warn" : ""}"><b>${sec(st.all.med)}</b><span>🐢 ${L.med}</span></div></div>
+    <p class="meta">${L.pace} ${L.total}: ${mins(st.total)} ${L.min}.</p>
+    <div class="coach"><h4>⏱ ${L.last7}</h4><div class="pfdays">${st.days.map(d => `<div><span class="pfcol"><i style="height:${Math.round(d.sec / maxDay * 100)}%"></i></span><small>${d.iso.slice(5)}</small><b>${mins(d.sec)}</b></div>`).join("")}</div></div>
+    <div class="coach"><h4>🧭 ${L.byTopic}</h4><table class="pft"><tr><th>${L.topic}</th><th>${L.n}</th><th>${L.right}</th><th>${L.secs}</th><th>${L.flag}</th></tr>
+      ${st.topics.map(r => `<tr><td>${amcTopic(r.t)}</td><td>${r.n}</td><td>${bar(r.acc, 100)} ${pct(r.acc)}</td><td>${sec(r.med)}</td><td>${r.flag === "early" ? `<span class="meta">${L.early}</span>` : r.flag ? L[r.flag] : ""}</td></tr>`).join("")}</table></div>
+    <div class="coach"><h4>📶 ${L.byLevel}</h4><table class="pft">${st.levels.map(r => `<tr><td>${L.levels[r.lv]}</td><td>${r.n}</td><td>${bar(r.acc, 100)} ${pct(r.acc)}</td><td>${sec(r.med)}</td></tr>`).join("")}</table></div>
+    ${st.exams.length ? `<div class="coach"><h4>🏁 ${L.exams}</h4><div class="pfexams">${st.exams.map(x => `<div title="${esc(x.date)}"><span class="pfcol"><i style="height:${Math.round(x.score / x.of * 100)}%;background:${x.kind === "weekly" ? "#7c5cff" : "var(--kc)"}"></i></span><small>${esc((x.date || "").slice(5))}</small><b>${x.score}/${x.of}</b><small>${x.kind === "weekly" ? L.weekly : L.daily}</small></div>`).join("")}</div></div>` : ""}
+    ${st.slow.length ? `<div class="coach"><h4>🐢 ${L.slowest}</h4>${st.slow.map(e => `<div class="pfslow"><b>${e.s}s</b> ${e.ok ? "✅" : "❌"} <span class="meta">${amcTopic(e.t)} · ${L.levels[e.lv] || ""} · ${esc(e.d || "")}</span><div>${esc(e.q || "")}${(e.q || "").length >= 90 ? "…" : ""}</div></div>`).join("")}</div>` : ""}
+    <div class="coach"><h4>📖 ${L.reading}</h4><p>${L.readTxt(st.readN, mins(st.readSec))}</p></div>`}
+  </div><div>
+    <div class="coach"><h4>📝 ${L.assessH}: ${name}</h4><p class="meta">${L.assessSub}</p>
+      ${dims.map(d => `<div class="pfdim"><span>${L.dims[d]}</span><div class="seg pfseg" data-dim="${d}">${[1, 2, 3, 4, 5].map(n => `<button data-n="${n}" class="${lastA[d] === n ? "was" : ""}">${n}</button>`).join("")}</div>${dataFor[d] ? `<small class="meta">${L.dataSays} ${dataFor[d]}</small>` : ""}</div>`).join("")}
+      <textarea id="pfNote" rows="3" maxlength="2000" placeholder="${esc(L.notePh)}"></textarea>
+      <div class="fbrow"><button class="btn primary" id="pfSave">${L.save}</button></div></div>
+    <div class="section-h" style="margin-top:18px"><h3 style="font-size:16px">${L.history} <span class="meta">(${asses.length})</span></h3></div>
+    ${asses.length ? asses.slice(0, 20).map(a => `<div class="fbitem neutral"><div class="meta">${fmtDate(a.date)}${a.author ? ` · ${esc(a.author.split("@")[0])}` : ""}<button class="x" data-delas="${a.id}" title="${t.del}">×</button></div><div class="pfchips">${dims.filter(d => a[d]).map(d => `<span class="chip">${L.dims[d]} ${"●".repeat(a[d])}${"○".repeat(5 - a[d])}</span>`).join("")}</div>${a.note ? `<div class="n">${esc(a.note)}</div>` : ""}</div>`).join("") : `<p class="meta">${L.none}</p>`}
+  </div></div>`;
+  const pick = {};
+  $("#pfTabs").onclick = e => { const b = e.target.closest("[data-pk]"); if (b) { pfKid = b.dataset.pk; viewPerformance(); } };
+  $("#view").querySelectorAll(".pfseg").forEach(g => g.onclick = e => { const b = e.target.closest("[data-n]"); if (!b) return; pick[g.dataset.dim] = +b.dataset.n; g.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); });
+  $("#pfSave").onclick = async () => {
+    const note = $("#pfNote").value.trim(); if (!note && !Object.keys(pick).length) return;
+    try { const { error } = await sb.from("assessments").insert({ kid: pfKid, subject_id: subj?.id || null, date: today(), author: S.user?.email || null, note: note || null, ...pick }); if (error) throw error; setStatus(L.saved); refresh(); } catch (err) { setStatus(err.message, true); }
+  };
+  $("#view").querySelectorAll("[data-delas]").forEach(x => x.onclick = async () => { if (!x.dataset.armed) { x.dataset.armed = 1; x.textContent = t.confirm; return; } try { await del("assessments", { id: x.dataset.delas }); refresh(); } catch (err) { setStatus(err.message, true); } });
+}
+
 function viewFeedback() {
   const t = T(); fbKid = fbKid && S.kids.some(k => k.id === fbKid) ? fbKid : S.kids[0]?.id; if (!fbKid) return;
   const k = S.kids.find(x => x.id === fbKid), name = esc(kidName(fbKid)), ki = S.kids.indexOf(k);
@@ -705,30 +796,30 @@ $("#sArchive").onclick = async () => { if (!editingSubj) return; const { error }
 let kidTap = null;
 /* ---- kid apps (e.g. Ellis's Fencing Brain Academy): full-screen, progress synced to app_saves ---- */
 const APPS = { "fencing/": { id: "fencing", prefix: "ellis_", skip: ["ellis_pin"], label: { en: "Play Fencing Brain Academy", zh: "进入击剑大脑学院" } },
-  "amc/": { id: "amc", prefix: "eric_amc_", skip: [], label: { en: "Open my AMC 8 lessons", zh: "打开我的 AMC 8 课程" } } };
+  "amc/": { id: "amc", prefix: kid => `${kid}_amc_`, skip: [], perKid: true, label: { en: "Open my AMC 8 lessons", zh: "打开我的 AMC 8 课程" } } };
 const appLabel = url => (APPS[url]?.label || {})[lang] || T().openApp;
 let appOpen = null;
 async function openApp(url, kid) {
   const cfg = APPS[url]; if (!cfg) return;
-  const t = T(), mark = `fh_save_${kid}_${cfg.id}`;
+  const t = T(), mark = `fh_save_${kid}_${cfg.id}`, pre = typeof cfg.prefix === "function" ? cfg.prefix(kid) : cfg.prefix;
   try {
     const { data } = await sb.from("app_saves").select("data,updated_at").eq("kid", kid).eq("app", cfg.id).maybeSingle();
     const localAt = localStorage.getItem(mark) || "";
-    if (data && (preview || data.updated_at > localAt)) { Object.entries(data.data || {}).forEach(([k, v]) => { if (k.startsWith(cfg.prefix) && !cfg.skip.includes(k)) localStorage.setItem(k, JSON.stringify(v)); }); localStorage.setItem(mark, data.updated_at); }
+    if (data && (preview || data.updated_at > localAt)) { Object.entries(data.data || {}).forEach(([k, v]) => { if (k.startsWith(pre) && !cfg.skip.includes(k)) localStorage.setItem(k, JSON.stringify(v)); }); localStorage.setItem(mark, data.updated_at); }
   } catch (e) {}
   let timer = null;
   const push = async () => {
     timer = null; if (preview) return;
-    const out = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith(cfg.prefix) && !cfg.skip.includes(k)) { try { out[k] = JSON.parse(localStorage.getItem(k)); } catch (e) {} } }
+    const out = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith(pre) && !cfg.skip.includes(k)) { try { out[k] = JSON.parse(localStorage.getItem(k)); } catch (e) {} } }
     const at = new Date().toISOString();
     const { error } = await sb.from("app_saves").upsert({ kid, app: cfg.id, data: out, updated_at: at });
     const st = document.querySelector("#appFs .appst"); if (st) st.textContent = error ? "⚠️ " + t.appSaveErr : "☁️ " + t.appSaved;
     if (!error) localStorage.setItem(mark, at);
   };
-  const onStore = e => { if (e.key && e.key.startsWith(cfg.prefix) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
+  const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261119o${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261119p${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; };
   fs.querySelector(".appclose").onclick = () => appOpen();
