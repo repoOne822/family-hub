@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261120d";
-import * as Pix from "./pixel.js?v=20261120d";
+import { STR } from "./i18n.js?v=20261120e";
+import * as Pix from "./pixel.js?v=20261120e";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -73,7 +73,7 @@ async function loadAll() {
     const m = await sb.rpc("kid_moods", { p_days: 400 }); S.moods = m.data || []; S.checkins = [];
     S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); S.subjects.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); return;
   }
-  const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects", "feedback", "insights", "assessments", "app_saves", "roadmap_items", "parent_checks", "fencing_lessons", "askfred_sync"];
+  const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects", "feedback", "insights", "assessments", "app_saves", "roadmap_items", "parent_checks", "fencing_lessons", "askfred_sync", "fencing_results"];
   const res = await Promise.all(tables.map(t => sb.from(t).select("*")));
   res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
   S.kids.sort((a, b) => (a.sort ?? 9) - (b.sort ?? 9));
@@ -887,21 +887,27 @@ function fencingLessonsHtml(kid) {
     ${askfredHtml(kid)}`;
 }
 /* ---- askFRED: competition results pulled by the askfred-sync edge function ---- */
-const AF = { en: { h: "🏟️ Competition results (askFRED)", never: "Not synced yet.", last: d => `Last synced ${d}`, sync: "↻ Sync askFRED", syncing: "Syncing…", none: "No results found for him yet.", token: "Add your askFRED API token first: Supabase → Edge Functions → Secrets → ASKFRED_TOKEN.", ok: "askFRED synced.", seen: "secrets the server sees", bouts: (w, l) => `Bouts: ${w} won · ${l} lost`, link: "Is he linked to your askFRED account? Check askFRED → My Fencers." },
-  zh: { h: "🏟️ 比赛成绩（askFRED）", never: "还没有同步。", last: d => `上次同步：${d}`, sync: "↻ 同步 askFRED", syncing: "同步中…", none: "还没有找到他的成绩。", token: "请先添加 askFRED API 令牌：Supabase → Edge Functions → Secrets → ASKFRED_TOKEN。", ok: "askFRED 已同步。", seen: "服务器看到的密钥", bouts: (w, l) => `对战：赢 ${w} · 输 ${l}`, link: "他是否已关联到你的 askFRED 账户？请查看 askFRED → My Fencers。" } };
+const AF = { en: { h: "🏟️ Competition results", never: "Not synced yet.", last: d => `Last synced ${d}`, sync: "↻ Sync askFRED", syncing: "Syncing…", none: "No results found for him yet.", token: "Add your askFRED API token first: Supabase → Edge Functions → Secrets → ASKFRED_TOKEN.", ok: "askFRED synced.", seen: "secrets the server sees", bouts: "Bout-by-bout stats ↗", src: "Merged from askFRED + FencingTimeLive", all: n => `Show all ${n} results`, sum: (n, m, t) => `${n} events · ${m} podiums (top 3) · ${t} top-8 finishes`, season: (a, ap, b, bp) => `This season: ${a} events${ap != null ? `, finishes ahead of ${ap}% of the field on average` : ""} · Last season: ${b}${bp != null ? ` (${bp}%)` : ""}`, link: "Is he linked to your askFRED account? Check askFRED → My Fencers." },
+  zh: { h: "🏟️ 比赛成绩", never: "还没有同步。", last: d => `上次同步：${d}`, sync: "↻ 同步 askFRED", syncing: "同步中…", none: "还没有找到他的成绩。", token: "请先添加 askFRED API 令牌：Supabase → Edge Functions → Secrets → ASKFRED_TOKEN。", ok: "askFRED 已同步。", seen: "服务器看到的密钥", bouts: "逐场对战数据 ↗", src: "合并自 askFRED + FencingTimeLive", all: n => `显示全部 ${n} 项成绩`, sum: (n, m, t) => `${n} 场比赛 · ${m} 次登上领奖台（前三） · ${t} 次进入前八`, season: (a, ap, b, bp) => `本赛季：${a} 场${ap != null ? `，平均排名超过 ${ap}% 的选手` : ""} · 上赛季：${b} 场${bp != null ? `（${bp}%）` : ""}`, link: "他是否已关联到你的 askFRED 账户？请查看 askFRED → My Fencers。" } };
 const afList = x => Array.isArray(x) ? x : Array.isArray(x?.data) ? x.data : [];
 const afPick = (o, keys) => { for (const k of keys) { const v = k.split(".").reduce((a, p) => a == null ? a : a[p], o); if (v != null && v !== "") return v; } return null; };
 function askfredHtml(kid) {
-  const L = AF[lang] || AF.en, rows = (S.askfred_sync || []).filter(r => r.kid === kid);
-  const any = (S.askfred_sync || []).find(r => r.kind === "fencers"), res = rows.find(r => r.kind === "results"), bouts = rows.find(r => r.kind === "bouts");
-  const rl = res ? afList(res.data) : [], bl = bouts ? afList(bouts.data) : [];
-  const won = bl.filter(b => afPick(b, ["won", "victory", "is_win", "result"]) === true || /^(w|v|win)/i.test(String(afPick(b, ["result", "outcome"]) || ""))).length;
-  const items = rl.slice(0, 8).map(r => { const name = afPick(r, ["tournament.name", "tournament_name", "event.tournament.name", "event.name", "event_name", "name"]) || "Event";
-    const ev = afPick(r, ["event.name", "event_name", "event.full_name"]), date = afPick(r, ["date", "event.date", "tournament.start_date", "start_date", "event.start_date"]);
-    const place = afPick(r, ["place", "final_place", "placement", "rank"]), field = afPick(r, ["field_size", "event.field_size", "fencers_count", "entries"]), rating = afPick(r, ["rating_earned", "rating", "earned_rating"]);
-    return `<div class="flitem"><div><b>${place != null ? `#${esc(String(place))}${field ? `/${esc(String(field))}` : ""} · ` : ""}${esc(String(name))}</b>${rating ? ` <span class="chip">${esc(String(rating))}</span>` : ""}</div><div class="meta">${ev && ev !== name ? esc(String(ev)) + " · " : ""}${date ? esc(String(date).slice(0, 10)) : ""}</div></div>`; }).join("");
-  return `<div class="latest fl"><h4>${L.h}</h4><div class="meta">${any ? L.last(new Date(any.fetched_at).toLocaleString()) : L.never} <button class="btn sm" data-afsync="1">${L.sync}</button></div>
-    ${res ? (items || `<div class="meta">${L.none}</div>`) : any ? `<div class="meta">${L.link}</div>` : ""}${bl.length ? `<div class="meta" style="margin-top:6px">${L.bouts(won, bl.length - won)}</div>` : ""}</div>`;
+  const L = AF[lang] || AF.en;
+  const synced = (S.askfred_sync || []).find(r => r.kind === "fencers");
+  const fr = (S.fencing_results || []).filter(r => r.kid === kid).sort((x, y) => String(y.date).localeCompare(String(x.date)) || String(x.event).localeCompare(String(y.event)));
+  const seasonStart = d => { const t = new Date(d + "T12:00:00"); return t.getMonth() >= 7 ? t.getFullYear() : t.getFullYear() - 1; };
+  const curSeason = seasonStart(today());
+  const pct = r => r.place && r.field ? Math.round(100 * (1 - (r.place - 1) / r.field)) : null;
+  const medals = fr.filter(r => r.place && r.place <= 3), top8 = fr.filter(r => r.place && r.place <= 8);
+  const thisS = fr.filter(r => seasonStart(r.date) === curSeason), lastS = fr.filter(r => seasonStart(r.date) === curSeason - 1);
+  const avg = list => { const v = list.map(pct).filter(x => x != null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
+  const medal = p => p === 1 ? "🥇" : p === 2 ? "🥈" : p === 3 ? "🥉" : p <= 8 ? "🏅" : "";
+  const row = r => `<div class="flitem"><div><b>${medal(r.place)} #${r.place ?? "?"}${r.field ? `/${r.field}` : ""}</b> · ${esc(r.event)}${r.source === "ftl" ? ` <span class="chip">FTL</span>` : ""}</div><div class="meta">${esc(r.tournament)} · ${esc(String(r.date).slice(0, 10))}</div></div>`;
+  const kpi = fr.length ? `<div class="meta" style="margin:6px 0">${L.sum(fr.length, medals.length, top8.length)}<br>${L.season(thisS.length, avg(thisS), lastS.length, avg(lastS))}</div>` : "";
+  return `<div class="latest fl"><h4>${L.h}</h4><div class="meta">${synced ? L.last(new Date(synced.fetched_at).toLocaleString()) : L.never} <button class="btn sm" data-afsync="1">${L.sync}</button></div>
+    ${kpi}${fr.length ? fr.slice(0, 8).map(row).join("") : `<div class="meta">${synced ? L.none : ""}</div>`}
+    ${fr.length > 8 ? `<details><summary class="meta" style="cursor:pointer">${L.all(fr.length)}</summary>${fr.slice(8).map(row).join("")}</details>` : ""}
+    ${kid === "ellis" ? `<div class="meta" style="margin-top:6px">${L.src} · <a href="https://fencingtracker.com/p/100355738/Ellis-Lin/history" target="_blank" rel="noopener">${L.bouts}</a></div>` : ""}</div>`;
 }
 document.addEventListener("click", async e => {
   const b = e.target.closest("[data-afsync]"); if (!b) return; e.stopPropagation();
@@ -1020,7 +1026,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120d${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120e${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; };
   fs.querySelector(".appclose").onclick = () => appOpen();
