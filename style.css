@@ -238,3 +238,92 @@ details.howto li{margin:4px 0}
 .md table{margin:10px 0}.md td,.md th{vertical-align:top}
 .md code{background:var(--card2);padding:1px 6px;border-radius:6px}
 .md strong{color:var(--lime)}
+
+/* ============ KID WORLD (ages 5–11) ============ */
+body.kidmode{--kfont:"Fredoka","Noto Sans SC",system-ui,sans-serif;background:var(--bg) radial-gradient(circle at 1px 1px,#222 1px,transparent 0) 0 0/22px 22px}
+.kidmode .wrap{max-width:900px}
+.kidmode h1,.kidmode h2,.kidmode h3,.kidmode .brand,.kidmode .herobtn,.kidmode .headline{font-family:var(--kfont);font-weight:700}
+.kw-card{background:var(--card);border:2.5px solid #000;outline:1.5px solid var(--line2);border-radius:26px;padding:20px;box-shadow:6px 6px 0 var(--kshadow,#000);position:relative}
+.kw-hero{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center;background:var(--kc);color:#0a0a0a;border:3px solid #000;border-radius:30px;padding:22px 24px;box-shadow:8px 8px 0 #000;transform:rotate(-1deg)}
+.kw-avatar{width:108px;height:108px;border-radius:50%;background:#fff;border:3px solid #000;display:grid;place-items:center;font-size:62px;cursor:pointer;transition:transform .2s;box-shadow:4px 4px 0 #000}
+.kw-avatar:hover{transform:rotate(-8deg) scale(1.06)}
+.kw-hero h1{margin:0;font-size:clamp(26px,4.4vw,40px);line-height:1.05}
+.kw-level{display:flex;align-items:center;gap:10px;margin-top:8px;font:700 15px var(--kfont)}
+.kw-lvl{background:#000;color:var(--kc);border-radius:999px;padding:3px 12px}
+.kw-xpbar{height:16px;border-radius:999px;background:rgba(0,0,0,.18);border:2px solid #000;margin-top:10px;overflow:hidden}
+.kw-xpbar i{display:block;height:100%;background:#000;border-radius:999px;transition:width .8s cubic-bezier(.2,.9,.3,1.3)}
+.kw-sub{font:600 13px var(--kfont);margin-top:6px;opacity:.75}
+.kw-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
+@media (max-width:640px){.kw-row{grid-template-columns:1fr}.kw-hero{grid-template-columns:1fr;text-align:center;justify-items:center}}
+.kw-tap{width:100%;border:3px solid #000;border-radius:28px;padding:26px 18px;font:700 26px var(--kfont);cursor:pointer;color:#0a0a0a;box-shadow:6px 6px 0 #000;transition:transform .12s, box-shadow .12s;display:flex;align-items:center;justify-content:center;gap:12px}
+.kw-tap:active{transform:translate(4px,4px);box-shadow:2px 2px 0 #000}
+.kw-tap.todo{background:var(--pink);animation:wiggle 2.4s ease-in-out infinite}
+.kw-tap.done{background:var(--lime)}
+.kw-tap .big{font-size:40px}
+@keyframes wiggle{0%,86%,100%{transform:rotate(0)}89%{transform:rotate(-3deg)}92%{transform:rotate(3deg)}95%{transform:rotate(-2deg)}}
+.kw-streak{display:flex;align-items:center;gap:14px;background:#ffe066;color:#0a0a0a;border:3px solid #000;border-radius:28px;padding:18px 20px;box-shadow:6px 6px 0 #000;font:700 20px var(--kfont)}
+.kw-streak .fire{font-size:42px;animation:flick 1.2s ease-in-out infinite}
+.kw-streak.rest{background:var(--card2);color:var(--ink)}
+.kw-streak.rest .fire{filter:grayscale(1);animation:none;opacity:.6}
+@keyframes flick{0%,100%{transform:scale(1) rotate(-3deg)}50%{transform:scale(1.12) rotate(3deg)}}
+.kw-h{font:700 24px var(--kfont);margin:34px 0 14px;display:flex;align-items:center;gap:10px}
+.kw-h .tagc{font:700 12px var(--kfont);background:var(--purple);color:#fff;border-radius:999px;padding:3px 10px}
+.kw-worlds{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px}
+.kw-world{border:3px solid #000;border-radius:28px;padding:18px;color:#0a0a0a;box-shadow:6px 6px 0 #000;transition:transform .15s}
+.kw-world:nth-child(odd){transform:rotate(-1.2deg)}.kw-world:nth-child(even){transform:rotate(1deg)}
+.kw-world:hover{transform:rotate(0) translateY(-3px)}
+.kw-world .wi{font-size:44px;line-height:1}
+.kw-world h3{margin:6px 0 2px;font-size:22px}
+.kw-world .wd{font:600 13px var(--kfont);opacity:.75}
+.kw-goal{background:rgba(255,255,255,.55);border:2px solid #000;border-radius:18px;padding:10px 12px;margin-top:10px}
+.kw-goal .gn{font:700 15px var(--kfont)}
+.kw-stars{font-size:22px;letter-spacing:2px;margin-top:4px}
+.kw-stars .off{filter:grayscale(1);opacity:.3}
+.kw-rocket{position:relative;height:30px;margin-top:8px;border-radius:999px;background:rgba(0,0,0,.12);border:2px solid #000}
+.kw-rocket i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:#000}
+.kw-rocket span{position:absolute;top:50%;transform:translate(-50%,-50%);font-size:24px;transition:left .8s}
+.kw-rocket em{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:18px;font-style:normal}
+.kw-doc{display:inline-block;margin-top:10px;background:#000;color:#fff;border-radius:999px;padding:6px 12px;font:700 13px var(--kfont);text-decoration:none}
+.kw-stickers{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:14px}
+.kw-sticker{text-align:center;background:var(--card);border:2.5px solid #000;outline:1.5px solid var(--line2);border-radius:22px;padding:14px 8px;box-shadow:4px 4px 0 #000}
+.kw-sticker .se{font-size:42px;display:block;line-height:1.1}
+.kw-sticker b{display:block;font:700 14px var(--kfont);margin-top:6px}
+.kw-sticker small{display:block;font-size:11.5px;color:var(--muted)}
+.kw-sticker.lock .se{filter:grayscale(1) brightness(.5);opacity:.45}
+.kw-sticker.lock b{color:var(--muted)}
+.kw-sticker.got{animation:pop .5s ease-out}
+@keyframes pop{0%{transform:scale(.6)}70%{transform:scale(1.12)}100%{transform:scale(1)}}
+.kw-mood{display:flex;gap:6px;flex-wrap:wrap;justify-content:space-between}
+.kw-mood div{text-align:center;min-width:42px}
+.kw-mood .f{font-size:30px}
+.kw-mood .f.none{font-size:20px;opacity:.25}
+.kw-mood small{font-size:10.5px;color:var(--muted)}
+.kw-jar{display:flex;flex-wrap:wrap;gap:10px}
+.kw-win{background:#ffe066;color:#0a0a0a;border:2.5px solid #000;border-radius:18px;padding:8px 12px;font:700 14px var(--kfont);box-shadow:3px 3px 0 #000;display:flex;gap:6px;align-items:center}
+.kw-win:nth-child(3n){background:var(--sky)}.kw-win:nth-child(3n+1){background:#ffe066}.kw-win:nth-child(3n+2){background:var(--pink)}
+.kw-win .x{opacity:.5;color:#0a0a0a}
+.kw-littlewins{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.kw-littlewins button{border:3px solid #000;border-radius:22px;padding:16px 10px;font:700 17px var(--kfont);cursor:pointer;box-shadow:4px 4px 0 #000;color:#0a0a0a;background:#ffe066}
+.kw-littlewins button:nth-child(2){background:var(--sky)}.kw-littlewins button:nth-child(3){background:var(--pink)}.kw-littlewins button:nth-child(4){background:var(--lime)}.kw-littlewins button:nth-child(5){background:var(--orange)}.kw-littlewins button:nth-child(6){background:#b9a6ff}
+.kw-littlewins button:active{transform:translate(3px,3px);box-shadow:1px 1px 0 #000}
+.kw-notebook{background:#fffdf3;color:#222;border:2.5px solid #000;border-radius:22px;padding:18px 20px 18px 44px;box-shadow:6px 6px 0 #000;background-image:linear-gradient(transparent 31px,#cfe3ff 32px);background-size:100% 32px;position:relative}
+.kw-notebook::before{content:"";position:absolute;left:28px;top:0;bottom:0;width:2px;background:#ff9aa8}
+.kw-notebook textarea{background:transparent;border:0;color:#222;font:500 17px/32px var(--kfont);min-height:96px;padding:0;border-radius:0}
+.kw-notebook .entry{font:500 16px/32px var(--kfont);border-top:1px dashed #bbb;padding-top:4px;margin-top:6px;white-space:pre-wrap}
+.kw-notebook .entry small{display:block;color:#888;font-size:12px;line-height:20px}
+.kw-notebook .btn.primary{background:#000;color:#fff;border-color:#000}
+.kw-earn{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.kw-earn span{border:2px solid var(--line2);border-radius:999px;padding:4px 12px;font:600 13px var(--kfont)}
+.kw-avpick{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.kw-avpick button{font-size:40px;background:var(--card2);border:2px solid var(--line2);border-radius:18px;padding:10px 0;cursor:pointer}
+.kw-avpick button.on{border-color:var(--lime);background:var(--pos-bg)}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:50;overflow:hidden}
+.confetti span{position:absolute;top:-40px;font-size:28px;animation:fall 1.8s ease-in forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(540deg);opacity:.9}}
+@media (prefers-reduced-motion:reduce){.kw-tap.todo,.kw-streak .fire{animation:none}.confetti{display:none}}
+/* tap-in screens get the kid style too */
+.fs .bigkid,.fs .chipbtn,.fs .bigfaces button{border:3px solid #000;box-shadow:5px 5px 0 #000;font-family:"Fredoka","Noto Sans SC",sans-serif}
+.fs .bigfaces button{background:#fff}
+.fs .bigfaces button.on{background:var(--lime)}
+.fs h2{font-family:"Fredoka","Noto Sans SC",sans-serif;font-weight:700}
+.fs .go{border:3px solid #000;box-shadow:5px 5px 0 #000;font-family:"Fredoka","Noto Sans SC",sans-serif;font-weight:700}

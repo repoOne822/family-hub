@@ -1,6 +1,17 @@
 // UI strings in English and Simplified Chinese. No personal data lives in this file.
 export const STR = {
   en: {
+    // kid world
+    levels: ["Seedling", "Sprout", "Explorer", "Adventurer", "Champion", "Legend"], levelWord: "Level", xp: "points", toNext: n => `${n} more to level up`,
+    streak: n => n > 0 ? `${n}-day streak` : "Start a streak today!", streakRest: "Streak resting — check in to start again",
+    stickerBook: "Sticker book", myWorlds: "My worlds", starJar: "My star jar", secretNotebook: "My secret notebook", feelings: "My feelings",
+    tapToStart: "Tap to check in!", checkedIn: "Checked in! Tap to change", pickAvatar: "Pick your buddy", howEarn: "How to earn points",
+    earnList: ["Check in: +10", "Each habit: +5", "Log a win: +8", "Journal: +12", "Suggest a goal: +5"],
+    littleWins: ["I tried hard!", "I helped someone!", "I was kind!", "I learned something!", "I was brave!", "I finished it!"], tapAWin: "Tap a star you earned today",
+    badges: { first: ["First step", "Your first check-in"], s3: ["On fire", "3 days in a row"], s7: ["Lightning", "7 days in a row"], s14: ["Unstoppable", "14 days in a row"],
+      hero: ["Habit hero", "Hit a weekly habit goal"], stars5: ["Star collector", "5 wins"], stars20: ["Superstar", "20 wins"], writer: ["Storyteller", "3 journal entries"],
+      dreamer: ["Dreamer", "Suggested a goal"], explorer: ["Explorer", "Reached level 3"], champ: ["Champion", "Reached level 5"] },
+    locked: "Keep going to unlock", newBadge: "New sticker!",
     heroHtml: `Every <i class="ico c1">★</i> day a little <em class="hl-lime">stronger</em>, <em class="hl-pink">kinder</em> <i class="ico c2">↗</i> and <em class="hl-orange">braver</em> <i class="ico c3">♥</i>`,
     tags: ["Curiosity", "Courage", "Kindness", "Focus", "Growth"], marquee: ["growth", "curiosity", "courage", "focus", "kindness", "joy"],
     kidHero: n => `Hey <em class="hl-lime">${n}</em> <i class="ico c1">★</i> let's <em class="hl-pink">grow</em> today`,
@@ -109,6 +120,17 @@ export const STR = {
     }
   },
   zh: {
+    // kid world
+    levels: ["种子", "嫩芽", "探险家", "冒险王", "冠军", "传奇"], levelWord: "等级", xp: "积分", toNext: n => `再得 ${n} 分升级`,
+    streak: n => n > 0 ? `连续 ${n} 天` : "今天开始连续打卡！", streakRest: "连续打卡休息中——打卡重新开始",
+    stickerBook: "贴纸册", myWorlds: "我的世界", starJar: "我的星星罐", secretNotebook: "我的秘密日记", feelings: "我的心情",
+    tapToStart: "点我打卡！", checkedIn: "已打卡！点击修改", pickAvatar: "选你的小伙伴", howEarn: "怎么得积分",
+    earnList: ["打卡：+10", "每个习惯：+5", "记录进步：+8", "写日记：+12", "提目标：+5"],
+    littleWins: ["我很努力！", "我帮助了别人！", "我很善良！", "我学到了新东西！", "我很勇敢！", "我完成了！"], tapAWin: "点一颗今天得到的星星",
+    badges: { first: ["第一步", "第一次打卡"], s3: ["火力全开", "连续3天"], s7: ["闪电", "连续7天"], s14: ["势不可挡", "连续14天"],
+      hero: ["习惯英雄", "完成一个每周习惯目标"], stars5: ["收集星星", "5个进步"], stars20: ["超级明星", "20个进步"], writer: ["故事家", "3篇日记"],
+      dreamer: ["梦想家", "提了一个目标"], explorer: ["探险家", "达到3级"], champ: ["冠军", "达到5级"] },
+    locked: "继续加油解锁", newBadge: "新贴纸！",
     heroHtml: `每一天 <i class="ico c1">★</i> 都更 <em class="hl-lime">强大</em>、更 <em class="hl-pink">善良</em> <i class="ico c2">↗</i>、更 <em class="hl-orange">勇敢</em> <i class="ico c3">♥</i>`,
     tags: ["好奇", "勇气", "善良", "专注", "成长"], marquee: ["成长", "好奇", "勇气", "专注", "善良", "快乐"],
     kidHero: n => `嗨 <em class="hl-lime">${n}</em> <i class="ico c1">★</i> 今天也要 <em class="hl-pink">成长</em>`,

@@ -49,7 +49,7 @@ async function loadAll() {
     const tables = ["kids", "entries", "goals", "metrics", "readings", "docs", "journal", "subjects"];
     const res = await Promise.all(tables.map(t => sb.from(t).select("*")));
     res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
-    const m = await sb.rpc("kid_moods", { p_days: 60 }); S.moods = m.data || []; S.checkins = [];
+    const m = await sb.rpc("kid_moods", { p_days: 400 }); S.moods = m.data || []; S.checkins = [];
     S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); S.subjects.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); return;
   }
   const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects"];
@@ -154,7 +154,7 @@ function openKidMode() { $("#kidMode").classList.add("open"); kidStage("who"); }
 function kidStage(step) {
   const el = $("#kidStage"), d = today();
   if (step === "who") {
-    el.innerHTML = `<h2>${T().whoChecking}</h2><div class="bigkids">${S.kids.map((k, i) => { const done = S.checkins.find(c => c.kid === k.id && c.date === d && c.kid_mood); return `<button class="bigkid" style="background:${KC[i % 3]}" data-kid="${esc(k.id)}">${esc(kidName(k.id))}<small>${done ? T().doneToday : T().tapMe}</small></button>`; }).join("")}</div>`;
+    el.innerHTML = `<h2>${T().whoChecking}</h2><div class="bigkids">${S.kids.map((k, i) => { const done = S.checkins.find(c => c.kid === k.id && c.date === d && c.kid_mood); return `<button class="bigkid" style="background:${KC[i % 3]}" data-kid="${esc(k.id)}"><span style="font-size:54px;display:block">${esc(k.avatar || "⭐")}</span>${esc(kidName(k.id))}<small>${done ? T().doneToday : T().tapMe}</small></button>`; }).join("")}</div>`;
     el.querySelectorAll("[data-kid]").forEach(b => b.onclick = () => {
       kidSt.kid = b.dataset.kid; kidSt.mood = S.checkins.find(c => c.kid === kidSt.kid && c.date === d)?.kid_mood || null; kidSt.counts = {};
       S.metrics.filter(m => m.kid === kidSt.kid && m.type === "rate").forEach(m => { const r = S.readings.find(r => r.metric === m.id && r.date === d); kidSt.counts[m.id] = r ? +r.value : 0; });
@@ -189,7 +189,7 @@ function kidStage(step) {
           await upsert("readings", { metric: mid, date: d, kid: kidSt.kid, value: n, updated_at: new Date().toISOString() }, "metric,date");
         }
         await loadAll();
-        el.innerHTML = `<div class="thanks">🎉</div><h2>${T().thanks(esc(kidName(kidSt.kid)))}</h2>`;
+        el.innerHTML = `<div class="thanks">🎉</div><h2>${T().thanks(esc(kidName(kidSt.kid)))}</h2>`; confetti();
         setTimeout(() => kidStage("who"), 1600);
       } catch (err) { el.innerHTML = `<h2>${T().cantSave}</h2>`; setTimeout(() => kidStage("who"), 2500); }
     })();
@@ -573,59 +573,109 @@ async function kidBoot() {
   $("#root").innerHTML = `<div class="wrap"><div class="status" id="status">${T().loading}</div></div>`;
   try { await loadAll(); kidRender(); } catch (e) { setStatus(e.message || "Load failed", true); }
 }
+const AVATARS = ["🦊","🦁","🐼","🐯","🐸","🐨","🦄","🐲","🐙","🦖","🐵","🐧","🦉","🐬","🚀","⚽","🤺","🎸"];
+const LEVEL_AT = [0, 50, 150, 300, 500, 800];
+const BADGES = [["first","👣"],["s3","🔥"],["s7","⚡"],["s14","🌟"],["hero","🦸"],["stars5","⭐"],["stars20","🏅"],["writer","✏️"],["dreamer","💡"],["explorer","🧭"],["champ","🏆"]];
+function kidGame() {
+  const d = today(), moodDays = new Set(S.moods.map(m => m.date));
+  const rateIds = new Set(S.metrics.filter(m => m.type === "rate").map(m => m.id));
+  const taps = S.readings.filter(r => rateIds.has(r.metric)).reduce((s, r) => s + (+r.value || 0), 0);
+  const myWins = S.entries.filter(e => e.by_kid).length, jn = S.journal.length, ideas = S.goals.filter(g => g.proposed_by_kid).length;
+  const xp = moodDays.size * 10 + taps * 5 + myWins * 8 + jn * 12 + ideas * 5;
+  let lvl = 0; LEVEL_AT.forEach((v, i) => { if (xp >= v) lvl = i; });
+  const extra = Math.max(0, Math.floor((xp - 800) / 400)); const lvlNum = lvl + 1 + extra;
+  const curAt = lvl < 5 ? LEVEL_AT[lvl] : 800 + extra * 400, nextAt = lvl < 5 ? LEVEL_AT[lvl + 1] : 800 + (extra + 1) * 400;
+  let streak = 0, cur = moodDays.has(d) ? d : addDays(d, -1); while (moodDays.has(cur)) { streak++; cur = addDays(cur, -1); }
+  let best = 0, run = 0, prev = null; [...moodDays].sort().forEach(x => { run = prev && addDays(prev, 1) === x ? run + 1 : 1; best = Math.max(best, run); prev = x; });
+  const w1 = addDays(d, -6), hero = S.metrics.some(m => m.type === "rate" && m.per_week && S.readings.filter(r => r.metric === m.id && r.date >= w1).reduce((s, r) => s + (+r.value || 0), 0) >= m.per_week);
+  const got = { first: moodDays.size >= 1, s3: best >= 3, s7: best >= 7, s14: best >= 14, hero, stars5: S.entries.length >= 5, stars20: S.entries.length >= 20, writer: jn >= 3, dreamer: ideas >= 1, explorer: lvlNum >= 3, champ: lvlNum >= 5 };
+  return { xp, lvl, lvlNum, curAt, nextAt, streak, best, got, levelName: T().levels[Math.min(lvl, 5)] };
+}
+function confetti() {
+  const box = document.createElement("div"); box.className = "confetti";
+  const bits = ["🎉","⭐","✨","💚","💖","🧡","💜","🎊"];
+  for (let i = 0; i < 40; i++) { const sp = document.createElement("span"); sp.textContent = bits[i % bits.length]; sp.style.left = Math.random() * 100 + "vw"; sp.style.animationDelay = Math.random() * .6 + "s"; sp.style.fontSize = 18 + Math.random() * 22 + "px"; box.appendChild(sp); }
+  document.body.appendChild(box); setTimeout(() => box.remove(), 2800);
+}
+let lastBadges = null;
 function kidRender() {
   const t = T(), k = S.kids[0]; if (!k) return;
+  document.body.classList.add("kidmode");
   const d = today(), myMood = S.moods.find(m => m.date === d)?.kid_mood || null;
-  const rates = S.metrics.filter(m => m.type === "rate"), levels = S.metrics.filter(m => m.type === "level");
+  const little = (+k.age || 99) < 7;
+  const g = kidGame(), kc = "var(--k" + ({ eric: 0, ellis: 1, jonah: 2 }[k.id] ?? 0) + ")";
+  const newly = lastBadges ? Object.keys(g.got).filter(b => g.got[b] && !lastBadges[b]) : [];
+  lastBadges = g.got;
   const w1 = addDays(d, -6);
   const cnt = m => S.readings.filter(r => r.metric === m.id && r.date >= w1).reduce((s, r) => s + (+r.value || 0), 0);
   const curLevel = m => { const rs = S.readings.filter(r => r.metric === m.id).sort((a, b) => a.date.localeCompare(b.date)); return rs.length ? +rs[rs.length - 1].value : +m.baseline; };
-  const goals = S.goals.filter(g => g.status !== "proposed"), mine = S.goals.filter(g => g.status === "proposed");
-  const wins = S.entries.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 12);
-  const journal = S.journal.slice().sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
+  const worldColors = ["var(--lime)", "var(--sky)", "#ffe066", "#b9a6ff", "var(--pink)", "var(--orange)"];
+  const goalHtml = m => {
+    if (m.type === "rate") { const c = cnt(m), n = Math.max(1, Math.min(10, m.per_week || 1)); return `<div class="kw-goal"><div class="gn">${esc(mKidLabel(m))}</div><div class="kw-stars">${Array.from({ length: n }, (_, i) => `<span class="${i < c ? "" : "off"}">⭐</span>`).join("")}</div><div class="kw-sub">${t.ofTarget(c, m.per_week)}${c >= m.per_week ? " 🎉" : ""}</div></div>`; }
+    const cur = curLevel(m), span = (+m.target) - (+m.baseline), p = span ? clamp01((cur - (+m.baseline)) / span) : 1;
+    return `<div class="kw-goal"><div class="gn">${esc(mName(m))}</div><div class="kw-rocket"><i style="width:${Math.round(p * 100)}%"></i><span style="left:${Math.max(6, Math.min(88, p * 100))}%">🚀</span><em>🏁</em></div><div class="kw-sub">${t.nowAt} ${cur}${esc(m.unit || "")} → ${+m.target}${esc(m.unit || "")}</div></div>`;
+  };
+  const worlds = S.subjects.filter(x => x.active).map(x => ({ x, ms: S.metrics.filter(m => m.subject_id === x.id), docs: S.docs.filter(dc => dc.subject_id === x.id) })).filter(w => w.ms.length || w.docs.length);
+  const loose = S.metrics.filter(m => !S.subjects.some(x => x.active && x.id === m.subject_id));
+  const looseDocs = S.docs.filter(dc => !S.subjects.some(x => x.active && x.id === dc.subject_id));
+  const goals = S.goals.filter(x => x.status !== "proposed"), mine = S.goals.filter(x => x.status === "proposed");
+  const wins = S.entries.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 18);
+  const journal = S.journal.slice().sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at)).slice(0, 10);
   const days = []; for (let i = 13; i >= 0; i--) { const dd = addDays(d, -i); days.push({ dd, m: S.moods.find(x => x.date === dd)?.kid_mood }); }
-  const color = KC[0];
-  $("#root").innerHTML = `<div class="topbar"><div class="in"><div class="brand"><span class="dotlogo">✦</span>${t.hi(esc(kidName(k.id)))}</div>
+  const pct = g.nextAt > g.curAt ? Math.round(100 * (g.xp - g.curAt) / (g.nextAt - g.curAt)) : 100;
+  $("#root").innerHTML = `<div class="topbar"><div class="in"><div class="brand"><span class="dotlogo">✦</span>${esc(kidName(k.id))}</div>
       <button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button><button class="btn sm ghost" id="soBtn">${t.signOut}</button></div></div>
-    <div class="wrap" style="max-width:860px"><div class="status" id="status"></div>
-      <div class="headline" style="font-size:clamp(26px,4vw,40px)">${t.kidHero(esc(kidName(k.id)))}</div>
-      <button class="herobtn" style="background:${myMood ? "var(--lime)" : "var(--pink)"};width:100%;margin:18px 0" id="kTap">${myMood ? FACES[myMood - 1] + " " + t.tapInDone : "👋 " + t.myTapIn}</button>
-      <div class="section-h"><h3>${t.myGoals}</h3></div>
-      ${(() => { const groups = S.subjects.filter(x => x.active).map(x => ({ x, ms: S.metrics.filter(m => m.subject_id === x.id), docs: S.docs.filter(d => d.subject_id === x.id) })).filter(g => g.ms.length || g.docs.length);
-        const rowL = m => { const cur = curLevel(m), span = (+m.target) - (+m.baseline), p = span ? clamp01((cur - (+m.baseline)) / span) : 1, u = esc(m.unit || ""); return `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><b style="font-weight:500">${esc(mName(m))}</b><span class="meta">${t.nowAt} <b style="color:var(--ink)">${cur}${u}</b> → ${+m.target}${u}</span></div><div class="prog" style="margin-top:6px"><i style="width:${Math.round(p * 100)}%;background:var(--accent)"></i></div></div>`; };
-        const rowR = m => { const c = cnt(m), p = m.per_week ? clamp01(c / m.per_week) : 0; return `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><b style="font-weight:500">${esc(mKidLabel(m))}</b><span class="meta">${t.ofTarget(c, m.per_week)}${p >= 1 ? " 🎉" : ""}</span></div><div class="prog" style="margin-top:6px"><i style="width:${Math.round(p * 100)}%;background:${p >= 1 ? "var(--pos)" : "var(--accent)"}"></i></div></div>`; };
-        return groups.map(g => `<div class="coach" style="margin-bottom:12px"><h3 style="font-family:var(--display);font-weight:600;margin:0 0 4px">${g.x.icon} ${esc(sName(g.x))}</h3>${sDesc(g.x) ? `<div class="meta" style="margin-bottom:10px">${esc(sDesc(g.x))}</div>` : ""}
-          ${g.ms.map(m => m.type === "rate" ? rowR(m) : rowL(m)).join("")}${g.docs.map(dc => `<a href="#" data-kdoc="${esc(dc.slug)}" style="display:inline-block;margin-top:4px;color:var(--accent)">📄 ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" · ")}</div>`).join(""); })()}
-      <div class="coach">
-        ${levels.filter(m => !S.subjects.some(x => x.active && x.id === m.subject_id)).map(m => { const cur = curLevel(m), span = (+m.target) - (+m.baseline), p = span ? clamp01((cur - (+m.baseline)) / span) : 1, u = esc(m.unit || ""); return `<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between"><b style="font-weight:500">${esc(mName(m))}</b><span class="meta">${t.nowAt} <b style="color:var(--ink)">${cur}${u}</b> → ${+m.target}${u}</span></div><div class="prog" style="margin-top:6px"><i style="width:${Math.round(p * 100)}%;background:var(--accent)"></i></div></div>`; }).join("")}
-        ${rates.filter(m => !S.subjects.some(x => x.active && x.id === m.subject_id)).map(m => { const c = cnt(m), p = m.per_week ? clamp01(c / m.per_week) : 0; return `<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between"><b style="font-weight:500">${esc(mKidLabel(m))}</b><span class="meta">${t.ofTarget(c, m.per_week)}${p >= 1 ? " 🎉" : ""}</span></div><div class="prog" style="margin-top:6px"><i style="width:${Math.round(p * 100)}%;background:${p >= 1 ? "var(--pos)" : "var(--accent)"}"></i></div></div>`; }).join("")}
-        ${goals.length ? `<div style="margin-top:6px">${goals.map(g => `<div class="goal ${g.done ? "done" : ""}"><span>${g.done ? "✅" : "⬜"}</span><span>${esc(g.text)}</span></div>`).join("")}</div>` : ""}
-        ${mine.map(g => `<div class="goal"><span>💡</span><span>${esc(g.text)} <span class="meta">· ${t.pending}</span></span><button class="x" style="opacity:1" data-unprop="${g.id}">✕</button></div>`).join("")}
-        <div class="addgoal" style="margin-top:10px"><input id="propIn" maxlength="120" placeholder="${t.suggestPh}"><button class="btn sm" id="propBtn">${t.suggest}</button></div>
+    <div class="wrap"><div class="status" id="status"></div>
+      <div class="kw-hero" style="--kc:${kc}">
+        <div class="kw-avatar" id="avBtn" title="${t.pickAvatar}">${esc(k.avatar || "🦊")}</div>
+        <div><h1>${t.hi(esc(kidName(k.id)))}</h1>
+          <div class="kw-level"><span class="kw-lvl">${t.levelWord} ${g.lvlNum}</span><span>${esc(g.levelName)}</span><span style="margin-left:auto">${g.xp} ${t.xp}</span></div>
+          <div class="kw-xpbar"><i style="width:${pct}%"></i></div><div class="kw-sub">${t.toNext(Math.max(0, g.nextAt - g.xp))}</div></div>
       </div>
-      <div class="section-h" style="margin-top:22px"><h3>${t.myWeek}</h3></div>
-      <div class="coach" style="display:flex;gap:4px;justify-content:space-between;flex-wrap:wrap">${days.map(x => `<div style="text-align:center;min-width:40px"><div style="font-size:24px;opacity:${x.m ? 1 : .25}">${x.m ? FACES[x.m - 1] : "·"}</div><div class="meta" style="font-size:11px">${fmtDate(x.dd)}</div></div>`).join("")}</div>
-      <div class="section-h" style="margin-top:22px"><h3>${t.myWins}</h3></div>
-      <div class="coach">
-        <form id="winForm" class="addgoal"><input id="winIn" maxlength="140" placeholder="${t.winPh}" required><button class="btn sm primary">${t.addWin}</button></form>
-        <div style="margin-top:10px">${wins.length ? wins.map(w => `<div class="goal"><span>⭐</span><span>${esc(w.title)}${w.score ? ` <b>· ${esc(w.score)}</b>` : ""} <span class="meta">· ${fmtDate(w.date)}</span></span>${w.by_kid ? `<button class="x" style="opacity:.6" data-delwin="${w.id}">✕</button>` : ""}</div>`).join("") : `<div class="meta">${t.noWinsYet}</div>`}</div>
+      <div class="kw-row">
+        <button class="kw-tap ${myMood ? "done" : "todo"}" id="kTap"><span class="big">${myMood ? FACES[myMood - 1] : "👋"}</span>${myMood ? t.checkedIn : t.tapToStart}</button>
+        <div class="kw-streak ${g.streak ? "" : "rest"}"><span class="fire">🔥</span><div>${g.streak ? t.streak(g.streak) : t.streakRest}<div class="kw-sub" style="opacity:.7">${g.best ? "🏆 " + g.best : ""}</div></div></div>
       </div>
-      <div class="section-h" style="margin-top:22px"><h3>${t.myJournal}</h3></div>
-      <div class="coach"><p class="meta" style="margin-top:0">🔒 ${t.journalPrivate}</p>
-        <form id="jForm"><textarea id="jIn" maxlength="4000" placeholder="${t.journalPh}" required></textarea><button class="btn sm primary" style="margin-top:8px">${t.saveEntry}</button></form>
-        <div style="margin-top:12px">${journal.length ? journal.map(j => `<div class="rec info"><div class="meta" style="display:flex;justify-content:space-between">${fmtDate(j.date)}<button class="x" style="opacity:.6;border:0;background:none;cursor:pointer;color:var(--muted)" data-delj="${j.id}">✕</button></div><div style="white-space:pre-wrap">${esc(j.body)}</div></div>`).join("") : `<div class="meta">${t.noJournal}</div>`}</div>
+      ${worlds.length || loose.length || goals.length || mine.length ? `<div class="kw-h">🗺️ ${t.myWorlds}</div>
+      <div class="kw-worlds">${worlds.map((w, i) => `<div class="kw-world" style="background:${worldColors[i % worldColors.length]}"><div class="wi">${w.x.icon}</div><h3>${esc(sName(w.x))}</h3>${sDesc(w.x) ? `<div class="wd">${esc(sDesc(w.x))}</div>` : ""}${w.ms.map(goalHtml).join("")}${w.docs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">📖 ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}</div>`).join("")}
+        ${loose.length || goals.length || mine.length || looseDocs.length ? `<div class="kw-world" style="background:#e9e9e4"><div class="wi">🎯</div><h3>${t.myGoals}</h3>${loose.map(goalHtml).join("")}
+          ${goals.map(x => `<div class="kw-goal"><span class="gn">${x.done ? "✅" : "⬜"} ${esc(x.text)}</span></div>`).join("")}
+          ${mine.map(x => `<div class="kw-goal"><span class="gn">💡 ${esc(x.text)}</span><div class="kw-sub">${t.pending} <button class="x" style="opacity:1" data-unprop="${x.id}">✕</button></div></div>`).join("")}
+          ${looseDocs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">📖 ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}
+          <div class="addgoal" style="margin-top:12px"><input id="propIn" maxlength="120" placeholder="💡 ${t.suggestPh}" style="background:#fff;color:#111;border:2px solid #000"><button class="btn sm primary" id="propBtn" style="background:#000;color:#fff;border-color:#000">${t.suggest}</button></div></div>` : ""}
+      </div>` : ""}
+      <div id="kDocView" style="margin-top:14px"></div>
+      <div class="kw-h">⭐ ${t.starJar}</div>
+      <div class="kw-card">
+        ${little ? `<div class="kw-sub" style="margin:0 0 10px;opacity:1">${t.tapAWin}</div><div class="kw-littlewins">${t.littleWins.map((w, i) => `<button data-lwin="${i}">⭐ ${esc(w)}</button>`).join("")}</div>`
+                 : `<form id="winForm" class="addgoal" style="margin:0"><input id="winIn" maxlength="140" placeholder="⭐ ${t.winPh}" required><button class="btn sm primary">${t.addWin}</button></form>`}
+        <div class="kw-jar" style="margin-top:14px">${wins.length ? wins.map(w => `<div class="kw-win">⭐ ${esc(w.title)}${w.by_kid ? `<button class="x" style="opacity:.5" data-delwin="${w.id}">✕</button>` : ""}</div>`).join("") : `<div class="meta">${t.noWinsYet}</div>`}</div>
       </div>
+      <div class="kw-h">🌈 ${t.feelings}</div>
+      <div class="kw-card"><div class="kw-mood">${days.map(x => `<div><div class="f ${x.m ? "" : "none"}">${x.m ? FACES[x.m - 1] : "○"}</div><small>${fmtDate(x.dd)}</small></div>`).join("")}</div></div>
+      ${little ? "" : `<div class="kw-h">📓 ${t.secretNotebook} <span class="tagc">🔒</span></div>
+      <div class="kw-notebook"><div style="font:600 12px var(--kfont);color:#888;line-height:20px">${t.journalPrivate}</div>
+        <form id="jForm"><textarea id="jIn" maxlength="4000" placeholder="${t.journalPh}" required></textarea><button class="btn sm primary">${t.saveEntry}</button></form>
+        ${journal.map(j => `<div class="entry"><small>${fmtDate(j.date)} <button class="x" style="opacity:.5;color:#888" data-delj="${j.id}">✕</button></small>${esc(j.body)}</div>`).join("")}</div>`}
+      <div class="kw-h">🏅 ${t.stickerBook} <span class="tagc">${Object.values(g.got).filter(Boolean).length}/${BADGES.length}</span></div>
+      <div class="kw-stickers">${BADGES.map(([id, em]) => `<div class="kw-sticker ${g.got[id] ? "" : "lock"} ${newly.includes(id) ? "got" : ""}"><span class="se">${g.got[id] ? em : "❔"}</span><b>${esc(t.badges[id][0])}</b><small>${g.got[id] ? esc(t.badges[id][1]) : t.locked}</small></div>`).join("")}</div>
+      <div class="kw-card" style="margin-top:22px"><b style="font-family:var(--kfont)">✨ ${t.howEarn}</b><div class="kw-earn">${t.earnList.map(x => `<span>${esc(x)}</span>`).join("")}</div></div>
       ${marquee()}
-      ${S.docs.filter(dc => !S.subjects.some(x => x.active && x.id === dc.subject_id)).length ? `<div class="section-h" style="margin-top:22px"><h3>${t.myPlans}</h3></div><div class="feed doclist">${S.docs.filter(dc => !S.subjects.some(x => x.active && x.id === dc.subject_id)).map(dc => `<a href="#" data-kdoc="${esc(dc.slug)}"><b>${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</b></a>`).join("")}</div>` : ""}<div id="kDocView" style="margin-top:12px"></div>
-    </div>`;
-  $("#langBtn").onclick = toggleLang; $("#soBtn").onclick = () => sb.auth.signOut();
+    </div>
+    <div class="modal-bg" id="avModal"><div class="modal"><h3>${t.pickAvatar}</h3><div class="kw-avpick">${AVATARS.map(a => `<button data-av="${a}" class="${a === k.avatar ? "on" : ""}">${a}</button>`).join("")}</div><div class="modal-f"><button class="btn" id="avClose">${t.cancel}</button></div></div></div>`;
+  if (newly.length) { confetti(); setStatus(t.newBadge + " " + newly.map(b => BADGES.find(x => x[0] === b)[1]).join(" ")); }
+  $("#langBtn").onclick = toggleLang; $("#soBtn").onclick = () => { document.body.classList.remove("kidmode"); sb.auth.signOut(); };
   const R = async fn => { try { await fn(); await loadAll(); kidRender(); } catch (err) { setStatus(err.message || "Save failed", true); } };
   $("#kTap").onclick = () => kidTapIn();
-  $("#propBtn").onclick = () => { const v = $("#propIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("goals").insert({ kid: k.id, text: v, status: "proposed", proposed_by_kid: true }); if (error) throw error; }); };
-  $("#winForm").onsubmit = e => { e.preventDefault(); const v = $("#winIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("entries").insert({ kid: k.id, date: today(), cat: "other", tone: "positive", title: v, by_kid: true }); if (error) throw error; }); };
-  $("#jForm").onsubmit = e => { e.preventDefault(); const v = $("#jIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("journal").insert({ kid: k.id, date: today(), body: v }); if (error) throw error; }); };
+  $("#avBtn").onclick = () => $("#avModal").classList.add("open");
+  $("#avClose").onclick = () => $("#avModal").classList.remove("open");
+  $("#avModal").onclick = e => { const b = e.target.closest("[data-av]"); if (b) R(async () => { const { error } = await sb.rpc("kid_set_avatar", { p_avatar: b.dataset.av }); if (error) throw error; }); else if (e.target.id === "avModal") $("#avModal").classList.remove("open"); };
+  if ($("#propBtn")) $("#propBtn").onclick = () => { const v = $("#propIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("goals").insert({ kid: k.id, text: v, status: "proposed", proposed_by_kid: true }); if (error) throw error; }); };
+  if ($("#winForm")) $("#winForm").onsubmit = e => { e.preventDefault(); const v = $("#winIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("entries").insert({ kid: k.id, date: today(), cat: "other", tone: "positive", title: v, by_kid: true }); if (error) throw error; }); };
+  if ($("#jForm")) $("#jForm").onsubmit = e => { e.preventDefault(); const v = $("#jIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("journal").insert({ kid: k.id, date: today(), body: v }); if (error) throw error; }); };
   $("#root").onclick = e => {
-    const x = e.target.closest("[data-unprop],[data-delwin],[data-delj],[data-kdoc]"); if (!x) return;
+    const x = e.target.closest("[data-unprop],[data-delwin],[data-delj],[data-kdoc],[data-lwin]"); if (!x) return;
+    if (x.dataset.lwin) R(async () => { const { error } = await sb.from("entries").insert({ kid: k.id, date: today(), cat: "other", tone: "positive", title: T().littleWins[+x.dataset.lwin], by_kid: true }); if (error) throw error; });
     if (x.dataset.unprop) R(() => del("goals", { id: x.dataset.unprop }));
     if (x.dataset.delwin) R(() => del("entries", { id: x.dataset.delwin }));
     if (x.dataset.delj) { if (x.dataset.armed) R(() => del("journal", { id: x.dataset.delj })); else { x.dataset.armed = 1; x.textContent = T().confirm; } }
@@ -646,7 +696,7 @@ function kidTapIn() {
   const save = async () => { el.innerHTML = `<div class="thanks">⏳</div>`;
     const { error } = await sb.rpc("kid_tapin", { p_date: d, p_mood: kidTap.mood, p_counts: kidTap.counts });
     if (error) { el.innerHTML = `<h2>${t.cantSave}</h2>`; return; }
-    el.innerHTML = `<div class="thanks">🎉</div><h2>${t.thanks(esc(kidName(k.id)))}</h2>`;
+    el.innerHTML = `<div class="thanks">🎉</div><h2>${t.thanks(esc(kidName(k.id)))}</h2>`; confetti();
     setTimeout(async () => { $("#kidMode").classList.remove("open"); await loadAll(); kidRender(); }, 1400); };
   face();
 }
