@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261119f";
-import * as Pix from "./pixel.js?v=20261119f";
+import { STR } from "./i18n.js?v=20261119g";
+import * as Pix from "./pixel.js?v=20261119g";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -136,7 +136,7 @@ function renderSignIn(msg) {
   };
 }
 function lastEmail() { try { return localStorage.getItem("fh_email") || ""; } catch (e) { return ""; } }
-function toggleLang() { lang = lang === "en" ? "zh" : "en"; try { localStorage.setItem("fh_lang", lang); } catch (e) {} applyStatic(); S.user ? (isKid() ? kidRender() : (renderShell(), route())) : renderSignIn(); }
+function toggleLang() { lang = lang === "en" ? "zh" : "en"; try { localStorage.setItem("fh_lang", lang); } catch (e) {} applyStatic(); S.user ? (isKid() || preview ? kidRender() : (renderShell(), route())) : renderSignIn(); }
 
 async function start() {
   applyStatic();
@@ -194,7 +194,7 @@ function viewToday() {
       const habits = S.metrics.filter(m => m.kid === k.id && m.type === "rate").map(m => { const r = S.readings.find(r => r.metric === m.id && r.date === d); return r && +r.value ? mKidLabel(m) : null; }).filter(Boolean);
       return `<div class="tcard" style="border-top:4px solid ${KC[i % 3]};display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center"><span style="width:52px;height:52px;border-radius:14px;background:#fff;display:grid;place-items:center">${avatarHtml(k.avatar, 46)}</span><div><b>${esc(kidName(k.id))}</b>
         <div class="meta">${c.kid_mood ? `${T().heSaid} ${FACES[c.kid_mood - 1]}` : T().notYet} · ${c.focus ? `${T().parentRated} ✓` : `${T().parentRated} —`}</div>
-        ${habits.length ? `<div class="meta">${esc(habits.join(" · "))}</div>` : ""}</div></div>`; }).join("")}</div>${marquee()}`;
+        ${habits.length ? `<div class="meta">${esc(habits.join(" · "))}</div>` : ""}<button class="btn sm" style="margin-top:8px" data-pv="${esc(k.id)}">👀 ${T().viewHisPage}</button></div></div>`; }).join("")}</div>${marquee()}`;
   $("#goKids").onclick = openKidMode; $("#goQuick").onclick = openQuick; $("#goLog").onclick = () => openEntry();
 }
 
@@ -521,6 +521,8 @@ async function viewFamily() {
   const props = S.goals.filter(g => g.status === "proposed");
   const jByKid = id => S.journal.filter(j => j.kid === id).sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
   $("#view").innerHTML = `<div class="section-h"><h3>${t.familyTitle}</h3></div>
+    <div class="coach" style="margin-bottom:16px"><h4>👀 ${t.previewTitle}</h4><p class="meta">${t.previewHelp}</p>
+      <div class="pvpick">${S.kids.map((k, i) => `<button data-pv="${esc(k.id)}" style="--kc:${KC[i % 3]}"><span class="av">${avatarHtml(k.avatar, 44)}</span><b>${esc(kidName(k.id))}</b><small>${t.viewHisPage}</small></button>`).join("")}</div></div>
     <div class="coach" style="margin-bottom:16px"><h4>🔑 ${t.myPassword}</h4><p class="meta">${t.myPasswordHelp} <b>${esc(S.user?.email || "")}</b></p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;max-width:560px;margin-top:8px"><input type="password" id="pw1" minlength="8" autocomplete="new-password" placeholder="${t.newPw}" style="flex:1;min-width:160px"><input type="password" id="pw2" minlength="8" autocomplete="new-password" placeholder="${t.confirmPw}" style="flex:1;min-width:160px"><button class="btn sm primary" id="pwSave" style="white-space:nowrap">${t.savePw}</button></div>
       <div class="err" id="pwMsg" style="margin-top:8px"></div></div>
@@ -630,6 +632,24 @@ $("#sArchive").onclick = async () => { if (!editingSubj) return; const { error }
 
 /* ---------------- KID APP: his own page ---------------- */
 let kidTap = null;
+/* ---- parent preview: see a boy's page exactly as he does; nothing saves ---- */
+let preview = null;
+function openPreview(kidId) {
+  const full = preview ? preview.full : { kids: S.kids, entries: S.entries, goals: S.goals, metrics: S.metrics, readings: S.readings, docs: S.docs, journal: S.journal, subjects: S.subjects, checkins: S.checkins, moods: S.moods };
+  const f = a => (a || []).filter(x => x.kid === kidId);
+  preview = { kid: kidId, full };
+  Object.assign(S, { kids: full.kids.filter(k => k.id === kidId), entries: f(full.entries), goals: f(full.goals), metrics: f(full.metrics), readings: f(full.readings),
+    docs: full.docs.filter(d => d.kid === kidId && d.kid_visible), journal: f(full.journal), subjects: f(full.subjects).filter(x => x.active !== false),
+    moods: f(full.checkins).filter(c => c.kid_mood).map(c => ({ date: c.date, kid_mood: c.kid_mood })), checkins: [] });
+  lastBadges = null; window.scrollTo(0, 0); kidRender();
+}
+function exitPreview() {
+  if (!preview) return; Object.assign(S, preview.full); preview = null; lastBadges = null;
+  document.body.classList.remove("kidmode"); renderShell(); route();
+}
+const previewBar = () => preview ? `<div class="pvbar"><span>👀 ${T().previewing(esc(kidName(preview.kid)))}</span><span class="pvkids">${preview.full.kids.map(k => `<button class="${k.id === preview.kid ? "on" : ""}" data-pv="${esc(k.id)}">${avatarHtml(k.avatar, 22)} ${esc(lang === "zh" && k.name_zh ? k.name_zh : k.name)}</button>`).join("")}</span><button class="pvexit" data-pvexit>${T().exitPreview}</button></div>` : "";
+document.addEventListener("click", e => { const a = e.target.closest("[data-pv]"); if (a) { e.stopPropagation(); return openPreview(a.dataset.pv); } if (e.target.closest("[data-pvexit]")) { e.stopPropagation(); exitPreview(); } }, true);
+
 async function kidBoot() {
   $("#root").innerHTML = `<div class="wrap"><div class="status" id="status">${T().loading}</div></div>`;
   try { await loadAll(); kidRender(); } catch (e) { setStatus(e.message || "Load failed", true); }
@@ -684,8 +704,8 @@ function kidRender() {
   const journal = S.journal.slice().sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at)).slice(0, 10);
   const days = []; for (let i = 13; i >= 0; i--) { const dd = addDays(d, -i); days.push({ dd, m: S.moods.find(x => x.date === dd)?.kid_mood }); }
   const pct = g.nextAt > g.curAt ? Math.round(100 * (g.xp - g.curAt) / (g.nextAt - g.curAt)) : 100;
-  $("#root").innerHTML = `<div class="topbar"><div class="in"><div class="brand"><span class="dotlogo">✦</span>${esc(kidName(k.id))}</div>
-      <button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button><button class="btn sm ghost" id="soBtn">${t.signOut}</button></div></div>
+  $("#root").innerHTML = `${previewBar()}<div class="topbar"><div class="in"><div class="brand"><span class="dotlogo">✦</span>${esc(kidName(k.id))}</div>
+      <button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button><button class="btn sm ghost" id="soBtn">${preview ? t.exitPreview : t.signOut}</button></div></div>
     <div class="wrap"><div class="status" id="status"></div>
       <div class="kw-hero" style="--kc:${kc}">
         <div class="kw-avatar" id="avBtn" title="${t.pickAvatar}">${avatarHtml(k.avatar || "🦊", 92)}</div>
@@ -725,8 +745,8 @@ function kidRender() {
     </div>
     <div class="modal-bg" id="avModal"><div class="modal" style="max-width:640px" id="avBody"></div></div>`;
   if (newly.length) { confetti(); setStatus(t.newBadge + " " + newly.map(b => BADGES.find(x => x[0] === b)[1]).join(" ")); }
-  $("#langBtn").onclick = toggleLang; $("#soBtn").onclick = () => { document.body.classList.remove("kidmode"); sb.auth.signOut(); };
-  const R = async fn => { try { await fn(); await loadAll(); kidRender(); } catch (err) { setStatus(err.message || "Save failed", true); } };
+  $("#langBtn").onclick = toggleLang; $("#soBtn").onclick = () => { if (preview) return exitPreview(); document.body.classList.remove("kidmode"); sb.auth.signOut(); };
+  const R = async fn => { if (preview) { $("#avModal")?.classList.remove("open"); return setStatus(t.previewNoSave); } try { await fn(); await loadAll(); kidRender(); } catch (err) { setStatus(err.message || "Save failed", true); } };
   $("#kTap").onclick = () => kidTapIn();
   const curPx = Pix.parse(k.avatar);
   let avTab = curPx ? (curPx.a > 0 ? "pets" : "build") : (little || !k.avatar ? (little ? "pets" : "build") : "animals");
@@ -788,6 +808,7 @@ function kidTapIn() {
     el.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { const m = ms.find(x => x.id === b.dataset.m), mx = m.kid_max || 1, n = kidTap.counts[m.id] || 0; kidTap.counts[m.id] = n >= mx ? 0 : n + 1; did(); });
     $("#kidSave").onclick = save; };
   const save = async () => { el.innerHTML = `<div class="thanks">⏳</div>`;
+    if (preview) { el.innerHTML = `<div class="thanks">👀</div><h2>${t.previewNoSave}</h2>`; setTimeout(() => $("#kidMode").classList.remove("open"), 1600); return; }
     const { error } = await sb.rpc("kid_tapin", { p_date: d, p_mood: kidTap.mood, p_counts: kidTap.counts });
     if (error) { el.innerHTML = `<h2>${t.cantSave}</h2>`; return; }
     el.innerHTML = `<div class="thanks">🎉</div><h2>${t.thanks(esc(kidName(k.id)))}</h2>`; confetti();
