@@ -82,6 +82,44 @@ button{font:inherit;cursor:pointer}
 .test .score{margin-left:auto;display:flex;gap:6px;align-items:center}
 .test input{width:74px;font:inherit;border:2px solid var(--line);border-radius:10px;padding:3px 8px}
 .btn.sm{padding:4px 12px;font-size:15px;box-shadow:2px 2px 0 var(--line)}
+.rules{margin:0 0 6px 0;padding-left:22px;font-size:17px}
+.sheet{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px 18px}
+.srow,.grow{display:flex;gap:6px;align-items:center}
+.srow .qn,.grow .qn{width:28px;font-weight:700;text-align:right}
+.srow button{width:36px;height:36px;border-radius:50%;border:2px solid var(--line);background:#fff;font-weight:700}
+.srow button.on{background:var(--ink);color:var(--yellow)}
+.timer.warn{background:#ffb3b3}
+.grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-top:14px}
+.grow{border:2px solid var(--line);border-radius:12px;padding:6px 8px;background:#fff}
+.grow.ok{background:#d6f7e4}.grow.no{background:#ffe0e0}
+.grow .mine{font-weight:700;width:24px;text-align:center}
+.grow button{border:2px solid var(--line);border-radius:10px;background:#fff;width:40px;height:32px;font-weight:700}
+.trow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.trow .tn{min-width:220px;font-weight:600}
+.tbar{width:120px;height:12px;border:2px solid var(--line);border-radius:999px;overflow:hidden;background:#fff}
+.tbar i{display:block;height:100%;background:var(--lime)}
+.misses{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.misses a{border:2px solid var(--line);border-radius:12px;padding:5px 10px;background:#fff;color:var(--ink);text-decoration:none;font-weight:600}
+.misses a:hover{background:var(--yellow)}
+.band{margin-top:12px}.bh{font-weight:700}
+.focus{margin:6px 0 10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.modes{grid-template-columns:repeat(4,1fr) !important}
+.exams{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.exam{border:3px solid var(--line);border-radius:20px;padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:2px;background:#ece6ff;box-shadow:4px 4px 0 var(--line)}
+.exam .et{font-size:20px;font-weight:700}
+.exam span{font-size:14px;color:#444}
+.exam b{margin-top:4px}
+.exam.done{background:#d6f7e4}
+.dots{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.dots button{width:34px;height:34px;border-radius:10px;border:2px solid var(--line);background:#fff;font-weight:700;font-size:14px}
+.dots button.ans{background:var(--lime)}
+.dots button.cur{outline:3px solid var(--pink);outline-offset:1px}
+.ch button.pick{background:#fff1a8;border-color:var(--ink)}
+.ch button.pick .L{background:var(--purple)}
+.rev{border:2px solid var(--line);border-radius:14px;padding:8px 12px;margin-top:8px;background:#fff}
+.rev.ok{border-left:8px solid var(--good)}.rev.no{border-left:8px solid var(--bad)}
+.rev summary{cursor:pointer}
+.card.parent{background:#f3f0ff}
 .fb.ok{background:#d6f7e4}.fb.no{background:#fff1c9}.fb.hint{background:#ece6ff}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}
 .spacer{flex:1}
@@ -95,20 +133,25 @@ button{font:inherit;cursor:pointer}
 @keyframes fall{to{transform:translateY(105vh) rotate(540deg)}}
 .zh{font-size:15px;opacity:.7}
 .timer{font-variant-numeric:tabular-nums}
-@media (max-width:520px){.modes{grid-template-columns:1fr}.test .score{margin-left:0}.step{flex-direction:column;gap:2px}.word .wt{font-size:18px}body{font-size:17px}.top h1{font-size:20px !important}.six p{font-size:19px}.q{font-size:19px}}
+@media (max-width:520px){.exams{grid-template-columns:1fr}.modes{grid-template-columns:1fr 1fr !important}.trow .tn{min-width:0;width:100%}.test .score{margin-left:0}.step{flex-direction:column;gap:2px}.word .wt{font-size:18px}body{font-size:17px}.top h1{font-size:20px !important}.six p{font-size:19px}.q{font-size:19px}}
 </style>
 </head>
 <body>
 <div class="wrap" id="app"></div>
-<script src="lessons.js?v=20261119n"></script>
-<script src="gym.js?v=20261119n"></script>
-<script src="visuals.js?v=20261119n"></script>
+<script src="lessons.js?v=20261119o"></script>
+<script src="gym.js?v=20261119o"></script>
+<script src="visuals.js?v=20261119o"></script>
+<script src="realtests.js?v=20261119o"></script>
 <script>
 (() => {
 const LS = "eric_amc_progress";
 const load = () => { try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch (e) { return {}; } };
-let P = load(); P.lessons = P.lessons || {}; P.mixed = P.mixed || []; P.tests = P.tests || {};
-const VIS = window.AMC_VIS || { main: {}, moves: {} }, GYM = window.AMC_GYM;
+let P = load(); P.lessons = P.lessons || {}; P.mixed = P.mixed || []; P.tests = P.tests || {}; P.exams = P.exams || { daily: {}, weekly: {}, log: [] };
+const VIS = window.AMC_VIS || { main: {}, moves: {} }, GYM = window.AMC_GYM, REAL = window.AMC_REAL || {};
+const PARENT = new URLSearchParams(location.search).get("p") === "1";
+const probURL = (y, n) => `https://artofproblemsolving.com/wiki/index.php/${y}_AMC_8_Problems/Problem_${n}`;
+const lessonOf = topic => LES.findIndex(l => l.id === topic);
+const topicName = t => { const l = LES[lessonOf(t)]; return l ? `${l.emoji} ${l.title}` : "🧩 Logic & puzzles"; };
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(P)); } catch (e) {} };
 const LES = window.AMC_LESSONS || [];
 const $ = s => document.querySelector(s), app = $("#app");
@@ -129,15 +172,22 @@ function home() {
   const lastMix = P.mixed[P.mixed.length - 1];
   app.innerHTML = `<div class="top"><h1>🏆 AMC 8 Lessons</h1><span class="pill">⭐ ${total()} / ${LES.length * 5}</span></div>
     <p class="sub">Every chapter of your book, explained super simply. Each lesson: a simple story → power moves → watch me solve → your turn. Get it right on the first try to earn a star.</p>
+    ${examsHtml()}
     <div class="row"><button class="btn pink" id="mixBtn">🔀 Mixed review (10 problems)</button>${lastMix ? `<span class="sub">Last mixed review: ${lastMix.score}/${lastMix.of} on ${lastMix.date}</span>` : `<span class="sub">Mixing chapters is how the real test feels.</span>`}</div>
     <div class="grid">${LES.map((l, i) => `<button class="tile ${COLORS[i % 6]}" data-l="${i}">${thisWeek.includes(l.n) ? `<span class="wk">This week</span>` : ""}<div class="em">${l.emoji}</div><div class="n">Lesson ${l.n}</div><div class="t">${esc(l.title)}</div><div class="z">${esc(l.zh)}</div><div class="st">${starStr(starsOf(l.id))}</div><div class="pg">${(P.lessons[l.id] || {}).chBest != null ? `⬆️ ${(P.lessons[l.id]).chBest}/3 · ` : ""}${((P.lessons[l.id] || {}).gym || {}).done ? `♾️ ${(P.lessons[l.id]).gym.done} · ` : ""}Book p. ${esc(l.pages)}</div></button>`).join("")}</div>
-    <div class="card"><div class="q">📝 Real AMC 8 tests</div><p class="sub">The truest practice: a real past test, timed at exactly 40 minutes, no calculator. Do it on AoPS (or print it), check the answer key, read the step-by-step solutions on Random Math for anything you missed, and type in your score. Start with the newer years; do one every week or two from mid-December. More years: <a href="https://www.randommath.com/past-contests/amc-8-tests-and-solutions" target="_blank" rel="noopener">Random Math archive ↗</a></p>
-      <div class="tests">${TESTS.map(y => { const t = P.tests[y]; return `<div class="test"><b>${y} AMC 8</b><a href="https://artofproblemsolving.com/wiki/index.php/${y}_AMC_8_Problems" target="_blank" rel="noopener">Problems ↗</a><a href="https://artofproblemsolving.com/wiki/index.php/${y}_AMC_8_Answer_Key" target="_blank" rel="noopener">Answer key ↗</a>${y <= 2024 ? `<a href="https://wiki.randommath.com/amc8/${y}" target="_blank" rel="noopener">Step-by-step solutions (Random Math) ↗</a>` : ""}
-        <span class="score">${t ? `<b>${t.score}/25</b> <span class="sub">${t.date}</span>` : ""}<input type="number" min="0" max="25" placeholder="score" data-ty="${y}"><button class="btn sm" data-ts="${y}">Save</button></span></div>`; }).join("")}</div>
-      <p class="sub" style="margin-top:8px">Score guide: 15+ = Achievement Roll (for 6th grade and below). Honor Roll (top 5%) has needed about 18–21.</p></div>`;
+    ${PARENT ? `<div class="card parent"><div class="q">👨‍👩‍👦 Parent corner <span class="sub">(Eric doesn't see this section)</span></div>${parentHistory()}</div>` : ""}
+    ${!PARENT ? "" : `<div class="card parent"><div class="q">📝 Real AMC 8 tests (parents)</div><p class="sub">The truest practice: a real past test, timed at exactly 40 minutes, no calculator. Do it on AoPS (or print it), check the answer key, read the step-by-step solutions on Random Math for anything you missed, and type in your score. Start with the newer years; do one every week or two from mid-December. More years: <a href="https://www.randommath.com/past-contests/amc-8-tests-and-solutions" target="_blank" rel="noopener">Random Math archive ↗</a></p>
+      ${focusHtml()}
+      <div class="tests">${TESTS.map(y => { const t = P.tests[y]; return `<div class="test"><b>${y} AMC 8</b>${REAL[y] ? `<button class="btn sm go" data-take="${y}">▶ Take it here</button>` : ""}<a href="https://artofproblemsolving.com/wiki/index.php/${y}_AMC_8_Problems" target="_blank" rel="noopener">Problems ↗</a><a href="https://artofproblemsolving.com/wiki/index.php/${y}_AMC_8_Answer_Key" target="_blank" rel="noopener">Answer key ↗</a>${y <= 2024 ? `<a href="https://wiki.randommath.com/amc8/${y}" target="_blank" rel="noopener">Step-by-step solutions (Random Math) ↗</a>` : ""}
+        <span class="score">${t ? `<b>${t.score}/25</b> <span class="sub">${t.date}</span>${t.marks ? ` <button class="btn sm" data-review="${y}">Review</button>` : ""}` : ""}</span></div>`; }).join("")}</div>
+      <p class="sub" style="margin-top:8px">Score guide: 15+ = Achievement Roll (for 6th grade and below). Honor Roll (top 5%) has needed about 18–21. Keep the answer keys away from Eric until he's done. ▶ Take it here gives him a timed bubble sheet; you grade it with the key.</p></div>`}`;
   app.querySelectorAll("[data-l]").forEach(b => b.onclick = () => lesson(+b.dataset.l, 0));
-  app.querySelectorAll("[data-ts]").forEach(b => b.onclick = () => { const y = b.dataset.ts, v = +app.querySelector(`[data-ty="${y}"]`).value; if (!(v >= 0 && v <= 25) || app.querySelector(`[data-ty="${y}"]`).value === "") return; P.tests[y] = { score: v, date: today }; save(); if (v >= 15) confetti(); home(); });
+  app.querySelectorAll("[data-take]").forEach(b => b.onclick = () => realTest(+b.dataset.take));
+  app.querySelectorAll("[data-review]").forEach(b => b.onclick = () => realResults(+b.dataset.review));
+  app.querySelectorAll("[data-focus]").forEach(b => b.onclick = () => lesson(+b.dataset.focus, 0));
   $("#mixBtn").onclick = mixed;
+  app.querySelectorAll("[data-exam]").forEach(b => b.onclick = () => exam(b.dataset.exam));
+  app.querySelectorAll("[data-erev]").forEach(b => b.onclick = () => { const e = P.exams.log[+b.dataset.erev]; if (e && e.items) examResults(e); });
 }
 
 function lesson(i, step, mode) {
@@ -153,7 +203,7 @@ function lesson(i, step, mode) {
   if (step === 2) body = `<div class="card"><div class="q">⚡ Power moves</div><p class="sub">Each move comes with WHY it works. If you know why, you'll remember it on test day.</p>${l.moves.map((m, k) => `<div class="move"><b>${k + 1}</b><div style="flex:1;min-width:0"><div class="mm">${esc(m.m)}</div><div class="why"><span>🤔 Why it works:</span> ${esc(m.why)}</div>${(VIS.moves[l.id] || {})[k] ? VIS.moves[l.id][k]() : ""}</div></div>`).join("")}<p class="sub" style="margin-top:12px">📖 More in your book, pages ${esc(l.pages)}.</p></div>${nav(3)}`;
   if (step === 3) body = `<div id="exs"></div>`;
   if (step === 4) { mode = mode || "basic"; const rec = P.lessons[l.id] || {};
-    body = `<div class="modes">${[["basic", `⭐ Starter (5)`, starStr(starsOf(l.id))], ["challenge", "⬆️ Challenge (3)", rec.chBest != null ? `best ${rec.chBest}/3` : "harder, multi-step"], ["gym", "♾️ Practice gym", (rec.gym || {}).done ? `${rec.gym.done} done` : "endless, new numbers"]].map(([m, t, sub]) => `<button class="${m === mode ? "on" : ""}" data-mode="${m}"><b>${t}</b><span>${sub}</span></button>`).join("")}</div><div id="pr"></div>`; }
+    body = `<div class="modes">${[["basic", `⭐ Starter (5)`, starStr(starsOf(l.id))], ["challenge", "⬆️ Challenge (3)", rec.chBest != null ? `best ${rec.chBest}/3` : "harder, multi-step"], ["gym", "♾️ Practice gym", (rec.gym || {}).done ? `${rec.gym.done} done` : "endless, new numbers"], ...(PARENT ? [["real", "🏆 Real AMC", "past test problems"]] : [])].map(([m, t, sub]) => `<button class="${m === mode ? "on" : ""}" data-mode="${m}"><b>${t}</b><span>${sub}</span></button>`).join("")}</div><div id="pr"></div>`; }
   app.innerHTML = head + body;
   $("#back").onclick = home;
   app.querySelectorAll("[data-s]").forEach(b => b.onclick = () => lesson(i, +b.dataset.s));
@@ -161,6 +211,7 @@ function lesson(i, step, mode) {
   if (step === 3) examples(l, i);
   if (step === 4) {
     app.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => lesson(i, 4, b.dataset.mode));
+    if (mode === "real") { realList(l); return; }
     if (mode === "gym") practice([GYM.make(l.id)].map(p => ({ ...p, from: l })), i, "gym");
     else practice((mode === "challenge" ? l.ch : l.pr).map(p => ({ ...p, from: l })), i, mode);
   }
@@ -239,6 +290,174 @@ function practice(list, i, mode) {
   };
   if (i < 0) timerI = setInterval(() => { const s = Math.round((Date.now() - t0) / 1000), el = $("#tm"); if (el) el.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }, 1000);
   draw();
+}
+
+function realList(l) {
+  const items = []; Object.entries(REAL).forEach(([y, tags]) => tags.forEach((tp, q) => { if (tp === l.id) items.push({ y: +y, n: q + 1 }); }));
+  items.sort((a, b) => a.n - b.n || b.y - a.y);
+  const band = n => n <= 10 ? ["🟢 Warm-up (problems 1–10)", 0] : n <= 18 ? ["🟡 Middle (problems 11–18)", 1] : ["🔴 Tough (problems 19–25)", 2];
+  const groups = [[], [], []]; items.forEach(it => groups[band(it.n)[1]].push(it));
+  $("#pr").innerHTML = `<div class="card"><div class="q">🏆 Real AMC 8 problems on ${esc(l.title)}</div>
+    <p class="sub">${items.length} real problems from past tests (2013–2026). Each link opens the problem with solutions. Try it on paper first, then read the solutions. Start green, then move up.</p>
+    ${groups.map((g, k) => g.length ? `<div class="band"><div class="bh">${band([1, 11, 19][k])[0]}</div><div class="misses">${g.map(it => `<a href="${probURL(it.y, it.n)}" target="_blank" rel="noopener">${it.y} #${it.n} ↗</a>`).join("")}</div></div>` : "").join("")}
+    ${items.length ? "" : `<p>No past problems were sorted into this topic. Try the gym!</p>`}
+    <p class="sub" style="margin-top:10px">Topics were sorted automatically, so one may occasionally fit better elsewhere.</p></div>`;
+}
+
+function focusHtml() {
+  const miss = {}; let n = 0;
+  Object.entries(P.tests).forEach(([y, t]) => { if (!t.marks || !REAL[y]) return; n++; t.marks.forEach((m, q) => { if (!m) { const tp = REAL[y][q]; miss[tp] = (miss[tp] || 0) + 1; } }); });
+  if (!n) return "";
+  const top = Object.entries(miss).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  return top.length ? `<div class="focus">🎯 <b>Focus next</b> (from your real tests): ${top.map(([tp, c]) => lessonOf(tp) >= 0 ? `<button class="btn sm" data-focus="${lessonOf(tp)}">${topicName(tp)} · ${c} missed</button>` : `<span class="pill" style="font-size:14px">${topicName(tp)} · ${c} missed</span>`).join(" ")}</div>` : "";
+}
+
+// ---------- real test: 40-minute timer + bubble sheet, then self-grade with the official key ----------
+let rtTimer = null;
+function realTest(y) {
+  window.scrollTo(0, 0); clearInterval(rtTimer);
+  const ans = Array(25).fill(""); let left = 40 * 60, started = false;
+  const draw = () => {
+    app.innerHTML = `<div class="top"><button class="btn" id="back">← Lessons</button><h1 style="font-size:24px">📝 ${y} AMC 8: real test</h1><span class="pill timer" id="clock">40:00</span></div>
+      <div class="card"><ol class="rules"><li>Open the problems in a new tab (or print them). Use scratch paper. <b>No calculator.</b></li><li>Press <b>Start</b>. You have <b>40 minutes</b>, just like the real thing.</li><li>Tap your answer for each problem below. Skip any you can't do; come back if time allows. In the last 2 minutes, guess on every blank (no penalty!).</li></ol>
+        <div class="row"><a class="btn alt" href="https://artofproblemsolving.com/wiki/index.php/${y}_AMC_8_Problems" target="_blank" rel="noopener">📄 Open the ${y} problems ↗</a><button class="btn go" id="start">${started ? "⏱️ Running…" : "▶ Start the 40 minutes"}</button></div></div>
+      <div class="card"><div class="sheet">${ans.map((a, q) => `<div class="srow"><span class="qn">${q + 1}</span>${"ABCDE".split("").map(L => `<button class="${a === L ? "on" : ""}" data-q="${q}" data-l="${L}">${L}</button>`).join("")}</div>`).join("")}</div>
+        <div class="row"><span class="sub" id="cnt">${ans.filter(Boolean).length}/25 answered</span><span class="spacer"></span><button class="btn pink" id="done">✅ I'm done: grade it</button></div></div>`;
+    $("#back").onclick = () => { if (!started || confirm("Leave the test? Your answers won't be saved.")) { clearInterval(rtTimer); home(); } };
+    $("#start").onclick = () => { if (started) return; started = true; $("#start").textContent = "⏱️ Running…"; rtTimer = setInterval(tick, 1000); };
+    $("#done").onclick = () => { clearInterval(rtTimer); grade(y, ans, 40 * 60 - left); };
+    app.querySelectorAll("[data-q]").forEach(b => b.onclick = () => { const q = +b.dataset.q; ans[q] = ans[q] === b.dataset.l ? "" : b.dataset.l; app.querySelectorAll(`[data-q="${q}"]`).forEach(x => x.classList.toggle("on", x.dataset.l === ans[q])); $("#cnt").textContent = `${ans.filter(Boolean).length}/25 answered`; });
+  };
+  const tick = () => { left--; const el = $("#clock"); if (el) { el.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`; el.classList.toggle("warn", left <= 120); } if (left <= 0) { clearInterval(rtTimer); grade(y, ans, 40 * 60); } };
+  draw();
+}
+function grade(y, ans, secs) {
+  window.scrollTo(0, 0);
+  const marks = ans.map(() => null);
+  const draw = () => {
+    const done = marks.filter(m => m !== null).length;
+    app.innerHTML = `<div class="top"><h1 style="font-size:24px">✅ Grade your ${y} test</h1></div>
+      <div class="card"><p>Open the official answer key and check each one. Tap <b>✓</b> if your answer matches, <b>✗</b> if not. (Blanks are automatically ✗.)</p>
+        <a class="btn alt" href="https://artofproblemsolving.com/wiki/index.php/${y}_AMC_8_Answer_Key" target="_blank" rel="noopener">🔑 Open the ${y} answer key ↗</a>
+        <div class="grade">${ans.map((a, q) => `<div class="grow ${marks[q] === true ? "ok" : marks[q] === false ? "no" : ""}"><span class="qn">${q + 1}</span><span class="mine">${a || "—"}</span>${a ? `<button data-g="${q}" data-v="1">✓</button><button data-g="${q}" data-v="0">✗</button>` : `<span class="sub">blank</span>`}</div>`).join("")}</div>
+        <div class="row"><span class="sub">${done}/25 checked</span><span class="spacer"></span><button class="btn go" id="fin" ${done < 25 ? "disabled" : ""}>See my results →</button></div></div>`;
+    app.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { marks[+b.dataset.g] = b.dataset.v === "1"; draw(); });
+    $("#fin").onclick = () => { const score = marks.filter(Boolean).length; P.tests[y] = { score, date: today, secs, answers: ans, marks }; save(); if (score >= 15) confetti(); realResults(y); };
+  };
+  ans.forEach((a, q) => { if (!a) marks[q] = false; });
+  draw();
+}
+function realResults(y) {
+  window.scrollTo(0, 0);
+  const t = P.tests[y], tags = REAL[y] || [], by = {};
+  tags.forEach((tp, q) => { by[tp] = by[tp] || { right: 0, total: 0, missed: [] }; by[tp].total++; if (t.marks[q]) by[tp].right++; else by[tp].missed.push(q + 1); });
+  const rows = Object.entries(by).sort((a, b) => (b[1].total - b[1].right) - (a[1].total - a[1].right));
+  const early = t.marks.slice(0, 15).filter(Boolean).length;
+  app.innerHTML = `<div class="top"><button class="btn" id="back">← Lessons</button><h1 style="font-size:24px">📊 ${y} AMC 8 results</h1></div>
+    <div class="card done"><div class="big">${t.score >= 21 ? "🏆" : t.score >= 15 ? "🎉" : "💪"}</div><p class="q">${t.score} / 25</p>
+      <p>${t.score >= 21 ? "Honor Roll territory!" : t.score >= 15 ? "Achievement Roll level (for 6th grade and below)!" : `Problems 1–15: ${early}/15. Locking those in is the fastest way up.`}</p>
+      ${t.secs ? `<p class="sub">Time used: ${Math.floor(t.secs / 60)} min</p>` : ""}</div>
+    <div class="card"><div class="q">By topic</div><p class="sub">Topics are sorted automatically and may be a little off. Tap a topic to practice it.</p>
+      ${rows.map(([tp, r]) => `<div class="trow"><span class="tn">${topicName(tp)}</span><span class="tbar"><i style="width:${r.right / r.total * 100}%"></i></span><b>${r.right}/${r.total}</b>${r.missed.length ? `<span class="sub">missed #${r.missed.join(", #")}</span>` : ""}${lessonOf(tp) >= 0 && r.missed.length ? `<button class="btn sm" data-go="${lessonOf(tp)}">Practice →</button>` : ""}</div>`).join("")}</div>
+    <div class="card"><div class="q">Review your misses</div><p class="sub">Read the solutions, then add each one to your error log. 📒</p>
+      <div class="misses">${t.marks.map((m, q) => m ? "" : `<a href="${probURL(y, q + 1)}" target="_blank" rel="noopener">#${q + 1} <span class="sub">${topicName(tags[q] || "logic")}</span> ↗</a>`).join("")}</div></div>`;
+  $("#back").onclick = home;
+  app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => lesson(+b.dataset.go, 0));
+}
+
+// ---------- daily & weekly exams: randomized, weighted like the real AMC 8, auto-graded ----------
+const WEIGHT = (() => { const w = {}; Object.values(REAL).forEach(t => t.forEach(tp => { if (tp !== "logic") w[tp] = (w[tp] || 0) + 1; })); LES.forEach(l => { w[l.id] = Math.max(w[l.id] || 0, 3); }); return w; })();
+const mondayOf = d => { const x = new Date(d + "T12:00:00"); const k = (x.getDay() + 6) % 7; x.setDate(x.getDate() - k); return x.toLocaleDateString("en-CA"); };
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function pickTopic(pool) { const tot = pool.reduce((s, id) => s + WEIGHT[id], 0); let r = Math.random() * tot; for (const id of pool) { r -= WEIGHT[id]; if (r <= 0) return id; } return pool[pool.length - 1]; }
+function examItem(id, level, used) {
+  const l = LES[lessonOf(id)];
+  const fresh = arr => shuffle(arr.filter(p => !used.has(p.q)));
+  let p = null;
+  if (level === "hard") p = fresh(l.ch)[0];
+  if (!p && level === "easy" && Math.random() < 0.5) p = fresh(l.pr)[0];
+  if (!p) { for (let t = 0; t < 8 && (!p || used.has(p.q)); t++) p = GYM.make(id); }
+  used.add(p.q);
+  return { ...p, from: l, topic: id, level };
+}
+function buildExam(kind) {
+  const used = new Set();
+  if (kind === "daily") {
+    const upTo = Math.max(...thisWeek);
+    let pool = LES.filter(l => P.lessons[l.id] || l.n <= upTo).map(l => l.id);
+    for (const l of LES) { if (pool.length >= 3) break; if (!pool.includes(l.id)) pool.push(l.id); }
+    return ["easy", "easy", "medium", "medium", "hard"].map(lv => examItem(pickTopic(pool), lv, used));
+  }
+  const all = LES.map(l => l.id), levels = [...Array(10).fill("easy"), ...Array(8).fill("medium"), ...Array(7).fill("hard")];
+  // spread topics: no topic more than 3 times
+  const count = {};
+  return levels.map(lv => { let id; do { id = pickTopic(all); } while ((count[id] || 0) >= 3); count[id] = (count[id] || 0) + 1; return examItem(id, lv, used); });
+}
+function examsHtml() {
+  const d = P.exams.daily[today], w = P.exams.weekly[mondayOf(today)];
+  return `<div class="exams"><button class="exam ${d ? "done" : ""}" data-exam="daily"><span class="et">📅 Daily exam</span><span>5 problems · 10 min</span><b>${d ? `Today: ${d.score}/${d.of} ✅` : "Not done yet today"}</b></button>
+    <button class="exam ${w ? "done" : ""}" data-exam="weekly"><span class="et">🏁 Weekly exam</span><span>25 problems · 40 min · like the real AMC 8</span><b>${w ? `This week: ${w.score}/25 ✅` : "Not done yet this week"}</b></button></div>`;
+}
+let exTimer = null;
+function exam(kind) {
+  window.scrollTo(0, 0); clearInterval(exTimer);
+  const items = buildExam(kind), ans = Array(items.length).fill(-1), mins = kind === "daily" ? 10 : 40;
+  let k = 0, left = mins * 60; const t0 = Date.now();
+  const official = kind === "daily" ? !P.exams.daily[today] : !P.exams.weekly[mondayOf(today)];
+  const clock = () => `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+  const draw = () => {
+    const p = items[k];
+    app.innerHTML = `<div class="top"><button class="btn" id="quit">✕ Quit</button><h1 style="font-size:22px">${kind === "daily" ? "📅 Daily exam" : "🏁 Weekly exam"}${official ? "" : ` <span class="sub">(practice retake)</span>`}</h1><span class="pill timer ${left <= 120 ? "warn" : ""}" id="clock">${clock()}</span></div>
+      <div class="dots">${items.map((_, j) => `<button class="${j === k ? "cur" : ""} ${ans[j] >= 0 ? "ans" : ""}" data-jump="${j}">${j + 1}</button>`).join("")}</div>
+      <div class="card"><div class="sub">Problem ${k + 1} of ${items.length} · no hints in exams. Skip and come back if you're stuck!</div><p class="q" style="margin-top:10px">${esc(p.q)}</p>
+        <div class="ch">${p.c.map((c, j) => `<button class="${ans[k] === j ? "pick" : ""}" data-j="${j}"><span class="L">${LET[j]}</span><span>${esc(c)}</span></button>`).join("")}</div>
+        <div class="row"><button class="btn" id="prev" ${k === 0 ? "disabled" : ""}>◀ Back</button><span class="spacer"></span>${k < items.length - 1 ? `<button class="btn alt" id="nxt">Next ▶</button>` : ""}<button class="btn go" id="sub">Hand it in ✅</button></div></div>`;
+    $("#quit").onclick = () => { if (confirm("Quit the exam? It won't be saved.")) { clearInterval(exTimer); home(); } };
+    app.querySelectorAll("[data-jump]").forEach(b => b.onclick = () => { k = +b.dataset.jump; draw(); });
+    app.querySelectorAll("[data-j]").forEach(b => b.onclick = () => { ans[k] = ans[k] === +b.dataset.j ? -1 : +b.dataset.j; if (ans[k] >= 0 && k < items.length - 1) { k++; } draw(); });
+    $("#prev").onclick = () => { k--; draw(); };
+    if ($("#nxt")) $("#nxt").onclick = () => { k++; draw(); };
+    $("#sub").onclick = () => { const blank = ans.filter(a => a < 0).length; if (blank && left > 0 && !confirm(`${blank} left blank. Guessing is free! Hand it in anyway?`)) return; finish(); };
+  };
+  const finish = () => {
+    clearInterval(exTimer);
+    const res = { kind, date: today, week: mondayOf(today), official, secs: Math.round((Date.now() - t0) / 1000), of: items.length,
+      score: items.reduce((s, p, j) => s + (ans[j] === p.a ? 1 : 0), 0),
+      items: items.map((p, j) => ({ q: p.q, c: p.c, a: p.a, you: ans[j], steps: p.steps, trap: p.trap, topic: p.topic, level: p.level })) };
+    res.topics = {}; res.items.forEach(it => { const t = res.topics[it.topic] = res.topics[it.topic] || [0, 0]; t[1]++; if (it.you === it.a) t[0]++; });
+    if (official) { if (kind === "daily") P.exams.daily[today] = { score: res.score, of: res.of }; else P.exams.weekly[res.week] = { score: res.score, of: res.of }; }
+    P.exams.log.push(res); P.exams.log = P.exams.log.slice(-40); save();
+    if (res.score >= Math.ceil(res.of * 0.8)) confetti();
+    examResults(res);
+  };
+  exTimer = setInterval(() => { left--; const el = $("#clock"); if (el) { el.textContent = clock(); el.classList.toggle("warn", left <= 120); } if (left <= 0) finish(); }, 1000);
+  draw();
+}
+function examResults(r) {
+  window.scrollTo(0, 0);
+  const rows = Object.entries(r.topics).sort((a, b) => (a[1][0] / a[1][1]) - (b[1][0] / b[1][1]));
+  const weak = rows.filter(([, v]) => v[0] < v[1]).slice(0, 3);
+  app.innerHTML = `<div class="top"><button class="btn" id="back">← Lessons</button><h1 style="font-size:22px">${r.kind === "daily" ? "📅 Daily exam" : "🏁 Weekly exam"} results</h1></div>
+    <div class="card done"><div class="big">${r.score === r.of ? "🏆" : r.score >= r.of * 0.6 ? "🎉" : "💪"}</div><p class="q">${r.score} / ${r.of}</p>
+      <p class="sub">${r.date} · ${Math.floor(r.secs / 60)} min ${r.secs % 60} s${r.official ? "" : " · practice retake"}</p>
+      ${r.kind === "weekly" ? `<p>${r.score >= 21 ? "Honor Roll level!" : r.score >= 15 ? "Achievement Roll level (15+)!" : `Problems 1–10: ${r.items.slice(0, 10).filter(i => i.you === i.a).length}/10. Make those rock-solid first.`}</p>` : ""}
+      ${weak.length ? `<p>🎯 Work on: ${weak.map(([tp]) => `<button class="btn sm" data-go="${lessonOf(tp)}">${topicName(tp)}</button>`).join(" ")}</p>` : `<p>Every topic perfect. 🔥</p>`}</div>
+    <div class="card"><div class="q">By topic</div>${rows.map(([tp, v]) => `<div class="trow"><span class="tn">${topicName(tp)}</span><span class="tbar"><i style="width:${v[0] / v[1] * 100}%"></i></span><b>${v[0]}/${v[1]}</b></div>`).join("")}</div>
+    <div class="card"><div class="q">Every problem, with the solution</div><p class="sub">Tap a problem to see how to solve it. Add your misses to the error log. 📒</p>
+      ${r.items.map((it, j) => `<details class="rev ${it.you === it.a ? "ok" : "no"}"><summary><b>${j + 1}.</b> ${it.you === it.a ? "✅" : it.you < 0 ? "⬜" : "❌"} ${esc(it.q)} <span class="sub">${topicName(it.topic)}${it.level === "hard" ? " · ⬆️ hard" : ""}</span></summary>
+        <p>Your answer: <b>${it.you >= 0 ? LET[it.you] + " (" + esc(it.c[it.you]) + ")" : "blank"}</b> · Correct: <b>${LET[it.a]} (${esc(it.c[it.a])})</b></p>
+        <div class="sol">${it.steps.map((st, n) => `<div class="step s${n}"><span class="lb">${LABELS[n]}</span><div>${esc(st)}</div></div>`).join("")}<div class="trap">⚠️ <b>Trap:</b> ${esc(it.trap)}</div></div></details>`).join("")}</div>`;
+  $("#back").onclick = home;
+  app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => lesson(+b.dataset.go, 0));
+}
+function parentHistory() {
+  const log = P.exams.log.filter(e => e.official).slice(-12).reverse();
+  const miss = {}; P.exams.log.slice(-15).forEach(e => Object.entries(e.topics || {}).forEach(([tp, v]) => { miss[tp] = miss[tp] || [0, 0]; miss[tp][0] += v[0]; miss[tp][1] += v[1]; }));
+  const weak = Object.entries(miss).filter(([, v]) => v[1] >= 2).sort((a, b) => a[1][0] / a[1][1] - b[1][0] / b[1][1]).slice(0, 4);
+  return `<div class="sub">Exam history (official attempts):</div>
+    ${log.length ? `<div class="misses">${log.map(e => `<button class="btn sm" data-erev="${P.exams.log.indexOf(e)}">${e.kind === "daily" ? "📅" : "🏁"} ${e.date}: ${e.score}/${e.of}</button>`).join("")}</div>` : `<p class="sub">No exams yet.</p>`}
+    ${weak.length ? `<p style="margin-top:10px"><b>Weakest topics lately:</b> ${weak.map(([tp, v]) => `${topicName(tp)} ${Math.round(v[0] / v[1] * 100)}%`).join(" · ")}</p>` : ""}
+    ${focusHtml()}`;
 }
 
 function mixed() {
