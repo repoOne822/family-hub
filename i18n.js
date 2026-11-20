@@ -1,6 +1,7 @@
 // UI strings in English and Simplified Chinese. No personal data lives in this file.
 export const STR = {
   en: {
+    kidsMode: "🔒 Kids mode", parentUnlock: "Parent 🔒", setLockPin: "Choose a 4-digit parent PIN for this device", enterLockPin: "Parent PIN", unlock: "Unlock", wrongPin: "Wrong PIN", lockHelp: "Locks this device to the kids' tap-in. Your pages and menu are hidden until you enter the PIN.",
     // kid world
     levels: ["Seedling", "Sprout", "Explorer", "Adventurer", "Champion", "Legend"], levelWord: "Level", xp: "points", toNext: n => `${n} more to level up`,
     streak: n => n > 0 ? `${n}-day streak` : "Start a streak today!", streakRest: "Streak resting — check in to start again",
@@ -120,6 +121,7 @@ export const STR = {
     }
   },
   zh: {
+    kidsMode: "🔒 孩子模式", parentUnlock: "家长 🔒", setLockPin: "为这台设备设置4位家长密码", enterLockPin: "家长密码", unlock: "解锁", wrongPin: "密码不对", lockHelp: "把这台设备锁定为孩子打卡模式。输入密码前，家长页面和菜单都会隐藏。",
     // kid world
     levels: ["种子", "嫩芽", "探险家", "冒险王", "冠军", "传奇"], levelWord: "等级", xp: "积分", toNext: n => `再得 ${n} 分升级`,
     streak: n => n > 0 ? `连续 ${n} 天` : "今天开始连续打卡！", streakRest: "连续打卡休息中——打卡重新开始",

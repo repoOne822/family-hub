@@ -33,6 +33,25 @@ const sName = x => x ? ((lang === "zh" && x.name_zh) ? x.name_zh : x.name) : "";
 const sDesc = x => (lang === "zh" && x.description_zh) ? x.description_zh : (x.description || "");
 const subjOf = id => S.subjects.find(x => x.id === id);
 const mKidLabel = m => (lang === "zh" && m.kid_label_zh) ? m.kid_label_zh : (m.kid_label || "✅ " + m.name);
+/* ---------- Kids mode lock (shared parent device) ---------- */
+const LS = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
+let lockedMem = false;
+const isLocked = () => LS.get("fh_locked") === "1" || lockedMem;
+async function pinHash(pin) { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("fh:" + pin)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
+function lockPinForm(mode, onOk) {
+  const t = T(), box = document.createElement("div"); box.className = "modal-bg open"; box.style.zIndex = 60;
+  box.innerHTML = `<form class="modal" style="max-width:360px"><h3>${mode === "set" ? t.kidsMode : t.parentUnlock}</h3><p class="meta">${mode === "set" ? t.lockHelp : ""}</p>
+    <label>${mode === "set" ? t.setLockPin : t.enterLockPin}</label><input type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" minlength="4" required autocomplete="off" style="font-size:24px;letter-spacing:10px;text-align:center">
+    <div class="err"></div><div class="modal-f"><button type="button" class="btn" data-x>${t.cancel}</button><button class="btn primary">${mode === "set" ? t.kidsMode : t.unlock}</button></div></form>`;
+  document.body.appendChild(box); const inp = box.querySelector("input"); setTimeout(() => inp.focus(), 50);
+  box.querySelector("[data-x]").onclick = () => box.remove();
+  box.querySelector("form").onsubmit = async e => { e.preventDefault(); const h = await pinHash(inp.value);
+    if (mode === "set") { LS.set("fh_lock_hash", h); box.remove(); onOk(); return; }
+    if (h === LS.get("fh_lock_hash")) { box.remove(); onOk(); } else { box.querySelector(".err").textContent = t.wrongPin; inp.value = ""; } };
+}
+function lockDevice() { const go = () => { LS.set("fh_locked", "1"); lockedMem = true; openLobby(); }; LS.get("fh_lock_hash") ? go() : lockPinForm("set", go); }
+function openLobby() { $("#kidMode").classList.add("open"); const c = $("#kidMode [data-fsclose]"); c.textContent = T().parentUnlock; kidStage("who"); }
+function unlockDevice() { lockPinForm("check", () => { LS.set("fh_locked", null); lockedMem = false; $("#kidMode").classList.remove("open"); $("#kidMode [data-fsclose]").textContent = T().cancel; renderShell(); route(); }); }
 const heroPills = () => `<div class="pills" aria-hidden="true">${T().tags.map((x, i) => `<span class="pill p${i + 1}">${esc(x)}</span>`).join("")}<span class="blob b1">✦</span><span class="blob b2">♥</span><span class="blob b3">★</span><span class="blob b4">↗</span></div>`;
 const marquee = () => { const w = T().marquee.map(x => `<b>${esc(x)}</b><i>/</i>`).join(""); return `<div class="marquee" aria-hidden="true"><span>${w}${w}</span></div>`; };
 function setStatus(msg, warn) { const s = $("#status"); if (s) { s.textContent = msg || ""; s.classList.toggle("warn", !!warn); } }
@@ -115,15 +134,18 @@ function renderShell() {
     <div class="brand"><span class="dotlogo">✦</span>${T().appTitle}</div>
     <nav class="nav">${ROUTES.map(r => `<a href="#${r}" data-r="${r}">${T()["nav" + { today: "Today", dashboard: "Dash", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" }[r]]}</a>`).join("")}</nav>
     <button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button>
+    <button class="btn sm" id="lockBtn">${T().kidsMode}</button>
     <button class="btn sm ghost" id="soBtn">${T().signOut}</button></div></div>
     <div class="wrap"><div class="status" id="status"></div><div id="view"></div></div>`;
   $("#langBtn").onclick = toggleLang;
   $("#soBtn").onclick = async () => { await sb.auth.signOut(); };
+  $("#lockBtn").onclick = lockDevice;
 }
 window.addEventListener("hashchange", route);
 function route() {
   if (!S.user || isKid()) return;
   if (!$("#view")) return;
+  if (isLocked()) { $(".topbar .nav") && ($(".topbar .nav").style.display = "none"); openLobby(); return; }
   let h = location.hash.slice(1) || "today";
   let doc = null;
   if (h.startsWith("doc-")) { doc = h.slice(4); h = "doc"; }
@@ -198,7 +220,7 @@ function kidStage(step) {
 
 /* ---------------- PARENT QUICK CHECK-IN ---------------- */
 const qSt = {};
-function openQuick() { $("#qDate").value = today(); $("#qErr").textContent = ""; Object.keys(qSt).forEach(k => delete qSt[k]); quickRender(); $("#quickMode").classList.add("open"); }
+function openQuick() { if (isLocked()) return; $("#qDate").value = today(); $("#qErr").textContent = ""; Object.keys(qSt).forEach(k => delete qSt[k]); quickRender(); $("#quickMode").classList.add("open"); }
 function quickRender() {
   const d = $("#qDate").value;
   $("#quickRows").innerHTML = S.kids.map((k, i) => {
@@ -242,7 +264,7 @@ $("#quickSave").onclick = async () => {
     $("#quickMode").classList.remove("open"); await refresh(); setStatus(T().saved); setTimeout(() => setStatus(""), 2500);
   } catch (err) { $("#qErr").textContent = err.message || "Save failed"; }
 };
-document.querySelectorAll("[data-fsclose]").forEach(b => b.onclick = () => { b.closest(".fs").classList.remove("open"); isKid() ? kidRender() : route(); });
+document.querySelectorAll("[data-fsclose]").forEach(b => b.onclick = () => { if (!isKid() && isLocked() && b.closest("#kidMode")) return unlockDevice(); b.closest(".fs").classList.remove("open"); isKid() ? kidRender() : route(); });
 
 /* ---------------- COACH ENGINE ---------------- */
 const ALPHA = 0.3;
