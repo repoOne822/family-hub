@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261119h";
-import * as Pix from "./pixel.js?v=20261119h";
+import { STR } from "./i18n.js?v=20261119i";
+import * as Pix from "./pixel.js?v=20261119i";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -655,7 +655,7 @@ function viewSubjects() {
           <div class="field"><label>${t.deadlineL}</label><input name="deadline" type="date"></div><div class="field"><label>${t.unitL}</label><input name="unit" maxlength="8"></div></div>
         <button class="btn sm primary">${t.save}</button></form></details>`;
   const card = x => { const ms = S.metrics.filter(m => m.subject_id === x.id), notes = S.entries.filter(e => e.subject_id === x.id).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5), docs = S.docs.filter(d => d.subject_id === x.id);
-    return `<div class="kid" style="--kc:${kidColor(x.kid)};cursor:default"><div class="kid-top"><div><h2>${x.icon} ${esc(sName(x))}</h2>${sDesc(x) ? `<div class="meta">${esc(sDesc(x))}</div>` : ""}</div><button class="btn sm ghost" data-esubj="${x.id}">${t.edit}</button></div>
+    return `<div class="kid" style="--kc:${kidColor(x.kid)};cursor:default"><div class="kid-top"><div><h2>${x.icon} ${esc(sName(x))}</h2>${sDesc(x) ? `<div class="meta">${esc(sDesc(x))}</div>` : ""}</div><div style="display:flex;gap:6px">${x.app_url ? `<button class="btn sm primary" data-app="${esc(x.app_url)}" data-appkid="${esc(x.kid)}">▶ ${t.openApp}</button>` : ""}<button class="btn sm ghost" data-esubj="${x.id}">${t.edit}</button></div></div>
       <div class="goals"><h4>${t.goals}</h4>${ms.length ? ms.map(goalRow).join("") : `<div class="meta">${t.noGoals}</div>`}${goalForm(x.id)}</div>
       <div class="latest"><h4>${t.notes}</h4>${notes.map(e => `<div class="meta" style="color:var(--ink)"><span class="tag ${e.tone}">${{ positive: t.toneWin, concern: t.toneConcern, neutral: t.toneNote }[e.tone]}</span>${esc(e.title)} <span class="meta">· ${fmtDate(e.date)}</span></div>`).join("")}
         <form class="nform addgoal" data-sid="${x.id}" style="margin-top:6px"><select name="tone" style="width:auto"><option value="positive">${t.toneWin}</option><option value="neutral">${t.toneNote}</option><option value="concern">${t.toneConcern}</option></select><input name="title" maxlength="140" placeholder="${t.noteIn}" required><button class="btn sm">${t.addNote}</button></form></div>
@@ -703,6 +703,36 @@ $("#sArchive").onclick = async () => { if (!editingSubj) return; const { error }
 
 /* ---------------- KID APP: his own page ---------------- */
 let kidTap = null;
+/* ---- kid apps (e.g. Ellis's Fencing Brain Academy): full-screen, progress synced to app_saves ---- */
+const APPS = { "fencing/": { id: "fencing", prefix: "ellis_", skip: ["ellis_pin"] } };
+let appOpen = null;
+async function openApp(url, kid) {
+  const cfg = APPS[url]; if (!cfg) return;
+  const t = T(), mark = `fh_save_${kid}_${cfg.id}`;
+  try {
+    const { data } = await sb.from("app_saves").select("data,updated_at").eq("kid", kid).eq("app", cfg.id).maybeSingle();
+    const localAt = localStorage.getItem(mark) || "";
+    if (data && (preview || data.updated_at > localAt)) { Object.entries(data.data || {}).forEach(([k, v]) => { if (k.startsWith(cfg.prefix) && !cfg.skip.includes(k)) localStorage.setItem(k, JSON.stringify(v)); }); localStorage.setItem(mark, data.updated_at); }
+  } catch (e) {}
+  let timer = null;
+  const push = async () => {
+    timer = null; if (preview) return;
+    const out = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith(cfg.prefix) && !cfg.skip.includes(k)) { try { out[k] = JSON.parse(localStorage.getItem(k)); } catch (e) {} } }
+    const at = new Date().toISOString();
+    const { error } = await sb.from("app_saves").upsert({ kid, app: cfg.id, data: out, updated_at: at });
+    const st = document.querySelector("#appFs .appst"); if (st) st.textContent = error ? "⚠️ " + t.appSaveErr : "☁️ " + t.appSaved;
+    if (!error) localStorage.setItem(mark, at);
+  };
+  const onStore = e => { if (e.key && e.key.startsWith(cfg.prefix) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
+  window.addEventListener("storage", onStore);
+  const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261119i" title="app" allow="fullscreen"></iframe>`;
+  document.body.appendChild(fs); document.body.style.overflow = "hidden";
+  appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; };
+  fs.querySelector(".appclose").onclick = () => appOpen();
+}
+document.addEventListener("click", e => { const a = e.target.closest("[data-app]"); if (a) { e.preventDefault(); e.stopPropagation(); openApp(a.dataset.app, a.dataset.appkid); } }, true);
+
 /* ---- parent preview: see a boy's page exactly as he does; nothing saves ---- */
 let preview = null;
 function openPreview(kidId) {
@@ -789,7 +819,7 @@ function kidRender() {
         <div class="kw-streak ${g.streak ? "" : "rest"}"><span class="fire">🔥</span><div>${g.streak ? t.streak(g.streak) : t.streakRest}<div class="kw-sub" style="opacity:.7">${g.best ? "🏆 " + g.best : ""}</div></div></div>
       </div>
       ${worlds.length || loose.length || goals.length || mine.length ? `<div class="kw-h">🗺️ ${t.myWorlds}</div>
-      <div class="kw-worlds">${worlds.map((w, i) => `<div class="kw-world" style="background:${worldColors[i % worldColors.length]}"><div class="wi">${w.x.icon}</div><h3>${esc(sName(w.x))}</h3>${sDesc(w.x) ? `<div class="wd">${esc(sDesc(w.x))}</div>` : ""}${w.ms.map(goalHtml).join("")}${w.docs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">📖 ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}</div>`).join("")}
+      <div class="kw-worlds">${worlds.map((w, i) => `<div class="kw-world" style="background:${worldColors[i % worldColors.length]}"><div class="wi">${w.x.icon}</div><h3>${esc(sName(w.x))}</h3>${sDesc(w.x) ? `<div class="wd">${esc(sDesc(w.x))}</div>` : ""}${w.x.app_url ? `<button class="kw-play" data-app="${esc(w.x.app_url)}" data-appkid="${esc(w.x.kid)}">▶ ${t.playApp(esc(sName(w.x)))}</button>` : ""}${w.ms.map(goalHtml).join("")}${w.docs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">📖 ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}</div>`).join("")}
         ${loose.length || goals.length || mine.length || looseDocs.length ? `<div class="kw-world" style="background:#e9e9e4"><div class="wi">🎯</div><h3>${t.myGoals}</h3>${loose.map(goalHtml).join("")}
           ${goals.map(x => `<div class="kw-goal"><span class="gn">${x.done ? "✅" : "⬜"} ${esc(x.text)}</span></div>`).join("")}
           ${mine.map(x => `<div class="kw-goal"><span class="gn">💡 ${esc(x.text)}</span><div class="kw-sub">${t.pending} <button class="x" style="opacity:1" data-unprop="${x.id}">✕</button></div></div>`).join("")}
