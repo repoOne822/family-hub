@@ -444,3 +444,8 @@ body.kidmode{--kfont:"Fredoka","Noto Sans SC",system-ui,sans-serif;background:va
 .rmadd summary{cursor:pointer;color:var(--muted);font-size:13px}.rmadd input,.rmadd select{margin-top:6px;font-size:13px;padding:6px 10px}.rmadd .btn{margin-top:6px}
 .rmfocus{border-left:4px solid var(--kc);margin-top:12px}.rmf{padding:5px 0}
 @media (max-width:760px){.rmgrid{grid-template-columns:1fr}.rmroad{flex-direction:column}.rmstage{flex:1 1 auto}.rmarrow{transform:rotate(90deg)}}
+
+/* decision map (one-direction network) */
+.dnet{border-top:1px solid var(--line);margin-top:18px}
+.dnet-svg{overflow-x:auto;margin-top:8px;-webkit-overflow-scrolling:touch}
+.dnet-svg text{font-family:var(--body)}

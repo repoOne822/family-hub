@@ -349,7 +349,76 @@ function engine(kid, asOf) {
   goals.filter(g => g.kind === "level" && g.stale).forEach(g => P("info", R.stale(esc(mName(g.m)), g.staleDays)));
   if (!recs.filter(r => r.cls !== "info").length) P("up", R.steady());
   const status = logged7 < 3 ? "n" : (easeOff && logged7 >= 3) ? "r" : (levelUp || (!behind.length && !easeOff && logged7 >= 4)) ? "g" : "a";
-  return { adh7, adhPrev, engNow, engDelta, logged7, behAvg7, kidMood7, concerns7, goals, recs, status, series, cks };
+  const flags = { easeOff, levelUp, behindN: behind.length, aheadN: ahead.length, staleN: goals.filter(g => g.kind === "level" && g.stale).length,
+    moodLow: kidMood7 != null && moods.length >= 3 && kidMood7 <= 2.5, gapHigh: moodGap != null && moodGap >= 1.5, pattern: concerns7 >= 3 || (behAvg7 != null && behAvg7 <= 2.5) };
+  return { adh7, adhPrev, engNow, engDelta, logged7, behAvg7, kidMood7, moodGap, concerns7, goals, recs, status, series, cks, flags };
+}
+
+/* ---------------- DECISION MAP: one-direction network, signals -> coach rules -> choice ---------------- */
+const DNET = {
+  en: { title: "Decision map", sub: "How the coach got to today's advice. Signals on the left feed the rules in the middle, which lead to a choice on the right. The highlighted path is what's driving it now.",
+    legend: "● fired · ○ not fired · ◌ no data yet", cols: ["SIGNALS", "COACH RULES", "CHOICE"],
+    inp: { n: "Check-ins (7d)", adh: "Adherence", eng: "Engagement", mood: "His mood (7d)", gap: "Parent vs him", conc: "Concerns / behavior", pace: "Goal pace", stale: "Grade freshness", amc: "AMC 8 data" },
+    rule: { R1: "Ease off", R2: "He says it's hard", R3: "Views don't match", R4: "Behavior pattern", R5: "Change the method", R6: "Fix the routine", R7: "Level up", R8: "Shift time", R9: "Update needed", R10: "Not enough data", R11: "AMC focus chapter" },
+    out: { O1: "Lighten the load", O2: "Talk & connect first", O3: "Change practice type", O4: "Set a fixed time", O5: "Add one challenge", O6: "Move a session", O7: "Log a new grade", O8: "Keep logging, no changes" },
+    behindAhead: (b, a) => `${b} behind · ${a} ahead`, stale: n => n ? `${n} stale` : "ok", noData: "no data yet",
+    amc: { weak: "needs work", slow: "slow", rush: "rushing", ok: "ok", nodata: "no data yet" } },
+  zh: { title: "决策图", sub: "教练如何得出今天的建议：左边的信号进入中间的规则，再得出右边的决定。高亮的路径就是现在起作用的依据。",
+    legend: "● 触发 · ○ 未触发 · ◌ 暂无数据", cols: ["信号", "教练规则", "决定"],
+    inp: { n: "打卡次数（7天）", adh: "完成率", eng: "投入度", mood: "他的心情（7天）", gap: "家长与他评分差", conc: "担忧 / 行为", pace: "目标进度", stale: "成绩更新", amc: "AMC 8 数据" },
+    rule: { R1: "减负", R2: "他说很难", R3: "看法不一致", R4: "行为模式", R5: "换方法", R6: "固定作息", R7: "加一点难度", R8: "调配时间", R9: "需要更新成绩", R10: "数据不足", R11: "AMC 重点章节" },
+    out: { O1: "减轻负担", O2: "先沟通陪伴", O3: "换练习方式", O4: "定好固定时间", O5: "增加一个挑战", O6: "调整练习分配", O7: "录入新成绩", O8: "继续记录，暂不调整" },
+    behindAhead: (b, a) => `${b} 项落后 · ${a} 项超前`, stale: n => n ? `${n} 项过期` : "正常", noData: "暂无数据",
+    amc: { weak: "需加强", slow: "偏慢", rush: "太急", ok: "正常", nodata: "暂无数据" } } };
+function amcFlag(kid) {
+  const save = (S.app_saves || []).find(a => a.kid === kid && a.app === "amc"), P = save && save.data ? save.data[`${kid}_amc_progress`] : null;
+  if (!P) return { flag: "nodata" };
+  const from = daysAgo(13), st = amcStats({ ...P, events: (P.events || []).filter(e => (e.d || "") >= from) });
+  if (!st.all.n) return { flag: "nodata" };
+  for (const f of ["weak", "rush", "slow"]) { const tp = st.topics.find(r => r.flag === f); if (tp) return { flag: f, topic: tp.t }; }
+  return { flag: "ok" };
+}
+function decisionNet(kid, r, color) {
+  const L = DNET[lang] || DNET.en, f = r.flags, isAmc = (S.subjects || []).some(x => x.kid === kid && x.app_url === "amc/") || (S.app_saves || []).some(a => a.kid === kid && a.app === "amc");
+  const am = isAmc ? amcFlag(kid) : null, hasCk = r.logged7 > 0;
+  const fmt1 = v => v == null ? "—" : v.toFixed(1);
+  const inputs = [
+    ["n", `${r.logged7}/7`, true, r.logged7 < 4],
+    ["adh", pct(r.adh7), r.adh7 != null, r.adh7 != null && r.adh7 < .6],
+    ["eng", pct(r.engNow), r.engNow != null, f.easeOff && r.engNow != null && (r.engNow < .45 || (r.engDelta != null && r.engDelta <= -.15))],
+    ["mood", r.kidMood7 == null ? "—" : fmt1(r.kidMood7) + "/5", r.kidMood7 != null, f.moodLow],
+    ["gap", r.moodGap == null ? "—" : (r.moodGap >= 0 ? "+" : "") + fmt1(r.moodGap), r.moodGap != null, f.gapHigh],
+    ["conc", `${r.concerns7}${r.behAvg7 != null ? " · " + fmt1(r.behAvg7) + "/5" : ""}`, hasCk || r.concerns7 > 0, f.pattern],
+    ["pace", L.behindAhead(f.behindN, f.aheadN), r.goals.length > 0, f.behindN > 0],
+    ["stale", L.stale(f.staleN), true, f.staleN > 0]];
+  if (isAmc) inputs.push(["amc", L.amc[am.flag] + (am.topic ? " · " + amcTopic(am.topic) : ""), am.flag !== "nodata", ["weak", "slow", "rush"].includes(am.flag)]);
+  const adh = r.adh7, rules = [
+    ["R1", f.easeOff && r.logged7 >= 3, ["adh", "eng"]], ["R2", f.moodLow, ["mood"]], ["R3", f.gapHigh && !f.moodLow, ["gap"]], ["R4", f.pattern, ["conc"]],
+    ["R5", f.behindN > 0 && adh != null && adh >= .75, ["pace", "adh"]], ["R6", f.behindN > 0 && (adh == null || adh < .75), ["pace", "adh"]],
+    ["R7", f.levelUp, ["adh", "eng", "pace"]], ["R8", f.aheadN > 0 && f.behindN > 0 && !f.easeOff, ["pace"]], ["R9", f.staleN > 0, ["stale"]], ["R10", r.logged7 < 4, ["n"]]];
+  if (isAmc) rules.push(["R11", ["weak", "slow", "rush"].includes(am.flag), ["amc"]]);
+  const ract = Object.fromEntries(rules.map(x => [x[0], x[1]])), gated = ract.R10;
+  const outputs = [["O1", ["R1"]], ["O2", ["R2", "R3", "R4"]], ["O3", ["R5"].concat(isAmc ? ["R11"] : [])], ["O4", ["R6"]], ["O5", ["R7"]], ["O6", ["R8"]], ["O7", ["R9"]], ["O8", ["R10"]]];
+  const oact = Object.fromEntries(outputs.map(([k, src]) => [k, src.some(x => ract[x]) && !(gated && ["O1", "O3", "O4", "O5", "O6"].includes(k))]));
+  const n = Math.max(inputs.length, rules.length, outputs.length), rowH = 46, top = 58, W = 870, H = top + (n - 1) * rowH + 30;
+  const X = { i: 250, r: 470, o: 650 }, ys = m => [...Array(m)].map((_, i) => top + i * ((n - 1) * rowH) / Math.max(m - 1, 1));
+  const yi = ys(inputs.length), yr = ys(rules.length), yo = ys(outputs.length);
+  const P = {}; inputs.forEach((x, i) => P[x[0]] = [X.i, yi[i], x[2], x[3]]); rules.forEach((x, i) => P[x[0]] = [X.r, yr[i]]); outputs.forEach((x, i) => P[x[0]] = [X.o, yo[i]]);
+  const grey = "var(--line2)", dim = "var(--muted)", rad = 10;
+  const edge = (a, b, lit) => `<line x1="${a[0] + rad}" y1="${a[1]}" x2="${b[0] - rad - 4}" y2="${b[1]}" stroke="${lit ? color : grey}" stroke-width="${lit ? 2.6 : 1}" ${lit ? 'marker-end="url(#dnArrL)"' : 'marker-end="url(#dnArr)"'} opacity="${lit ? 1 : .8}"/>`;
+  let back = "", front = "";
+  rules.forEach(([k, act, src]) => src.forEach(i => { const lit = act && (P[i][3] || !P[i][2]); (lit ? (front += edge(P[i], P[k], 1)) : (back += edge(P[i], P[k], 0))); }));
+  outputs.forEach(([k, src]) => src.forEach(x => { const lit = ract[x] && oact[k]; (lit ? (front += edge(P[x], P[k], 1)) : (back += edge(P[x], P[k], 0))); }));
+  const node = (x, y, on, hollow) => hollow ? `<circle cx="${x}" cy="${y}" r="${rad}" fill="var(--card)" stroke="${dim}" stroke-width="1.5" stroke-dasharray="3 3"/>` : `<circle cx="${x}" cy="${y}" r="${rad}" fill="${on ? color : "var(--card)"}" stroke="${on ? color : dim}" stroke-width="2"/>`;
+  let nodes = "";
+  inputs.forEach(([k, disp, has, hot], i) => { const y = yi[i]; nodes += node(X.i, y, hot, !has) + `<text x="${X.i - 18}" y="${y - 3}" text-anchor="end" font-size="12.5" fill="var(--ink)">${esc(L.inp[k])}</text><text x="${X.i - 18}" y="${y + 13}" text-anchor="end" font-size="11.5" fill="${hot ? color : dim}" font-weight="${hot ? 700 : 400}">${esc(disp)}</text>`; });
+  rules.forEach(([k, act], i) => { const y = yr[i]; nodes += node(X.r, y, act) + `<text x="${X.r}" y="${y - 15}" text-anchor="middle" font-size="11.5" fill="${act ? "var(--ink)" : dim}" font-weight="${act ? 700 : 400}" paint-order="stroke" stroke="var(--card)" stroke-width="4">${k} ${esc(L.rule[k])}</text>`; });
+  outputs.forEach(([k], i) => { const y = yo[i], on = oact[k]; nodes += node(X.o, y, on) + `<text x="${X.o + 18}" y="${y + 4}" font-size="12.5" fill="${on ? "var(--ink)" : dim}" font-weight="${on ? 700 : 400}">${esc(L.out[k])}</text>`; });
+  const cols = [X.i, X.r, X.o].map((x, i) => `<text x="${x}" y="18" text-anchor="middle" font-size="11" letter-spacing=".08em" fill="${dim}" font-weight="700">${L.cols[i]}</text>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:640px;display:block" role="img" aria-label="${esc(L.title)}">
+    <defs><marker id="dnArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L10,5L0,10z" fill="${grey}"/></marker>
+    <marker id="dnArrL" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" fill="${color}"/></marker></defs>
+    ${cols}${back}${front}${nodes}</svg>`;
 }
 
 /* ---------------- DASHBOARD ---------------- */
@@ -422,7 +491,8 @@ function renderCoach() {
     <div class="coach-grid"><div><h4>${t.goalsPace}</h4><table><tbody>${rows}</tbody></table><div class="meta" style="margin-top:6px">${t.paceNote}</div>
       <h4 style="margin-top:16px">${t.last28}</h4>${coachChart(r)}<div class="meta">${t.chartNote}</div></div>
       <div><h4>${t.whatToAdjust}</h4>${r.recs.map(x => `<div class="rec ${x.cls}"><div class="h">${x.h}</div><div class="w">${x.w}</div></div>`).join("")}
-      <details class="howto"><summary>${t.howDecides}</summary><ul>${t.rules.map(x => `<li>${x}</li>`).join("")}</ul></details></div></div>`;
+      <details class="howto"><summary>${t.howDecides}</summary><ul>${t.rules.map(x => `<li>${x}</li>`).join("")}</ul></details></div></div>
+    ${(() => { const D = DNET[lang] || DNET.en, ki = Math.max(0, S.kids.findIndex(k => k.id === coachKid)); return `<div class="dnet"><div class="section-h" style="margin:18px 0 4px"><h4 style="margin:0">🧠 ${D.title}</h4><span class="meta">${D.legend}</span></div><div class="meta">${D.sub}</div><div class="dnet-svg">${decisionNet(coachKid, r, ["#c4f53a", "#ff6a1f", "#ff5ccb"][ki % 3])}</div></div>`; })()}`;
 }
 function renderCompare() {
   const t = T();
