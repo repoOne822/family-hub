@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261121e9";
-import * as Pix from "./pixel.js?v=20261121e9";
+import { STR } from "./i18n.js?v=20261121e9x";
+import * as Pix from "./pixel.js?v=20261121e9x";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -67,13 +67,13 @@ async function loadMe() {
 const isKid = () => S.me?.role === "kid";
 async function loadAll() {
   if (isKid()) {
-    const tables = ["kids", "entries", "goals", "metrics", "readings", "docs", "journal", "subjects", "calendar_events", "fencing_results", "fencing_lessons", "point_ledger", "rewards", "redemptions"];
+    const tables = ["kids", "entries", "goals", "metrics", "readings", "docs", "journal", "subjects", "calendar_events", "fencing_results", "fencing_lessons", "point_ledger", "rewards", "redemptions", "weekly_exams", "allowance_payouts"];
     const res = await Promise.all(tables.map(t => sb.from(t).select("*")));
     res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
     const m = await sb.rpc("kid_moods", { p_days: 400 }); S.moods = m.data || []; S.checkins = [];
     S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); S.subjects.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); return;
   }
-  const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects", "feedback", "insights", "assessments", "app_saves", "roadmap_items", "parent_checks", "fencing_lessons", "askfred_sync", "fencing_results", "calendar_events", "point_ledger", "rewards", "redemptions"];
+  const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects", "feedback", "insights", "assessments", "app_saves", "roadmap_items", "parent_checks", "fencing_lessons", "askfred_sync", "fencing_results", "calendar_events", "point_ledger", "rewards", "redemptions", "weekly_exams", "allowance_payouts"];
   const res = await Promise.all(tables.map(t => sb.from(t).select("*")));
   res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
   S.kids.sort((a, b) => (a.sort ?? 9) - (b.sort ?? 9));
@@ -1173,7 +1173,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121e9${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121e9x${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
@@ -1267,13 +1267,13 @@ document.addEventListener("click", e => { const a = e.target.closest("[data-app]
 /* ---- parent preview: see a boy's page exactly as he does; nothing saves ---- */
 let preview = null;
 function openPreview(kidId) {
-  const full = preview ? preview.full : { kids: S.kids, entries: S.entries, goals: S.goals, metrics: S.metrics, readings: S.readings, docs: S.docs, journal: S.journal, subjects: S.subjects, checkins: S.checkins, moods: S.moods, point_ledger: S.point_ledger, rewards: S.rewards, redemptions: S.redemptions };
+  const full = preview ? preview.full : { kids: S.kids, entries: S.entries, goals: S.goals, metrics: S.metrics, readings: S.readings, docs: S.docs, journal: S.journal, subjects: S.subjects, checkins: S.checkins, moods: S.moods, point_ledger: S.point_ledger, rewards: S.rewards, redemptions: S.redemptions, weekly_exams: S.weekly_exams, allowance_payouts: S.allowance_payouts };
   const f = a => (a || []).filter(x => x.kid === kidId);
   preview = { kid: kidId, full };
   Object.assign(S, { kids: full.kids.filter(k => k.id === kidId), entries: f(full.entries), goals: f(full.goals), metrics: f(full.metrics), readings: f(full.readings),
     docs: full.docs.filter(d => d.kid === kidId && d.kid_visible), journal: f(full.journal), subjects: f(full.subjects).filter(x => x.active !== false),
     moods: f(full.checkins).filter(c => c.kid_mood).map(c => ({ date: c.date, kid_mood: c.kid_mood })), checkins: [],
-    point_ledger: f(full.point_ledger), redemptions: f(full.redemptions), rewards: (full.rewards || []).filter(r => r.active && (!r.kid || r.kid === kidId)) });
+    point_ledger: f(full.point_ledger), redemptions: f(full.redemptions), weekly_exams: f(full.weekly_exams), allowance_payouts: f(full.allowance_payouts), rewards: (full.rewards || []).filter(r => r.active && (!r.kid || r.kid === kidId)) });
   lastBadges = null; window.scrollTo(0, 0); kidRender();
 }
 function exitPreview() {
@@ -1492,6 +1492,7 @@ function kidRender() {
       </div>
       <div class="kw-layout"><div class="kw-main"><section id="ks-home" class="kw-sec">
       ${little ? "" : kidPlanHtml(k)}
+      <section id="ks-money" class="kw-sec">${kidChallengeHtml(k)}</section>
       ${S.subjects.filter(x => x.active && x.app_url === "space/").map(x => `<button class="kw-spacegame" data-app="space/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#fff;font:inherit;background:radial-gradient(circle at 85% 30%,#9b5de5 0,transparent 45%),linear-gradient(135deg,#1b1f4b,#3a2f7a);box-shadow:0 8px 0 #0003,0 10px 30px #3a2f7a66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.4s ease-in-out infinite">🚀</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "太空探险" : "Space Quest"}</b><span style="opacity:.9;font-size:17px">${lang === "zh" ? "一至三年级数学和单词：打陨石、救外星人、打败大怪兽！" : "Grade 1–3 math + words: blast asteroids, rescue aliens, beat bosses!"}</span></span><span style="background:linear-gradient(#ffd166,#f4a300);color:#3b2400;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0004">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
       ${S.subjects.filter(x => x.active && x.app_url === "brain/").map(x => `<button class="kw-spacegame" data-app="brain/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#2b2d42;font:inherit;background:radial-gradient(circle at 85% 30%,#ffd6e8 0,transparent 45%),linear-gradient(135deg,#caffbf,#a0c4ff);box-shadow:0 8px 0 #0002,0 10px 30px #a0c4ff66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.8s ease-in-out infinite">🧠</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "大脑乐园" : "Brain Park"}</b><span style="opacity:.85;font-size:17px">${lang === "zh" ? "记忆、拼图、机器人编程、画画和音乐！" : "Memory games, puzzles, robot coding, drawing and music!"}</span></span><span style="background:#fff;color:#2b2d42;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0002">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
       </section><section id="ks-worlds" class="kw-sec">
@@ -1808,6 +1809,7 @@ function viewRewards() {
   const habits = S.metrics.filter(m => m.kid === rwKid), goals = S.goals.filter(g => g.kid === rwKid && g.status !== "proposed" && !g.done);
   $("#view").innerHTML = `<div class="section-h"><h3>🎁 ${zh ? "积分与奖励" : "Points & rewards"}</h3></div>
     <div class="rwgrid">${S.kids.map(x => { const q = ptsOf(x.id); return `<div class="rwk" style="--kc:${calCol(x.id)}"><b>${esc(kidName(x.id))}</b><div><span>${q.balance}</span><small>${L.bal}</small></div><div><span>${q.life}</span><small>${L.life}</small></div><div><span>+${q.week}</span><small>${L.week}</small></div></div>`; }).join("")}</div>
+    ${parentChallengeHtml()}
     <div class="card rwcard"><h4>⏳ ${zh ? "等待确认的兑换" : "Requests waiting for you"} (${pend.length})</h4>${pend.length ? pend.map(r => `<div class="rwreq"><div><b>${esc(kidName(r.kid))}</b> · ${esc(r.title)} · ${r.cost} ${zh ? "分" : "pts"}<div class="meta">${new Date(r.requested_at).toLocaleString()}</div></div>
       <input class="rwnote" data-note="${r.id}" maxlength="200" placeholder="${zh ? "备注（可选）" : "Note (optional)"}"><button class="btn sm primary" data-decide="${r.id}" data-ok="1">${zh ? "同意" : "Approve"}</button><button class="btn sm" data-decide="${r.id}" data-ok="0">${zh ? "不同意" : "Decline"}</button></div>`).join("") : `<div class="meta">${zh ? "没有等待中的兑换。" : "Nothing waiting."}</div>`}</div>
     <div class="tabs" style="margin:18px 0 12px;width:max-content;max-width:100%">${S.kids.map(x => `<button class="${x.id === rwKid ? "on" : ""}" data-rwk="${esc(x.id)}">${esc(kidName(x.id))}</button>`).join("")}</div>
@@ -1859,3 +1861,164 @@ document.addEventListener("submit", async e => {
 });
 // kid page jump bar: scroll to a section without touching the URL (the hash drives parent routing)
 document.addEventListener("click", e => { const a = e.target.closest("[data-jump]"); if (!a) return; e.preventDefault(); document.getElementById(a.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" }); });
+
+/* ---------------- 💵 WEEKLY $20 CHALLENGE: stars → exam → money ---------------- */
+const mondayOf = d => { const t = new Date(d + "T12:00"); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return t.toISOString().slice(0, 10); };
+const weekStars = (kid, wk) => (S.point_ledger || []).filter(r => r.kid === kid && r.date >= wk && r.date <= addDays(wk, 6) && r.source !== "spend" && r.source !== "carryover").reduce((a, r) => a + r.points, 0);
+const CH = {
+  en: { h: "Weekly $ challenge", stars: "Stars this week", goal: "goal", left: n => `${n} more stars to unlock the exam`, ready: "You reached your goal! Pass the exam to earn", take: "📝 Take the exam", cont: "▶ Continue the exam",
+    rules: n => `${n} questions · you need 80% · a hint after every mistake · 2 tries`, passed: amt => `🎉 You passed! You earned $${amt} this week.`, paid: "Paid ✓", waiting: "Mom or Dad will pay you soon.",
+    failed1: (s, t) => `Try 1: ${s}/${t}. Not yet, but you get one more try!`, review: "👀 Review my mistakes", try2: "🎯 Start Try 2", try2note: "Try 2 is built from your mistakes, with extra questions on those topics.",
+    failed2: (s, t) => `Try 2: ${s}/${t}. Not this week. Keep practicing — a new challenge starts Monday!`, days: n => n === 0 ? "last day!" : `${n} day${n > 1 ? "s" : ""} left`, last: "Last week's challenge (today only)",
+    q: (i, n) => `Question ${i} of ${n}`, check: "Check", next: "Next →", right: "✅ Right!", hint: "💡 Hint", again: "Try again", answerIs: "The answer is", finish: "See my score", close: "Save & close", why: "Why",
+    result: (s, t, m) => `${s} / ${t} (you needed ${m})`, focus: "Try 2 will focus on:", later: "Later", yourAns: "your answer", typeAns: "Type your answer", unit: "unit", loading: "Building your exam…", listen: "🔊 Listen" },
+  zh: { h: "每周 $ 挑战", stars: "本周星星", goal: "目标", left: n => `再得 ${n} 颗星就能解锁考试`, ready: "你达到目标了！通过考试就能得到", take: "📝 开始考试", cont: "▶ 继续考试",
+    rules: n => `${n} 道题 · 需要 80% · 每次做错都有提示 · 2 次机会`, passed: amt => `🎉 你通过了！本周赚到 $${amt}。`, paid: "已发放 ✓", waiting: "爸爸妈妈很快会给你。",
+    failed1: (s, t) => `第 1 次：${s}/${t}。还差一点，你还有一次机会！`, review: "👀 看看我的错题", try2: "🎯 开始第 2 次", try2note: "第 2 次会根据你的错题出题，在那些知识点上多练几道。",
+    failed2: (s, t) => `第 2 次：${s}/${t}。这周没通过。继续练习——下周一重新开始！`, days: n => n === 0 ? "最后一天！" : `还剩 ${n} 天`, last: "上周的挑战（仅限今天）",
+    q: (i, n) => `第 ${i} / ${n} 题`, check: "检查", next: "下一题 →", right: "✅ 答对了！", hint: "💡 提示", again: "再试一次", answerIs: "正确答案是", finish: "看我的成绩", close: "保存并关闭", why: "为什么",
+    result: (s, t, m) => `${s} / ${t}（需要 ${m}）`, focus: "第 2 次会重点考：", later: "稍后", yourAns: "你的答案", typeAns: "输入答案", unit: "单位", loading: "正在出题…", listen: "🔊 听题" } };
+const CHL = () => CH[lang] || CH.en;
+function challengeState(k) {
+  const td = today(), cw = mondayOf(td), isMon = new Date(td + "T12:00").getDay() === 1, goal = k.weekly_goal || 500;
+  const exams = wk => (S.weekly_exams || []).filter(e => e.kid === k.id && e.week === wk).sort((a, b) => a.attempt - b.attempt);
+  const pay = wk => (S.allowance_payouts || []).find(p => p.kid === k.id && p.week === wk);
+  // Monday grace: finish last week's challenge if he reached the goal and still has a try
+  const pw = addDays(cw, -7), pe = exams(pw);
+  if (isMon && weekStars(k.id, pw) >= goal && !pay(pw) && !(pe.length === 2 && pe[1].status !== "in_progress")) return { wk: pw, last: true, goal, stars: weekStars(k.id, pw), ex: pe, pay: null };
+  return { wk: cw, last: false, goal, stars: weekStars(k.id, cw), ex: exams(cw), pay: pay(cw) };
+}
+function kidChallengeHtml(k) {
+  const L = CHL(), st = challengeState(k), amt = ((k.allowance_cents ?? 2000) / 100).toFixed(0), pct = Math.min(100, Math.round(100 * st.stars / st.goal));
+  const e1 = st.ex.find(e => e.attempt === 1), e2 = st.ex.find(e => e.attempt === 2), inProg = st.ex.find(e => e.status === "in_progress");
+  const daysLeft = Math.max(0, 6 - Math.round((new Date(today() + "T12:00") - new Date(st.wk + "T12:00")) / 864e5));
+  let body;
+  if (st.pay) body = `<div class="chres ok">${L.passed(amt)}<br><small>${st.pay.status === "paid" ? L.paid : L.waiting}</small></div>`;
+  else if (inProg) body = `<button class="btn primary chbig" data-exam="${inProg.attempt}">${L.cont}</button>`;
+  else if (e2 && e2.status === "failed") body = `<div class="chres">${L.failed2(e2.score, e2.total)}</div><button class="btn sm" data-exreview="${e2.id}">${L.review}</button>`;
+  else if (e1 && e1.status === "failed") body = `<div class="chres">${L.failed1(e1.score, e1.total)}</div><p class="meta">${L.try2note}</p><div class="chbtns"><button class="btn" data-exreview="${e1.id}">${L.review}</button><button class="btn primary" data-exam="2">${L.try2}</button></div>`;
+  else if (st.stars >= st.goal) body = `<div class="chres ok">${L.ready} <b>$${amt}</b>!</div><p class="meta">${L.rules(k.id === "jonah" ? 8 : k.id === "eric" ? 12 : 10)}</p><button class="btn primary chbig" data-exam="1">${L.take}</button>`;
+  else body = `<p class="meta">${L.left(st.goal - st.stars)} · ${L.days(daysLeft)}</p>`;
+  const eb = { voxel: ["Earn it", "赚钱"], pixel: ["Weekly boss", "每周首领"] }[kiTheme()];
+  return `<div class="kw-h">${eb ? `<span class="kw-eyebrow">${lang === "zh" ? eb[1] : eb[0]}</span>` : ""}<span class="kw-ht">${KI("coin", 28)} ${L.h.replace("$", "$" + amt)}</span>${st.last ? `<span class="tagc">${L.last}</span>` : ""}</div>
+    <div class="kw-card kch"><div class="chtop"><b>${L.stars}: ${st.stars} / ${st.goal}</b><span>${KI("star", 20)} ${pct}%</span></div><div class="chbar"><i style="width:${pct}%"></i></div>${body}</div>`;
+}
+
+/* ----- the exam screen ----- */
+let EXS = null; // {id, attempt, qs, prog, i, kid, wk}
+const loadScript = src => new Promise((res, rej) => { if (document.querySelector(`script[data-src="${src}"]`)) return res(); const s = document.createElement("script"); s.src = src; s.dataset.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+async function examBanks() { const v = "?v=20261121ex"; await Promise.all(["physics/lessons.js", "quest/gen.js", "amc/lessons.js", "exam/banks.js"].map(s => loadScript(s + v))); await loadScript("exam/exam.js" + v); }
+const speak = txt => { try { if (!window.speechSynthesis || !txt) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(txt); u.rate = .9; u.lang = "en-US"; speechSynthesis.speak(u); } catch (e) {} };
+async function startExam(attempt) {
+  const k = S.kids[0], L = CHL(); if (preview) return setStatus(T().previewNoSave);
+  const st = challengeState(k);
+  const ov = document.createElement("div"); ov.className = "exov"; ov.innerHTML = `<div class="exbox"><div class="meta" style="text-align:center;padding:40px">${L.loading}</div></div>`; document.body.appendChild(ov);
+  try {
+    await examBanks();
+    let qs;
+    const existing = st.ex.find(e => e.attempt === attempt && e.status === "in_progress");
+    if (!existing) {
+      if (attempt === 1) { const { data: saves } = await sb.from("app_saves").select("app,data").eq("kid", k.id); const ph = (saves || []).find(s => s.app === "physics"); qs = EXAM.buildTry1(k.id, saves || [], { physicsClassNow: ph && ph.data && ph.data[`${k.id}_physics_progress`] && ph.data[`${k.id}_physics_progress`].classNow }); }
+      else { const e1 = st.ex.find(e => e.attempt === 1); const missed = e1.questions.filter((q, i) => !(e1.progress[i] || {}).firstOk).map(q => q.topic), passedT = e1.questions.filter((q, i) => (e1.progress[i] || {}).firstOk).map(q => q.topic); qs = EXAM.buildTry2(k.id, missed, passedT); }
+    }
+    const { data, error } = await sb.rpc("exam_start", { p_week: st.wk, p_attempt: attempt, p_questions: qs || [] }); if (error) throw error;
+    EXS = { id: data.id, attempt, qs: data.questions, prog: data.progress, i: Math.max(0, data.progress.findIndex(p => !p.done)), kid: k.id, ov, fb: null };
+    if (EXS.i < 0) EXS.i = EXS.qs.length; renderExam();
+  } catch (err) { ov.remove(); setStatus(err.message, true); }
+}
+function renderExam() {
+  const L = CHL(), E = EXS, box = E.ov; if (E.i >= E.qs.length) return finishExam();
+  const q = E.qs[E.i], p = E.prog[E.i] || {}, little = E.kid === "jonah", fb = E.fb;
+  const dots = E.qs.map((_, j) => { const pp = E.prog[j] || {}; return `<i class="${j === E.i ? "on" : pp.done ? (pp.firstOk ? "ok" : "no") : ""}"></i>`; }).join("");
+  const input = q.type === "mc" ? `<div class="exch ${little ? "big" : ""}">${q.c.map((c, j) => `<button data-exc="${j}" ${fb && (fb.done || fb.correct) ? "disabled" : ""}>${esc(c)}</button>`).join("")}</div>`
+    : `<div class="exnum"><input id="exIn" inputmode="decimal" autocomplete="off" placeholder="${L.typeAns}" ${fb && fb.done ? "disabled" : ""}>${q.units ? `<select id="exUnit">${q.units.map(u => `<option>${esc(u)}</option>`).join("")}</select>` : ""}<button class="btn primary" id="exGo" ${fb && fb.done ? "disabled" : ""}>${L.check}</button></div>`;
+  const fbHtml = !fb ? "" : fb.correct ? `<div class="exfb ok">${L.right}${fb.why ? `<div class="why">${esc(fb.why)}</div>` : ""}</div>`
+    : fb.done ? `<div class="exfb no">${L.answerIs} <b>${esc(fb.answer || "")}</b>${fb.why ? `<div class="why">${esc(fb.why)}</div>` : ""}</div>`
+    : `<div class="exfb hint">${L.hint}: ${esc(fb.hint)}<div class="meta">${L.again}</div></div>`;
+  box.innerHTML = `<div class="exbox ${little ? "little" : ""}"><div class="exhead"><b>${KI("coin", 22)} ${lang === "zh" ? `第 ${E.attempt} 次` : `Try ${E.attempt}`} · ${L.q(E.i + 1, E.qs.length)}</b><button class="btn sm ghost" data-exclose>${L.close}</button></div>
+    <div class="exdots">${dots}</div>${q.topicName ? `<div class="extopic">${esc(q.topicName)}</div>` : ""}
+    <div class="exq">${esc(q.q)}</div>${little || q.tts ? `<button class="btn sm" data-exsay>${L.listen}</button>` : ""}
+    ${input}${fbHtml}${fb && (fb.done || fb.correct) ? `<div class="exnext"><button class="btn primary" data-exnext>${E.i === E.qs.length - 1 ? L.finish : L.next}</button></div>` : ""}</div>`;
+  if (!fb && (little || q.tts)) speak(q.tts || q.q);
+  const inp = box.querySelector("#exIn"); if (inp && !(fb && fb.done)) { inp.focus(); inp.onkeydown = e => { if (e.key === "Enter") box.querySelector("#exGo").click(); }; }
+}
+async function examAnswer(ans) {
+  const E = EXS; try {
+    const { data, error } = await sb.rpc("exam_answer", { p_id: E.id, p_idx: E.i, p_answer: String(ans) }); if (error) throw error;
+    E.fb = data; E.prog[E.i] = Object.assign({}, E.prog[E.i], { tries: (E.prog[E.i].tries || 0) + 1, done: data.done, firstOk: data.firstTry ? data.correct : E.prog[E.i].firstOk });
+    if (data.correct && data.firstTry) { try { confetti(); } catch (e) {} }
+    if (!data.correct && !data.done && (E.kid === "jonah")) speak("Here's a hint. " + data.hint);
+    renderExam();
+  } catch (err) { setStatus(err.message, true); }
+}
+async function finishExam() {
+  const L = CHL(), E = EXS; try {
+    const { data, error } = await sb.rpc("exam_finish", { p_id: E.id }); if (error) throw error;
+    const names = [...new Set(E.qs.filter((q, i) => !(E.prog[i] || {}).firstOk).map(q => q.topicName || q.topic))];
+    E.ov.innerHTML = `<div class="exbox"><div class="exres ${data.passed ? "ok" : ""}">${data.passed ? "🎉" : E.attempt === 1 ? "💪" : "🌱"}<h2>${L.result(data.score, data.total, data.pass_mark)}</h2>
+      <p>${data.passed ? L.passed(((S.kids[0].allowance_cents ?? 2000) / 100).toFixed(0)) + " " + L.waiting : E.attempt === 1 ? L.failed1(data.score, data.total) : L.failed2(data.score, data.total)}</p>
+      ${!data.passed && E.attempt === 1 && names.length ? `<p><b>${L.focus}</b></p><ul class="exmiss">${names.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
+      <div class="chbtns" style="justify-content:center">${!data.passed && E.attempt === 1 ? `<button class="btn" data-exdone>${L.later}</button><button class="btn primary" data-exam="2">${L.try2}</button>` : `<button class="btn primary" data-exdone>OK</button>`}</div></div></div>`;
+    if (data.passed) { try { confetti(); setTimeout(confetti, 400); } catch (e) {} }
+    await loadAll();
+  } catch (err) { setStatus(err.message, true); }
+}
+function examReview(id) {
+  const L = CHL(), e = (S.weekly_exams || []).find(x => x.id === id); if (!e) return;
+  const ov = document.createElement("div"); ov.className = "exov";
+  ov.innerHTML = `<div class="exbox"><div class="exhead"><b>${L.review}</b><button class="btn sm ghost" data-exdone>✕</button></div>${e.questions.map((q, i) => { const p = e.progress[i] || {}; if (p.firstOk) return ""; return `<div class="exrv"><div class="extopic">${esc(q.topicName || "")}</div><div class="exq sm">${esc(q.q)}</div>
+    <div>${L.yourAns}: <b>${esc(q.type === "mc" && /^\d+$/.test(p.mine || "") ? (q.c || [])[+p.mine] || "" : (p.mine || "").replace("|", " "))}</b> · ${L.answerIs}: <b>${esc(p.answer || "")}</b></div>${p.why ? `<div class="why">${esc(p.why)}</div>` : ""}</div>`; }).join("") || `<p class="meta">—</p>`}</div>`;
+  document.body.appendChild(ov);
+}
+document.addEventListener("click", e => {
+  const t = e.target;
+  const st = t.closest("[data-exam]"); if (st) { document.querySelectorAll(".exov").forEach(o => o.remove()); return startExam(+st.dataset.exam); }
+  const rv = t.closest("[data-exreview]"); if (rv) return examReview(rv.dataset.exreview);
+  if (t.closest("[data-exdone]")) { document.querySelectorAll(".exov").forEach(o => o.remove()); EXS = null; try { speechSynthesis.cancel(); } catch (x) {} if (document.body.classList.contains("kidmode")) kidRender(); return; }
+  if (!EXS) return;
+  if (t.closest("[data-exclose]")) { EXS.ov.remove(); EXS = null; try { speechSynthesis.cancel(); } catch (x) {} loadAll().then(kidRender); return; }
+  if (t.closest("[data-exsay]")) { const q = EXS.qs[EXS.i]; return speak(q.tts || q.q); }
+  if (t.closest("[data-exnext]")) { EXS.i++; EXS.fb = null; return renderExam(); }
+  const c = t.closest("[data-exc]"); if (c) return examAnswer(c.dataset.exc);
+  if (t.id === "exGo") { const v = (document.getElementById("exIn").value || "").trim(); if (!v) return; const u = document.getElementById("exUnit"); return examAnswer(u ? `${v}|${u.value}` : v); }
+});
+
+/* ----- parents: the weekly challenge on the Rewards page ----- */
+function parentChallengeHtml() {
+  const zh = lang === "zh";
+  const rows = S.kids.map(k => { const st = challengeState(k), e1 = st.ex.find(e => e.attempt === 1), e2 = st.ex.find(e => e.attempt === 2);
+    const status = st.pay ? (zh ? "✅ 通过" : "✅ Passed") : e2 ? (e2.status === "in_progress" ? (zh ? "第 2 次进行中" : "Try 2 in progress") : (zh ? `两次未通过（${e1.score}/${e1.total}，${e2.score}/${e2.total}）` : `Not passed (${e1.score}/${e1.total}, ${e2.score}/${e2.total})`))
+      : e1 ? (e1.status === "in_progress" ? (zh ? "第 1 次进行中" : "Try 1 in progress") : (zh ? `第 1 次 ${e1.score}/${e1.total}，还有 1 次` : `Try 1 ${e1.score}/${e1.total} · 1 try left`)) : st.stars >= st.goal ? (zh ? "🔓 可以考试" : "🔓 Exam unlocked") : (zh ? "积累中" : "Collecting stars");
+    return `<div class="chrow"><b>${esc(kidName(k.id))}</b>
+      <span>${st.stars} / <input type="number" min="50" max="10000" step="50" value="${st.goal}" data-wgoal="${esc(k.id)}" style="width:80px"> ${zh ? "星" : "stars"}</span>
+      <span>$<input type="number" min="0" max="1000" step="1" value="${((k.allowance_cents ?? 2000) / 100)}" data-wamt="${esc(k.id)}" style="width:64px"></span>
+      <span>${status}</span>
+      ${st.pay ? (st.pay.status === "paid" ? `<span class="meta">${zh ? "已发放" : "Paid"} ${st.pay.paid_at ? fmtDate(st.pay.paid_at.slice(0, 10)) : ""} <button class="btn sm ghost" data-unpay="${st.pay.id}">${zh ? "撤销" : "Undo"}</button></span>` : `<button class="btn sm primary" data-pay="${st.pay.id}">💵 ${zh ? `标记已付 $${(st.pay.amount_cents / 100).toFixed(0)}` : `Mark $${(st.pay.amount_cents / 100).toFixed(0)} paid`}</button>`) : "<span></span>"}
+      ${st.ex.filter(e => e.status !== "in_progress").map(e => `<button class="btn sm ghost" data-pexam="${e.id}">${zh ? `第 ${e.attempt} 次详情` : `Try ${e.attempt} details`}</button>`).join("")}</div>`; }).join("");
+  const hist = (S.allowance_payouts || []).slice().sort((a, b) => b.week.localeCompare(a.week)).slice(0, 12);
+  return `<div class="card rwcard" style="margin-bottom:16px"><h4>💵 ${zh ? "每周挑战：星星 → 考试 → 零花钱" : "Weekly challenge: stars → exam → money"}</h4>
+    <p class="meta">${zh ? "达到本周星星目标后解锁考试。80% 通过，2 次机会，每次做错有提示；第 2 次按错题出题。考试答案在服务器上判分。" : "Reaching the week's star goal unlocks the exam. 80% to pass, 2 tries, a hint after each mistake; try 2 is built from the mistakes. Answers are graded on the server."}</p>
+    ${rows}${hist.length ? `<h5>${zh ? "记录" : "History"}</h5>${hist.map(p => `<div class="kpt"><span>$${(p.amount_cents / 100).toFixed(0)}</span>${esc(kidName(p.kid))} · ${zh ? "第" : "week of"} ${fmtDate(p.week)}<small>${p.status === "paid" ? (zh ? "已发放" : "paid") : (zh ? "待发放" : "to pay")}</small></div>`).join("")}` : ""}</div>`;
+}
+async function parentExamDetail(id) {
+  const zh = lang === "zh", e = (S.weekly_exams || []).find(x => x.id === id); if (!e) return;
+  const { data: keys } = await sb.from("exam_keys").select("idx,key").eq("exam_id", id);
+  const K = Object.fromEntries((keys || []).map(r => [r.idx, r.key]));
+  const ov = document.createElement("div"); ov.className = "exov";
+  ov.innerHTML = `<div class="exbox"><div class="exhead"><b>${esc(kidName(e.kid))} · ${zh ? `第 ${e.attempt} 次` : `Try ${e.attempt}`} · ${e.score}/${e.total}</b><button class="btn sm ghost" data-exdone>✕</button></div>${e.questions.map((q, i) => { const p = e.progress[i] || {}, k = K[i] || {};
+    return `<div class="exrv ${p.firstOk ? "ok" : "no"}"><div class="extopic">${p.firstOk ? "✅" : p.ok ? "🟡" : "❌"} ${esc(q.topicName || q.topic || "")}</div><div class="exq sm">${esc(q.q)}</div><div class="meta">${zh ? "他的答案" : "His answer"}: ${esc(q.type === "mc" && /^\d+$/.test(p.mine || "") ? (q.c || [])[+p.mine] || "" : (p.mine || "—").replace("|", " "))} · ${zh ? "正确答案" : "Right answer"}: ${esc(k.answerText || "")}${p.tries > 1 ? ` · ${zh ? "用了提示" : "used the hint"}` : ""}</div></div>`; }).join("")}</div>`;
+  document.body.appendChild(ov);
+}
+document.addEventListener("click", async e => {
+  if (document.body.classList.contains("kidmode")) return;
+  const pay = e.target.closest("[data-pay],[data-unpay]"), det = e.target.closest("[data-pexam]");
+  try {
+    if (pay) { const { error } = await sb.rpc("parent_mark_paid", { p_id: pay.dataset.pay || pay.dataset.unpay, p_paid: !!pay.dataset.pay }); if (error) throw error; setStatus("✓"); return refresh(); }
+    if (det) return parentExamDetail(det.dataset.pexam);
+  } catch (err) { setStatus(err.message, true); }
+});
+document.addEventListener("change", async e => {
+  const el = e.target; if (!el.dataset.wgoal && !el.dataset.wamt) return;
+  try { const patch = el.dataset.wgoal ? { weekly_goal: Math.max(50, Math.min(10000, +el.value || 500)) } : { allowance_cents: Math.round(Math.max(0, Math.min(1000, +el.value || 0)) * 100) };
+    const { error } = await sb.from("kids").update(patch).eq("id", el.dataset.wgoal || el.dataset.wamt); if (error) throw error; setStatus("✓"); refresh(); } catch (err) { setStatus(err.message, true); }
+});
