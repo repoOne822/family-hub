@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261120g";
-import * as Pix from "./pixel.js?v=20261120g";
+import { STR } from "./i18n.js?v=20261120h";
+import * as Pix from "./pixel.js?v=20261120h";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -870,6 +870,27 @@ function goalProgress(m) {
   const cur = rs.length ? +rs[rs.length - 1].value : +m.baseline, span = (+m.target) - (+m.baseline);
   return { cur, last: rs[rs.length - 1]?.date, p: span ? clamp01((cur - (+m.baseline)) / span) : 1 };
 }
+/* ---- Space Quest (Jonah's math + words game): parent summary from app_saves ---- */
+const SQ_M = ["", "Add within 10", "Take away within 10", "Add & subtract to 20", "Missing number", "Add tens & ones", "2-digit, no regrouping", "2-digit with regrouping", "Place value & story problems"];
+const SQ_W = ["", "Find the picture", "First sounds", "Rhyming words", "Read the word", "Missing letter", "Sight words", "Opposites", "Word meanings"];
+const SQ_L = { en: { t: "🚀 Space Quest progress", none: "No games played yet. He opens it from his 🚀 world.", stars: "stars", math: "Number Planet", words: "Word Planet", lv: "Level", wk: "Last 7 days", days: "days played", min: "min", q: "questions", ft: "first-try", skill: "Skill", acc: "First-try correct", n: "Questions", note: "Levels move on their own: 5/5 first-try moves up, 2 or fewer moves down. 10-minute sessions, then a movement break." },
+  zh: { t: "🚀 太空探险进度", none: "还没玩过。他可以从自己的 🚀 世界打开。", stars: "颗星", math: "数字星球", words: "单词星球", lv: "等级", wk: "最近7天", days: "天玩过", min: "分钟", q: "题", ft: "一次答对", skill: "技能", acc: "一次答对率", n: "题数", note: "等级自动调整：5题全对升级，答对2题或以下降级。每次10分钟后休息活动。" } };
+function spaceStatsHtml(kid) {
+  const L = SQ_L[lang] || SQ_L.en, save = (S.app_saves || []).find(a => a.kid === kid && a.app === "space"), P = save && save.data ? save.data[`${kid}_space_state`] : null;
+  if (!P) return `<div class="coach"><h4>${L.t}</h4><div class="meta">${L.none}</div></div>`;
+  const pct = (q, c) => q ? Math.round(c / q * 100) + "%" : "–";
+  let sec = 0, dp = 0, wq = 0, wc = 0;
+  for (let i = 0; i < 7; i++) { const k = new Date(Date.now() - i * 864e5).toLocaleDateString("en-CA"), d = (P.days || {})[k]; if (d && d.sec > 0) { sec += d.sec; dp++; wq += d.q || 0; wc += d.c || 0; } }
+  const sum = p => Object.entries(P.skills || {}).filter(([k]) => k.startsWith(p)).reduce((a, [, v]) => ({ q: a.q + v.q, c: a.c + v.c }), { q: 0, c: 0 });
+  const m = sum("math"), w = sum("words"), lv = P.lv || {};
+  const rows = []; for (let i = 1; i <= 8; i++) for (const p of ["math", "words"]) { const v = (P.skills || {})[p + i]; if (v) rows.push(`<tr><td>${p === "math" ? "🔢 " + SQ_M[i] : "🔤 " + SQ_W[i]}</td><td>${pct(v.q, v.c)}</td><td>${v.q}</td></tr>`); }
+  return `<div class="coach"><h4>${L.t}</h4>
+    <div class="meta">⭐ ${P.stars || 0} ${L.stars} · ${L.wk}: ${Math.round(sec / 60)} ${L.min}, ${dp}/7 ${L.days}, ${wq} ${L.q}, ${pct(wq, wc)} ${L.ft}</div>
+    <div class="meta">🪐 ${L.math}: ${L.lv} ${lv.math || "–"} · ${SQ_M[lv.math] || ""} (${pct(m.q, m.c)} ${L.ft}) &nbsp; 🌍 ${L.words}: ${L.lv} ${lv.words || "–"} · ${SQ_W[lv.words] || ""} (${pct(w.q, w.c)} ${L.ft})</div>
+    ${rows.length ? `<table style="margin-top:6px"><tr><th>${L.skill}</th><th>${L.acc}</th><th>${L.n}</th></tr>${rows.join("")}</table>` : ""}
+    <div class="meta" style="margin-top:6px">${L.note}</div></div>`;
+}
+
 /* ---- fencing coach notes (parents write after each lesson; the Fencing Brain game shows them) ---- */
 const FLS = { en: { h: "🤺 Coach notes → shown in his game", none: "No lesson notes yet.", add: "+ Add today's lesson notes", date: "Date", kind: "Type", kinds: { lesson: "Private lesson", practice: "Group practice", tournament: "Tournament" }, focus: "Big focus (one line)", points: "What coach taught (one per line)", hw: "Homework / questions (one per line)", raw: "Original notes (optional, e.g. 中文 from the coach)", save: "Save notes", tip: "Write it the way Ellis should read it in the game. Short lines work best.", saved: "Lesson notes saved. They'll show in his game next time he opens it." },
   zh: { h: "🤺 教练笔记 → 显示在他的游戏里", none: "还没有课堂笔记。", add: "+ 添加今天的课堂笔记", date: "日期", kind: "类型", kinds: { lesson: "私教课", practice: "集体训练", tournament: "比赛" }, focus: "重点（一句话）", points: "教练教了什么（每行一条）", hw: "作业 / 思考题（每行一条）", raw: "原始笔记（可选，例如教练的中文笔记）", save: "保存笔记", tip: "游戏是英文的，请尽量用 Ellis 能看懂的简短句子（也可以把中文发给 Claude 帮忙翻译）。", saved: "课堂笔记已保存，他下次打开游戏就能看到。" } };
@@ -951,6 +972,7 @@ function viewSubjects() {
   const card = x => { const ms = S.metrics.filter(m => m.subject_id === x.id), notes = S.entries.filter(e => e.subject_id === x.id).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5), docs = S.docs.filter(d => d.subject_id === x.id);
     return `<div class="kid" style="--kc:${kidColor(x.kid)};cursor:default"><div class="kid-top"><div><h2>${x.icon} ${esc(sName(x))}</h2>${sDesc(x) ? `<div class="meta">${esc(sDesc(x))}</div>` : ""}</div><div style="display:flex;gap:6px">${x.app_url ? `<button class="btn sm primary" data-app="${esc(x.app_url)}" data-appkid="${esc(x.kid)}">▶ ${t.openApp}</button>` : ""}<button class="btn sm ghost" data-esubj="${x.id}">${t.edit}</button></div></div>
       ${x.app_url === "fencing/" ? fencingLessonsHtml(x.kid) : ""}
+      ${x.app_url === "space/" ? spaceStatsHtml(x.kid) : ""}
       <div class="goals"><h4>${t.goals}</h4>${ms.length ? ms.map(goalRow).join("") : `<div class="meta">${t.noGoals}</div>`}${goalForm(x.id)}</div>
       <div class="latest"><h4>${t.notes}</h4>${notes.map(e => `<div class="meta" style="color:var(--ink)"><span class="tag ${e.tone}">${{ positive: t.toneWin, concern: t.toneConcern, neutral: t.toneNote }[e.tone]}</span>${esc(e.title)} <span class="meta">· ${fmtDate(e.date)}</span></div>`).join("")}
         <form class="nform addgoal" data-sid="${x.id}" style="margin-top:6px"><select name="tone" style="width:auto"><option value="positive">${t.toneWin}</option><option value="neutral">${t.toneNote}</option><option value="concern">${t.toneConcern}</option></select><input name="title" maxlength="140" placeholder="${t.noteIn}" required><button class="btn sm">${t.addNote}</button></form></div>
@@ -1000,7 +1022,8 @@ $("#sArchive").onclick = async () => { if (!editingSubj) return; const { error }
 let kidTap = null;
 /* ---- kid apps (e.g. Ellis's Fencing Brain Academy): full-screen, progress synced to app_saves ---- */
 const APPS = { "fencing/": { id: "fencing", prefix: "ellis_", skip: ["ellis_pin", "ellis_coachNotes"], label: { en: "Play Fencing Brain Academy", zh: "进入击剑大脑学院" } },
-  "amc/": { id: "amc", prefix: kid => `${kid}_amc_`, skip: [], perKid: true, label: { en: "Open my AMC 8 lessons", zh: "打开我的 AMC 8 课程" } } };
+  "amc/": { id: "amc", prefix: kid => `${kid}_amc_`, skip: [], perKid: true, label: { en: "Open my AMC 8 lessons", zh: "打开我的 AMC 8 课程" } },
+  "space/": { id: "space", prefix: kid => `${kid}_space_`, skip: [], perKid: true, label: { en: "Play Space Quest", zh: "进入太空探险" } } };
 const appLabel = url => (APPS[url]?.label || {})[lang] || T().openApp;
 let appOpen = null;
 async function openApp(url, kid) {
@@ -1027,7 +1050,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120g${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120h${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; };
   fs.querySelector(".appclose").onclick = () => appOpen();

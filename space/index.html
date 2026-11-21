@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<script>if(window.top===window){location.replace("../#space");}</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Jonah's Space Quest</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--sky1:#1b1f4b;--sky2:#3a2f7a;--card:#ffffff;--ink:#22223b;--accent:#ffb703;--good:#3fbf7f;--bad:#ff8fa3;--blue:#4cc9f0;--purple:#9b5de5}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{font-family:"Baloo 2",system-ui,sans-serif;color:var(--ink);background:radial-gradient(circle at 20% 10%,#5a4fcf 0,transparent 40%),linear-gradient(160deg,var(--sky1),var(--sky2));min-height:100vh;overflow-x:hidden}
+.stars-bg{position:fixed;inset:0;pointer-events:none;background-image:radial-gradient(2px 2px at 20% 30%,#fff8,transparent),radial-gradient(1.5px 1.5px at 70% 20%,#fff9,transparent),radial-gradient(2px 2px at 40% 80%,#fff6,transparent),radial-gradient(1px 1px at 85% 60%,#fff9,transparent),radial-gradient(1.5px 1.5px at 10% 70%,#fff7,transparent),radial-gradient(1px 1px at 55% 45%,#fff8,transparent)}
+.app{position:relative;max-width:760px;margin:0 auto;padding:16px 16px 40px}
+.top{display:flex;align-items:center;gap:10px;color:#fff;margin-bottom:12px}
+.top .title{font-size:26px;font-weight:800;flex:1}
+.pill{background:#ffffff22;border-radius:999px;padding:4px 14px;font-weight:700;font-size:20px}
+.screen{display:none}.screen.on{display:block}
+.card{background:var(--card);border-radius:28px;padding:22px;box-shadow:0 10px 30px #0004}
+.hero{text-align:center;color:#fff;margin:6px 0 18px}
+.hero .rocket{font-size:72px;display:inline-block;animation:float 3s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-10px) rotate(4deg)}}
+.hero h1{margin:0;font-size:34px}
+.hero p{margin:4px 0 0;font-size:20px;opacity:.9}
+.planets{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.planet{border:none;border-radius:28px;padding:22px 10px;font-family:inherit;font-size:28px;font-weight:800;color:#fff;cursor:pointer;box-shadow:0 8px 0 #0003;transition:transform .1s}
+.planet:active{transform:translateY(4px);box-shadow:0 4px 0 #0003}
+.planet .big{font-size:64px;display:block}
+.planet small{display:block;font-size:17px;font-weight:600;opacity:.9}
+.p-math{background:linear-gradient(160deg,#f77f00,#fcbf49)}
+.p-words{background:linear-gradient(160deg,#4361ee,#4cc9f0)}
+.book{margin-top:16px}
+.book h3{margin:0 0 8px;font-size:22px}
+.stickers{display:flex;flex-wrap:wrap;gap:8px;font-size:36px}
+.stickers .lock{opacity:.18;filter:grayscale(1)}
+.next{font-size:17px;color:#555;margin-top:6px}
+.meter{height:16px;background:#eee;border-radius:9px;overflow:hidden;margin-top:6px}
+.meter div{height:100%;background:linear-gradient(90deg,var(--accent),#fb8500);border-radius:9px;transition:width .4s}
+.parentlink{display:block;margin:18px auto 0;background:none;border:none;color:#fff9;font-family:inherit;font-size:15px;text-decoration:underline;cursor:pointer}
+.playbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.btn{border:none;border-radius:18px;font-family:inherit;font-weight:700;font-size:20px;padding:10px 18px;cursor:pointer;background:#fff;color:var(--ink);box-shadow:0 4px 0 #0002}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 #0002}
+.btn.go{background:var(--accent);font-size:26px;padding:14px 28px}
+.dots{display:flex;gap:8px;flex:1;justify-content:center}
+.dot{width:18px;height:18px;border-radius:50%;background:#ffffff40}
+.dot.done{background:var(--accent)}.dot.half{background:#ffd58a}.dot.miss{background:#ffffff80}.dot.cur{outline:3px solid #fff}
+.qtext{font-size:30px;font-weight:800;text-align:center;line-height:1.25;margin:4px 0 8px}
+.visual{text-align:center;font-size:34px;line-height:1.3;min-height:10px;margin-bottom:6px;word-break:break-word}
+.visual .group{display:inline-block;padding:4px 10px;border-radius:14px;background:#f3f0ff;margin:4px}
+.visual .gone{opacity:.25;text-decoration:line-through}
+.visual .bigemoji{font-size:90px;display:block}
+.speak{display:block;margin:0 auto 14px;background:#eef6ff;font-size:18px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.opt{border:none;border-radius:22px;background:#f6f4ff;font-family:inherit;font-size:38px;font-weight:800;padding:18px 8px;cursor:pointer;box-shadow:0 6px 0 #d8d2f5;color:var(--ink);min-height:96px}
+.opt small{display:block;font-size:20px;font-weight:700;color:#555}
+.opt:active{transform:translateY(3px);box-shadow:0 3px 0 #d8d2f5}
+.opt.right{background:#d8f7e7;box-shadow:0 6px 0 #9ddfbc}
+.opt.wrong{background:#ffe3e8;box-shadow:none;opacity:.5;pointer-events:none}
+.feedback{text-align:center;font-size:26px;font-weight:800;min-height:40px;margin-top:12px}
+.feedback.good{color:var(--good)}.feedback.try{color:#e76f51}
+.center{text-align:center}
+.burst{font-size:80px;animation:pop .5s ease}
+@keyframes pop{0%{transform:scale(.2)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
+.earned{font-size:44px;letter-spacing:4px}
+.newsticker{font-size:20px;margin-top:6px}
+.newsticker span{font-size:70px;display:block}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}
+.stat{background:#f6f4ff;border-radius:16px;padding:12px}
+.stat b{display:block;font-size:28px}
+.ptable{width:100%;border-collapse:collapse;font-size:16px;margin-top:8px}
+.ptable th,.ptable td{text-align:left;padding:6px 4px;border-bottom:1px solid #eee}
+.set{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0;font-size:17px}
+.set select{font-family:inherit;font-size:17px;padding:4px 8px;border-radius:10px}
+.note{font-size:15px;color:#666}
+@media (max-width:480px){.qtext{font-size:25px}.opt{font-size:30px;min-height:80px}.planet{font-size:22px}.planet .big{font-size:50px}}
+</style>
+</head>
+<body>
+<div class="stars-bg"></div>
+<div class="app">
+  <div class="top"><div class="title">🚀 Space Quest</div><div class="pill">⭐ <span id="starCount">0</span></div></div>
+
+  <!-- HOME -->
+  <section class="screen on" id="home">
+    <div class="hero"><div class="rocket">🚀</div><h1 id="hi">Hi Jonah!</h1><p>Pick a planet to explore</p></div>
+    <div class="planets">
+      <button class="planet p-math" data-mode="math"><span class="big">🪐</span>Number Planet<small>Level <span id="lvMath">3</span></small></button>
+      <button class="planet p-words" data-mode="words"><span class="big">🌍</span>Word Planet<small>Level <span id="lvWords">2</span></small></button>
+    </div>
+    <div class="card book">
+      <h3>🎒 My sticker book</h3>
+      <div class="stickers" id="stickers"></div>
+      <div class="next" id="nextSticker"></div>
+      <div class="meter"><div id="meter"></div></div>
+    </div>
+    <button class="parentlink" id="toParents">Parents</button>
+  </section>
+
+  <!-- PLAY -->
+  <section class="screen" id="play">
+    <div class="playbar"><button class="btn" id="quit">🏠</button><div class="dots" id="dots"></div><div class="pill" id="lvTag">Lv 1</div></div>
+    <div class="card">
+      <div class="qtext" id="q"></div>
+      <div class="visual" id="vis"></div>
+      <button class="btn speak" id="say">🔊 Hear it</button>
+      <div class="opts" id="opts"></div>
+      <div class="feedback" id="fb"></div>
+    </div>
+  </section>
+
+  <!-- ROUND DONE -->
+  <section class="screen" id="done">
+    <div class="card center">
+      <div class="burst" id="doneEmoji">🎉</div>
+      <div class="qtext" id="doneMsg">Mission complete!</div>
+      <div class="earned" id="earned"></div>
+      <div class="newsticker" id="newSticker"></div>
+      <div id="levelMsg" class="qtext" style="font-size:22px;color:#6a4c93"></div>
+      <div style="display:flex;gap:12px;justify-content:center;margin-top:14px;flex-wrap:wrap">
+        <button class="btn go" id="again">Fly again!</button>
+        <button class="btn" id="homeBtn">🏠 Home</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- BREAK -->
+  <section class="screen" id="break">
+    <div class="card center">
+      <div class="burst">🧑‍🚀</div>
+      <div class="qtext">Great work, astronaut!</div>
+      <p style="font-size:24px;margin:6px 0">Brain break time! <br><span id="breakTask">Do 10 rocket jumps 🚀</span></p>
+      <p class="note">You played for <span id="breakMin">10</span> minutes today. Come back later for more stars!</p>
+      <button class="btn" id="breakHome">🏠 Back to base</button>
+    </div>
+  </section>
+
+  <!-- PARENTS -->
+  <section class="screen" id="parents">
+    <div class="card">
+      <h2 style="margin:0">Parent corner</h2>
+      <p class="note">Progress syncs to Family Hub. Short daily sessions work best: 10 minutes, same time each day.</p>
+      <div class="pgrid">
+        <div class="stat">Today<b id="pToday">0 min</b><span id="pTodayQ" class="note"></span></div>
+        <div class="stat">Last 7 days<b id="pWeek">0 min</b><span id="pWeekD" class="note"></span></div>
+        <div class="stat">Number Planet<b id="pMath">Lv 1</b><span id="pMathAcc" class="note"></span></div>
+        <div class="stat">Word Planet<b id="pWords">Lv 1</b><span id="pWordsAcc" class="note"></span></div>
+      </div>
+      <table class="ptable"><thead><tr><th>Skill</th><th>First-try correct</th><th>Questions</th></tr></thead><tbody id="pSkills"></tbody></table>
+      <h3 style="margin-bottom:4px">Settings</h3>
+      <div class="set">Session length
+        <select id="sLen"><option value="8">8 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="20">20 min</option></select>
+      </div>
+      <div class="set">Read questions aloud
+        <select id="sVoice"><option value="1">On</option><option value="0">Off</option></select>
+      </div>
+      <div class="set">Number Planet level <select id="sMath"></select> Word Planet level <select id="sWords"></select></div>
+      <p class="note">Levels move automatically: 5 of 5 right on the first try moves up, 2 or fewer moves down.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn" id="pCopy">Copy progress summary</button>
+        <button class="btn" id="pTime">Reset today's timer</button>
+        <button class="btn" id="pBack">Done</button>
+      </div>
+      <p class="note" id="pMsg"></p>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ---------- storage ---------- */
+const QS=new URLSearchParams(location.search);const KID=(QS.get("k")||"jonah").replace(/[^a-z0-9_-]/gi,"");const IS_PARENT=QS.get("p")==="1";
+const KEY=KID+"_space_state";
+let S={stars:0,lv:{math:3,words:2},days:{},skills:{},len:10,voice:1};
+try{const raw=localStorage.getItem(KEY);if(raw)S=Object.assign(S,JSON.parse(raw))}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const today=()=>new Date().toLocaleDateString("en-CA");
+function day(){return S.days[today()]||(S.days[today()]={sec:0,q:0,c:0})}
+const $=id=>document.getElementById(id);
+const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+
+/* ---------- sound ---------- */
+let ctx;
+function tone(f,d,t=0){try{ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=f;o.type="sine";g.gain.setValueAtTime(.15,ctx.currentTime+t);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+t+d);o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+d)}catch(e){}}
+const yay=()=>{tone(523,.15);tone(659,.15,.12);tone(784,.25,.24)};
+const oops=()=>tone(260,.2);
+function speak(t){if(!+S.voice)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.85;u.pitch=1.1;u.lang="en-US";speechSynthesis.speak(u)}catch(e){}}
+
+/* ---------- stickers ---------- */
+const STICKERS=["🦊","🐢","🦖","🐙","🦁","🐼","🦄","🐳","🦉","🐝","🌈","🌵","🍩","🍉","⚽","🎸","🛸","🌋","🏰","🐲","🦕","🐯","🐧","🦋","🌟","🏆","👑","💎","🌙","🪐"];
+const PER=10;
+function renderHome(){
+  $("starCount").textContent=S.stars;$("lvMath").textContent=S.lv.math;$("lvWords").textContent=S.lv.words;
+  const got=Math.min(Math.floor(S.stars/PER),STICKERS.length);
+  $("stickers").innerHTML=STICKERS.map((s,i)=>`<span class="${i<got?"":"lock"}">${s}</span>`).join("");
+  const left=PER-(S.stars%PER);
+  $("nextSticker").textContent=got>=STICKERS.length?"You collected every sticker! 🏆":`${left} more star${left>1?"s":""} for your next sticker`;
+  $("meter").style.width=((S.stars%PER)/PER*100)+"%";
+}
+
+/* ---------- math generator ---------- */
+const MATH_NAMES=["","Add within 10","Take away within 10","Add & subtract to 20","Missing number","Add tens & ones","2-digit, no regrouping","2-digit with regrouping","Place value & story problems"];
+const FRUIT=["🍎","🍓","⭐","🐟","🍪","🎈","🚗","🌸"];
+function near(ans,spread){const s=new Set([ans]);let guard=0;while(s.size<4&&guard++<50){const d=pick(spread)*(Math.random()<.5?-1:1);const v=ans+d;if(v>=0)s.add(v)}let x=1;while(s.size<4)s.add(ans+10*x++);return shuffle([...s])}
+function mathQ(lv){
+  let a,b,ans,q,say,vis="",sp=[1,2,3];
+  if(lv===1){a=rnd(1,6);b=rnd(1,10-a);ans=a+b;const f=pick(FRUIT);q=`${a} + ${b} = ?`;say=`What is ${a} plus ${b}?`;vis=`<span class="group">${f.repeat(a)}</span> + <span class="group">${f.repeat(b)}</span>`}
+  else if(lv===2){a=rnd(3,10);b=rnd(1,a-1);ans=a-b;const f=pick(FRUIT);q=`${a} − ${b} = ?`;say=`What is ${a} take away ${b}?`;vis=`<span class="group">${f.repeat(ans)}<span class="gone">${f.repeat(b)}</span></span>`}
+  else if(lv===3){if(Math.random()<.5){a=rnd(5,12);b=rnd(2,20-a);ans=a+b;q=`${a} + ${b} = ?`;say=`What is ${a} plus ${b}?`}else{a=rnd(11,20);b=rnd(2,9);ans=a-b;q=`${a} − ${b} = ?`;say=`What is ${a} minus ${b}?`}}
+  else if(lv===4){b=rnd(2,9);ans=rnd(2,11);const t=ans+b;if(Math.random()<.5){q=`? + ${b} = ${t}`;say=`What number plus ${b} makes ${t}?`}else{q=`${t} − ? = ${b}`;say=`${t} minus what number equals ${b}?`}}
+  else if(lv===5){if(Math.random()<.5){a=rnd(2,8)*10+rnd(0,4);b=rnd(1,5);if(a%10+b>9)b=9-a%10;ans=a+b;q=`${a} + ${b} = ?`;say=`What is ${a} plus ${b}?`}else{a=rnd(1,6)*10+rnd(1,9);b=rnd(1,3)*10;ans=a+b;q=`${a} + ${b} = ?`;say=`What is ${a} plus ${b}?`;sp=[10,1,20]}}
+  else if(lv===6){sp=[1,10,2];if(Math.random()<.5){a=rnd(1,5)*10+rnd(0,5);b=rnd(1,4)*10+rnd(0,9-a%10);ans=a+b;q=`${a} + ${b} = ?`;say=`What is ${a} plus ${b}?`}else{a=rnd(4,9)*10+rnd(4,9);b=rnd(1,3)*10+rnd(0,a%10);ans=a-b;q=`${a} − ${b} = ?`;say=`What is ${a} minus ${b}?`}}
+  else if(lv===7){sp=[1,10,2];if(Math.random()<.5){a=rnd(1,6)*10+rnd(5,9);b=rnd(1,2)*10+rnd(10-a%10,9);ans=a+b;q=`${a} + ${b} = ?`;say=`What is ${a} plus ${b}?`}else{a=rnd(4,9)*10+rnd(0,4);b=rnd(1,3)*10+rnd(a%10+1,9);ans=a-b;q=`${a} − ${b} = ?`;say=`What is ${a} minus ${b}?`}}
+  else{
+    const k=rnd(1,3);
+    if(k===1){a=rnd(2,9);b=rnd(0,9);const n=a*10+b;if(Math.random()<.5){ans=a;q=`How many tens in ${n}?`;say=`How many tens are in ${n}?`}else{ans=b;q=`How many ones in ${n}?`;say=`How many ones are in ${n}?`}vis=`<span class="group">${"🟦".repeat(a)}</span><span class="group">${"🔹".repeat(b)||"&nbsp;"}</span>`;sp=[1,2,3]}
+    else if(k===2){a=rnd(5,15);b=rnd(3,9);ans=a+b;const it=pick([["stickers","🌟"],["shells","🐚"],["blocks","🧱"]]);q=`Jonah has ${a} ${it[0]}. He gets ${b} more. How many now?`;say=q;vis=`<span class="bigemoji" style="font-size:60px">${it[1]}</span>`}
+    else{a=rnd(12,20);b=rnd(3,9);ans=a-b;const it=pick([["cookies","🍪"],["balloons","🎈"],["fish","🐟"]]);q=`There are ${a} ${it[0]}. ${b} go away. How many are left?`;say=q;vis=`<span class="bigemoji" style="font-size:60px">${it[1]}</span>`}
+  }
+  return {q,say,vis,opts:near(ans,sp).map(v=>({label:String(v),v})),ans,skill:"math"+lv};
+}
+
+/* ---------- words generator ---------- */
+const WORD_NAMES=["","Find the picture","First sounds","Rhyming words","Read the word","Missing letter","Sight words","Opposites","Word meanings"];
+const PIC={cat:"🐱",dog:"🐶",sun:"☀️",hat:"🎩",bus:"🚌",pig:"🐷",bed:"🛏️",fox:"🦊",cup:"🥤",bee:"🐝",fish:"🐟",frog:"🐸",star:"⭐",ball:"⚽",tree:"🌳",cake:"🎂",moon:"🌙",car:"🚗",duck:"🦆",egg:"🥚",key:"🔑",box:"📦",map:"🗺️",bat:"🦇",hen:"🐔",web:"🕸️",bug:"🐛",log:"🪵",bun:"🍞",rug:"🧶",mug:"☕",nut:"🥜",jet:"✈️",van:"🚐",pen:"🖊️",ant:"🐜",lion:"🦁",snake:"🐍",apple:"🍎",kite:"🪁",rocket:"🚀",robot:"🤖",whale:"🐳",train:"🚂",house:"🏠",zebra:"🦓",penguin:"🐧",turtle:"🐢",octopus:"🐙",volcano:"🌋",castle:"🏰",rainbow:"🌈",butterfly:"🦋",dinosaur:"🦕",umbrella:"☂️",guitar:"🎸",pumpkin:"🎃",cactus:"🌵",owl:"🦉",crown:"👑"};
+const ALLW=Object.keys(PIC);
+const CVC=["cat","dog","sun","hat","bus","pig","bed","fox","cup","bat","hen","web","map","box","bug","log","bun","rug","mug","nut","jet","van","pen"];
+const RHY=[["cat","hat","bat"],["dog","frog","log"],["sun","bun"],["bug","rug","mug"],["fox","box"],["bee","tree","key"],["hen","pen"],["cake","snake"],["star","car"]];
+const SIGHT=["the","and","is","you","to","it","in","said","was","for","are","they","have","he","she","we","my","go","see","like","look","come","here","can","what","said","this","that","with","play"];
+const OPP=[["big","small"],["hot","cold"],["up","down"],["fast","slow"],["happy","sad"],["open","closed"],["full","empty"],["day","night"],["wet","dry"],["loud","quiet"],["heavy","light"],["first","last"],["push","pull"],["win","lose"],["early","late"],["old","new"]];
+const MEAN=[["huge","very big"],["tiny","very small"],["joyful","very happy"],["exhausted","very tired"],["furious","very angry"],["whisper","talk very quietly"],["giggle","a little laugh"],["brave","not scared"],["gentle","soft and kind"],["swift","very fast"],["damp","a little wet"],["enormous","really, really big"],["delicious","tastes very good"],["shiver","shake because you are cold"],["glance","look quickly"],["curious","wanting to know more"]];
+function others(pool,not,n){return shuffle(pool.filter(x=>!not.includes(x))).slice(0,n)}
+function wordsQ(lv){
+  let q,say,vis="",opts,ans;
+  if(lv===1){const w=pick(ALLW);const o=others(ALLW,[w],3);ans=w;q=`Find the ${w}!`;say=`Find the ${w}.`;opts=shuffle([w,...o]).map(x=>({label:PIC[x],v:x}))}
+  else if(lv===2){const letters={b:["bus","bee","bed","bat","ball","bug","bun"],c:["cat","cup","car","cake","castle"],d:["dog","duck","dinosaur"],f:["fox","fish","frog"],s:["sun","star","snake"],h:["hat","hen","house"],m:["moon","map","mug"],p:["pig","pen","penguin","pumpkin"],t:["tree","train","turtle"],r:["rug","rocket","robot","rainbow"]};const L=pick(Object.keys(letters));const w=pick(letters[L]);const pool=ALLW.filter(x=>x[0]!==L);ans=w;q=`Which one starts with “${L}”?`;say=`Which one starts with the ${L} sound? ${L}... like ${letters[L].find(x=>x!==w)}.`;opts=shuffle([w,...others(pool,[],3)]).map(x=>({label:PIC[x],v:x}))}
+  else if(lv===3){const fam=pick(RHY);const [t,r]=shuffle(fam);const pool=ALLW.filter(x=>!RHY.find(f=>f.includes(t)).includes(x));ans=r;q=`What rhymes with ${t}?`;say=`What rhymes with ${t}?`;vis=`<span class="bigemoji">${PIC[t]}</span>`;opts=shuffle([r,...others(pool,[],2)]).map(x=>({label:PIC[x],sub:x,v:x}))}
+  else if(lv===4){const w=pick(CVC);ans=w;const o=others(CVC,[w],2);q=`Which word is this?`;say=`Look at the picture. Which word is it?`;vis=`<span class="bigemoji">${PIC[w]}</span>`;opts=shuffle([w,...o]).map(x=>({label:x,v:x}))}
+  else if(lv===5){const w=pick(CVC);const i=rnd(0,2);const L=w[i];ans=L;const pool=(i===1?"aeiou":"bcdfghjklmnprstvwz").split("").filter(x=>x!==L);q=w.split("").map((c,k)=>k===i?"_":c).join(" ");say=`Which letter is missing in ${w}?`;vis=`<span class="bigemoji">${PIC[w]}</span>`;opts=shuffle([L,...others(pool,[],3)]).map(x=>({label:x,v:x}))}
+  else if(lv===6){const w=pick(SIGHT);ans=w;q=`Tap the word you hear`;say=`Tap the word: ${w}.`;opts=shuffle([w,...others([...new Set(SIGHT)],[w],3)]).map(x=>({label:x,v:x}))}
+  else if(lv===7){const p=pick(OPP);const [a,b]=Math.random()<.5?p:[p[1],p[0]];ans=b;const pool=OPP.flat().filter(x=>x!==a&&x!==b);q=`What is the opposite of “${a}”?`;const o=others(pool,[],2);opts=shuffle([b,...o]).map(x=>({label:x,v:x}));say=`What is the opposite of ${a}? Is it ${opts.map(x=>x.v).join(", or ")}?`}
+  else{const m=pick(MEAN);ans=m[0];const o=others(MEAN.map(x=>x[0]),[m[0]],2);q=`Which word means “${m[1]}”?`;opts=shuffle([m[0],...o]).map(x=>({label:x,v:x}));say=`Which word means ${m[1]}? Is it ${opts.map(x=>x.v).join(", or ")}?`}
+  return {q,say,vis,opts,ans,skill:"words"+lv};
+}
+
+/* ---------- round flow ---------- */
+const ROUND=5;
+let mode,round,cur,tries,startT,tick;
+function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));window.scrollTo(0,0)}
+function minutesToday(){return Math.floor(day().sec/60)}
+function startTimer(){stopTimer();startT=Date.now();tick=setInterval(()=>{const d=day();d.sec+=1;if(d.sec%15===0)save()},1000)}
+function stopTimer(){if(tick){clearInterval(tick);tick=null;save()}}
+function startRound(m){
+  if(minutesToday()>=+S.len){breakScreen();return}
+  mode=m;round={i:0,res:[]};$("lvTag").textContent="Lv "+S.lv[mode];show("play");startTimer();nextQ();
+}
+function dots(){$("dots").innerHTML=Array.from({length:ROUND},(_,i)=>{const r=round.res[i];return `<div class="dot ${r===2?"done":r===1?"half":r===0?"miss":""} ${i===round.i?"cur":""}"></div>`}).join("")}
+function nextQ(){
+  if(round.i>=ROUND){endRound();return}
+  cur=mode==="math"?mathQ(S.lv[mode]):wordsQ(S.lv[mode]);tries=0;
+  $("q").textContent=cur.q;$("vis").innerHTML=cur.vis;$("fb").textContent="";$("fb").className="feedback";
+  $("opts").innerHTML="";
+  cur.opts.forEach(o=>{const b=document.createElement("button");b.className="opt";b.innerHTML=o.label+(o.sub?`<small>${o.sub}</small>`:"");b.dataset.v=o.v;b.onclick=()=>answer(b,o);$("opts").appendChild(b)});
+  dots();speak(cur.say);
+}
+const PRAISE=["Awesome!","You got it!","Super star!","Blast off!","Great thinking!","Yes!"];
+function answer(btn,o){
+  tries++;
+  if(o.v===cur.ans){
+    btn.classList.add("right");yay();
+    const r=tries===1?2:1;round.res[round.i]=r;
+    const p=pick(PRAISE);$("fb").textContent=(r===2?"⭐ ":"")+p;$("fb").className="feedback good";speak(p);
+    record(r===2);
+    document.querySelectorAll(".opt").forEach(b=>b.style.pointerEvents="none");
+    setTimeout(()=>{round.i++;nextQ()},1300);
+  }else{
+    btn.classList.add("wrong");oops();
+    if(tries>=2){
+      round.res[round.i]=0;record(false);
+      const rb=[...document.querySelectorAll(".opt")].find(b=>b.dataset.v===String(cur.ans));
+      if(rb)rb.classList.add("right");
+      const ok=cur.opts.find(x=>x.v===cur.ans);
+      $("fb").textContent=`It's ${ok.sub||ok.label}. Next one!`;$("fb").className="feedback try";speak(`It is ${ok.sub||ok.v}. Let's try the next one.`);
+      document.querySelectorAll(".opt").forEach(b=>b.style.pointerEvents="none");
+      setTimeout(()=>{round.i++;nextQ()},2200);
+    }else{$("fb").textContent="Almost! Try again 💪";$("fb").className="feedback try";speak("Almost! Try again.")}
+  }
+}
+function record(first){
+  const d=day();d.q++;if(first)d.c++;
+  const k=cur.skill;S.skills[k]=S.skills[k]||{q:0,c:0};S.skills[k].q++;if(first)S.skills[k].c++;save();
+}
+function endRound(){
+  stopTimer();
+  const stars=round.res.filter(r=>r===2).length;
+  const before=Math.floor(S.stars/PER);S.stars+=stars;const after=Math.floor(S.stars/PER);
+  let lvMsg="";const lv=S.lv[mode];
+  if(stars===ROUND&&lv<8){S.lv[mode]=lv+1;lvMsg=`🚀 Level up! Now level ${lv+1}`}
+  else if(stars<=2&&lv>1){S.lv[mode]=lv-1;lvMsg=`Let's practice level ${lv-1} a bit more`}
+  save();$("starCount").textContent=S.stars;
+  $("earned").textContent=stars?"⭐".repeat(stars):"🌟 Keep trying!";
+  $("doneMsg").textContent=stars>=4?"Amazing mission!":stars>=2?"Mission complete!":"Good try, astronaut!";
+  $("doneEmoji").textContent=stars>=4?"🏆":"🎉";
+  $("newSticker").innerHTML=after>before&&before<STICKERS.length?`New sticker!<span>${STICKERS[before]}</span>`:"";
+  $("levelMsg").textContent=lvMsg;
+  show("done");speak(stars>=4?"Amazing mission!":"Mission complete!");
+  if(after>before)setTimeout(yay,500);
+}
+const BREAKS=["Do 10 rocket jumps 🚀","Fly around the room like a plane ✈️","Stretch up to the stars 10 times ⭐","Hop like a frog 10 times 🐸","Get a drink of water 💧"];
+function breakScreen(){stopTimer();$("breakMin").textContent=minutesToday();$("breakTask").textContent=pick(BREAKS);show("break");speak("Great work astronaut! Brain break time!")}
+
+/* ---------- parents ---------- */
+function acc(q,c){return q?Math.round(c/q*100)+"%":"–"}
+function renderParents(){
+  const d=day();$("pToday").textContent=minutesToday()+" min";$("pTodayQ").textContent=`${d.q} questions, ${acc(d.q,d.c)} first-try`;
+  let wsec=0,wd=0;for(let i=0;i<7;i++){const k=new Date(Date.now()-i*864e5).toLocaleDateString("en-CA");if(S.days[k]&&S.days[k].sec>0){wsec+=S.days[k].sec;wd++}}
+  $("pWeek").textContent=Math.round(wsec/60)+" min";$("pWeekD").textContent=`${wd} of 7 days played`;
+  const sum=p=>Object.entries(S.skills).filter(([k])=>k.startsWith(p)).reduce((a,[,v])=>({q:a.q+v.q,c:a.c+v.c}),{q:0,c:0});
+  const m=sum("math"),w=sum("words");
+  $("pMath").textContent="Lv "+S.lv.math+" · "+MATH_NAMES[S.lv.math];$("pMathAcc").textContent=`${m.q} questions, ${acc(m.q,m.c)} first-try`;
+  $("pWords").textContent="Lv "+S.lv.words+" · "+WORD_NAMES[S.lv.words];$("pWordsAcc").textContent=`${w.q} questions, ${acc(w.q,w.c)} first-try`;
+  const rows=[];for(let i=1;i<=8;i++){["math","words"].forEach(p=>{const s=S.skills[p+i];if(s)rows.push(`<tr><td>${p==="math"?"🔢 "+MATH_NAMES[i]:"🔤 "+WORD_NAMES[i]}</td><td>${acc(s.q,s.c)}</td><td>${s.q}</td></tr>`)})}
+  $("pSkills").innerHTML=rows.join("")||`<tr><td colspan="3" class="note">No games played yet.</td></tr>`;
+  $("sLen").value=S.len;$("sVoice").value=S.voice;
+  ["Math","Words"].forEach(n=>{const sel=$("s"+n),names=n==="Math"?MATH_NAMES:WORD_NAMES;sel.innerHTML=names.slice(1).map((x,i)=>`<option value="${i+1}">${i+1} · ${x}</option>`).join("");sel.value=S.lv[n.toLowerCase()]});
+  $("pMsg").textContent="";
+}
+function summary(){
+  const lines=[`${NAME} — Space Quest progress (${today()})`,`Stars: ${S.stars}`,`Number Planet: level ${S.lv.math} (${MATH_NAMES[S.lv.math]})`,`Word Planet: level ${S.lv.words} (${WORD_NAMES[S.lv.words]})`,"","Last 7 days:"];
+  for(let i=6;i>=0;i--){const k=new Date(Date.now()-i*864e5).toLocaleDateString("en-CA");const d=S.days[k];if(d&&d.sec)lines.push(`${k}: ${Math.round(d.sec/60)} min, ${d.q} questions, ${acc(d.q,d.c)} first-try`)}
+  lines.push("","By skill (first-try correct / questions):");
+  for(let i=1;i<=8;i++){["math","words"].forEach(p=>{const s=S.skills[p+i];if(s)lines.push(`${p==="math"?"Math":"Words"} L${i} ${p==="math"?MATH_NAMES[i]:WORD_NAMES[i]}: ${acc(s.q,s.c)} of ${s.q}`)})}
+  return lines.join("\n");
+}
+
+/* ---------- wiring ---------- */
+document.querySelectorAll(".planet").forEach(b=>b.onclick=()=>startRound(b.dataset.mode));
+$("say").onclick=()=>speak(cur.say);
+$("quit").onclick=()=>{stopTimer();renderHome();show("home")};
+$("again").onclick=()=>startRound(mode);
+$("homeBtn").onclick=$("breakHome").onclick=()=>{renderHome();show("home")};
+$("toParents").onclick=()=>{renderParents();show("parents")};
+$("pBack").onclick=()=>{renderHome();show("home")};
+$("sLen").onchange=e=>{S.len=+e.target.value;save()};
+$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};
+$("sMath").onchange=e=>{S.lv.math=+e.target.value;save()};
+$("sWords").onchange=e=>{S.lv.words=+e.target.value;save()};
+$("pTime").onclick=()=>{day().sec=0;save();renderParents();$("pMsg").textContent="Today's timer reset."};
+$("pCopy").onclick=async()=>{try{await navigator.clipboard.writeText(summary());$("pMsg").textContent="Copied. Paste it into a chat with Claude or Jonah's log."}catch(e){$("pMsg").textContent=summary()}};
+if(!IS_PARENT)$("toParents").style.display="none";
+const NAME=KID.charAt(0).toUpperCase()+KID.slice(1);$("hi").textContent="Hi "+NAME+"!";
+renderHome();
+</script>
+</body>
+</html>
