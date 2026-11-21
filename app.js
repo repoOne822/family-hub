@@ -157,28 +157,62 @@ async function boot() {
 
 /* ---------------- shell + routing ---------------- */
 const ROUTES = ["today", "calendar", "rewards", "dashboard", "roadmap", "performance", "feedback", "subjects", "log", "plans", "reports", "family"];
+const NAVKEY = { today: "Today", calendar: "Cal", rewards: "Rewards", dashboard: "Dash", roadmap: "Roadmap", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" };
+const navLabel = r => T()["nav" + NAVKEY[r]] || r;
+const PICON = {
+  today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  rewards: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8c-2-4-6-4-6-1.5S9 8 12 8zm0 0c2-4 6-4 6-1.5S15 8 12 8z"/>',
+  dashboard: '<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
+  subjects: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7"/>',
+  roadmap: '<path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/>',
+  performance: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  feedback: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
+  log: '<path d="M4 6h16M4 12h10M4 18h7"/><path d="M17 14l3 3-4 4h-3v-3z"/>',
+  plans: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/>',
+  reports: '<path d="M6 3h9l4 4v14H6z"/><path d="M9 17v-3M12 17v-6M15 17v-4"/>',
+  family: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/>',
+  out: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/>' };
+const pIcon = n => `<svg class="pico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PICON[n] || ""}</svg>`;
+const NAVGROUPS = [[null, ["today", "calendar", "rewards"]], [{ en: "Kids", zh: "孩子" }, ["dashboard", "subjects", "roadmap", "performance", "feedback"]], [{ en: "Records", zh: "记录" }, ["log", "plans", "reports"]], [{ en: "Home", zh: "家庭" }, ["family"]]];
+const TABS = ["today", "calendar", "dashboard", "rewards"];
 function renderShell() {
-  $("#root").innerHTML = `<div class="topbar"><div class="in">
-    <div class="brand"><span class="dotlogo">✦</span>${T().appTitle}</div>
-    <nav class="nav">${ROUTES.map(r => `<a href="#${r}" data-r="${r}">${T()["nav" + { today: "Today", calendar: "Cal", rewards: "Rewards", dashboard: "Dash", roadmap: "Roadmap", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" }[r]]}</a>`).join("")}</nav>
-    <button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button>
-    <button class="btn sm" id="lockBtn">${T().kidsMode}</button>
-    <button class="btn sm ghost" id="soBtn">${T().signOut}</button></div></div>
-    <div class="wrap"><div class="status" id="status"></div><div id="view"></div></div>`;
-  $("#langBtn").onclick = toggleLang;
-  $("#soBtn").onclick = async () => { await sb.auth.signOut(); };
-  $("#lockBtn").onclick = lockDevice;
+  const t = T(), zh = lang === "zh", lk = (r, cls = "") => `<a href="#${r}" data-r="${r}" class="${cls}">${pIcon(r)}<span>${r === "dashboard" && cls.includes("tab") ? (zh ? "孩子" : "Kids") : navLabel(r)}</span></a>`;
+  const tools = `<button class="pside-btn" id="langBtn">${pIcon("globe")}<span>${lang === "en" ? "中文" : "English"}</span></button>
+      <button class="pside-btn" id="lockBtn">${pIcon("lock")}<span>${t.kidsMode.replace(/^🔒\s*/, "")}</span></button>
+      <button class="pside-btn" id="soBtn">${pIcon("out")}<span>${t.signOut}</span></button>`;
+  $("#root").innerHTML = `<div class="pshell">
+    <aside class="pside"><div class="brand"><span class="dotlogo">✦</span>${t.appTitle}</div>
+      <nav class="pnav">${NAVGROUPS.map(([g, rs]) => `${g ? `<div class="pgrp">${zh ? g.zh : g.en}</div>` : ""}${rs.map(r => lk(r)).join("")}`).join("")}</nav>
+      <div class="ptools">${tools}</div></aside>
+    <header class="pbar"><div class="brand"><span class="dotlogo">✦</span><span id="pgTitle">${t.appTitle}</span></div><button class="pbar-lang" id="langBtn2">${lang === "en" ? "中文" : "EN"}</button></header>
+    <main class="pmain"><div class="wrap"><div class="status" id="status"></div><div id="view"></div></div></main>
+    <nav class="ptabs">${TABS.map(r => lk(r, "tab")).join("")}<button class="tab" id="moreBtn" aria-expanded="false">${pIcon("more")}<span>${zh ? "更多" : "More"}</span></button></nav>
+    <div class="psheet-bg" id="moreSheet" hidden><div class="psheet" role="dialog" aria-label="${zh ? "更多" : "More"}"><div class="psheet-grab"></div>
+      <div class="psheet-grid">${ROUTES.filter(r => !TABS.includes(r)).map(r => lk(r, "sheet")).join("")}</div>
+      <div class="psheet-tools">${tools.replace(/id="(langBtn|lockBtn|soBtn)"/g, 'id="$1M"')}</div></div></div></div>`;
+  const tog = () => { const m = $("#moreSheet"); m.hidden = !m.hidden; $("#moreBtn").setAttribute("aria-expanded", String(!m.hidden)); };
+  $("#moreBtn").onclick = tog; $("#moreSheet").onclick = e => { if (e.target.id === "moreSheet" || e.target.closest("a")) { $("#moreSheet").hidden = true; $("#moreBtn").setAttribute("aria-expanded", "false"); } };
+  ["langBtn", "langBtn2", "langBtnM"].forEach(id => $("#" + id) && ($("#" + id).onclick = toggleLang));
+  ["soBtn", "soBtnM"].forEach(id => $("#" + id).onclick = async () => { await sb.auth.signOut(); });
+  ["lockBtn", "lockBtnM"].forEach(id => $("#" + id).onclick = () => { $("#moreSheet").hidden = true; lockDevice(); });
 }
 window.addEventListener("hashchange", route);
 function route() {
   if (!S.user || isKid()) return;
   if (!$("#view")) return;
-  if (isLocked()) { $(".topbar .nav") && ($(".topbar .nav").style.display = "none"); openLobby(); return; }
+  if (isLocked()) { document.querySelectorAll(".pside .pnav,.ptabs").forEach(n => n.style.display = "none"); openLobby(); return; }
   let h = location.hash.slice(1) || "today";
   let doc = null;
   if (h.startsWith("doc-")) { doc = h.slice(4); h = "doc"; }
   if (!ROUTES.includes(h) && h !== "doc") h = "today";
-  document.querySelectorAll(".nav a").forEach(a => a.classList.toggle("on", a.dataset.r === h || (h === "doc" && a.dataset.r === (S.docs.find(d => d.slug === doc)?.section === "report" ? "reports" : "plans"))));
+  const onR = h === "doc" ? (S.docs.find(d => d.slug === doc)?.section === "report" ? "reports" : "plans") : h;
+  document.querySelectorAll("[data-r]").forEach(a => a.classList.toggle("on", a.dataset.r === onR));
+  const mb = $("#moreBtn"); if (mb) mb.classList.toggle("on", !TABS.includes(onR));
+  if ($("#pgTitle")) $("#pgTitle").textContent = navLabel(onR); window.scrollTo(0, 0);
   ({ today: viewToday, calendar: viewCalendar, rewards: viewRewards, dashboard: viewDash, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, roadmap: viewRoadmap, doc: () => viewDoc(doc) })[h]();
 }
 
@@ -445,7 +479,7 @@ function viewDash() {
     const meta = [k.age ? `${t.age} ${esc(k.age)}` : "", k.grade ? esc(k.grade) : "", k.school ? esc(k.school) : ""].filter(Boolean).join(" · ");
     return `<div class="kid ${selKid === k.id ? "sel" : ""}" style="--kc:${KC[i % 3]}" data-kid="${esc(k.id)}">
       <div class="kid-top"><div><h2 style="display:flex;align-items:center;gap:8px"><span style="display:inline-flex;width:40px;height:40px;border-radius:12px;background:#fff;align-items:center;justify-content:center;overflow:hidden">${avatarHtml(k.avatar, 36)}</span>${esc(kidName(k.id))}</h2><div class="meta">${meta}</div>${k.focus ? `<div class="meta"><b style="color:var(--ink)">${t.focusNow}:</b> ${esc(k.focus)}</div>` : ""}</div>
-      <div style="display:flex"><a class="btn sm ghost" href="#feedback" data-fbkid="${esc(k.id)}">💬 ${t.feedbackBtn}</a><button class="btn sm ghost" data-log="${esc(k.id)}">${t.logBtn}</button><button class="btn sm ghost" data-edit="${esc(k.id)}">${t.edit}</button></div></div>
+      <div class="kidacts"><a class="btn sm ghost" href="#feedback" data-fbkid="${esc(k.id)}">💬 ${t.feedbackBtn}</a><button class="btn sm ghost" data-log="${esc(k.id)}">${t.logBtn}</button><button class="btn sm ghost" data-edit="${esc(k.id)}">${t.edit}</button></div></div>
       <div class="stats"><div class="stat pos"><div class="n">${s.pos}</div><div class="l">${t.wins}</div></div><div class="stat neg"><div class="n">${s.neg}</div><div class="l">${t.concerns}</div></div><div class="stat neu"><div class="n">${s.neu}</div><div class="l">${t.notes}</div></div></div>
       ${spark(k.id)}
       ${(() => { const w = daysAgo(6), mm = S.checkins.filter(c => c.kid === k.id && c.date >= w && c.kid_mood).map(c => c.kid_mood), avg = mm.length ? mm.reduce((a, b) => a + b, 0) / mm.length : null;
@@ -1067,7 +1101,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121q${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121r${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
   fs.querySelector(".appclose").onclick = () => appOpen();
@@ -1159,30 +1193,63 @@ const KI_ART = {
   calc: [".kkkkkkkkk.", ".kPPPPPPPk.", ".kPwwwwwPk.", ".kPPPPPPPk.", ".kPsPsPsPk.", ".kPPPPPPPk.", ".kPsPsPrPk.", ".kPPPPPPPk.", ".kPsPsPrPk.", ".kPPPPPPPk.", ".kkkkkkkkk."],
   hand: ["..k.k.k....", ".kykykyk...", ".kykykyk.k.", ".kykykykkyk", ".kyyyyyykyk", ".kyyyyyyyk.", "kkyyyyyyyk.", "kyyyyyyyk..", ".kyyyyyyk..", "..kyyyyk...", "...kkkk...."],
   coin: ["...kkkkk...", "..kyyyyyk..", ".kyywyyyyk.", "kyywyKyyyyk", "kyyyyKyyyyk", "kyyyyKyyyyk", "kyyyyKyyyyk", "kyyyyyyyyyk", ".kyyyyyyyk.", "..kyyyyyk..", "...kkkkk..."],
+  tv: ["..K.....K..", "...K...K...", "kkkkkkkkkkk", "knnnnnnnnnk", "kncwccccnrk", "knccccccnsk", "knccccccnrk", "knccccccnsk", "knnnnnnnnnk", "kkkkkkkkkkk", ".kk.....kk."],
+  pizza: ["kkkkkkkkkkk", "knnnnnnnnnk", ".kyyrryyyk.", ".kyyrryyyk.", "..kyyyrrk..", "..kyrryyk..", "...kyyyk...", "...kyyyk...", "....kyk....", ".....k....."],
+  moon: ["...kkkk....", "..kyyyk....", ".kyyyk.....", "kyyyk...w..", "kyyyk......", "kyyyk......", "kyyyyk..w..", ".kyyyyykkk.", "..kyyyyyyk.", "...kkkkkk.."],
+  film: ["kkkkkkkkkkk", "kwKwKwKwKwk", "kkkkkkkkkkk", "kPPPPPPPPPk", "kPwwwwwwwPk", "kPPPPPPPPPk", "kPwwwwPPPPk", "kPPPPPPPPPk", "kkkkkkkkkkk"],
+  gift: ["..kk...kk..", ".kyyk.kyyk.", "..kkykykk..", "kkkkkykkkkk", "kbbbbybbbbk", "kkkkkykkkkk", ".kbbbybbbk.", ".kbbbybbbk.", ".kbbbybbbk.", ".kkkkkkkkk."],
+  magnet: ["kkkk...kkkk", "kssk...kssk", "kkkk...kkkk", "krrk...krrk", "krrk...krrk", "krrkkkkkrrk", "krrrrrrrrrk", ".krrrrrrrk.", "..kkkkkkk.."],
+  flask: ["...kkkkk...", "....kwk....", "....kwk....", "...kwwwk...", "..kwwwwwk..", ".kgggggggk.", "kgwgggggggk", "kggggggwggk", "kgggggggggk", ".kkkkkkkkk."],
+  dna: ["bk.....kp", ".bk...kp.", "..bsssp..", "...kbk...", "..pk.kb..", ".pk...kb.", "pk.....kb", ".pk...kb.", "..psssb.."],
+  column: ["kkkkkkkkkkk", "kwwwwwwwwwk", "kkkkkkkkkkk", ".kwwkwwkwwk", ".kwwkwwkwwk", ".kwwkwwkwwk", ".kwwkwwkwwk", "kkkkkkkkkkk", "kwwwwwwwwwk", "kkkkkkkkkkk"],
+  palette: ["..kkkkkk...", ".knnnnnnkk.", "knrnnnbnnnk", "knnnnnnnnnk", "kngnnkkknnk", "knnnk...knk", "knynnkkknnk", ".knnnnpnnk.", "..kkkkkkk.."],
+  rocket: [".....k.....", "....kwk....", "...kwwwk...", "...kwbwk...", "...kwwwk...", "..kkwwwkk..", ".krkwwwkrk.", ".krkkkkkrk.", "..k.kok.k..", "....kyk....", ".....k....."],
+  bag: ["...kkkkk...", "..kk...kk..", "kkkkkkkkkkk", "kpppppppppk", "kppKpppKppk", "kpppppppppk", "kpppppppppk", "kpppppppppk", "kkkkkkkkkkk"],
   face1: KI_FACE(["kyyKKKKKyyk", "kyKyyyyyKyk"]), face2: KI_FACE(["kyyyKKKyyyk", "kyyKyyyKyyk"]), face3: KI_FACE(["kyyyyyyyyyk", "kyyKKKKKyyk"]),
   face4: KI_FACE(["kyyKyyyKyyk", "kyyyKKKyyyk"]), face5: KI_FACE(["kyKyyyyyKyk", "kyyKKKKKyyk"]),
 };
-const KI_EMOJI = { "🤺": "sword", "📚": "books", "📖": "book", "🧮": "calc", "🧩": "calc", "🏆": "trophy", "🎯": "target", "⭐": "star", "🔥": "fire", "⚡": "bolt", "🌟": "sparkle", "🦸": "shield", "🏅": "medal", "✏️": "pencil", "💡": "bulb", "🧭": "compass", "👣": "flag", "📅": "calendar", "🗺️": "globe", "📓": "book", "✨": "sparkle", "👋": "hand", "❔": "question", "✅": "check", "⬜": "box", "▶": "play", "🔒": "lock", "🎉": "sparkle", "🏁": "flag", "🚀": "bolt", "🌈": "face4", "❤️": "heart", "🪙": "coin" };
+const KI_EMOJI = { "🤺": "sword", "📚": "books", "📖": "book", "🧮": "calc", "🧩": "calc", "🏆": "trophy", "🎯": "target", "⭐": "star", "🔥": "fire", "⚡": "bolt", "🌟": "sparkle", "🦸": "shield", "🏅": "medal", "✏️": "pencil", "💡": "bulb", "🧭": "compass", "👣": "flag", "📅": "calendar", "🗺️": "globe", "📓": "book", "✨": "sparkle", "👋": "hand", "❔": "question", "✅": "check", "⬜": "box", "▶": "play", "🔒": "lock", "🎉": "sparkle", "🏁": "flag", "🚀": "rocket", "🌈": "face4", "❤️": "heart", "🪙": "coin", "📺": "tv", "🍕": "pizza", "🌙": "moon", "🎬": "film", "🎡": "heart", "🎁": "gift", "🧲": "magnet", "🧪": "flask", "🧬": "dna", "🏛️": "column", "🎨": "palette", "🛒": "bag", "📝": "pencil", "🏊": "heart" };
 const kiShade = (hex, f) => { const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.max(0, Math.min(255, Math.round(f > 1 ? v + (255 - v) * (f - 1) : v * f)))); return "#" + c.map(v => v.toString(16).padStart(2, "0")).join(""); };
 const kiCache = {};
 function kiSvg(name, mode) {
   const key = name + ":" + mode; if (kiCache[key]) return kiCache[key];
   const art = KI_ART[name]; if (!art) return null;
   const H = art.length, W = Math.max(...art.map(r => r.length)), at = (x, y) => (art[y] || "")[x] || ".";
+  const filled = (x, y) => at(x, y) !== "." && !!KI_PAL[at(x, y)], color = (x, y) => KI_PAL[at(x, y)], isLine = (x, y) => at(x, y) === "k" || at(x, y) === "K";
   let body = "", vb;
-  if (mode === "pixel") {
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const ch = at(x, y); if (ch !== "." && KI_PAL[ch]) body += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${KI_PAL[ch]}"/>`; }
-    vb = `0 0 ${W} ${H}`;
-  } else { // voxel: every coloured pixel becomes a little cube; outlines are dropped
-    const d = 0.42, solid = (x, y) => { const ch = at(x, y); return ch !== "." && ch !== "k" && KI_PAL[ch]; };
+  if (mode === "pixel") { // 8-bit sprite: auto light from the top-left, shade bottom-right, hard drop shadow
+    let sh = "", px = "";
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!filled(x, y)) continue;
+      sh += `<rect x="${x + 1}" y="${y + 1}" width="1.02" height="1.02"/>`;
+      let c = color(x, y);
+      if (!isLine(x, y)) { const lit = !filled(x, y - 1) || isLine(x, y - 1) || !filled(x - 1, y) || isLine(x - 1, y), dark = !filled(x, y + 1) || isLine(x, y + 1) || !filled(x + 1, y) || isLine(x + 1, y);
+        if (lit && !dark) c = kiShade(c, 1.28); else if (dark && !lit) c = kiShade(c, .78); }
+      px += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${c}"/>`;
+    }
+    body = `<g fill="rgba(13,20,51,.45)">${sh}</g>${px}`; vb = `0 0 ${W + 1} ${H + 1}`;
+  } else if (mode === "voxel") { // soft 3D blocks: no outlines, deeper extrusion, top glow, ground shadow
+    const d = 0.55, solid = (x, y) => filled(x, y) && at(x, y) !== "k";
     let sides = "", tops = "", fronts = "";
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      if (!solid(x, y)) continue; const c = KI_PAL[at(x, y)], X = x, Y = y + d;
-      if (!solid(x + 1, y)) sides += `<path d="M${X + 1} ${Y}l${d} ${-d}v1l${-d} ${d}z" fill="${kiShade(c, .72)}"/>`;
-      if (!solid(x, y - 1)) tops += `<path d="M${X} ${Y}l${d} ${-d}h1l${-d} ${d}z" fill="${kiShade(c, 1.35)}"/>`;
-      fronts += `<rect x="${X}" y="${Y}" width="1.01" height="1.01" fill="${c}"/>`;
+      if (!solid(x, y)) continue; const c = color(x, y), X = x, Y = y + d;
+      if (!solid(x + 1, y)) sides += `<path d="M${X + 1} ${Y}l${d} ${-d}v1l${-d} ${d}z" fill="${kiShade(c, .62)}"/>`;
+      if (!solid(x, y - 1)) tops += `<path d="M${X} ${Y}l${d} ${-d}h1l${-d} ${d}z" fill="${kiShade(c, 1.42)}"/>`;
+      const edge = !solid(x, y - 1) ? 1.1 : !solid(x, y + 1) ? .9 : 1;
+      fronts += `<rect x="${X}" y="${Y}" width="1.01" height="1.01" fill="${kiShade(c, edge)}"/>`;
     }
-    body = sides + tops + fronts; vb = `0 0 ${W + d} ${H + d}`;
+    body = `<ellipse cx="${(W + d) / 2}" cy="${H + d + .15}" rx="${W * .42}" ry=".55" fill="rgba(0,0,0,.13)"/>` + sides + tops + fronts; vb = `0 0 ${W + d} ${H + d + .8}`;
+  } else { // pop: die-cut sticker — hard shadow, white sticker border, black outline, solid flat colours, glint
+    let shadow = "", white = "", outline = "", tiles = "", glint = "";
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!filled(x, y)) continue;
+      shadow += `<rect x="${x - .7}" y="${y - .7}" width="2.4" height="2.4" rx=".9"/>`;
+      white += `<rect x="${x - .7}" y="${y - .7}" width="2.4" height="2.4" rx=".9"/>`;
+      outline += `<rect x="${x - .18}" y="${y - .18}" width="1.36" height="1.36" rx=".35"/>`;
+      if (!isLine(x, y)) tiles += `<rect x="${x}" y="${y}" width="1.03" height="1.03" fill="${color(x, y)}"/>`;
+      if (!glint && !isLine(x, y) && (!filled(x, y - 1) || isLine(x, y - 1)) && (!filled(x - 1, y) || isLine(x - 1, y))) glint = `<rect x="${x + .15}" y="${y + .15}" width=".55" height=".55" rx=".15" fill="#fff" opacity=".85"/>`;
+    }
+    body = `<g transform="translate(1 1.1)" fill="#0a0a0a">${shadow}</g><g fill="#fff">${white}</g><g fill="#0a0a0a">${outline}</g>${tiles}${glint}`; vb = `-1.2 -1.2 ${W + 3.4} ${H + 3.5}`;
   }
   return (kiCache[key] = `<svg viewBox="${vb}" shape-rendering="${mode === "pixel" ? "crispEdges" : "geometricPrecision"}" aria-hidden="true">${body}</svg>`);
 }
@@ -1190,11 +1257,10 @@ const kiTheme = () => document.body.classList.contains("kt-pixel") ? "pixel" : d
 // KI("star", 22) or KI("🤺", 40): emoji in Pop, themed sprite otherwise (falls back to the emoji if there's no sprite)
 function KI(nameOrEmoji, size = 22, cls = "") {
   const th = kiTheme(), name = KI_ART[nameOrEmoji] ? nameOrEmoji : KI_EMOJI[nameOrEmoji];
-  const emoji = KI_ART[nameOrEmoji] ? (Object.keys(KI_EMOJI).find(e => KI_EMOJI[e] === nameOrEmoji) || "⭐") : nameOrEmoji;
-  if (th === "pop" || !name) return `<span class="ki ki-emoji ${cls}" style="font-size:${Math.round(size * .9)}px">${emoji}</span>`;
+  if (!name) return `<span class="ki ki-emoji ${cls}" style="font-size:${Math.round(size * .9)}px">${nameOrEmoji}</span>`;
   return `<span class="ki ki-${th} ${cls}" style="width:${size}px;height:${size}px">${kiSvg(name, th)}</span>`;
 }
-const kiFace = (n, size = 30) => kiTheme() === "pop" ? `<span class="ki ki-emoji" style="font-size:${Math.round(size * .9)}px">${FACES[n - 1]}</span>` : KI("face" + n, size);
+const kiFace = (n, size = 30) => KI("face" + n, size);
 const KI_EYEBROW = {
   voxel: { cal: ["Plan ahead", "提前计划"], worlds: ["Explore", "去探索"], jar: ["Collect wins", "收集胜利"], feel: ["Check in", "心情记录"], note: ["Just for you", "只属于你"], stick: ["Achievements", "成就"] },
   pixel: { cal: ["Quest log", "任务日志"], worlds: ["World map", "世界地图"], jar: ["Loot", "战利品"], feel: ["Status", "状态"], note: ["Save file", "存档"], stick: ["Inventory", "背包"] } };
@@ -1209,6 +1275,11 @@ const VOXEL_DECO = (() => { const cube = (x, y, c) => `<g transform="translate($
   cols.forEach((c, i) => { for (let j = 0; j < 3; j++) g += cube(10 + i * 10 + j * 10, 70 - i * 6 + j * 6 - i * 6, c); });
   return `<svg class="kt-deco kt-deco-voxel" viewBox="0 0 120 110" aria-hidden="true">${g}</svg>`; })();
 const PIXEL_DECO = `<div class="kt-deco kt-deco-pixel" aria-hidden="true"><span class="px-hearts">${[1, 2, 3].map(() => `<span class="ki" style="width:14px;height:14px">${kiSvg("heart", "pixel")}</span>`).join("")}</span><span class="ki" style="width:14px;height:14px">${kiSvg("coin", "pixel")}</span></div>`;
+function kidJumpBar() {
+  const zh = lang === "zh", little = S.kids[0] && +S.kids[0].age > 0 && +S.kids[0].age < 7;
+  const items = [["ks-home", "hand", zh ? "首页" : "Home"], ["ks-worlds", "globe", zh ? "世界" : "Worlds"], ["ks-shop", "coin", zh ? "商店" : "Shop"], ["ks-cal", "calendar", zh ? "日历" : "Calendar"], ["ks-stick", "medal", zh ? "贴纸" : "Stickers"]];
+  return `<nav class="kw-jump" aria-label="${zh ? "跳转" : "Jump to"}">${items.map(([id, ic, l]) => `<a href="#${id}" data-jump="${id}">${KI(ic, 22)}<span>${l}</span></a>`).join("")}</nav>`;
+}
 function kidRender() {
   const t = T(), k = S.kids[0]; if (!k) return;
   document.body.classList.add("kidmode"); setKidTheme(k.theme || "pop");
@@ -1235,7 +1306,7 @@ function kidRender() {
   const days = []; for (let i = 13; i >= 0; i--) { const dd = addDays(d, -i); days.push({ dd, m: S.moods.find(x => x.date === dd)?.kid_mood }); }
   const pct = g.nextAt > g.curAt ? Math.round(100 * (g.xp - g.curAt) / (g.nextAt - g.curAt)) : 100;
   $("#root").innerHTML = `${previewBar()}<div class="topbar"><div class="in"><div class="brand"><span class="dotlogo">✦</span>${esc(kidName(k.id))}</div>
-      <button class="lang" id="themeBtn" aria-expanded="false">🎨 ${lang === "zh" ? "主题" : "Theme"}</button><button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button><button class="btn sm ghost" id="soBtn">${preview ? t.exitPreview : t.signOut}</button></div></div>
+      <button class="lang" id="themeBtn" aria-expanded="false">${KI("palette", 18)} ${lang === "zh" ? "主题" : "Theme"}</button><button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button><button class="btn sm ghost" id="soBtn">${preview ? t.exitPreview : t.signOut}</button></div></div>
     <div class="wrap"><div class="status" id="status"></div>
       <div class="kw-themes" id="themePick" hidden><b>🎨 ${lang === "zh" ? "选一个你喜欢的样子" : "Pick your look"}</b><div class="kw-themerow">${KT_IDS.map(id => `<button class="kw-theme ${(k.theme || "pop") === id ? "on" : ""}" data-ktheme="${id}">${themeSwatch(id)}<span><b>${KTHEMES[id][lang] || KTHEMES[id].en}</b><small>${KTHEMES[id].d[lang] || KTHEMES[id].d.en}</small></span></button>`).join("")}</div></div>
       <div class="kw-hero" style="--kc:${kc}">${VOXEL_DECO}${PIXEL_DECO}
@@ -1249,9 +1320,9 @@ function kidRender() {
         <button class="kw-tap ${myMood ? "done" : "todo"}" id="kTap"><span class="big">${myMood ? kiFace(myMood, 44) : KI("hand", 44)}</span>${myMood ? t.checkedIn : t.tapToStart}</button>
         <div class="kw-streak ${g.streak ? "" : "rest"}"><span class="fire">${KI("fire", 44)}</span><div>${g.streak ? t.streak(g.streak) : t.streakRest}<div class="kw-sub" style="opacity:.7">${g.best ? KI("trophy", 16) + " " + g.best : ""}</div></div></div>
       </div>
+      <div class="kw-layout"><div class="kw-main"><section id="ks-home" class="kw-sec">
       ${S.subjects.filter(x => x.active && x.app_url === "space/").map(x => `<button class="kw-spacegame" data-app="space/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#fff;font:inherit;background:radial-gradient(circle at 85% 30%,#9b5de5 0,transparent 45%),linear-gradient(135deg,#1b1f4b,#3a2f7a);box-shadow:0 8px 0 #0003,0 10px 30px #3a2f7a66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.4s ease-in-out infinite">🚀</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "太空探险" : "Space Quest"}</b><span style="opacity:.9;font-size:17px">${lang === "zh" ? "一至三年级数学和单词：打陨石、救外星人、打败大怪兽！" : "Grade 1–3 math + words: blast asteroids, rescue aliens, beat bosses!"}</span></span><span style="background:linear-gradient(#ffd166,#f4a300);color:#3b2400;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0004">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
-      ${kidCalendarHtml(k.id)}
-      ${kidShopHtml(k)}
+      </section><section id="ks-worlds" class="kw-sec">
       ${worlds.length || loose.length || goals.length || mine.length ? `${kwH("globe", "worlds", t.myWorlds)}
       <div class="kw-worlds">${worlds.map((w, i) => `<div class="kw-world" style="background:${worldColors[i % worldColors.length]}"><div class="wi">${KI(w.x.icon, 48)}</div><span class="kw-arrow">→</span><h3>${esc(sName(w.x))}</h3>${sDesc(w.x) ? `<div class="wd">${esc(sDesc(w.x))}</div>` : ""}${w.x.app_url ? `<button class="kw-play" data-app="${esc(w.x.app_url)}" data-appkid="${esc(w.x.kid)}">${KI("play", 16)} ${esc(appLabel(w.x.app_url))}</button>` : ""}${w.ms.map(goalHtml).join("")}${w.docs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">${KI("book", 16)} ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}</div>`).join("")}
         ${loose.length || goals.length || mine.length || looseDocs.length ? `<div class="kw-world" style="background:#e9e9e4"><div class="wi">${KI("target", 48)}</div><h3>${t.myGoals}</h3>${loose.map(goalHtml).join("")}
@@ -1261,22 +1332,37 @@ function kidRender() {
           <div class="addgoal" style="margin-top:12px"><input id="propIn" maxlength="120" placeholder="💡 ${t.suggestPh}" style="background:#fff;color:#111;border:2px solid #000"><button class="btn sm primary" id="propBtn" style="background:#000;color:#fff;border-color:#000">${t.suggest}</button></div></div>` : ""}
       </div>` : ""}
       <div id="kDocView" style="margin-top:14px"></div>
+      </section><section id="ks-jar" class="kw-sec">
       ${kwH("star", "jar", t.starJar)}
       <div class="kw-card">
         ${little ? `<div class="kw-sub" style="margin:0 0 10px;opacity:1">${t.tapAWin}</div><div class="kw-littlewins">${t.littleWins.map((w, i) => `<button data-lwin="${i}">${KI("star", 20)} ${esc(w)}</button>`).join("")}</div>`
                  : `<form id="winForm" class="addgoal" style="margin:0"><input id="winIn" maxlength="140" placeholder="⭐ ${t.winPh}" required><button class="btn sm primary">${t.addWin}</button></form>`}
         <div class="kw-jar" style="margin-top:14px">${wins.length ? wins.map(w => `<div class="kw-win">${KI("star", 18)} ${esc(w.title)}${w.by_kid ? `<button class="x" style="opacity:.5" data-delwin="${w.id}">✕</button>` : ""}</div>`).join("") : `<div class="meta">${t.noWinsYet}</div>`}</div>
       </div>
-      ${kwH("face4", "feel", t.feelings)}
-      <div class="kw-card"><div class="kw-mood">${days.map(x => `<div><div class="f ${x.m ? "" : "none"}">${x.m ? kiFace(x.m, 30) : "○"}</div><small>${fmtDate(x.dd)}</small></div>`).join("")}</div></div>
+      </section><section id="ks-note" class="kw-sec">
       ${little ? "" : `${kwH("book", "note", t.secretNotebook, `<span class="tagc">${KI("lock", 14)}</span>`)}
       <div class="kw-notebook"><div style="font:600 12px var(--kfont);color:#888;line-height:20px">${t.journalPrivate}</div>
         <form id="jForm"><textarea id="jIn" maxlength="30000" placeholder="${t.journalPh}" required></textarea>
           <div class="kw-wc" id="jWc">${jMin() ? (lang === "zh" ? `0 / ${jMin()} 字 · 写满 ${jMin()} 字才能得 +12 分` : `0 / ${jMin()} words · write ${jMin()} to earn +12 points`) : (lang === "zh" ? "写完保存就能得 +12 分" : "Save an entry to earn +12 points")}</div><div class="kw-wcbar"><i id="jWcBar"></i></div>
           <button class="btn sm primary">${t.saveEntry}</button></form>
         ${journal.map(j => `<div class="entry"><small>${fmtDate(j.date)} · ${wordCount(j.body)} ${lang === "zh" ? "字" : "words"}${journalCounts(j) ? " ⭐+12" : ""} <button class="x" style="opacity:.5;color:#888" data-delj="${j.id}">✕</button></small>${esc(j.body)}</div>`).join("")}</div>`}
+      </section></div><aside class="kw-side">
+      <section id="ks-cal" class="kw-sec">
+      ${kidCalendarHtml(k.id)}
+      </section>
+      <section id="ks-shop" class="kw-sec">
+      ${kidShopHtml(k)}
+      </section>
+      <section id="ks-feel" class="kw-sec">
+      ${kwH("face4", "feel", t.feelings)}
+      <div class="kw-card"><div class="kw-mood">${days.map(x => `<div><div class="f ${x.m ? "" : "none"}">${x.m ? kiFace(x.m, 30) : "○"}</div><small>${fmtDate(x.dd)}</small></div>`).join("")}</div></div>
+      </section>
+      <section id="ks-stick" class="kw-sec">
       ${kwH("medal", "stick", t.stickerBook, `<span class="tagc">${Object.values(g.got).filter(Boolean).length}/${BADGES.length}</span>`)}
       <div class="kw-stickers">${BADGES.map(([id, em]) => `<div class="kw-sticker ${g.got[id] ? "" : "lock"} ${newly.includes(id) ? "got" : ""}"><span class="se">${g.got[id] ? KI(em, 44) : KI("question", 40)}</span><b>${esc(t.badges[id][0])}</b><small>${g.got[id] ? esc(t.badges[id][1]) : t.locked}</small></div>`).join("")}</div>
+      </section>
+      </aside></div>
+      ${kidJumpBar()}
       ${marquee()}
     </div>
     <div class="modal-bg" id="avModal"><div class="modal" style="max-width:640px" id="avBody"></div></div>`;
@@ -1595,3 +1681,5 @@ document.addEventListener("submit", async e => {
     refresh();
   } catch (err) { setStatus(err.message, true); }
 });
+// kid page jump bar: scroll to a section without touching the URL (the hash drives parent routing)
+document.addEventListener("click", e => { const a = e.target.closest("[data-jump]"); if (!a) return; e.preventDefault(); document.getElementById(a.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" }); });
