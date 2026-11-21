@@ -821,3 +821,7 @@ body:not(.kidmode) .tabs button.on{background:var(--ink);color:var(--bg)}
 .reqbanner span{flex:1 1 220px;font-size:13px;opacity:.8}.reqbanner em{font-style:normal;font-weight:800}
 :focus-visible{outline:3px solid #3d9bff;outline-offset:2px;border-radius:8px}
 button:focus:not(:focus-visible),a:focus:not(:focus-visible){outline:none}
+.rwsrc{display:grid;grid-template-columns:150px 1fr 48px;gap:10px;align-items:center;padding:5px 0;font-size:14px}
+.rwsrc i{height:10px;background:var(--card2);border-radius:5px;overflow:hidden}.rwsrc i b{display:block;height:100%;background:var(--lime);border-radius:5px}
+.rwsrc em{font-style:normal;font-weight:800;text-align:right}
+@media (max-width:560px){.rwsrc{grid-template-columns:118px 1fr 40px;font-size:13px}}
