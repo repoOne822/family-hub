@@ -147,7 +147,7 @@ body.retro::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:
     <div class="stat">Today<b id="pToday"></b><span class="note" id="pTodayQ"></span></div>
     <div class="stat">Last 7 days<b id="pWeek"></b><span class="note" id="pWeekD"></span></div>
     <div class="stat">Math galaxies<b id="pMath"></b><span class="note" id="pMathAcc"></span></div>
-    <div class="stat">Word Galaxy<b id="pWords"></b><span class="note" id="pWordsAcc"></span></div>
+    <div class="stat">Reading & 中文<b id="pWords"></b><span class="note" id="pWordsAcc"></span></div>
   </div>
   <table><thead><tr><th>Skill</th><th>First-try</th><th>Qs</th></tr></thead><tbody id="pSkills"></tbody></table>
   <h3 style="margin:14px 0 4px">Settings</h3>
@@ -184,9 +184,10 @@ const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const today=()=>new Date().toLocaleDateString("en-CA");
-let S={v:4,coins:0,stars:0,lv:{g1:1,g2:0,g3:0,words:1},prog:{g1:{},g2:{},g3:{},words:{}},skillNames:{},days:{},skills:{},len:10,block:20,rest:5,playSec:0,breakUntil:0,lastPlay:0,voice:1,ship:{color:"red",trail:"flame",pet:"none",model:"m_classic",skin:"s_plain",laser:"l_blue"},owned:["red","flame","none","m_classic","s_plain","l_blue"],ach:{},st:{missions:0,bosses:0,perfect:0,correct:0,rescued:0,bestStreak:0}};
+let S={v:4,coins:0,stars:0,lv:{g1:1,g2:0,g3:0,words:1,zh:1},prog:{g1:{},g2:{},g3:{},words:{},zh:{}},skillNames:{},days:{},skills:{},len:10,block:20,rest:5,playSec:0,breakUntil:0,lastPlay:0,voice:1,ship:{color:"red",trail:"flame",pet:"none",model:"m_classic",skin:"s_plain",laser:"l_blue"},owned:["red","flame","none","m_classic","s_plain","l_blue"],ach:{},st:{missions:0,bosses:0,perfect:0,correct:0,rescued:0,bestStreak:0}};
 try{const raw=localStorage.getItem(KEY);if(raw){const o=JSON.parse(raw);if(o.v===4)S=Object.assign(S,o);else if(o.v===3){S=Object.assign(S,o);S.v=4;S._mig3=1}else{S.coins=o.v===2?(o.coins||0):(o.stars||0)*10;S.days=o.days||{};S.len=o.len||10;S.voice=o.voice??1;if(o.ship)S.ship=o.ship;if(o.owned)S.owned=o.owned;if(o.prog&&o.prog.words)S.prog.words=o.prog.words;S.skills={};Object.entries(o.skills||{}).forEach(([k,v])=>{if(k.startsWith("words"))S.skills[k]=v})}}}catch(e){}
 S.ship=Object.assign({model:"m_classic",skin:"s_plain",laser:"l_blue"},S.ship);["m_classic","s_plain","l_blue"].forEach(i=>{if(!S.owned.includes(i))S.owned.push(i)});S.ach=S.ach||{};S.st=Object.assign({missions:0,bosses:0,perfect:0,correct:0,rescued:0,bestStreak:0},S.st||{});
+S.lv.zh=S.lv.zh||1;S.prog.zh=S.prog.zh||{};
 function galDone0(g){const P=(S.prog||{})[g]||{};return !!(P[galSize(g)]&&P[galSize(g)][2])}
 const FOCUS=()=>S.focus!==false;
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
@@ -201,10 +202,9 @@ function tone(f,d,t=0,type="sine",v=.14,f2){const a=A();if(!a)return;try{const o
 function boom(){const a=A();if(!a)return;try{const n=a.sampleRate*.35,b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.2);const s=a.createBufferSource(),g=a.createGain(),f=a.createBiquadFilter();f.type="lowpass";f.frequency.value=900;s.buffer=b;g.gain.value=.35;s.connect(f);f.connect(g);g.connect(a.destination);s.start()}catch(e){}}
 const sfx0={laser:()=>tone(1200,.18,0,"square",.06,200),good:()=>{tone(660,.12,.05);tone(880,.12,.15);tone(1175,.22,.25)},bad:()=>tone(220,.25,0,"triangle",.15,150),coin:()=>{tone(988,.07,0,"square",.05);tone(1319,.12,.07,"square",.05)},win:()=>[523,659,784,1047,1319].forEach((f,i)=>tone(f,.2,i*.12,"triangle",.12)),whoosh:()=>tone(300,.5,0,"sawtooth",.04,1400)};
 const sfx=new Proxy({}, {get:(o,k)=>S.retro&&chip[{good:"good",bad:"bad",laser:"zap"}[k]]?chip[{good:"good",bad:"bad",laser:"zap"}[k]]:sfx0[k]});
-function speak(t){if(!+S.voice||!t)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.88;u.pitch=1.1;u.lang="en-US";speechSynthesis.speak(u)}catch(e){}}
+function speak(t){if(!+S.voice||!t)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);const zhT=/[\u4e00-\u9fff]/.test(t);u.rate=zhT?.8:.88;u.pitch=1.1;u.lang=zhT?"zh-CN":"en-US";speechSynthesis.speak(u)}catch(e){}}
 
 /* ================= question generators ================= */
-const WORD_NAMES=["","Find the picture","First sounds","Rhyming words","Read the word","Missing letter","Sight words","Opposites","Word meanings"];
 const FRUIT=["🍎","🍓","⭐","🐟","🍪","🎈","🚗","🌸"];
 function near(ans,spread,n){const s=new Set([ans]);let g=0;while(s.size<n&&g++<60){const v=ans+pick(spread)*(Math.random()<.5?-1:1);if(v>=0)s.add(v)}let x=1;while(s.size<n)s.add(ans+10*x++);return shuffle([...s])}
 const PIC={cat:"🐱",dog:"🐶",sun:"☀️",hat:"🎩",bus:"🚌",pig:"🐷",bed:"🛏️",fox:"🦊",cup:"🥤",bee:"🐝",fish:"🐟",frog:"🐸",star:"⭐",ball:"⚽",tree:"🌳",cake:"🎂",moon:"🌙",car:"🚗",duck:"🦆",egg:"🥚",key:"🔑",box:"📦",map:"🗺️",bat:"🦇",hen:"🐔",web:"🕸️",bug:"🐛",log:"🪵",bun:"🍞",rug:"🧶",mug:"☕",nut:"🥜",jet:"✈️",van:"🚐",pen:"🖊️",ant:"🐜",lion:"🦁",snake:"🐍",apple:"🍎",kite:"🪁",rocket:"🚀",robot:"🤖",whale:"🐳",train:"🚂",house:"🏠",zebra:"🦓",penguin:"🐧",turtle:"🐢",octopus:"🐙",volcano:"🌋",castle:"🏰",rainbow:"🌈",butterfly:"🦋",dinosaur:"🦕",umbrella:"☂️",guitar:"🎸",pumpkin:"🎃",cactus:"🌵",owl:"🦉",crown:"👑"};
@@ -215,18 +215,6 @@ const SIGHT=[...new Set(["the","and","is","you","to","it","in","said","was","for
 const OPP=[["big","small"],["hot","cold"],["up","down"],["fast","slow"],["happy","sad"],["open","closed"],["full","empty"],["day","night"],["wet","dry"],["loud","quiet"],["heavy","light"],["first","last"],["push","pull"],["win","lose"],["early","late"],["old","new"]];
 const MEAN=[["huge","very big"],["tiny","very small"],["joyful","very happy"],["exhausted","very tired"],["furious","very angry"],["whisper","talk very quietly"],["giggle","a little laugh"],["brave","not scared"],["gentle","soft and kind"],["swift","very fast"],["damp","a little wet"],["enormous","really, really big"],["delicious","tastes very good"],["shiver","shake because you are cold"],["glance","look quickly"],["curious","wanting to know more"]];
 const others=(pool,not,n)=>shuffle(pool.filter(x=>!not.includes(x))).slice(0,n);
-function wordsQ(lv){
-  let q,say,vis="",opts,ans;const E=x=>({label:PIC[x],v:x,emoji:true}),T=x=>({label:x,v:x,emoji:false});
-  if(lv===1){const w=pick(ALLW);ans=w;q=`Find the ${w}!`;say=`Find the ${w}.`;opts=shuffle([w,...others(ALLW,[w],2)]).map(E)}
-  else if(lv===2){const L={b:["bus","bee","bed","bat","ball","bug","bun"],c:["cat","cup","car","cake","castle"],d:["dog","duck","dinosaur"],f:["fox","fish","frog"],s:["sun","star","snake"],h:["hat","hen","house"],m:["moon","map","mug"],p:["pig","pen","penguin","pumpkin"],t:["tree","train","turtle"],r:["rug","rocket","robot","rainbow"]};const l=pick(Object.keys(L));const w=pick(L[l]);ans=w;q=`Which starts with “${l}”?`;say=`Which one starts with the ${l} sound? ${l}... like ${L[l].find(x=>x!==w)}.`;opts=shuffle([w,...others(ALLW.filter(x=>x[0]!==l),[],2)]).map(E)}
-  else if(lv===3){const fam=pick(RHY);const [t,r]=shuffle(fam);ans=r;q=`What rhymes with ${t}?`;say=q;vis=`<span class="big">${PIC[t]}</span>`;opts=shuffle([r,...others(ALLW.filter(x=>!RHY.find(f=>f.includes(t)).includes(x)),[],2)]).map(E)}
-  else if(lv===4){const w=pick(CVC);ans=w;q=`Which word is this?`;say=`Look at the picture. Which word is it?`;vis=`<span class="big">${PIC[w]}</span>`;opts=shuffle([w,...others(CVC,[w],2)]).map(T)}
-  else if(lv===5){const w=pick(CVC);const i=rnd(0,2);const l=w[i];ans=l;q=w.split("").map((c,k)=>k===i?"_":c).join(" ");say=`Which letter is missing in ${w}?`;vis=`<span class="big">${PIC[w]}</span>`;opts=shuffle([l,...others((i===1?"aeiou":"bcdfghjklmnprstvwz").split("").filter(x=>x!==l),[],2)]).map(T)}
-  else if(lv===6){const w=pick(SIGHT);ans=w;q=`Blast the word you hear!`;say=`Find the word: ${w}.`;opts=shuffle([w,...others(SIGHT,[w],2)]).map(T)}
-  else if(lv===7){const p=pick(OPP);const [a,b]=Math.random()<.5?p:[p[1],p[0]];ans=b;q=`Opposite of “${a}”?`;opts=shuffle([b,...others(OPP.flat().filter(x=>x!==a&&x!==b),[],2)]).map(T);say=`What is the opposite of ${a}? ${opts.map(x=>x.v).join(", or ")}?`}
-  else{const m=pick(MEAN);ans=m[0];q=`Which word means “${m[1]}”?`;opts=shuffle([m[0],...others(MEAN.map(x=>x[0]),[m[0]],2)]).map(T);say=`Which word means ${m[1]}? ${opts.map(x=>x.v).join(", or ")}?`}
-  return {q,say,vis,opts,ans,skill:"words"+lv};
-}
 
 /* ================= Grade 1–3 math curriculum (Common Core aligned) ================= */
 const SAYSYM={">":"greater than","<":"less than","=":"equal to"};
@@ -340,15 +328,72 @@ g3:[
  ["Perimeter","🔲",()=>{const w=rnd(2,10),h=rnd(2,8);if(Math.random()<.6)return numMk("Perimeter = ?",`Add all the sides. What is the perimeter of the rectangle?`,2*(w+h),svgRect(w,h,"cm",true),[1,2,w]);const s=rnd(2,9),n=pick([3,4,5,6]),nmz={3:"triangle",4:"square",5:"pentagon",6:"hexagon"}[n];return numMk(`Each side is ${s} cm. Perimeter?`,`This ${nmz} has every side ${s} centimeters. What is the perimeter?`,s*n,svgShape(nmz),[1,2,s])}],
  ["Quadrilaterals","🔶",()=>{if(Math.random()<.5){const s=pick(["square","rectangle","rhombus","trapezoid"]);return mk("What kind of shape is this?","What is the name of this four-sided shape?",s,["square","rectangle","rhombus","trapezoid","pentagon"],svgShape(s),3)}const c=pick([["4 equal sides and 4 square corners","square"],["4 square corners, 2 long sides, 2 short sides","rectangle"],["4 equal sides, slanted corners","rhombus"],["Just 1 pair of parallel sides","trapezoid"]]);return mk(`Which shape has ${c[0]}?`,`Which shape has ${c[0]}?`,c[1],["square","rectangle","rhombus","trapezoid"],"",3)}],
 ]};
-const GALS=[["g1","1️⃣ Grade 1"],["g2","2️⃣ Grade 2"],["g3","3️⃣ Grade 3"],["words","🔤 Words"]];
-function topicName(g,lv){return g==="words"?WORD_NAMES[lv]:CUR[g][lv-1][0]}
-function galSize(g){return g==="words"?8:CUR[g].length}
-function makeQ(g,lv){const q0=makeQ0(g,lv);if(FOCUS()&&(g==="g1"||g==="words")&&q0.opts.length>3){const ok=q0.opts.find(o=>String(o.v)===String(q0.ans));const rest=shuffle(q0.opts.filter(o=>o!==ok)).slice(0,2);q0.opts=shuffle([ok,...rest])}return q0}
+/* ================= Reading galaxy (K–2) + 中文 galaxy ================= */
+const WORD_NAMES=["","Find the picture","First sounds","Rhyming words","Short a words","Short e, i, o, u words","Missing letter","Sight words 1","Blends (fr, st, cl…)","Digraphs (sh, ch, th, wh)","Sight words 2","Magic e","Read a sentence","Fill in the sentence","Opposites","Word meanings","Story time"];
+const WORD_ICONS=["","🖼️","🔊","🎵","🐱","🐷","🔤","👀","🐸","🐚","📘","✨","📝","🧩","🔄","📖","📚"];
+Object.assign(PIC,{cap:"🧢",bag:"👜",can:"🥫",pan:"🍳",ram:"🐏",pin:"📌",lip:"👄",pot:"🍲",mop:"🧹",flag:"🚩",crab:"🦀",drum:"🥁",snail:"🐌",swan:"🦢",sled:"🛷",clock:"🕰️",grapes:"🍇",spoon:"🥄",bread:"🍞",plum:"🍑",ship:"🚢",shell:"🐚",sheep:"🐑",shoe:"👟",chick:"🐥",cheese:"🧀",chair:"🪑",cherry:"🍒",thumb:"👍",whale:"🐳",cube:"🧊",rose:"🌹",kitten:"🐱",bird:"🐦",cow:"🐮",book:"📖"});
+const SHORTA=["cat","hat","bat","map","van","cap","bag","can","pan","ram","ant"];
+const SHORTO=["bed","hen","jet","pen","web","pig","pin","lip","dog","fox","box","log","pot","mop","sun","bus","bug","cup","nut","rug","mug"];
+const swapV=(w,vs)=>vs.map(v=>w.replace(/[aeiou]/,v)).filter(x=>x!==w);
+const BLENDS=[["frog","fr"],["flag","fl"],["crab","cr"],["drum","dr"],["star","st"],["snail","sn"],["swan","sw"],["sled","sl"],["clock","cl"],["tree","tr"],["train","tr"],["grapes","gr"],["snake","sn"],["spoon","sp"],["bread","br"],["plum","pl"]];
+const DIGR=[["ship","sh"],["shell","sh"],["sheep","sh"],["shoe","sh"],["chick","ch"],["cheese","ch"],["chair","ch"],["cherry","ch"],["thumb","th"],["whale","wh"]];
+const SIGHT1=["the","and","is","a","I","see","to","it","in","you","can","we","my","go","like"];
+const SIGHT2=["said","was","they","have","what","where","come","here","look","are","for","this","that","with","play","there","want","went"];
+const MAGIC=[["kit","kite"],["cub","cube"],["tap","tape"],["hop","hope"],["pin","pine"],["cap","cape"],["not","note"],["rob","robe"],["tub","tube"],["cut","cute"],["rid","ride"],["bit","bite"],["mad","made"],["man","mane"]];
+const ANIM=[["cat","🐱"],["dog","🐶"],["pig","🐷"],["fox","🦊"],["hen","🐔"],["duck","🦆"],["frog","🐸"],["bee","🐝"]],VERB=[["runs","🏃"],["sits","🪑"],["naps","💤"],["hops","🦘"]];
+const FILLS=[["The ___ can fly.","bird",["fish","dog"]],["The ___ can swim.","fish",["cat","bus"]],["I eat soup with a ___.","spoon",["shoe","bed"]],["I wear a ___ on my head.","hat",["sock","cup"]],["The sun is ___.","hot",["cold","wet"]],["A ___ says moo.","cow",["pig","hen"]],["We read a ___.","book",["ball","cake"]],["I sleep in a ___.","bed",["tree","car"]],["Ice is very ___.","cold",["hot","red"]],["A frog can ___.","hop",["fly","read"]],["A duck says ___.","quack",["moo","meow"]],["I brush my ___.","teeth",["shoes","cake"]]];
+const STORIES=[["Max has a red ball. He kicks it to his dog.","What color is the ball?","red",["blue","green"],"⚽"],["Mia sees a frog by the pond. The frog hops into the water.","Where does the frog hop?","water",["tree","box"],"🐸"],["Leo has three apples. He gives one to Ava.","How many apples does Leo have now?","2",["3","1"],"🍎"],["It is raining. Zoe takes her yellow umbrella.","What does Zoe take?","umbrella",["hat","kite"],"☂️"],["Ben's cat is sleepy. It naps on the soft bed.","Where does the cat nap?","bed",["box","car"],"🐱"],["The bus is big and yellow. It takes kids to school.","Where does the bus go?","school",["zoo","park"],"🚌"],["Sam plants a seed. Rain falls and a flower grows.","What grows?","flower",["tree","rock"],"🌱"],["Ava and Leo build a sandcastle at the beach.","Where are they?","beach",["school","home"],"🏖️"],["Jonah flies his rocket to the moon. He waves to the stars.","Where does Jonah fly?","moon",["sea","park"],"🚀"]];
+function wordsQ(lv){
+  let q,say,vis="",opts,ans,ex=null;const E=x=>({label:PIC[x],v:x,emoji:true}),T=x=>({label:x,v:x,emoji:false});
+  if(lv===1){const w=pick(ALLW);ans=w;q=`Find the ${w}!`;say=`Find the ${w}.`;opts=shuffle([w,...others(ALLW,[w],2)]).map(E)}
+  else if(lv===2){const L={b:["bus","bee","bed","bat","ball","bug","bun"],c:["cat","cup","car","cake","castle"],d:["dog","duck","dinosaur"],f:["fox","fish","frog"],s:["sun","star","snake"],h:["hat","hen","house"],m:["moon","map","mug"],p:["pig","pen","penguin","pumpkin"],t:["tree","train","turtle"],r:["rug","rocket","robot","rainbow"]};const l=pick(Object.keys(L));const w=pick(L[l]);ans=w;q=`Which starts with “${l}”?`;say=`Which one starts with the ${l} sound? ${l}... like ${L[l].find(x=>x!==w)}.`;opts=shuffle([w,...others(ALLW.filter(x=>x[0]!==l),[],2)]).map(E);ex={hint:"Say each picture's name slowly. Listen to the very first sound.",why:`${w} starts with ${l}.`}}
+  else if(lv===3){const fam=pick(RHY);const [t,r]=shuffle(fam);ans=r;q=`What rhymes with ${t}?`;say=q;vis=`<span class="big">${PIC[t]}</span>`;opts=shuffle([r,...others(ALLW.filter(x=>!RHY.find(f=>f.includes(t)).includes(x)),[],2)]).map(E);ex={hint:"Rhyming words sound the same at the end.",why:`${t} and ${r} rhyme: they end the same way.`}}
+  else if(lv===4||lv===5){const w=pick(lv===4?SHORTA:SHORTO);ans=w;q="Which word is this?";say="Look at the picture. Which word is it?";vis=`<span class="big">${PIC[w]}</span>`;opts=shuffle([w,...shuffle(swapV(w,["a","e","i","o","u"])).slice(0,2)]).map(T);ex={hint:"Sound it out letter by letter. Listen to the middle sound.",why:`It's ${w}: ${w.split("").join("-")}.`}}
+  else if(lv===6){const w=pick(CVC);const i=rnd(0,2);const l=w[i];ans=l;q=w.split("").map((c,k)=>k===i?"_":c).join(" ");say=`Which letter is missing in ${w}?`;vis=`<span class="big">${PIC[w]}</span>`;opts=shuffle([l,...others((i===1?"aeiou":"bcdfghjklmnprstvwz").split("").filter(x=>x!==l),[],2)]).map(T);ex={hint:"Say the word slowly and listen for each sound.",why:`${w} is spelled ${w.split("").join(" - ")}.`}}
+  else if(lv===7||lv===10){const L=lv===7?SIGHT1:SIGHT2;const w=pick(L);ans=w;q="Blast the word you hear!";say=`Find the word: ${w}.`;opts=shuffle([w,...others(L,[w],2)]).map(T);ex={hint:"Look at the first letter, then the whole word.",why:`This word is "${w}".`}}
+  else if(lv===8){const [w,b]=pick(BLENDS);ans=b;q=`${PIC[w]} starts with?`;say="Which two letters does this picture start with? Say its name slowly.";vis=`<span class="big">${PIC[w]}</span>`;opts=shuffle([b,...others(uniq(BLENDS.map(x=>x[1])),[b],2)]).map(T);ex={hint:"Two sounds blend together at the start. Say it slowly.",why:`${w} starts with ${b}: ${b}-${w.slice(2)}.`}}
+  else if(lv===9){const [w,d]=pick(DIGR);ans=d;q=`${PIC[w]} starts with?`;say="Which sound does this picture start with? sh, ch, th, or wh?";vis=`<span class="big">${PIC[w]}</span>`;opts=shuffle([d,...others(["sh","ch","th","wh"],[d],2)]).map(T);ex={hint:"sh is quiet like shhh. ch sounds like a choo-choo train.",why:`${w} starts with ${d}.`}}
+  else if(lv===11){const [b,m]=pick(MAGIC);ans=m;const other=pick(MAGIC.filter(x=>x[1]!==m))[1];q=`${b} + e = ?`;say=`Add a magic e to ${b}. What word do you get?`;vis=PIC[m]?`<span class="big">${PIC[m]}</span>`:"";opts=shuffle([m,b,other]).map(T);ex={hint:"Magic e makes the vowel say its name.",why:`${b} + e = ${m}. The e makes the vowel say its name.`}}
+  else if(lv===12){const a=pick(ANIM),v=pick(VERB),a2=pick(ANIM.filter(x=>x!==a)),v2=pick(VERB.filter(x=>x!==v));const s1=`The ${a[0]} ${v[0]}.`;ans=s1;q="Which sentence matches?";say="Look at the picture. Which sentence matches it?";vis=`<span class="big">${a[1]}${v[1]}</span>`;opts=shuffle([s1,`The ${a2[0]} ${v[0]}.`,`The ${a[0]} ${v2[0]}.`]).map(T);ex={hint:"Read every word. Check the animal AND what it is doing.",why:`"${s1}" — the picture shows a ${a[0]} that ${v[0]}.`}}
+  else if(lv===13){const f=pick(FILLS);ans=f[1];q=f[0];say=f[0].replace("___","blank")+" Which word fits?";opts=shuffle([f[1],...f[2]]).map(T);ex={hint:"Read the sentence with each word. Which one makes sense?",why:f[0].replace("___",f[1])}}
+  else if(lv===14){const p=pick(OPP);const [a,b]=Math.random()<.5?p:[p[1],p[0]];ans=b;q=`Opposite of “${a}”?`;opts=shuffle([b,...others(OPP.flat().filter(x=>x!==a&&x!==b),[],2)]).map(T);say=`What is the opposite of ${a}? ${opts.map(x=>x.v).join(", or ")}?`}
+  else if(lv===15){const m=pick(MEAN);ans=m[0];q=`Which word means “${m[1]}”?`;opts=shuffle([m[0],...others(MEAN.map(x=>x[0]),[m[0]],2)]).map(T);say=`Which word means ${m[1]}? ${opts.map(x=>x.v).join(", or ")}?`}
+  else{const st=pick(STORIES);ans=st[2];q=`${st[0]} ${st[1]}`;say=`${st[0]} ${st[1]}`;vis=`<span class="big">${st[4]}</span>`;opts=shuffle([st[2],...st[3]]).map(T);ex={hint:"Listen to the story again. The answer is in it.",why:`The story says: "${st[0]}"`}}
+  const o={q,say,vis,opts,ans,skill:"words"+lv};if(ex)o.ex=ex;return o;
+}
+/* ---- 中文 galaxy ---- */
+const ZHN=["零","一","二","三","四","五","六","七","八","九","十"];
+const zhNum=n=>n<=10?ZHN[n]:n===100?"一百":(Math.floor(n/10)>1?ZHN[Math.floor(n/10)]:"")+"十"+(n%10?ZHN[n%10]:"");
+const ZA=[["猫","🐱"],["狗","🐶"],["鱼","🐟"],["鸟","🐦"],["马","🐴"],["牛","🐮"],["羊","🐑"],["猪","🐷"],["兔子","🐰"],["龙","🐉"],["老虎","🐯"],["熊猫","🐼"]];
+const ZF=[["苹果","🍎"],["香蕉","🍌"],["西瓜","🍉"],["米饭","🍚"],["面条","🍜"],["水","💧"],["火","🔥"],["太阳","☀️"],["月亮","🌙"],["星星","⭐"],["花","🌸"],["树","🌳"],["雨","🌧️"],["雪","❄️"]];
+const ZC=[["红色","#ef233c"],["黄色","#ffd166"],["蓝色","#4361ee"],["绿色","#38b000"],["黑色","#222222"],["白色","#ffffff"],["紫色","#9d4edd"],["橙色","#ff9f1c"]];
+const ZP=[["人","🧍"],["口","👄"],["日","☀️"],["月","🌙"],["山","⛰️"],["水","💧"],["火","🔥"],["木","🌳"],["大","🐘"],["小","🐭"],["手","✋"],["目","👁️"],["田","🌾"],["门","🚪"],["雨","🌧️"]];
+const ZFAM=[["爸爸","👨"],["妈妈","👩"],["哥哥","👦"],["姐姐","👧"],["爷爷","👴"],["奶奶","👵"],["宝宝","👶"]];
+const ZB=[["手","✋"],["脚","🦶"],["眼睛","👀"],["耳朵","👂"],["鼻子","👃"],["嘴巴","👄"],["牙齿","🦷"]];
+const ZO=[["大","小"],["上","下"],["多","少"],["左","右"],["长","短"],["高","矮"],["快","慢"],["冷","热"],["开","关"],["前","后"]];
+const zq=(q,say,ans,dists,vis,emoji)=>{const o=shuffle([ans,...shuffle(dists.filter(d=>d!==ans)).slice(0,2)]);return {q,say,vis:vis||"",ans,opts:o.map(v=>({label:emoji?emoji(v):v,v,emoji:!!emoji})),ex:{hint:"再听一遍，慢慢想。Listen again and think.",why:`答案是「${ans}」。`}}};
+const picOf=list=>v=>(list.find(x=>x[0]===v)||[])[1];
+CUR.zh=[
+ ["Numbers 1–10 (数字)","🔢",()=>{const n=rnd(1,10);return zq("几个？","这里有几个？",ZHN[n],ZHN.slice(1,11),`<span class="g">${pick(["⭐","🍎","🐟","🌸"]).repeat(n)}</span>`)}],
+ ["Animals (动物)","🐼",()=>{const a=pick(ZA);return zq(`找一找：${a[0]}`,`找一找，${a[0]}在哪里？`,a[0],ZA.map(x=>x[0]),"",picOf(ZA))}],
+ ["Food & nature (食物和自然)","🍎",()=>{const a=pick(ZF);return zq(`找一找：${a[0]}`,`找一找，${a[0]}在哪里？`,a[0],ZF.map(x=>x[0]),"",picOf(ZF))}],
+ ["Colors (颜色)","🎨",()=>{const c=pick(ZC);return zq("什么颜色？","这是什么颜色？",c[0],ZC.map(x=>x[0]),`<span style="display:inline-block;width:80px;height:50px;border-radius:12px;border:3px solid #333;background:${c[1]}"></span>`)}],
+ ["Picture characters (象形字)","🀄",()=>{const p=pick(ZP);return zq("哪个字？","看图片，哪个字是这个意思？",p[0],ZP.map(x=>x[0]),`<span class="big">${p[1]}</span>`)}],
+ ["Family (家人)","👨‍👩‍👦",()=>{const f=pick(ZFAM);return zq("这是谁？","这是谁？",f[0],ZFAM.map(x=>x[0]),`<span class="big">${f[1]}</span>`)}],
+ ["Body (身体)","👂",()=>{const b=pick(ZB);return zq("这是什么？","这是身体的哪个部分？",b[0],ZB.map(x=>x[0]),`<span class="big">${b[1]}</span>`)}],
+ ["Opposites (反义词)","↔️",()=>{const p=pick(ZO);const [a,b]=Math.random()<.5?p:[p[1],p[0]];return zq(`「${a}」的反义词？`,`${a}的反义词是什么？`,b,ZO.flat().filter(x=>x!==a),"")}],
+ ["Numbers 11–100 (数字)","💯",()=>{const n=rnd(11,100);const d=uniq([n+1,n-1,n+10,n-10,Math.floor(n/10)+(n%10)*10].filter(x=>x>=11&&x<=100&&x!==n)).map(zhNum);return zq(`${n} 怎么写？`,`${zhNum(n)}，用中文怎么写？`,zhNum(n),d,"")}],
+ ["Listen & read (听音认字)","👂",()=>{const pool=[...ZP,...ZA.slice(0,8),...ZFAM].map(x=>x[0]);const w=pick(pool);return zq("听一听，选一选","听一听，哪个是："+w,w,pool,"")}],
+];
+const GALS=[["g1","1️⃣ Grade 1"],["g2","2️⃣ Grade 2"],["g3","3️⃣ Grade 3"],["words","📚 Reading"],["zh","🀄 中文"]];
+function topicName(g,lv){return g==="words"?WORD_NAMES[lv]:(CUR[g][lv-1]||[""])[0]}
+function galSize(g){return g==="words"?WORD_NAMES.length-1:CUR[g].length}
+function makeQ(g,lv){const q0=makeQ0(g,lv);if(FOCUS()&&(g==="g1"||g==="words"||g==="zh")&&q0.opts.length>3){const ok=q0.opts.find(o=>String(o.v)===String(q0.ans));const rest=shuffle(q0.opts.filter(o=>o!==ok)).slice(0,2);q0.opts=shuffle([ok,...rest])}return q0}
 function makeQ0(g,lv){if(g==="words"){const q=wordsQ(lv);return q}const t=CUR[g][lv-1];const q=t[2]();q.skill=`${g}_${lv}`;q.say=q.say.replace(/[☐]/g," ");return q}
 
 /* ================= planets ================= */
 const PAL=[["#ffd6a5","#f4a261"],["#90be6d","#43aa8b"],["#4cc9f0","#4361ee"],["#c77dff","#7b2cbf"],["#ffd166","#f3722c"],["#06d6a0","#118ab2"],["#ef476f","#b5179e"],["#ffbe0b","#fb5607"],["#a0c4ff","#3a0ca3"],["#ff9f1c","#d00000"],["#e0aaff","#5a189a"],["#caffbf","#2a9d8f"],["#ffafcc","#e5383b"],["#bde0fe","#5e60ce"]];
-const PLANETS={g1:CUR.g1.map((t,i)=>[t[0],...PAL[i%PAL.length],t[1]]),g2:CUR.g2.map((t,i)=>[t[0],...PAL[(i+5)%PAL.length],t[1]]),g3:CUR.g3.map((t,i)=>[t[0],...PAL[(i+9)%PAL.length],t[1]]),words:[["Picture Planet","#90e0ef","#0077b6"],["Sound Swamp","#95d5b2","#2d6a4f"],["Rhyme Rings","#ffafcc","#cd4f8b"],["Reading Reef","#ffd6a5","#e85d04"],["Letter Lagoon","#bde0fe","#5e60ce"],["Sight Summit","#caffbf","#38b000"],["Opposite Orbit","#ffc6ff","#9d4edd"],["Word Wizard World","#fdffb6","#e9c46a"]]};
+const PLANETS={g1:CUR.g1.map((t,i)=>[t[0],...PAL[i%PAL.length],t[1]]),g2:CUR.g2.map((t,i)=>[t[0],...PAL[(i+5)%PAL.length],t[1]]),g3:CUR.g3.map((t,i)=>[t[0],...PAL[(i+9)%PAL.length],t[1]]),words:WORD_NAMES.slice(1).map((n,i)=>[n,...PAL[(i+3)%PAL.length],WORD_ICONS[i+1]]),zh:CUR.zh.map((t,i)=>[t[0],...PAL[(i+7)%PAL.length],t[1]])};
 const BOSSES=["👾","👽","🛸","🐙","🤖","🦈","🐲","🦑","🦖","🐊","🐉","🦂"];
 function unlocked(g,lv){return lv<=(S.lv[g]||0)}
 function pstars(g,lv){return (S.prog[g][lv]||[0,0,0])}
@@ -595,7 +640,7 @@ function drawRetroTarget(r){const k=G.kind,wr=r.state==="wrong",R=r.r;
 
 /* ================= explanations ================= */
 function seqStr(a,n,step){const out=[];for(let i=1;i<=n;i++)out.push(a+i*step);return out.join(", ")}
-function explain(q,g,lv){const t=q.q,ans=q.ans,top=topicName(g,lv)||"";let m;
+function explain(q,g,lv){if(q.ex)return q.ex;const t=q.q,ans=q.ans,top=topicName(g,lv)||"";let m;
   if((m=t.match(/^(\d+) \+ (\d+) = \?$/))){const a=+m[1],b=+m[2],hi=Math.max(a,b),lo=Math.min(a,b);return {hint:lo<=10?`Start at ${hi} and count on ${lo} more.`:`Add the tens first, then the ones.`,why:lo<=6?`${a} + ${b} = ${ans}. Start at ${hi}, count on: ${seqStr(hi,lo,1)}.`:`${a} + ${b} = ${ans}. ${a>=10||b>=10?`Tens: ${Math.floor(a/10)*10} + ${Math.floor(b/10)*10} = ${Math.floor(a/10)*10+Math.floor(b/10)*10}. Ones: ${a%10} + ${b%10} = ${a%10+b%10}.`:`Make 10 first: ${hi} + ${10-hi} = 10, then add the rest.`}`}}
   if((m=t.match(/^(\d+) − (\d+) = \?$/))){const a=+m[1],b=+m[2];return {hint:b<=10?`Start at ${a} and count back ${b}.`:`Take away the tens first, then the ones.`,why:b<=6?`${a} − ${b} = ${ans}. Count back from ${a}: ${seqStr(a,b,-1)}.`:`${a} − ${b} = ${ans}. Check it: ${ans} + ${b} = ${a}.`}}
   if((m=t.match(/^(\d+) × (\d+) = \?$/))){const a=+m[1],b=+m[2];return {hint:`${a} × ${b} means ${a} groups of ${b}.`,why:a<=10&&b<=10?`${a} × ${b} = ${ans}. Count by ${b}s ${a} times: ${seqStr(0,a,b)}.`:`${a} × ${b} = ${ans}. ${a} × ${b/10} = ${a*b/10}, then add a zero.`}}
@@ -885,7 +930,7 @@ function renderMap(){
 }
 function openPlanet(g,lv){
   const p=PLANETS[g][lv-1],st=pstars(g,lv);
-  $("mpName").textContent=`${p[3]?p[3]+" ":""}${p[0]}`;$("mpSkill").textContent=g==="words"?"Word Galaxy":`Grade ${g[1]} · planet ${lv} of ${galSize(g)}`;
+  $("mpName").textContent=`${p[3]?p[3]+" ":""}${p[0]}`;$("mpSkill").textContent=g==="words"?`Reading · planet ${lv} of ${galSize(g)}`:g==="zh"?`中文 · planet ${lv} of ${galSize(g)}`:`Grade ${g[1]} · planet ${lv} of ${galSize(g)}`;
   $("mpMissions").innerHTML=[0,1,2].map(m=>{const open=m===0||st[m-1]>0;return `<button class="mb ${open?"":"lock"}" data-m="${m}"><span class="ic">${!open?"🔒":m===2?BOSSES[(lv-1)%BOSSES.length]:MK[kindFor(lv,m)].icon}</span>${MK[kindFor(lv,m)].t}<br>${[0,1,2].map(i=>i<st[m]?"⭐":"☆").join("")}</button>`}).join("");
   $("mpMissions").querySelectorAll(".mb").forEach(b=>b.onclick=()=>{if(b.classList.contains("lock")){toast("Finish the mission before it first!");return}$("mPlanet").classList.remove("on");if(sessionOver()){breakTime();return}startMission(g,lv,+b.dataset.m)});
   $("mPlanet").classList.add("on");speak(p[0]);
@@ -923,7 +968,7 @@ function renderParents(){
   const lab=g=>(S.lv[g]||0)?`Planet ${S.lv[g]}/${galSize(g)}: ${topicName(g,S.lv[g])}`:"Locked";
   const all=["g1","g2","g3"].map(sum).reduce((a,b)=>({q:a.q+b.q,c:a.c+b.c}),{q:0,c:0}),w=sum("words");
   $("pMath").innerHTML=["g1","g2","g3"].map(g=>`<div style="font-size:15px">G${g[1]}: ${lab(g)}</div>`).join("");$("pMathAcc").textContent=`${all.q} math questions · ${acc(all.q,all.c)} first-try`;
-  $("pWords").textContent=lab("words");$("pWordsAcc").textContent=`${w.q} questions · ${acc(w.q,w.c)} first-try`;
+  const zz=sum("zh_");$("pWords").innerHTML=`<div style="font-size:15px">📚 ${lab("words")}</div><div style="font-size:15px">🀄 ${lab("zh")}</div>`;$("pWordsAcc").textContent=`Reading ${w.q} q · ${acc(w.q,w.c)} · 中文 ${zz.q} q · ${acc(zz.q,zz.c)} first-try`;
   const rows=[];GALS.forEach(([g])=>{for(let i=1;i<=galSize(g);i++){const k=g==="words"?"words"+i:`${g}_${i}`,v=S.skills[k];if(v)rows.push(`<tr><td>${g==="words"?"🔤":"G"+g[1]} ${topicName(g,i)}</td><td>${acc(v.q,v.c)}</td><td>${v.q}</td></tr>`)}});
   $("pSkills").innerHTML=rows.join("")||`<tr><td colspan="3" class="note">No missions flown yet.</td></tr>`;
   $("sFocus").value=FOCUS()?"1":"0";$("sBlock").value=S.block||20;$("sRest").value=S.rest||5;$("sVoice").value=S.voice;

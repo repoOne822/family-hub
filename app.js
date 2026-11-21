@@ -915,9 +915,9 @@ function goalProgress(m) {
   return { cur, last: rs[rs.length - 1]?.date, p: span ? clamp01((cur - (+m.baseline)) / span) : 1 };
 }
 /* ---- Space Quest (Jonah's math + words game): parent summary from app_saves ---- */
-const SQ_W = ["", "Find the picture", "First sounds", "Rhyming words", "Read the word", "Missing letter", "Sight words", "Opposites", "Word meanings"];
-const SQ_G = { g1: { en: "Grade 1", zh: "一年级", n: 15 }, g2: { en: "Grade 2", zh: "二年级", n: 14 }, g3: { en: "Grade 3", zh: "三年级", n: 20 }, words: { en: "Words", zh: "单词", n: 8 } };
-const SQ_L = { en: { t: "🚀 Space Quest progress", none: "No missions flown yet. He opens it from the 🚀 Space Quest card on his page.", stars: "mission stars", coins: "coins", wk: "Last 7 days", days: "days played", min: "min", q: "questions", ft: "first-try", skill: "Topic", acc: "First-try correct", n: "Questions", planet: "Planet", locked: "locked", note: "Grade 1–3 math (all areas: operations, place value, fractions, time, money, measurement incl. metric, graphs, geometry) + words. Each planet = 2 missions + a boss; the boss unlocks the next planet, the last planet unlocks the next grade. 20 minutes of play, then a 5-minute break he can't skip (countdown + movement ideas); trophies unlock special rockets, skins and lasers. Mission types: Asteroid Blast, Star Race, Alien Rescue, Comet Catch, Crystal Cave, plus retro arcade rounds (Alien Rows, Brick Breaker, Block Drop, Maze Muncher, River Hopper, Pixel Jumper), and a Boss; optional retro 8-bit look in the hangar. Perfect (3-star) missions open a treasure chest (coins or rare items). A mistake costs 2 coins and a shield, shows a hint, then a worked explanation; each missed topic gets a retry question and a review at the end. Focus mode (on by default; Parent corner in the game): calm screen, no shaking or lucky stars, still targets, think time before tapping, 3 choices in Grade 1 & Words, a slow-down nudge on fast guesses." },
+const SQ_W = ["", "Find the picture", "First sounds", "Rhyming words", "Short a words", "Short e, i, o, u words", "Missing letter", "Sight words 1", "Blends", "Digraphs", "Sight words 2", "Magic e", "Read a sentence", "Fill in the sentence", "Opposites", "Word meanings", "Story time"];
+const SQ_G = { g1: { en: "Grade 1", zh: "一年级", n: 15 }, g2: { en: "Grade 2", zh: "二年级", n: 14 }, g3: { en: "Grade 3", zh: "三年级", n: 20 }, words: { en: "Reading", zh: "阅读", n: 16 }, zh: { en: "中文", zh: "中文", n: 10 } };
+const SQ_L = { en: { t: "🚀 Space Quest progress", none: "No missions flown yet. He opens it from the 🚀 Space Quest card on his page.", stars: "mission stars", coins: "coins", wk: "Last 7 days", days: "days played", min: "min", q: "questions", ft: "first-try", skill: "Topic", acc: "First-try correct", n: "Questions", planet: "Planet", locked: "locked", note: "Grade 1–3 math (all areas: operations, place value, fractions, time, money, measurement incl. metric, graphs, geometry) + reading (16 planets: phonics, blends, digraphs, magic e, sight words, sentences, stories) + 中文 (10 planets, read aloud in Mandarin). Each planet = 2 missions + a boss; the boss unlocks the next planet, the last planet unlocks the next grade. 20 minutes of play, then a 5-minute break he can't skip (countdown + movement ideas); trophies unlock special rockets, skins and lasers. Mission types: Asteroid Blast, Star Race, Alien Rescue, Comet Catch, Crystal Cave, plus retro arcade rounds (Alien Rows, Brick Breaker, Block Drop, Maze Muncher, River Hopper, Pixel Jumper), and a Boss; optional retro 8-bit look in the hangar. Perfect (3-star) missions open a treasure chest (coins or rare items). A mistake costs 2 coins and a shield, shows a hint, then a worked explanation; each missed topic gets a retry question and a review at the end. Focus mode (on by default; Parent corner in the game): calm screen, no shaking or lucky stars, still targets, think time before tapping, 3 choices in Grade 1 & Words, a slow-down nudge on fast guesses." },
   zh: { t: "🚀 太空探险进度", none: "还没玩过。他可以从自己页面上的 🚀 太空探险卡片打开。", stars: "颗任务星", coins: "金币", wk: "最近7天", days: "天玩过", min: "分钟", q: "题", ft: "一次答对", skill: "主题", acc: "一次答对率", n: "题数", planet: "星球", locked: "未解锁", note: "一至三年级数学（运算、位值、分数、时间、钱币、测量含公制、图表、几何）+ 单词。每个星球2个任务+1个大怪兽；打败大怪兽解锁下一个星球，最后一个星球解锁下一个年级。每玩20分钟强制休息5分钟（倒计时+活动建议）；奖杯可解锁特别火箭、皮肤和激光。任务类型：打陨石、星际赛跑、救外星人、接彗星、水晶洞，以及复古街机关卡（外星人方阵、打砖块、方块掉落、迷宫吃豆机器人、过河青蛙、像素跳跃），和大怪兽；机库里可开复古8位画风。满分任务开宝箱；答错扣2金币和1个护盾，先给提示再讲解，错题会重做并在结束时复习。专注模式（默认开启，可在游戏家长角关闭）：画面安静、无震动和幸运星、目标不动、作答前有思考时间、一年级和单词只有3个选项、太快乱猜会提醒慢下来。" } };
 function spaceStatsHtml(kid) {
   const L = SQ_L[lang] || SQ_L.en, save = (S.app_saves || []).find(a => a.kid === kid && a.app === "space"), P = save && save.data ? save.data[`${kid}_space_state`] : null;
@@ -926,7 +926,7 @@ function spaceStatsHtml(kid) {
   let sec = 0, dp = 0, wq = 0, wc = 0;
   for (let i = 0; i < 7; i++) { const k = new Date(Date.now() - i * 864e5).toLocaleDateString("en-CA"), d = (P.days || {})[k]; if (d && d.sec > 0) { sec += d.sec; dp++; wq += d.q || 0; wc += d.c || 0; } }
   const gal = Object.entries(SQ_G).map(([g, x]) => `${x[lang] || x.en}: ${lv[g] ? `${L.planet} ${lv[g]}/${x.n}` : L.locked}`).join(" · ");
-  const rows = Object.entries(P.skills || {}).filter(([k]) => P.v === 3 || k.startsWith("words")).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true })).map(([k, v]) => { const nmz = names[k] || (k.startsWith("words") ? SQ_W[+k.slice(5)] : k); const tag = k.startsWith("words") ? "🔤" : "G" + k[1]; return `<tr><td>${tag} ${esc(nmz || k)}</td><td>${pct(v.q, v.c)}</td><td>${v.q}</td></tr>`; });
+  const rows = Object.entries(P.skills || {}).filter(([k]) => P.v === 3 || k.startsWith("words")).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true })).map(([k, v]) => { const nmz = names[k] || (k.startsWith("words") ? SQ_W[+k.slice(5)] : k); const tag = k.startsWith("words") ? "📚" : k.startsWith("zh") ? "🀄" : "G" + k[1]; return `<tr><td>${tag} ${esc(nmz || k)}</td><td>${pct(v.q, v.c)}</td><td>${v.q}</td></tr>`; });
   return `<div class="coach"><h4>${L.t}</h4>
     <div class="meta">⭐ ${P.stars || 0} ${L.stars} · 🪙 ${P.coins || 0} ${L.coins} · 🏆 ${Object.keys(P.ach || {}).length}/18 · ${L.wk}: ${Math.round(sec / 60)} ${L.min}, ${dp}/7 ${L.days}, ${wq} ${L.q}, ${pct(wq, wc)} ${L.ft}</div>
     <div class="meta">${gal}</div>
@@ -1104,10 +1104,48 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121z6${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121z7${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
-  appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
+  const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
+  appOpen = async () => { stopCoach(); window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
   fs.querySelector(".appclose").onclick = () => appOpen();
+}
+/* ---- 🧘 Play & break coach: wraps every hub game for the boys (Space Quest has its own) ---- */
+const COACH = { jonah: { play: 20, rest: 5 }, eric: { play: 30, rest: 5 }, ellis: { play: 30, rest: 5 } };
+const COACH_MOVES = { en: ["Do 10 jumping jacks 🤸", "Stretch up to the ceiling 10 times 🙆", "Get a drink of water 💧", "Look out the window at something far away 👀", "Do 5 slow squats 🏋️", "Take 5 big slow breaths 🌬️", "Walk around the house once 🚶", "Shake out your arms and legs 💃"],
+  zh: ["做10个开合跳 🤸", "向上伸展10次 🙆", "去喝一杯水 💧", "看看窗外远处的东西 👀", "慢慢做5个深蹲 🏋️", "做5次慢慢的深呼吸 🌬️", "在家里走一圈 🚶", "甩甩胳膊和腿 💃"] };
+function playCoach(kid, fs) {
+  const L = COACH[kid] || { play: 30, rest: 5 }, key = `fh_coach_${kid}`, zh = lang === "zh";
+  let st = {}; try { st = JSON.parse(localStorage.getItem(key) || "{}"); } catch (e) {}
+  const saveSt = () => { try { localStorage.setItem(key, JSON.stringify(st)); } catch (e) {} };
+  if (st.last && Date.now() - st.last >= L.rest * 60000 && !(st.breakUntil > Date.now())) st.sec = 0;
+  st.sec = st.sec || 0; saveSt();
+  const ov = document.createElement("div");
+  ov.style.cssText = "position:absolute;inset:0;z-index:5;display:none;align-items:center;justify-content:center;background:rgba(16,0,43,.92);color:#fff;text-align:center;padding:20px;font-family:inherit";
+  fs.style.position = fs.style.position || "fixed"; fs.appendChild(ov);
+  const warn = document.createElement("div");
+  warn.style.cssText = "position:absolute;left:50%;top:56px;transform:translateX(-50%);z-index:4;display:none;background:#ffd166;color:#3b2400;font-weight:800;padding:8px 16px;border-radius:14px;box-shadow:0 6px 20px #0006";
+  warn.textContent = zh ? "⏳ 还有1分钟就休息啦，先做完这一题！" : "⏳ Break in 1 minute — finish what you're doing!"; fs.appendChild(warn);
+  let tick = null, bt = null;
+  const showBreak = () => {
+    warn.style.display = "none"; ov.style.display = "flex"; const total = L.rest * 60000; let lastMove = -1;
+    const draw = () => { const left = Math.max(0, st.breakUntil - Date.now()), sec = Math.ceil(left / 1000), mv = Math.floor((total - left) / 60000) % 8;
+      if (left > 0) { if (mv !== lastMove || !ov.innerHTML) { lastMove = mv; }
+        ov.innerHTML = `<div style="max-width:420px"><div style="font-size:64px">🧘</div><h2 style="margin:6px 0">${zh ? "休息时间！" : "Break time!"}</h2><div style="font-size:60px;font-weight:800;color:#ffd166">${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}</div><p style="font-size:22px;margin:10px 0"><b>${COACH_MOVES[zh ? "zh" : "en"][(mv + new Date().getDate()) % 8]}</b></p><p style="opacity:.85">${zh ? `你已经玩了${L.play}分钟。让眼睛和身体休息一下，游戏会等你。` : `You played for ${L.play} minutes. Rest your eyes and move your body — your game will wait for you.`}</p></div>`; }
+      else { clearInterval(bt); bt = null; st.sec = 0; st.breakUntil = 0; saveSt();
+        ov.innerHTML = `<div><div style="font-size:64px">✅</div><h2>${zh ? "休息好了！" : "Recharged!"}</h2><button style="font:inherit;font-weight:800;font-size:22px;padding:12px 26px;border:none;border-radius:16px;background:#ffd166;color:#3b2400;cursor:pointer">${zh ? "回到游戏 ▶" : "Back to the game ▶"}</button></div>`;
+        ov.querySelector("button").onclick = () => { ov.style.display = "none"; }; } };
+    draw(); clearInterval(bt); bt = setInterval(draw, 1000);
+  };
+  if (st.breakUntil > Date.now()) showBreak();
+  tick = setInterval(() => {
+    if (document.hidden || ov.style.display === "flex") return;
+    st.sec++; st.last = Date.now();
+    if (st.sec === L.play * 60 - 60) { warn.style.display = "block"; setTimeout(() => { warn.style.display = "none"; }, 8000); }
+    if (st.sec >= L.play * 60) { st.breakUntil = Date.now() + L.rest * 60000; saveSt(); showBreak(); }
+    if (st.sec % 10 === 0) saveSt();
+  }, 1000);
+  return () => { clearInterval(tick); clearInterval(bt); st.last = Date.now(); saveSt(); };
 }
 document.addEventListener("click", e => { const a = e.target.closest("[data-app]"); if (a) { e.preventDefault(); e.stopPropagation(); openApp(a.dataset.app, a.dataset.appkid); } }, true);
 
