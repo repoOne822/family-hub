@@ -109,6 +109,9 @@ table{width:100%;border-collapse:collapse;font-size:15px}td,th{text-align:left;p
 #mWhy{z-index:30}#mWhy .mcard{max-width:460px}#wBody{font-size:21px;line-height:1.35;margin:6px 0}#wBody .wp{background:#ffe3e8;border-radius:12px;padding:6px 10px;margin:6px 0}#wBody .wa{background:#d8f7e7;border-radius:12px;padding:6px 10px;margin:6px 0}#wBody .big{font-size:40px;vertical-align:middle}
 #wOk:disabled{opacity:.45;filter:grayscale(.6)}#wOk.ready{animation:wp 1s ease-in-out infinite}@keyframes wp{50%{transform:scale(1.06)}}
 #wBar{height:8px;background:#eee;border-radius:6px;overflow:hidden;margin:10px auto 0;max-width:240px}#wBar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#80ed99,#4cc9f0)}
+.tile{position:relative}.tile.lk{opacity:.5;filter:grayscale(.7)}.tile.bst{box-shadow:0 0 0 4px #ffd166,0 5px 0 #0001}
+.lkb{position:absolute;top:6px;right:6px;background:#2b2d42;color:#fff;font-size:12px;border-radius:999px;padding:1px 8px}.lkb.b{background:#ffb703;color:#2b2d42}
+.mixbar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:4px 0 6px}.mixbar .mx{background:#fff;border-radius:999px;padding:3px 12px;font-weight:800;box-shadow:0 2px 0 #0001}.mixbar .mx.rest{opacity:.55}
 .tag{display:inline-block;background:#f1edff;color:#5a4fcf;border-radius:10px;padding:2px 10px;font-size:16px;font-weight:800}
 </style>
 </head>
@@ -131,6 +134,7 @@ table{width:100%;border-collapse:collapse;font-size:15px}td,th{text-align:left;p
     <div class="card">
       <p class="note">Each game adapts: 3 stars moves up a level, 1 star moves down. Brain measures below are trends for you, not test scores.</p>
       <table><thead><tr><th>Game</th><th>Level</th><th>Rounds</th><th>Avg stars</th><th>Brain measure</th></tr></thead><tbody id="pTable"></tbody></table>
+      <p class="note" style="margin-top:10px">Mix it up: <select id="sMix"><option value="3">On: rest after 3 rounds in a row of one kind</option><option value="4">On: after 4 in a row</option><option value="0">Off</option></select> <button class="btn" id="sMixReset" style="font-size:14px;padding:4px 10px">Unlock all for today</button><br>Each kind of brain game (memory, brain builders, puzzles) rests after N rounds in a row until he plays 2 rounds of other kinds. Each game max 4 rounds a day. Art & music cost a 🎟️ ticket, earned every 2 brain games (1 free each day). The kind he has played least today glows ⭐ for +5 coins.</p>
       <p class="note" style="margin-top:10px">Read instructions aloud: <select id="sVoice"><option value="1">On</option><option value="0">Off</option></select></p>
       <button class="btn" id="pCopy" style="font-size:16px">Copy summary</button> <span class="note" id="pMsg"></span>
     </div>
@@ -187,14 +191,37 @@ const GAMES=[
  {sec:"🎨 Create & music",id:"music",ic:"🎵",n:"Music Maker",max:4,run:playMusic,say:"Play the music bars, or copy the drum beat!"},
 ];
 function renderHome(){setCoins();let html="",cur="";GAMES.forEach(g=>{if(g.sec!==cur){if(cur)html+="</div>";cur=g.sec;html+=`<div class="sec">${g.sec}</div><div class="tiles">`}
-  const s=S.st[g.id];html+=`<button class="tile" data-g="${g.id}"><span class="ic">${g.ic}</span><b>${g.n}</b><small>${g.id==="draw"?"Free play":`Level ${lv(g.id)}`}${s&&s.rounds?` · ${"⭐".repeat(Math.round(s.stars/s.rounds))}`:""}</small></button>`});
-  $("tiles").innerHTML=html+"</div>";document.querySelectorAll(".tile").forEach(b=>b.onclick=()=>{A();openGame(b.dataset.g)})}
+  const s=S.st[g.id],L=lockOf(g.id),bs=MIXON()&&!L&&boostArea()===AREA[g.id];html+=`<button class="tile ${L?"lk":""} ${bs?"bst":""}" data-g="${g.id}">${L?`<span class="lkb">${L.k==="cap"?"🌙 tomorrow":L.k==="tix"?`🎟️ ${L.need} more`:`💤 ${L.need} other`}</span>`:bs?`<span class="lkb b">⭐ boost</span>`:""}<span class="ic">${g.ic}</span><b>${g.n}</b><small>${g.id==="draw"?"Free play":`Level ${lv(g.id)}`}${s&&s.rounds?` · ${"⭐".repeat(Math.round(s.stars/s.rounds))}`:""}</small></button>`});
+  const m=mixT();$("tiles").innerHTML=(MIXON()?`<div class="mixbar">${IQ.map(a=>`<span class="mx ${m.rest[a]>0?"rest":""}">${AREA_N[a].split(" ")[0]} ${m.n[a]||0}${m.rest[a]>0?" 💤":""}</span>`).join("")}<span class="mx">🎟️ ${m.tix||0}</span></div>`:"")+html+"</div>";document.querySelectorAll(".tile").forEach(b=>b.onclick=()=>{A();openGame(b.dataset.g)})}
 function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));window.scrollTo(0,0)}
 let curG=null;
-function openGame(id){curG=GAMES.find(g=>g.id===id);token++;show("game");$("gTitle").textContent=curG.ic+" "+curG.n;$("gLvl").textContent=id==="draw"?"":"Level "+lv(id);$("instr").textContent=curG.say;fb("");$("area").innerHTML="";speak(curG.say);setTimeout(()=>curG.run(token),400)}
+/* ---------- mix-it-up rule (Bobby 2026-11-21): no grinding one type of game ---------- */
+const AREA={match:"mem",simon:"mem",odd:"mem",gonogo:"exec",switch:"exec",pattern:"logic",shapes:"logic",robot:"logic",draw:"create",music:"create"};
+const AREA_N={mem:"🧩 Memory & focus",exec:"🧠 Brain builders",logic:"🧮 Puzzles & logic",create:"🎨 Create & music"},AREA_S={mem:"memory games",exec:"brain builder games",logic:"puzzle games",create:"art and music"};
+const IQ=["mem","exec","logic"];
+const MIXON=()=>S.mix!==0,MIXN=()=>S.mixN||3,CAP=4,PER=2;
+function mixT(){const d=today();if(!S.mixd||S.mixd.day!==d)S.mixd={day:d,log:[],n:{},gn:{},rest:{},iq:0,tix:1};return S.mixd}
+function lockOf(id){if(!MIXON())return null;const m=mixT(),a=AREA[id];
+  if(a==="create")return (m.tix||0)<1?{k:"tix",need:PER-((m.iq||0)%PER)}:null;
+  if((m.gn[id]||0)>=CAP)return {k:"cap"};
+  if(m.rest[a]>0)return {k:"rest",need:m.rest[a]};return null}
+function boostArea(){const m=mixT(),ok=IQ.filter(a=>!(m.rest[a]>0));if(!ok.length)return null;const avgLv=a=>{const g=GAMES.filter(x=>AREA[x.id]===a);return g.reduce((s,x)=>s+lv(x.id)/x.max,0)/g.length};
+  return ok.sort((a,b)=>((m.n[a]||0)-(m.n[b]||0))||(avgLv(a)-avgLv(b)))[0]}
+function recordRound(id){const m=mixT(),a=AREA[id];m.n[a]=(m.n[a]||0)+1;m.gn[id]=(m.gn[id]||0)+1;if(a==="create"){m.tix=Math.max(0,(m.tix||0)-1);save();return null}
+  m.log.push(a);m.iq=(m.iq||0)+1;if(m.iq%PER===0)m.tix=(m.tix||0)+1;for(const k in m.rest)if(k!==a&&m.rest[k]>0)m.rest[k]--;
+  let s=0;for(let i=m.log.length-1;i>=0&&m.log[i]===a;i--)s++;let r=null;if(MIXON()&&s>=MIXN()){m.rest[a]=2;m.log.push("|");r=a}save();return r}
+function lockMsg(id,L){const g=GAMES.find(x=>x.id===id),a=AREA[id],others=IQ.filter(x=>x!==a).map(x=>AREA_N[x]).join(" or ");
+  if(L.k==="cap")return {e:"🌙",t:`${g.n} is done for today`,html:`<div class="wp">You played ${g.n} ${CAP} times today 🌟</div><div class="wa">Try a different game. ${g.n} wakes up tomorrow!</div>`,say:`You played ${g.n} ${CAP} times today. Great work! Try a different game. It wakes up tomorrow.`};
+  if(L.k==="tix")return {e:"🎟️",t:"Earn an art & music ticket",html:`<div>Art and music are your reward!</div><div class="wa">Play ${L.need} more brain game${L.need>1?"s":""} to earn a 🎟️ ticket</div>`,say:`Art and music are your reward! Play ${L.need} more brain game${L.need>1?"s":""} to earn a ticket.`};
+  return {e:"💤",t:"Time to mix it up!",html:`<div class="wp">${AREA_N[a]} games are resting 💤</div><div>Your brain grows more when you mix it up!</div><div class="wa">Play ${L.need} game${L.need>1?"s":""} from ${others} to wake them up ✅</div>`,say:`The ${AREA_S[a]} are resting. Your brain grows more when you mix it up! Play ${L.need} game${L.need>1?"s":""} from the ${IQ.filter(x=>x!==a).map(x=>AREA_S[x]).join(" or ")} to wake them up.`}}
+function openGame(id){const L=lockOf(id);if(L){const M=lockMsg(id,L);token++;closeGate();show("home");renderHome();gate({emoji:M.e,title:M.t,html:M.html,say:M.say,btn:"Pick another game 👍"});return}
+  if(AREA[id]==="create"&&MIXON())recordRound(id);
+  curG=GAMES.find(g=>g.id===id);curG.boost=MIXON()&&boostArea()===AREA[id];token++;show("game");$("gTitle").textContent=curG.ic+" "+curG.n;$("gLvl").textContent=id==="draw"?"":"Level "+lv(id);$("instr").textContent=curG.say;fb("");$("area").innerHTML="";speak(curG.say);setTimeout(()=>curG.run(token),400)}
 function finish(id,score,metric,extra){const g=GAMES.find(x=>x.id===id),s=st(id);const stars=score>=.9?3:score>=.6?2:1;s.rounds++;s.stars+=stars;s.m.push(metric);if(s.m.length>20)s.m.shift();
   const old=lv(id);let lvMsg="";if(stars===3&&old<g.max){S.lv[id]=old+1;lvMsg=`⬆️ Level ${old+1} next!`}else if(stars===1&&old>1){S.lv[id]=old-1;lvMsg="Let's practice an easier level."}
-  const c=stars*5;S.coins+=c;const d=S.days[today()]||(S.days[today()]={rounds:0});d.rounds++;save();setCoins();
+  const rested=AREA[id]!=="create"?recordRound(id):null;const bonus=g.boost?5:0;g.boost=false;
+  if(bonus)extra=(extra?extra+"<br>":"")+"⭐ Brain boost bonus +5";if(rested)lvMsg+=(lvMsg?" ":"")+`💤 ${AREA_N[rested]} games rest now. Play 2 other kinds to wake them!`;
+  const c=stars*5+bonus;S.coins+=c;const d=S.days[today()]||(S.days[today()]={rounds:0});d.rounds++;save();setCoins();
   try{if(window.parent!==window&&window.parent.fhAward)window.parent.fhAward("brain",`${id}:${Date.now()}`,stars,`Brain Park ${g.n} ${"⭐".repeat(stars)}`,`大脑乐园 ${g.n} ${"⭐".repeat(stars)}`)}catch(e){}
   $("mdE").textContent=stars===3?"🌟":stars===2?"🎉":"💪";$("mdT").textContent=stars===3?"Amazing!":stars===2?"Great job!":"Good try!";$("mdS").innerHTML=[0,1,2].map(i=>`<span class="${i<stars?"":"off"}">⭐</span>`).join("");
   $("mdC").innerHTML=`<span class="coin" style="vertical-align:middle"></span> +${c} coins${extra?`<div style="font-size:16px;color:#555">${extra}</div>`:""}`;$("mdL").textContent=lvMsg;$("mDone").classList.add("on");sfx.win();speak(stars===3?"Amazing!":stars===2?"Great job!":"Good try! Practice makes your brain stronger.")}
@@ -377,9 +404,10 @@ function measure(id){const m=(S.st[id]||{}).m||[];if(!m.length)return "–";cons
   if(id==="switch"){const sw=last.map(x=>x.sw).filter(x=>x!=null);return `accuracy ${Math.round(avg(last.map(x=>x.acc))*100)}%${sw.length?` · after switch ${Math.round(avg(sw)*100)}%`:""}`}
   if(id==="pattern")return `accuracy ${Math.round(avg(last)*100)}%`;if(id==="shapes")return `${avg(last).toFixed(1)} wrong drops`;if(id==="robot")return `${avg(last).toFixed(1)} tries per puzzle`;
   if(id==="draw")return `${m.length} drawings`;if(id==="music"){const b=last.filter(x=>x.beat!=null);return b.length?`beat copying ${Math.round(avg(b.map(x=>x.beat))*100)}%`:"songs played"}return "–"}
-function renderParents(){$("pTable").innerHTML=GAMES.map(g=>{const s=S.st[g.id];return `<tr><td>${g.ic} ${g.n}</td><td>${g.id==="draw"?"–":lv(g.id)+"/"+g.max}</td><td>${s?s.rounds:0}</td><td>${s&&s.rounds?(s.stars/s.rounds).toFixed(1):"–"}</td><td>${measure(g.id)}</td></tr>`}).join("");$("sVoice").value=S.voice;$("pMsg").textContent=""}
+function renderParents(){$("pTable").innerHTML=GAMES.map(g=>{const s=S.st[g.id];return `<tr><td>${g.ic} ${g.n}</td><td>${g.id==="draw"?"–":lv(g.id)+"/"+g.max}</td><td>${s?s.rounds:0}</td><td>${s&&s.rounds?(s.stars/s.rounds).toFixed(1):"–"}</td><td>${measure(g.id)}</td></tr>`}).join("");$("sVoice").value=S.voice;$("sMix").value=MIXON()?String(MIXN()):"0";$("pMsg").textContent=""}
 $("toParents").onclick=()=>{renderParents();show("parents")};$("pBack").onclick=()=>{show("home");renderHome()};
 $("sVoice").onchange=e=>{S.voice=+e.target.value;save()};
+$("sMix").onchange=e=>{const v=+e.target.value;if(v){S.mix=1;S.mixN=v}else S.mix=0;save()};$("sMixReset").onclick=()=>{const m=mixT();m.rest={};m.gn={};m.tix=Math.max(m.tix||0,3);m.log.push("|");save();$("pMsg").textContent="Unlocked for today."};
 $("pCopy").onclick=async()=>{const t=[`${NAME} — Brain Park (${today()})`,`Coins: ${S.coins}`,...GAMES.map(g=>{const s=S.st[g.id];return `${g.n}: level ${g.id==="draw"?"-":lv(g.id)}, ${s?s.rounds:0} rounds, ${measure(g.id)}`})].join("\n");try{await navigator.clipboard.writeText(t);$("pMsg").textContent="Copied."}catch(e){$("pMsg").textContent=t}};
 if(!IS_PARENT)$("toParents").style.display="none";
 renderHome();save();

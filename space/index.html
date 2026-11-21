@@ -46,6 +46,7 @@ canvas#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
 /* modal */
 .modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
 .modal.on{display:flex}
+#mixBar{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:6px 0 2px;font-size:14px}#mixBar .mx{background:#ffffff1f;color:#fff;border-radius:999px;padding:3px 10px}#mixBar .mx.rest{background:#ffffff10;opacity:.7}#mixBar .mx.boost{background:#ffd16655;font-weight:800}
 #mWhy{z-index:30}#mWhy .card{max-width:520px;text-align:center}#wBody{font-size:clamp(18px,3.2vw,23px);line-height:1.35;margin:8px 0 4px}#wBody .wp{background:#ffe3e8;border-radius:12px;padding:6px 10px;margin:6px 0}#wBody .wa{background:#d8f7e7;border-radius:12px;padding:6px 10px;margin:6px 0}#wBody .ww{color:#333;margin-top:6px}#wBody .wh{background:#fff3c4;border-radius:12px;padding:6px 10px;margin:6px 0;color:#6b4100}#wBody .wo{font-size:1.4em;vertical-align:middle}
 #wOk{min-width:200px;font-size:22px;transition:opacity .2s}#wOk:disabled,.btn:disabled{opacity:.45;filter:grayscale(.6);cursor:default}#wOk.ready,#mdNext.ready{animation:wpulse 1s ease-in-out infinite}@keyframes wpulse{50%{transform:scale(1.06)}}
 #wBar{height:8px;background:#eee;border-radius:6px;overflow:hidden;margin:10px auto 0;max-width:260px}#wBar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#80ed99,#4cc9f0);transition:width .2s linear}
@@ -154,6 +155,7 @@ body.retro::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:
   <table><thead><tr><th>Skill</th><th>First-try</th><th>Qs</th></tr></thead><tbody id="pSkills"></tbody></table>
   <h3 style="margin:14px 0 4px">Settings</h3>
   <div class="set">Play time before a break <select id="sBlock"><option value="15">15 min</option><option value="20">20 min</option><option value="25">25 min</option><option value="30">30 min</option></select> then break for <select id="sRest"><option value="3">3 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
+  <div class="set">Mix it up <select id="sMix"><option value="3">On: rest after 3 missions in a row</option><option value="4">On: after 4 in a row</option><option value="6">On: after 6 in a row</option><option value="0">Off</option></select> <button class="btn" id="sMixReset" style="font-size:14px;padding:4px 10px">Wake all for today</button> <span class="note">Math, Reading and 中文 take turns: after N missions in a row in one area it rests until he plays 2 missions elsewhere. The least-played area today gives +10 coins.</span></div>
   <div class="set">Focus mode <select id="sFocus"><option value="1">On (calmer)</option><option value="0">Off</option></select> <span class="note">calm screen, no shaking or lucky stars, still targets, think time before tapping, 3 choices in Grade 1 & Words</span></div>
   <div class="set">Read questions aloud <select id="sVoice"><option value="1">On</option><option value="0">Off</option></select></div>
   <div style="font-size:16px;margin-top:6px"><b>Unlock planets</b></div><div id="unlocks"></div>
@@ -694,6 +696,7 @@ function explain(q,g,lv){if(q.ex)return q.ex;const t=q.q,ans=q.ans,top=topicName
 }
 
 function startMission(g,lv,m){
+  if(areaRest(g)){const a=SQA(g),r=restMsg(a);gate({emoji:"💤",title:"Time to mix it up!",html:r.html,say:r.say,btn:"Pick another galaxy 🌌"}).then(()=>goOtherArea(a));return}
   const kind=kindFor(lv,m);
   G={g,lv,m,kind,boss:kind==="boss",rescue:kind==="rescue",qi:0,res:[],coinsWon:0,bossHp:QPER,lasers:[],rocks:[],bossX:W+160,bossHit:0,streak:0,rescued:0,count:3.6,waitT:0,ending:0,flyIn:0,shields:3,missed:[],redo:[],mistakes:0,penalty:0,learned:0,bonus:null,dash:null,bgT:0};
   show("game");mode="game";layoutLanes();ship.y=H*.62;ship.ty=ship.y;
@@ -796,6 +799,8 @@ function finishMission(){
   S.stars=Object.values(S.prog).flatMap(o=>Object.values(o)).flat().reduce((a,b)=>a+b,0);
   S.st.missions++;if(G.boss)S.st.bosses++;if(stars===3)S.st.perfect++;
   let perfectBonus=0,pstreak="";if(stars===3){S.st.pstreak=(S.st.pstreak||0)+1;perfectBonus=25;if(S.st.pstreak%3===0){perfectBonus+=50;pstreak=`🔥 ${S.st.pstreak} perfect missions in a row! +50 bonus`}S.coins+=perfectBonus;G.coinsWon+=perfectBonus}else S.st.pstreak=0;
+  const wasBoost=(boostArea()||[]).includes(SQA(G.g));if(wasBoost&&MIXON()){S.coins+=10;G.coinsWon+=10}
+  const rested=recordArea(G.g);
   let unlock="";
   if(G.m===2&&G.lv===S.lv[G.g]){if(G.lv<galSize(G.g)){S.lv[G.g]=G.lv+1;unlock=`🔓 New planet unlocked: ${PLANETS[G.g][G.lv][0]}!`}else{const nx={g1:"g2",g2:"g3"}[G.g];if(nx&&!S.lv[nx]){S.lv[nx]=1;unlock=`🌌 NEW GALAXY unlocked: ${nx==="g2"?"Grade 2":"Grade 3"}!`}}}
   save();
@@ -809,7 +814,7 @@ function finishMission(){
     $("mdTitle").textContent=g.boss?"Boss defeated!":stars===3?"Perfect mission!":"Mission complete!";
     $("mdStars").innerHTML=[0,1,2].map(i=>`<span class="${i<stars?"":"off"}">⭐</span>`).join("");
     $("mdCoins").innerHTML=`<span class="coin" style="vertical-align:middle"></span> +${g.coinsWon} coins`;
-    $("mdUnlock").textContent=unlock||(stars<3?"Get every answer right the first time to win a 🎁 treasure chest!":"");
+    $("mdUnlock").textContent=[unlock,wasBoost&&MIXON()?"⭐ Mix-it-up bonus +10!":"",rested?`💤 ${SQA_N[rested]} rests now. Play 2 missions in another galaxy to wake it!`:""].filter(Boolean).join("  ")||(stars<3?"Get every answer right the first time to win a 🎁 treasure chest!":"");
     $("mdCoins").innerHTML=`<span class="coin" style="vertical-align:middle"></span> +${g.coinsWon+g.penalty} coins${g.penalty?` <span style="color:#d00000">− ${g.penalty} for mistakes</span>`:""}${perfectBonus?`<div style="color:#2d6a4f;font-size:18px">🌟 Perfect bonus +25${pstreak?"<br>"+pstreak:""}</div>`:""}`;
     $("mdChest").innerHTML=stars===3?`<button class="chestbtn" id="chestBtn"><span class="ce">🎁</span>Tap to open your treasure chest!</button>`:"";
     if(stars===3)$("chestBtn").onclick=openChest;
@@ -952,11 +957,26 @@ function drawRock(r){
 }
 cv.addEventListener("pointerdown",e=>{A();if(mode==="game")tapAt(e.clientX,e.clientY)});
 
+/* ================= mix-it-up rule (Bobby 2026-11-21): no grinding one area ================= */
+const SQA=g=>g==="words"?"read":g==="zh"?"zh":"math";
+const SQA_N={math:"🔢 Math",read:"📚 Reading",zh:"🀄 中文"},SQA_S={math:"math",read:"reading",zh:"Chinese"};
+function gmix(){const d=new Date().toLocaleDateString("en-CA");if(!S.gmix||S.gmix.day!==d)S.gmix={day:d,log:[],rest:{},n:{}};return S.gmix}
+const MIXON=()=>S.mix!==0,MIXN=()=>S.mixN||3;
+function areaRest(g){return MIXON()?(gmix().rest[SQA(g)]||0):0}
+function openAreas(){return [...new Set(GALS.map(x=>x[0]).filter(g=>(S.lv[g]||0)>0).map(SQA))]}
+function boostArea(){const m=gmix(),ar=openAreas().filter(a=>!(m.rest[a]>0));if(ar.length<2)return null;const c=a=>m.n[a]||0;const mn=Math.min(...ar.map(c)),mx=Math.max(...ar.map(c));if(mn===mx)return null;return ar.filter(a=>c(a)===mn)}
+function recordArea(g){const m=gmix(),a=SQA(g);m.log.push(a);m.n[a]=(m.n[a]||0)+1;for(const k in m.rest)if(k!==a&&m.rest[k]>0)m.rest[k]--;
+  let s=0;for(let i=m.log.length-1;i>=0&&m.log[i]===a;i--)s++;
+  if(MIXON()&&s>=MIXN()&&openAreas().length>1){m.rest[a]=2;m.log.push("|");return a}return null}
+function restMsg(a){const others=openAreas().filter(x=>x!==a).map(x=>SQA_N[x]).join(" or "),need=gmix().rest[a]||2;
+  return {html:`<div class="wp">${SQA_N[a]} is resting 💤</div><div>Your brain grows more when you mix it up!</div><div class="wa">Play ${need} mission${need>1?"s":""} in ${others} to wake it up ✅</div>`,
+    say:`${SQA_S[a]} is resting. Your brain grows more when you mix it up! Play ${need} mission${need>1?"s":""} in ${openAreas().filter(x=>x!==a).map(x=>SQA_S[x]).join(" or ")} to wake it up.`}}
+function goOtherArea(a){const og=GALS.map(x=>x[0]).find(g=>(S.lv[g]||0)>0&&SQA(g)!==a&&!areaRest(g));if(og)curGal=og;show("map")}
 /* ================= screens ================= */
 let curLayer="title",curGal="g1";
 function show(id){curLayer=id;document.querySelectorAll(".layer").forEach(l=>l.classList.toggle("on",l.id===id));if(id!=="game"){$("hud").classList.remove("on")}setCoins();if(id==="map")renderMap();if(id==="hangar")renderHangar();if(id==="parents")renderParents();if(id==="trophies")renderTrophies()}
 function renderMap(){
-  $("tabs").innerHTML=GALS.map(([g,l])=>`<button class="tab ${g===curGal?"on":""}" data-g="${g}">${(S.lv[g]||0)?"":"🔒 "}${l}</button>`).join("");$("tabs").querySelectorAll(".tab").forEach(t=>t.onclick=()=>{if(!(S.lv[t.dataset.g]||0)){toast("Finish the galaxy before to unlock it!");return}curGal=t.dataset.g;renderMap()});
+  const bst=boostArea()||[];$("tabs").innerHTML=GALS.map(([g,l])=>`<button class="tab ${g===curGal?"on":""}" data-g="${g}">${(S.lv[g]||0)?(areaRest(g)?"💤 ":bst.includes(SQA(g))?"⭐ ":""):"🔒 "}${l}</button>`).join("");$("tabs").querySelectorAll(".tab").forEach(t=>t.onclick=()=>{if(!(S.lv[t.dataset.g]||0)){toast("Finish the galaxy before to unlock it!");return}curGal=t.dataset.g;renderMap()});
   const P=PLANETS[curGal],box=$("path"),w=Math.min(box.clientWidth||680,680),n=P.length,step=140,HH=n*step+170;box.style.height=HH+"px";
   const pts=P.map((p,i)=>({x:w*(i%2===0?.3:.7)+(i%4===1?w*.05:i%4===3?-w*.05:0),y:HH-120-i*step}));
   let d=`M${pts[0].x} ${pts[0].y}`;for(let i=1;i<n;i++){const a=pts[i-1],b=pts[i];d+=` C${a.x} ${a.y-70},${b.x} ${b.y+70},${b.x} ${b.y}`}
@@ -966,7 +986,9 @@ function renderMap(){
     html+=`<button class="pl ${lock?"lock":""} ${lv===cur?"cur":""}" data-lv="${lv}" style="left:${pts[i].x}px;top:${pts[i].y}px;width:${sz}px;height:${sz}px;background:radial-gradient(circle at 32% 30%,${p[1]},${p[2]})"><span class="lv">${lock?"🔒":(p[3]||lv)}</span><span class="pips">${lock?"":st.map((s,k)=>k===2?(s?"👾":"▫️"):(s?"⭐":"▫️")).join("")}</span><span class="nm">${p[0]}</span></button>`});
   const cp=pts[cur-1];html+=`<div class="you" style="left:${cp.x}px;top:${cp.y-40}px">🚀</div>`;
   box.innerHTML=html;
-  box.querySelectorAll(".pl").forEach(b=>b.onclick=()=>{const lv=+b.dataset.lv;if(!unlocked(curGal,lv)){toast("Beat the boss on the planet before to unlock!");return}openPlanet(curGal,lv)});
+  {let mb=$("mixBar");if(!mb){mb=document.createElement("div");mb.id="mixBar";$("tabs").after(mb)}const m=gmix();
+   mb.innerHTML=MIXON()?openAreas().map(a=>`<span class="mx ${m.rest[a]>0?"rest":bst.includes(a)?"boost":""}">${SQA_N[a]} ${m.n[a]||0}${m.rest[a]>0?` 💤 ${m.rest[a]} more elsewhere`:bst.includes(a)?" ⭐ +10 bonus":""}</span>`).join(""):"";}
+  box.querySelectorAll(".pl").forEach(b=>b.onclick=()=>{const lv=+b.dataset.lv;if(!unlocked(curGal,lv)){toast("Beat the boss on the planet before to unlock!");return}if(areaRest(curGal)){const a=SQA(curGal),r=restMsg(a);gate({emoji:"💤",title:"Time to mix it up!",html:r.html,say:r.say,btn:"Pick another galaxy 🌌"}).then(()=>goOtherArea(a));return}openPlanet(curGal,lv)});
   setTimeout(()=>{const y=box.offsetTop+cp.y-innerHeight/2;$("map").scrollTo({top:Math.max(0,y),behavior:"smooth"})},60);
 }
 function openPlanet(g,lv){
@@ -1012,7 +1034,7 @@ function renderParents(){
   const zz=sum("zh_");$("pWords").innerHTML=`<div style="font-size:15px">📚 ${lab("words")}</div><div style="font-size:15px">🀄 ${lab("zh")}</div>`;$("pWordsAcc").textContent=`Reading ${w.q} q · ${acc(w.q,w.c)} · 中文 ${zz.q} q · ${acc(zz.q,zz.c)} first-try`;
   const rows=[];GALS.forEach(([g])=>{for(let i=1;i<=galSize(g);i++){const k=g==="words"?"words"+i:`${g}_${i}`,v=S.skills[k];if(v)rows.push(`<tr><td>${g==="words"?"🔤":"G"+g[1]} ${topicName(g,i)}</td><td>${acc(v.q,v.c)}</td><td>${v.q}</td></tr>`)}});
   $("pSkills").innerHTML=rows.join("")||`<tr><td colspan="3" class="note">No missions flown yet.</td></tr>`;
-  $("sFocus").value=FOCUS()?"1":"0";$("sBlock").value=S.block||20;$("sRest").value=S.rest||5;$("sVoice").value=S.voice;
+  $("sFocus").value=FOCUS()?"1":"0";$("sMix").value=MIXON()?String(MIXN()):"0";$("sBlock").value=S.block||20;$("sRest").value=S.rest||5;$("sVoice").value=S.voice;
   $("unlocks").innerHTML=GALS.map(([g,l])=>`<div class="set">${l}: <select data-ug="${g}">${g==="words"?"":`<option value="0">Locked</option>`}${Array.from({length:galSize(g)},(_,i)=>`<option value="${i+1}" ${S.lv[g]===i+1?"selected":""}>up to ${i+1} · ${topicName(g,i+1)}</option>`).join("")}</select></div>`).join("");
   $("unlocks").querySelectorAll("select").forEach(sel=>{if(!S.lv[sel.dataset.ug])sel.value="0";sel.onchange=()=>{S.lv[sel.dataset.ug]=+sel.value;save()}});
   $("pMsg").textContent="";
@@ -1037,6 +1059,7 @@ $("mdNext").onclick=()=>{$("mdNext").classList.remove("ready");nextMission()};
 $("mdMap").onclick=()=>{$("mDone").classList.remove("on");quitGame();if(sessionOver())breakTime();else show("map")};
 $("bkOk").onclick=()=>{if(onBreak())return;$("mBreak").classList.remove("on");show("map")};$("pEndBreak").onclick=()=>{S.breakUntil=0;S.playSec=0;save();$("pMsg").textContent="Break ended. He can play again."};
 $("toParents").onclick=()=>show("parents");$("pBack").onclick=()=>show("title");
+$("sMix").onchange=e=>{const v=+e.target.value;if(v){S.mix=1;S.mixN=v}else S.mix=0;save()};$("sMixReset").onclick=()=>{gmix().rest={};gmix().log.push("|");save();toast("All galaxies are awake for today")};
 $("sFocus").onchange=e=>{S.focus=e.target.value==="1";save()};$("sBlock").onchange=e=>{S.block=+e.target.value;save()};$("sRest").onchange=e=>{S.rest=+e.target.value;save()};$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};
 
 $("pTime").onclick=()=>{S.playSec=0;save();renderParents();$("pMsg").textContent="Play-block timer reset."};
