@@ -307,6 +307,15 @@ function ask(q, skill) {
   };
   draw();
 }
+// 🧪 the Physics 6 simulations (physics/sims.js) open over the battle for the topic of the question
+const SIM_OF = { conv: "measure", speed: "kinematics", dist: "kinematics", time: "kinematics", accel: "kinematics", avgspeed: "kinematics", weight: "forces", netforce: "forces", fma: "forces", work: "energy", ke: "energy", pe: "energy", wave: "waves", period: "waves" };
+const simTopic = key => { if (!window.SIMS || !key) return null; const k = key.startsWith("g:") ? SIM_OF[key.slice(2)] : key; return window.SIMS[k] ? k : null; };
+function openSim(topic) {
+  const ov = document.createElement("div"); ov.className = "simov";
+  ov.innerHTML = `<div class="simbox"><div class="row" style="justify-content:space-between;align-items:center"><b>🧪 See it move</b><button class="btn ghost sm" data-x>✕ Back to battle</button></div><div id="simq"></div></div>`;
+  document.body.appendChild(ov); ov.querySelector("[data-x]").onclick = () => ov.remove(); ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  try { window.SIMS[topic](ov.querySelector("#simq")); } catch (e) { ov.remove(); }
+}
 function feedback(q, ok, ans, why, next, fast) {
   const box = $("#qbox");
   const right = q.type === "mc" ? `${"ABCD"[q.a]}. ${q.c[q.a]}` : answerText(q);
@@ -314,8 +323,9 @@ function feedback(q, ok, ans, why, next, fast) {
   box.innerHTML = `<div class="qcard ${ok ? "good" : "bad"}"><div class="verdict">${ok ? (fast ? "⚡ Swift and correct!" : "✅ Correct!") : "❌ Not quite."}</div>
     ${ok ? "" : `<div class="yours">You said: <b>${esc(ans)}</b>${note ? ` · <em>${esc(note)}</em>` : ""}</div><div class="rightans">Answer: <b>${esc(right)}</b></div>`}
     ${q.type === "mc" ? `<div class="why">💡 ${esc(q.why)}</div>` : `<div class="steps">${q.steps.map(s => `<div>▸ ${esc(s)}</div>`).join("")}</div>`}
-    <div class="row c"><button class="btn go" id="cont">${ok ? "Continue" : "Got it"} →</button></div></div>`;
+    <div class="row c">${simTopic(q.key) ? `<button class="btn ghost" id="seeit">🧪 See it move</button>` : ""}<button class="btn go" id="cont">${ok ? "Continue" : "Got it"} →</button></div></div>`;
   const b = $("#cont"); b.focus(); b.onclick = next;
+  const si = $("#seeit"); if (si) si.onclick = () => openSim(simTopic(q.key));
   if (!ok) { b.disabled = true; setTimeout(() => { b.disabled = false; }, 1800); } // a moment to actually read the explanation
 }
 function enemyTurn(msg, dodge) {

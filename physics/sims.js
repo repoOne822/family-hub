@@ -156,7 +156,7 @@ function measure(el) {
     const n = +el.querySelector("#mn").value || 0, fi = U.findIndex(u => u[0] === el.querySelector("#mf").value), ti = U.findIndex(u => u[0] === el.querySelector("#mt").value), steps = ti - fi, out = n * U[fi][1] / U[ti][1];
     c.clearRect(0, 0, W, H); const sw = (W - 40) / U.length, sh = (H - 60) / U.length;
     U.forEach((u, i) => { const x = 20 + i * sw, y = 20 + i * sh; c.fillStyle = i === fi ? "#3d9bff" : i === ti ? "#3ec46d" : "#ffffff22"; c.fillRect(x, y, sw - 4, H - 40 - y); txt(c, u[0], x + 6, y + 18, "#fff", 15); });
-    if (steps) { const x1 = 20 + fi * sw + sw / 2, x2 = 20 + ti * sw + sw / 2, y1 = 20 + fi * sh - 6, y2 = 20 + ti * sh - 6; arrow(c, x1, y1, x2 - x1, y2 - y1, "#ffd23d", `${Math.abs(steps)} step${Math.abs(steps) > 1 ? "s" : ""} ${steps > 0 ? "down: ×" : "up: ÷"}${10 ** Math.abs(steps)}`); }
+    if (steps) { const x1 = 20 + fi * sw + sw / 2, x2 = 20 + ti * sw + sw / 2, y1 = 20 + fi * sh - 6, y2 = 20 + ti * sh - 6; arrow(c, x1, y1, x2 - x1, y2 - y1, "#ffd23d"); const lb = `${Math.abs(steps)} step${Math.abs(steps) > 1 ? "s" : ""} ${steps > 0 ? "down: ×" : "up: ÷"}${10 ** Math.abs(steps)}`; c.font = "700 13px system-ui"; const lw = c.measureText(lb).width; txt(c, lb, Math.max(8, Math.min(W - lw - 8, (x1 + x2) / 2 - lw / 2)), Math.min(y1, y2) - 10, "#ffd23d", 13); }
     rd.innerHTML = `<b>${n} ${U[fi][0]} = ${+out.toPrecision(10)} ${U[ti][0]}</b><b>${steps > 0 ? "Smaller unit → bigger number. Move the decimal " + steps + " right." : steps < 0 ? "Bigger unit → smaller number. Move the decimal " + -steps + " left." : "Same unit."}</b>`; };
   el.querySelectorAll("input,select").forEach(i => i.addEventListener("input", draw)); requestAnimationFrame(draw); addEventListener("resize", draw);
 }
