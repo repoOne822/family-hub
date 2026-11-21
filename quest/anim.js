@@ -51,6 +51,13 @@ const css = `
 @keyframes qaOrbit{from{transform:rotate(0) translateX(34px) rotate(0) scaleY(.6)}to{transform:rotate(360deg) translateX(34px) rotate(-360deg) scaleY(.6)}}
 .qa-tag{position:absolute;left:50%;top:18%;z-index:5;transform:translateX(-50%);font:900 18px system-ui;color:#fff;text-shadow:0 2px 0 #000;pointer-events:none;animation:qaTag .9s ease-out forwards;white-space:nowrap}
 @keyframes qaTag{from{opacity:0;transform:translate(-50%,6px)}20%{opacity:1}to{opacity:0;transform:translate(-50%,-26px)}}
+.bossport{display:inline-block;transform-origin:50% 100%;animation:qaBossLair 3s ease-in-out infinite, qaAura 2.4s ease-in-out infinite}
+@keyframes qaBossLair{0%,100%{transform:scale(1) translateY(0)}45%{transform:scale(1.06,.96) translateY(2px)}55%{transform:scale(.98,1.04) translateY(-6px)}}
+.panel.center>.big,.door .big{display:inline-block;animation:qaBob 2.6s ease-in-out infinite}
+.door:hover .big{animation:qaHop .5s ease-out infinite}
+@keyframes qaBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.portrait .qa-hero{animation:qaHeroIdle 1.4s steps(2,end) infinite}
+@media (prefers-reduced-motion: reduce){.bossport,.panel.center>.big,.door .big{animation:none}}
 @media (prefers-reduced-motion: reduce){.qa-breathe,.qa-float,.qa-sway,.qa-bossaura,.qa-hero,.qa-shadow{animation:none}}
 `;
 const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
