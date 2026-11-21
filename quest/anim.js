@@ -213,6 +213,6 @@ function heal() { const me = document.getElementById("me"); if (!me || !cv) retu
   for (let i = 0; i < 16; i++) add({ x: a.x + (Math.random() - .5) * 60, y: a.y + 20, vx: 0, vy: -90 - Math.random() * 90, g: 0, life: 1.1, draw: textP("+", "#3ec46d", 16 + Math.random() * 8) }); tag(me, "HEALED", "#3ec46d"); }
 function dodge() { const me = document.getElementById("me"); if (me) { anim(me, [{ transform: "none" }, { transform: "translateX(-34px) rotate(-8deg)", offset: .4 }, { transform: "none" }], 480); tag(me, "DODGE!", "#7fe3ff"); } }
 
-window.QA = { sprite: (cls, size) => `<span class="qa-hero">${sprite(cls, size)}</span>`, mount, heroHit, heroMiss, foeHit, heal, dodge, later: fn => queue.push(fn) };
+window.QA = { art: HERO, px: PX, sprite: (cls, size) => `<span class="qa-hero">${sprite(cls, size)}</span>`, mount, heroHit, heroMiss, foeHit, heal, dodge, later: fn => queue.push(fn) };
 addEventListener("resize", fit);
 })();

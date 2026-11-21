@@ -127,25 +127,19 @@ function create() {
 function town() {
   window.scrollTo(0, 0);
   if (!H()) return create();
-  const h = H(), s = stats(), c = CLS();
-  const mins = Math.floor(P.daily.secs / 60);
-  app.innerHTML = top("🏰 Haven") + `
-   <div class="panel herobox"><div class="portrait">${window.QA ? QA.sprite(h.cls, 70) : c.icon}</div><div class="hinfo"><div class="hname">${esc(h.name)} <span class="lv">Lv ${h.lvl} ${c.name}</span></div>
-     ${bar(h.xp, xpNeed(h.lvl), "xp", `XP ${h.xp} / ${xpNeed(h.lvl)}`)}
-     <div class="chips"><span>⚔️ ${s.dmg} dmg</span><span>🛡️ ${s.arm} armor</span><span>❤️ ${s.hp} HP</span><span>💥 ${s.crit}% crit</span><span>🔷 ${s.mp} mana</span><span>🧪 ${h.potions}</span></div></div></div>
-   ${P.settings.limit ? `<div class="limit">⏳ Adventure time today: ${mins} / ${P.settings.limit} min</div>` : ""}
-   <div class="tgrid">
-     <button class="tbtn big" id="go"><span>🌀</span><b>Waypoints</b><small>Enter the dungeons</small></button>
-     <button class="tbtn" id="bag"><span>🎒</span><b>Gear</b><small>${h.bag.length} in bag</small></button>
-     <button class="tbtn" id="sk"><span>✨</span><b>Skills</b><small>${h.sp ? `<em>${h.sp} point${h.sp > 1 ? "s" : ""} to spend!</em>` : "Talent tree"}</small></button>
-     <button class="tbtn" id="shop"><span>⚖️</span><b>Merchant</b><small>Potions · sell loot</small></button>
-     <button class="tbtn" id="codex"><span>📖</span><b>Codex</b><small>Your mastery + training</small></button>
-   </div>
+  RUN = null;
+  app.innerHTML = `<div id="world"></div>
+   <div class="qbar"><button class="btn ghost sm" data-go="portal">🌀 Waypoints</button><button class="btn ghost sm" data-go="gear">🎒 Gear (${H().bag.length})</button><button class="btn ghost sm" data-go="skills">✨ Skills${H().sp ? ` <em>+${H().sp}</em>` : ""}</button><button class="btn ghost sm" data-go="shop">⚖️ Merchant</button><button class="btn ghost sm" data-go="codex">📖 Codex</button></div>
    ${PARENT ? parentHtml() : ""}`;
-  wire(() => {}); if ($("#back")) $("#back").remove();
-  $("#go").onclick = waypoints; $("#bag").onclick = gear; $("#sk").onclick = skills; $("#shop").onclick = shop; $("#codex").onclick = codex;
+  const go = id => ({ portal: waypoints, gear, skills, shop, codex })[id]();
+  if (window.QW) QW.mount({ host: $("#world"), map: QW.genTown(), cls: H().cls, hud: townHud, onNPC: go });
+  wireHud();
+  app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => go(b.dataset.go));
   wireParent();
 }
+const heroChip = () => { const h = H(), c = CLS(); return `<div class="qh-hero"><span class="qh-port">${window.QA ? QA.sprite(h.cls, 40) : c.icon}</span><div><b>${esc(h.name)}</b> <small>Lv ${h.lvl} ${c.name}</small>${bar(h.xp, xpNeed(h.lvl), "xp", `XP ${h.xp}/${xpNeed(h.lvl)}`)}</div></div>`; };
+const townHud = () => `${heroChip()}<span class="sp"></span><span class="qh-pill">🪙 ${H().gold}</span><span class="qh-pill">🧪 ${H().potions}</span>${P.settings.limit ? `<span class="qh-pill">⏳ ${Math.floor(P.daily.secs / 60)}/${P.settings.limit} min</span>` : ""}<button class="btn ghost sm" id="snd">${P.settings.sound ? "🔊" : "🔇"}</button>`;
+function wireHud() { const s = $("#snd"); if (s) s.onclick = () => { P.settings.sound = !P.settings.sound; save(); s.textContent = P.settings.sound ? "🔊" : "🔇"; }; }
 
 function waypoints() {
   window.scrollTo(0, 0);
@@ -169,53 +163,52 @@ function floorPick(act) {
   app.querySelectorAll("[data-f]").forEach(b => b.onclick = () => startRun(act, +b.dataset.f));
 }
 
-// ---------- a run: a floor = 3 rooms you choose between, then the stairs (floor 5 = boss) ----------
+// ---------- a run: walk a generated floor; defeat 2 monsters to open the stairs (floor 5 = the boss lair) ----------
 let RUN = null;
 function startRun(act, floor) {
   const s = stats();
   RUN = { act, floor, step: 0, hp: s.hp, mp: s.mp, buff: 1, loot: [], gold: 0 };
-  if (floor === 5) return bossIntro();
-  doors();
+  RUN.map = window.QW ? QW.genFloor(act, floor) : null;
+  dungeon();
 }
-function doors() {
-  if (overLimit()) return rest();
-  const { act, floor, step } = RUN, s = stats();
-  if (step >= 3) return stairs();
-  const kinds = [["fight", 5], ["elite", floor >= 2 ? 2 : 0], ["chest", 1.4], ["shrine", 1]];
-  const pickKind = () => { const t = kinds.reduce((a, k) => a + k[1], 0); let x = Math.random() * t; for (const k of kinds) if ((x -= k[1]) < 0) return k[0]; return "fight"; };
-  let opts = [pickKind(), pickKind()]; if (Math.random() < .5) opts.push(pickKind()); opts[0] = opts.includes("fight") ? opts[0] : "fight";
-  const info = { fight: ["⚔️", "Monster", "A regular fight."], elite: ["💀", "Elite", "Tougher enemy, guaranteed magic loot. Harder questions."], chest: ["🧰", "Treasure", "Gold and an item. No fight."], shrine: ["⛲", "Shrine", "Heal up or get a power blessing."] };
-  app.innerHTML = top(`${esc(act.name)} · Floor ${floor}`) + runBar() + `<div class="panel"><h2>Room ${step + 1} of 3: choose a door</h2><div class="doors">${opts.map((k, i) => `<button class="door" data-i="${i}"><div class="big">${info[k][0]}</div><b>${info[k][1]}</b><small>${info[k][2]}</small></button>`).join("")}</div>
-    <div class="row"><button class="btn ghost" id="portal">🌀 Portal to town (keep loot)</button></div></div>`;
-  wire();
-  app.querySelectorAll("[data-i]").forEach(b => b.onclick = () => { const k = opts[+b.dataset.i]; if (k === "fight" || k === "elite") fight(k); else if (k === "chest") chest(); else shrine(); });
-  $("#portal").onclick = () => endRun(false);
-}
+const doors = () => dungeon();
 const runBar = () => { const s = stats(); return `<div class="runbar">${bar(RUN.hp, s.hp, "hp")}${bar(RUN.mp, s.mp, "mp")}<span>🧪 ${H().potions}</span>${RUN.buff > 1 ? "<span>🔥 Blessed</span>" : ""}<span>💰 ${RUN.gold}</span><span>🎁 ${RUN.loot.length}</span></div>`; };
-function chest() {
-  const ilvl = ilvlNow(), it = makeItem(ilvl, rollRarity([45, 40, 13, 2])), g = ri(10, 25) * RUN.act.n;
-  RUN.loot.push(it); RUN.gold += g; SFX.loot();
-  app.innerHTML = top("🧰 Treasure!") + runBar() + `<div class="panel center"><p>You pry open the chest and find <b>🪙 ${g} gold</b> and:</p>${itemHtml(it, true)}<button class="btn go" id="on">Onward →</button></div>`;
-  wire(); $("#on").onclick = () => { RUN.step++; doors(); };
+const dungeonHud = () => { const s = stats(), m = RUN.map, left = Math.max(0, m.need - m.kills);
+  return `${heroChip()}<div class="qh-bars">${bar(RUN.hp, s.hp, "hp")}${bar(RUN.mp, s.mp, "mp")}</div><span class="sp"></span>
+    <span class="qh-pill">${RUN.act.side ? "📐" : "Act " + RUN.act.n} · F${RUN.floor}</span>${RUN.floor < 5 ? `<span class="qh-pill">${left ? `🔒 ${left} to open stairs` : "🪜 Stairs open"}</span>` : ""}${RUN.buff > 1 ? `<span class="qh-pill">🔥 Blessed</span>` : ""}
+    <span class="qh-pill">💰 ${RUN.gold} · 🎁 ${RUN.loot.length}</span><button class="btn ghost sm" id="hpot"${H().potions && RUN.hp < s.hp ? "" : " disabled"}>🧪 ${H().potions}</button><button class="btn ghost sm" id="hport">🌀 Town</button><button class="btn ghost sm" id="snd">${P.settings.sound ? "🔊" : "🔇"}</button>`; };
+function refreshHud() { if (!window.QW) return; QW.hud(dungeonHud()); wireHud();
+  const hp = $("#hpot"); if (hp) hp.onclick = () => { const s = stats(); H().potions--; RUN.hp = Math.min(s.hp, RUN.hp + s.hp * .5); SFX.heal(); save(); QW.toast("🧪 You feel much better."); refreshHud(); };
+  const pt = $("#hport"); if (pt) pt.onclick = () => endRun(false); }
+function dungeon() {
+  if (overLimit()) return rest();
+  if (!window.QW || !RUN.map) return RUN.floor === 5 ? bossIntro() : fight("fight");
+  window.scrollTo(0, 0);
+  app.innerHTML = `<div id="world"></div>`;
+  QW.mount({ host: $("#world"), map: RUN.map, act: RUN.act, cls: H().cls, hud: dungeonHud,
+    onEncounter: e => { RUN.cur = e; if (e.t === "boss") bossIntro(); else fight(e.elite ? "elite" : "fight"); },
+    onChest: chest, onShrine: shrine, onStairs: stairs });
+  refreshHud();
+  if (!RUN.greeted) { RUN.greeted = true; QW.toast(RUN.floor === 5 ? `👑 The lair of ${RUN.act.boss[1]}…` : `🕯️ ${RUN.act.name}, floor ${RUN.floor}. Defeat ${RUN.map.need} monsters to open the stairs.`); }
 }
-function shrine() {
+function chest() {
+  const ilvl = ilvlNow(), it = makeItem(ilvl, rollRarity([45, 40, 13, 2])), g = ri(10, 25) * (RUN.act.side ? 2 : RUN.act.n);
+  RUN.loot.push(it); RUN.gold += g; it.rarity === 3 ? SFX.legend() : SFX.loot();
+  QW.popup(`<h2>🧰 Treasure!</h2><p>You pry the chest open: <b>🪙 ${g} gold</b> and…</p><div class="beam r${it.rarity}">${itemHtml(it, true)}</div><div class="row c"><button class="btn go" id="pc">Take it →</button></div>`, (el, close) => { el.querySelector("#pc").onclick = () => { close(); refreshHud(); }; });
+}
+function shrine(e) {
   const s = stats();
-  app.innerHTML = top("⛲ Shrine") + runBar() + `<div class="panel center"><p>An old shrine glows softly. Choose one blessing:</p><div class="doors">
-    <button class="door" id="heal"><div class="big">❤️</div><b>Restore</b><small>Full health and mana</small></button>
-    <button class="door" id="pow"><div class="big">🔥</div><b>Empower</b><small>+30% damage for the rest of this floor</small></button></div></div>`;
-  wire();
-  $("#heal").onclick = () => { RUN.hp = s.hp; RUN.mp = s.mp; SFX.heal(); RUN.step++; doors(); };
-  $("#pow").onclick = () => { RUN.buff = 1.3; SFX.crit(); RUN.step++; doors(); };
+  QW.popup(`<h2>⛲ Shrine</h2><p>An old shrine glows softly. Choose one blessing:</p><div class="doors"><button class="door" id="heal"><div class="big">❤️</div><b>Restore</b><small>Full health and mana</small></button><button class="door" id="pow"><div class="big">🔥</div><b>Empower</b><small>+30% damage for this floor</small></button></div>`, (el, close) => {
+    el.querySelector("#heal").onclick = () => { RUN.hp = s.hp; RUN.mp = s.mp; SFX.heal(); e.used = true; close(); refreshHud(); };
+    el.querySelector("#pow").onclick = () => { RUN.buff = 1.3; SFX.crit(); e.used = true; close(); refreshHud(); }; });
 }
 function stairs() {
   const { act, floor } = RUN, st = actState(act.id);
   if (floor >= st.max) st.max = Math.min(5, floor + 1);
   save();
-  app.innerHTML = top("🪜 Stairs down") + runBar() + `<div class="panel center"><div class="big">🪜</div><h2>Floor ${floor} cleared!</h2><p>${floor + 1 === 5 ? `The next floor is the lair of <b>${act.boss[0]} ${esc(act.boss[1])}</b>.` : `Floor ${floor + 1} awaits.`}</p>
-    <div class="row c"><button class="btn go" id="down">Descend →</button><button class="btn ghost" id="portal">🌀 Back to town</button></div></div>`;
-  wire();
-  $("#down").onclick = () => { RUN.floor++; RUN.step = 0; RUN.buff = 1; RUN.hp = Math.min(stats().hp, RUN.hp + stats().hp * .3); if (RUN.floor === 5) bossIntro(); else doors(); };
-  $("#portal").onclick = () => endRun(false);
+  QW.popup(`<h2>🪜 Floor ${floor} cleared!</h2><p>${floor + 1 === 5 ? `Below lies the lair of <b>${act.boss[0]} ${esc(act.boss[1])}</b>.` : `Floor ${floor + 1} awaits.`}</p><div class="row c"><button class="btn go" id="down">Descend →</button><button class="btn ghost" id="stay">Keep exploring</button><button class="btn ghost" id="tp">🌀 Town</button></div>`, (el, close) => {
+    el.querySelector("#down").onclick = () => { close(); RUN.floor++; RUN.buff = 1; RUN.greeted = false; RUN.hp = Math.min(stats().hp, RUN.hp + stats().hp * .3); RUN.map = QW.genFloor(act, RUN.floor); dungeon(); };
+    el.querySelector("#stay").onclick = close; el.querySelector("#tp").onclick = () => { close(); endRun(false); }; });
 }
 const ilvlNow = () => (RUN.act.side ? 4 : (RUN.act.n - 1) * 5) + RUN.floor + 1;
 function endRun(died) {
@@ -260,6 +253,7 @@ function combatView(msg) {
   wire(() => {}); if ($("#back")) $("#back").remove();
   app.querySelectorAll("[data-x]").forEach(b => b.onclick = () => act(b.dataset.x));
   if (window.QA) QA.mount(F, H().cls);
+  if (window.QW) QW.arenaFX($(".arena"), RUN.act.id);
 }
 function act(x) {
   const s = stats(), c = CLS();
@@ -365,7 +359,7 @@ function victory() {
     ${drops.length ? `<div class="drops">${drops.map(d => `<div class="beam r${d.rarity}">${itemHtml(d, true)}</div>`).join("")}</div>` : `<p class="hint">No item this time.</p>`}
     <div class="row c">${boss ? `<button class="btn go" id="home">🌀 Return to Haven</button>` : `<button class="btn go" id="on">Onward →</button><button class="btn ghost" id="home">🌀 Town</button>`}</div></div>`;
   wire();
-  const on = $("#on"); if (on) on.onclick = () => { RUN.step++; RUN.hp = Math.min(s.hp, RUN.hp + s.hp * .15); doors(); };
+  const on = $("#on"); if (on) on.onclick = () => { if (RUN.cur) { RUN.cur.alive = false; RUN.map.kills++; RUN.cur = null; } RUN.hp = Math.min(s.hp, RUN.hp + s.hp * .15); doors(); };
   $("#home").onclick = () => endRun(false);
 }
 function gainXp(x) {
@@ -378,8 +372,8 @@ function bossIntro() {
   const act = RUN.act, st = actState(act.id);
   app.innerHTML = top("👑 The boss lair") + runBar() + `<div class="panel center"><div class="bossport">${act.boss[0]}</div><h2>${esc(act.boss[1])}</h2><p><i>${esc(act.boss[2])}</i></p>
     <p>This boss is your <b>mastery test</b> for ${esc(act.blurb.split(".")[0].toLowerCase())}. Its questions come from a special set you haven't practiced, plus the hardest fresh-number problems. You need about <b>8 correct answers</b> to win.</p>
-    ${st.bossBest != null ? `<p class="hint">Your best so far: ${st.bossBest}% correct.</p>` : ""}<div class="row c"><button class="btn go" id="fight">⚔️ Fight!</button><button class="btn ghost" id="portal">🌀 Not yet, back to town</button></div></div>`;
-  wire(); $("#fight").onclick = () => fight("boss"); $("#portal").onclick = () => endRun(false);
+    ${st.bossBest != null ? `<p class="hint">Your best so far: ${st.bossBest}% correct.</p>` : ""}<div class="row c"><button class="btn go" id="fight">⚔️ Fight!</button><button class="btn ghost" id="portal">↩️ Not yet, step back</button></div></div>`;
+  wire(); $("#fight").onclick = () => fight("boss"); $("#portal").onclick = () => RUN.map ? dungeon() : endRun(false);
 }
 
 // ---------- town services ----------

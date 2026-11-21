@@ -95,6 +95,35 @@ h2{font-size:19px;margin:4px 0 10px;color:var(--gold)}
 .dmg.crit{color:#ffd84a;font-size:40px}.dmg.hurt{color:#ff5a4a}@keyframes up{to{transform:translate(-50%,-70px);opacity:0}}
 @media(max-width:640px){.actions{grid-template-columns:repeat(2,1fr)}.floors{grid-template-columns:repeat(3,1fr)}.mrow{grid-template-columns:1fr 1fr;}.herobox{flex-direction:column;text-align:center}}
 .simov{position:fixed;inset:0;z-index:50;background:#000a;display:grid;place-items:center;padding:12px}.simbox{width:min(760px,100%);max-height:94vh;overflow:auto;background:#f6f1e6;color:#1d1a16;border-radius:14px;padding:14px}.simbox .btn.ghost{color:#1d1a16}
+
+/* walkable world */
+.qw{position:relative;border:2px solid var(--line);border-radius:12px;overflow:hidden;background:#050404;box-shadow:0 10px 30px #000a;touch-action:none;user-select:none}
+.qw-cv{display:block;width:100%;cursor:pointer}
+.qw-hud{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:linear-gradient(#000c,#0000);z-index:2;pointer-events:none}
+.qw-hud button,.qw-hud .btn{pointer-events:auto}
+.qh-hero{display:flex;gap:8px;align-items:center;min-width:190px}.qh-hero b{font-family:Cinzel,serif;color:var(--gold)}.qh-hero small{color:var(--dim)}.qh-hero .bar{height:12px;margin:3px 0 0}
+.qh-port{width:44px;height:44px;border:2px solid var(--gold2);border-radius:50%;background:radial-gradient(#3a2a1c,#120c08);display:grid;place-items:center;overflow:hidden}
+.qh-bars{min-width:150px}.qh-bars .bar{height:14px;margin:2px 0}
+.qh-pill{background:#000a;border:1px solid var(--gold2);border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;white-space:nowrap}
+.qw-mini{position:absolute;right:10px;bottom:10px;width:132px;opacity:.85;border:1px solid var(--gold2);background:#000a;border-radius:6px;image-rendering:pixelated;z-index:2}
+.qw-toast{position:absolute;left:50%;bottom:54px;transform:translate(-50%,20px);background:#000d;border:1px solid var(--gold2);border-radius:10px;padding:8px 14px;font-weight:700;opacity:0;transition:.25s;z-index:3;pointer-events:none;max-width:90%;text-align:center}
+.qw-toast.on{opacity:1;transform:translate(-50%,0)}
+.qw-pop{position:absolute;inset:0;display:none;place-items:center;background:#0008;z-index:4;padding:14px}.qw-pop.on{display:grid}
+.qw-card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:2px solid var(--gold2);border-radius:12px;padding:16px;max-width:460px;width:100%;text-align:center;animation:popin .25s ease-out;max-height:100%;overflow:auto}
+@keyframes popin{from{transform:scale(.85);opacity:0}}
+.qw-help{position:absolute;left:10px;bottom:10px;font-size:12px;color:#fff9;z-index:2;pointer-events:none}
+.qw-pad{position:absolute;left:12px;bottom:34px;width:132px;height:132px;z-index:3;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)}
+.qw-pad button{font:20px sans-serif;background:#000a;color:#fff;border:1px solid #fff4;border-radius:10px}
+.qw-pad button:nth-child(1){grid-area:1/2}.qw-pad button:nth-child(2){grid-area:2/1}.qw-pad button:nth-child(3){grid-area:2/3}.qw-pad button:nth-child(4){grid-area:3/2}
+.qbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0 14px}.qbar em{color:#ffcf85;font-style:normal;font-weight:800}
+.arena{position:relative;isolation:isolate}.qw-afx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:-1}
+.qw-hud .bar span{font-size:10px;line-height:14px}.qh-hero .bar span{font-size:9px;line-height:12px}
+/* side-view battle stage */
+.arena{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"log log" "me foe";align-items:end;min-height:380px;padding-bottom:26px}
+.arena::before{content:"";position:absolute;left:0;right:0;bottom:0;height:42%;z-index:-1;background:linear-gradient(180deg,transparent,rgba(0,0,0,.55)),repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 2px,transparent 2px 70px);border-top:1px solid rgba(255,255,255,.06);transform-origin:bottom;transform:perspective(300px) rotateX(35deg)}
+.arena .foe{grid-area:foe}.arena .clog{grid-area:log;align-self:start;min-height:56px}.arena .me{grid-area:me;flex-direction:column;align-items:center;max-width:none;justify-self:center;width:80%}
+.arena .me .mbars{width:100%}.arena #me svg,.arena #me .qa-spr{width:116px!important;height:116px!important}
+@media(max-width:640px){.arena{grid-template-columns:1fr 1fr;min-height:320px}.arena #me svg,.arena #me .qa-spr{width:80px!important;height:80px!important}.qh-hero{min-width:0}.qw-mini{width:96px}.qh-bars{min-width:110px}}
 </style>
 </head>
 <body>
@@ -103,7 +132,8 @@ h2{font-size:19px;margin:4px 0 10px;color:var(--gold)}
 <script src="gen.js?v=20261121r1"></script>
 <script src="data.js?v=20261121r1"></script>
 <script src="../physics/sims.js?v=20261121z4"></script>
-<script src="anim.js?v=20261121z3"></script>
-<script src="app.js?v=20261121z3"></script>
+<script src="anim.js?v=20261121w1"></script>
+<script src="world.js?v=20261121w1"></script>
+<script src="app.js?v=20261121w1"></script>
 </body>
 </html>
