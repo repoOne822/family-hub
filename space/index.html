@@ -29,7 +29,7 @@ canvas#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
 /* map */
 .topbar{position:sticky;top:0;display:flex;align-items:center;gap:10px;padding:12px 14px;z-index:3;background:linear-gradient(#0b0d2aee,#0b0d2a00)}
 .topbar .sp{flex:1}
-.tabs{display:flex;gap:8px;justify-content:center;margin:2px 0 6px}
+.tabs{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:2px 0 6px;position:sticky;top:74px;z-index:3;padding:4px}
 .tab{border:none;border-radius:999px;font-family:inherit;font-weight:800;font-size:20px;padding:8px 18px;cursor:pointer;background:#ffffff1f;color:#fff}
 .tab.on{background:#fff;color:#22223b}
 #path{position:relative;margin:0 auto;max-width:680px;height:1180px}
@@ -65,7 +65,7 @@ canvas#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
 .prog .g{position:absolute;right:-8px;top:50%;transform:translateY(-50%);font-size:26px}
 #qcard{position:fixed;left:50%;top:72px;transform:translateX(-50%);width:min(92vw,640px);background:#fffffff2;color:#22223b;border-radius:24px;padding:12px 16px 10px;text-align:center;z-index:5;display:none;box-shadow:0 10px 30px #0006}
 #qcard.on{display:block;animation:pop .3s ease}
-#qtext{font-size:clamp(24px,4.6vw,36px);font-weight:800;line-height:1.15}
+#qtext{font-size:clamp(22px,4.6vw,36px);font-weight:800;line-height:1.15;padding:0 40px}
 #qvis{font-size:clamp(24px,4.4vw,34px);line-height:1.25;margin-top:2px}
 #qvis .g{display:inline-block;background:#f1edff;border-radius:12px;padding:0 8px;margin:2px}
 #qvis .x{opacity:.25;text-decoration:line-through}
@@ -108,7 +108,7 @@ td,th{text-align:left;padding:5px 4px;border-bottom:1px solid #eee}
 <!-- MAP -->
 <section class="layer" id="map">
   <div class="topbar"><button class="btn round" id="mapHome">🏠</button><div class="sp"></div><button class="btn round" id="mapHangar">🛠️</button><div class="coins"><span class="coin"></span><span class="cc">0</span></div></div>
-  <div class="tabs"><button class="tab" data-g="math">🪐 Number Galaxy</button><button class="tab" data-g="words">🌍 Word Galaxy</button></div>
+  <div class="tabs" id="tabs"></div>
   <div id="path"></div>
 </section>
 
@@ -128,15 +128,14 @@ td,th{text-align:left;padding:5px 4px;border-bottom:1px solid #eee}
   <div class="pgrid">
     <div class="stat">Today<b id="pToday"></b><span class="note" id="pTodayQ"></span></div>
     <div class="stat">Last 7 days<b id="pWeek"></b><span class="note" id="pWeekD"></span></div>
-    <div class="stat">Number Galaxy<b id="pMath"></b><span class="note" id="pMathAcc"></span></div>
+    <div class="stat">Math galaxies<b id="pMath"></b><span class="note" id="pMathAcc"></span></div>
     <div class="stat">Word Galaxy<b id="pWords"></b><span class="note" id="pWordsAcc"></span></div>
   </div>
   <table><thead><tr><th>Skill</th><th>First-try</th><th>Qs</th></tr></thead><tbody id="pSkills"></tbody></table>
   <h3 style="margin:14px 0 4px">Settings</h3>
   <div class="set">Session length <select id="sLen"><option value="8">8 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="20">20 min</option></select></div>
   <div class="set">Read questions aloud <select id="sVoice"><option value="1">On</option><option value="0">Off</option></select></div>
-  <div class="set">Unlock Number planets up to <select id="sMath"></select></div>
-  <div class="set">Unlock Word planets up to <select id="sWords"></select></div>
+  <div style="font-size:16px;margin-top:6px"><b>Unlock planets</b></div><div id="unlocks"></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
     <button class="btn" id="pCopy" style="font-size:17px">Copy summary</button>
     <button class="btn" id="pTime" style="font-size:17px">Reset today's timer</button>
@@ -166,8 +165,8 @@ const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const today=()=>new Date().toLocaleDateString("en-CA");
-let S={v:2,coins:0,stars:0,lv:{math:6,words:2},prog:{math:{},words:{}},days:{},skills:{},len:10,voice:1,ship:{color:"red",trail:"flame",pet:"none"},owned:["red","flame","none"]};
-try{const raw=localStorage.getItem(KEY);if(raw){const o=JSON.parse(raw);if(o.v!==2){S.coins=(o.stars||0)*10;S.days=o.days||{};S.skills=o.skills||{};S.len=o.len||10;S.voice=o.voice??1;const MAP={1:3,2:4,3:6,4:7,5:9,6:10,7:11,8:12};if(o.lv){S.lv.math=Math.max(6,MAP[o.lv.math]||6);S.lv.words=Math.max(2,o.lv.words||2)}const sk={};Object.entries(S.skills).forEach(([k,v])=>{const m=k.match(/^math(\d+)$/);sk[m?"math"+MAP[+m[1]]:k]=v});S.skills=sk}else S=Object.assign(S,o)}}catch(e){}
+let S={v:3,coins:0,stars:0,lv:{g1:6,g2:0,g3:0,words:2},prog:{g1:{},g2:{},g3:{},words:{}},skillNames:{},days:{},skills:{},len:10,voice:1,ship:{color:"red",trail:"flame",pet:"none"},owned:["red","flame","none"]};
+try{const raw=localStorage.getItem(KEY);if(raw){const o=JSON.parse(raw);if(o.v===3)S=Object.assign(S,o);else{S.coins=o.v===2?(o.coins||0):(o.stars||0)*10;S.days=o.days||{};S.len=o.len||10;S.voice=o.voice??1;if(o.ship)S.ship=o.ship;if(o.owned)S.owned=o.owned;if(o.prog&&o.prog.words)S.prog.words=o.prog.words;if(o.lv&&o.lv.words)S.lv.words=Math.max(2,o.lv.words);S.skills={};Object.entries(o.skills||{}).forEach(([k,v])=>{if(k.startsWith("words"))S.skills[k]=v})}}}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function day(){return S.days[today()]||(S.days[today()]={sec:0,q:0,c:0})}
 function setCoins(){document.querySelectorAll(".cc").forEach(e=>e.textContent=S.coins)}
@@ -182,33 +181,9 @@ const sfx={laser:()=>tone(1200,.18,0,"square",.06,200),good:()=>{tone(660,.12,.0
 function speak(t){if(!+S.voice||!t)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.88;u.pitch=1.1;u.lang="en-US";speechSynthesis.speak(u)}catch(e){}}
 
 /* ================= question generators ================= */
-const MATH_NAMES=["","Count them","Add within 5","Add within 10","Take away within 10","Make 10","Add & subtract to 20","Missing number","Biggest & smallest","Tens & ones","2-digit, no regrouping","2-digit with regrouping","Story problems"];
-const MAXLV={math:12,words:8};
 const WORD_NAMES=["","Find the picture","First sounds","Rhyming words","Read the word","Missing letter","Sight words","Opposites","Word meanings"];
 const FRUIT=["🍎","🍓","⭐","🐟","🍪","🎈","🚗","🌸"];
 function near(ans,spread,n){const s=new Set([ans]);let g=0;while(s.size<n&&g++<60){const v=ans+pick(spread)*(Math.random()<.5?-1:1);if(v>=0)s.add(v)}let x=1;while(s.size<n)s.add(ans+10*x++);return shuffle([...s])}
-function mathQ(lv,n){
-  let a,b,ans,q,say,vis="",sp=[1,2,3];
-  if(lv===1){ans=rnd(3,10);const f=pick(FRUIT);q="How many?";say=`How many ${({"🍎":"apples","🍓":"strawberries","⭐":"stars","🐟":"fish","🍪":"cookies","🎈":"balloons","🚗":"cars","🌸":"flowers"})[f]} can you count?`;vis=`<span class="g">${f.repeat(ans)}</span>`;return {q,say,vis,opts:near(ans,[1,2],3).map(v=>({label:String(v),v,emoji:false})),ans,skill:"math1"}}
-  if(lv===2){a=rnd(1,3);b=rnd(1,5-a);ans=a+b;const f=pick(FRUIT);q=`${a} + ${b} = ?`;say=`What is ${a} plus ${b}?`;vis=`<span class="g">${f.repeat(a)}</span> + <span class="g">${f.repeat(b)}</span>`;return {q,say,vis,opts:near(ans,[1,2],3).map(v=>({label:String(v),v,emoji:false})),ans,skill:"math2"}}
-  if(lv===5){a=rnd(1,9);ans=10-a;q=`${a} + ? = 10`;say=`${a} plus what makes 10?`;vis=`<span class="g">${"🔵".repeat(a)}${"⚪".repeat(10-a)}</span>`;return {q,say,vis,opts:near(ans,[1,2,3],n).map(v=>({label:String(v),v,emoji:false})),ans,skill:"math5"}}
-  if(lv===8){const set=new Set();while(set.size<3)set.add(rnd(10,99));const ns=[...set];const big=Math.random()<.6;ans=big?Math.max(...ns):Math.min(...ns);q=big?"Blast the BIGGEST number!":"Blast the SMALLEST number!";say=big?"Which number is the biggest?":"Which number is the smallest?";return {q,say,vis,opts:ns.map(v=>({label:String(v),v,emoji:false})),ans,skill:"math8"}}
-  const OLD={3:1,4:2,6:3,7:4,9:5,10:6,11:7,12:8};const ol=OLD[lv];
-  if(lv===9&&Math.random()<.5){a=rnd(2,9);b=rnd(0,9);const nn=a*10+b;if(Math.random()<.5){ans=a;q=`How many tens in ${nn}?`;say=`How many tens are in ${nn}?`}else{ans=b;q=`How many ones in ${nn}?`;say=`How many ones are in ${nn}?`}vis=`<span class="g">${"🟦".repeat(a)}</span><span class="g">${"🔹".repeat(b)||"&nbsp;"}</span>`;return {q,say,vis,opts:near(ans,[1,2,3],n).map(v=>({label:String(v),v,emoji:false})),ans,skill:"math9"}}
-  lv=ol;
-  if(lv===1){a=rnd(1,6);b=rnd(1,10-a);ans=a+b;const f=pick(FRUIT);q=`${a} + ${b} = ?`;say=`What is ${a} plus ${b}?`;vis=`<span class="g">${f.repeat(a)}</span> + <span class="g">${f.repeat(b)}</span>`}
-  else if(lv===2){a=rnd(3,10);b=rnd(1,a-1);ans=a-b;const f=pick(FRUIT);q=`${a} − ${b} = ?`;say=`What is ${a} take away ${b}?`;vis=`<span class="g">${f.repeat(ans)}<span class="x">${f.repeat(b)}</span></span>`}
-  else if(lv===3){if(Math.random()<.5){a=rnd(5,12);b=rnd(2,20-a);ans=a+b;q=`${a} + ${b} = ?`;say=`What is ${a} plus ${b}?`}else{a=rnd(11,20);b=rnd(2,9);ans=a-b;q=`${a} − ${b} = ?`;say=`What is ${a} minus ${b}?`}}
-  else if(lv===4){b=rnd(2,9);ans=rnd(2,11);const t=ans+b;if(Math.random()<.5){q=`? + ${b} = ${t}`;say=`What number plus ${b} makes ${t}?`}else{q=`${t} − ? = ${b}`;say=`${t} minus what number equals ${b}?`}}
-  else if(lv===5){if(Math.random()<.5){a=rnd(2,8)*10+rnd(0,4);b=rnd(1,5);if(a%10+b>9)b=9-a%10;ans=a+b}else{a=rnd(1,6)*10+rnd(1,9);b=rnd(1,3)*10;ans=a+b;sp=[10,1,20]}q=`${a} + ${b} = ?`;say=`What is ${a} plus ${b}?`}
-  else if(lv===6){sp=[1,10,2];if(Math.random()<.5){a=rnd(1,5)*10+rnd(0,5);b=rnd(1,4)*10+rnd(0,9-a%10);ans=a+b;q=`${a} + ${b} = ?`;say=`What is ${a} plus ${b}?`}else{a=rnd(4,9)*10+rnd(4,9);b=rnd(1,3)*10+rnd(0,a%10);ans=a-b;q=`${a} − ${b} = ?`;say=`What is ${a} minus ${b}?`}}
-  else if(lv===7){sp=[1,10,2];if(Math.random()<.5){a=rnd(1,6)*10+rnd(5,9);b=rnd(1,2)*10+rnd(10-a%10,9);ans=a+b;q=`${a} + ${b} = ?`;say=`What is ${a} plus ${b}?`}else{a=rnd(4,9)*10+rnd(0,4);b=rnd(1,3)*10+rnd(a%10+1,9);ans=a-b;q=`${a} − ${b} = ?`;say=`What is ${a} minus ${b}?`}}
-  else{const k=rnd(2,3);
-    if(k===1){a=rnd(2,9);b=rnd(0,9);const nn=a*10+b;if(Math.random()<.5){ans=a;q=`How many tens in ${nn}?`;say=`How many tens are in ${nn}?`}else{ans=b;q=`How many ones in ${nn}?`;say=`How many ones are in ${nn}?`}vis=`<span class="g">${"🟦".repeat(a)}</span><span class="g">${"🔹".repeat(b)||"&nbsp;"}</span>`}
-    else if(k===2){a=rnd(5,15);b=rnd(3,9);ans=a+b;const it=pick([["stickers","🌟"],["shells","🐚"],["blocks","🧱"]]);q=`${NAME} has ${a} ${it[0]}. He gets ${b} more. How many now?`;say=q;vis=`<span class="big">${it[1]}</span>`}
-    else{a=rnd(12,20);b=rnd(3,9);ans=a-b;const it=pick([["cookies","🍪"],["balloons","🎈"],["fish","🐟"]]);q=`There are ${a} ${it[0]}. ${b} go away. How many are left?`;say=q;vis=`<span class="big">${it[1]}</span>`}}
-  const back={1:3,2:4,3:6,4:7,5:9,6:10,7:11,8:12}[lv];return {q,say,vis,opts:near(ans,sp,n).map(v=>({label:String(v),v,emoji:false})),ans,skill:"math"+back};
-}
 const PIC={cat:"🐱",dog:"🐶",sun:"☀️",hat:"🎩",bus:"🚌",pig:"🐷",bed:"🛏️",fox:"🦊",cup:"🥤",bee:"🐝",fish:"🐟",frog:"🐸",star:"⭐",ball:"⚽",tree:"🌳",cake:"🎂",moon:"🌙",car:"🚗",duck:"🦆",egg:"🥚",key:"🔑",box:"📦",map:"🗺️",bat:"🦇",hen:"🐔",web:"🕸️",bug:"🐛",log:"🪵",bun:"🍞",rug:"🧶",mug:"☕",nut:"🥜",jet:"✈️",van:"🚐",pen:"🖊️",ant:"🐜",lion:"🦁",snake:"🐍",apple:"🍎",kite:"🪁",rocket:"🚀",robot:"🤖",whale:"🐳",train:"🚂",house:"🏠",zebra:"🦓",penguin:"🐧",turtle:"🐢",octopus:"🐙",volcano:"🌋",castle:"🏰",rainbow:"🌈",butterfly:"🦋",dinosaur:"🦕",umbrella:"☂️",guitar:"🎸",pumpkin:"🎃",cactus:"🌵",owl:"🦉",crown:"👑"};
 const ALLW=Object.keys(PIC);
 const CVC=["cat","dog","sun","hat","bus","pig","bed","fox","cup","bat","hen","web","map","box","bug","log","bun","rug","mug","nut","jet","van","pen"];
@@ -230,12 +205,128 @@ function wordsQ(lv){
   return {q,say,vis,opts,ans,skill:"words"+lv};
 }
 
+/* ================= Grade 1–3 math curriculum (Common Core aligned) ================= */
+const SAYSYM={">":"greater than","<":"less than","=":"equal to"};
+function uniq(a){return [...new Set(a)]}
+function mk(q,say,ans,dists,vis="",n=4){
+  const pool=uniq(dists.map(String).filter(d=>d!==String(ans)));
+  const opts=shuffle([String(ans),...shuffle(pool).slice(0,n-1)]);
+  return {q,say,vis,ans:String(ans),opts:opts.map(v=>({label:v,v,emoji:false}))};
+}
+function numMk(q,say,ans,vis="",spread=[1,2,3],n=4){return mk(q,say,ans,near(ans,spread,n+2).filter(v=>v!==ans),vis,n)}
+const nm=x=>({"🍎":"apples","🍓":"strawberries","⭐":"stars","🐟":"fish","🍪":"cookies","🎈":"balloons","🚗":"cars","🌸":"flowers"})[x]||"things";
+const NAMES2=["Jonah","Mia","Leo","Ava","Max","Zoe"];
+/* ---------- SVG visuals ---------- */
+const SV=(w,h,inner,k=1)=>`<svg viewBox="0 0 ${w} ${h}" style="width:min(100%,${w*k}px);max-height:${Math.round(120*Math.min(k,1.3))}px;display:block;margin:2px auto" xmlns="http://www.w3.org/2000/svg" font-family="Baloo 2,sans-serif">${inner}</svg>`;
+function svgClock(h,m){let s=`<circle cx="60" cy="60" r="54" fill="#fff" stroke="#3a0ca3" stroke-width="5"/>`;
+  for(let i=1;i<=12;i++){const a=(i*30-90)*Math.PI/180;s+=`<text x="${60+Math.cos(a)*41}" y="${60+Math.sin(a)*41+5}" font-size="14" font-weight="800" text-anchor="middle" fill="#22223b">${i}</text>`}
+  for(let i=0;i<60;i++){const a=(i*6-90)*Math.PI/180,L=i%5?3:6;s+=`<line x1="${60+Math.cos(a)*51}" y1="${60+Math.sin(a)*51}" x2="${60+Math.cos(a)*(51-L)}" y2="${60+Math.sin(a)*(51-L)}" stroke="${i%5?"#bbb":"#666"}" stroke-width="${i%5?1:2}"/>`}
+  const ha=(((h%12)+m/60)*30-90)*Math.PI/180,ma=(m*6-90)*Math.PI/180;
+  s+=`<line x1="60" y1="60" x2="${60+Math.cos(ha)*26}" y2="${60+Math.sin(ha)*26}" stroke="#ef233c" stroke-width="7" stroke-linecap="round"/><line x1="60" y1="60" x2="${60+Math.cos(ma)*40}" y2="${60+Math.sin(ma)*40}" stroke="#4361ee" stroke-width="4" stroke-linecap="round"/><circle cx="60" cy="60" r="5" fill="#22223b"/>`;
+  return SV(120,120,s,1.3)}
+const COIN={p:[1,"1¢",13,"#d08c60"],n:[5,"5¢",15,"#c9ccd6"],d:[10,"10¢",11,"#dfe3ea"],q:[25,"25¢",18,"#c9ccd6"],b:[100,"$1",0,"#8fd19e"]};
+function svgCoins(list){let x=8,s="";list.forEach(k=>{const c=COIN[k];if(k==="b"){s+=`<rect x="${x}" y="22" width="66" height="34" rx="5" fill="${c[3]}" stroke="#2d6a4f" stroke-width="2"/><text x="${x+33}" y="45" font-size="16" font-weight="800" text-anchor="middle" fill="#1b4332">$1</text>`;x+=74}else{s+=`<circle cx="${x+c[2]}" cy="39" r="${c[2]}" fill="${c[3]}" stroke="#777" stroke-width="2"/><text x="${x+c[2]}" y="${39+4}" font-size="${c[2]>12?11:9}" font-weight="800" text-anchor="middle" fill="#333">${c[1]}</text>`;x+=c[2]*2+6}});return SV(Math.max(80,x+4),78,s,1.6)}
+function poly(n,cx,cy,r,rot=-90){return Array.from({length:n},(_,i)=>{const a=(rot+i*360/n)*Math.PI/180;return `${(cx+Math.cos(a)*r).toFixed(1)},${(cy+Math.sin(a)*r).toFixed(1)}`}).join(" ")}
+function svgShape(k){const f='fill="#a0e7ff" stroke="#3a0ca3" stroke-width="4"';const S2={triangle:`<polygon points="${poly(3,60,64,48)}" ${f}/>`,square:`<rect x="18" y="16" width="84" height="84" ${f}/>`,rectangle:`<rect x="6" y="30" width="108" height="60" ${f}/>`,pentagon:`<polygon points="${poly(5,60,62,50)}" ${f}/>`,hexagon:`<polygon points="${poly(6,60,60,50,0)}" ${f}/>`,octagon:`<polygon points="${poly(8,60,60,50,22.5)}" ${f}/>`,circle:`<circle cx="60" cy="60" r="48" ${f}/>`,trapezoid:`<polygon points="30,24 90,24 114,96 6,96" ${f}/>`,rhombus:`<polygon points="60,8 108,60 60,112 12,60" ${f}/>`,
+  cube:`<polygon points="22,40 72,40 72,100 22,100" ${f}/><polygon points="22,40 46,16 96,16 72,40" fill="#cdf3ff" stroke="#3a0ca3" stroke-width="4"/><polygon points="72,40 96,16 96,76 72,100" fill="#7fd8f5" stroke="#3a0ca3" stroke-width="4"/>`,
+  cylinder:`<path d="M24 26 v68 a36 12 0 0 0 72 0 v-68" ${f}/><ellipse cx="60" cy="26" rx="36" ry="12" fill="#cdf3ff" stroke="#3a0ca3" stroke-width="4"/>`,
+  sphere:`<defs><radialGradient id="sg" cx="35%" cy="35%"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#4cc9f0"/></radialGradient></defs><circle cx="60" cy="60" r="48" fill="url(#sg)" stroke="#3a0ca3" stroke-width="4"/>`,
+  cone:`<path d="M60 10 L100 92 A40 13 0 0 1 20 92 Z" ${f}/><ellipse cx="60" cy="92" rx="40" ry="13" fill="#7fd8f5" stroke="#3a0ca3" stroke-width="4"/>`};return SV(120,120,S2[k])}
+function svgPie(n,d){let s="";for(let i=0;i<d;i++){const a0=(i/d)*2*Math.PI-Math.PI/2,a1=((i+1)/d)*2*Math.PI-Math.PI/2;s+=d===1?`<circle cx="60" cy="60" r="50" fill="${i<n?"#ffb703":"#fff"}" stroke="#3a0ca3" stroke-width="4"/>`:`<path d="M60 60 L${60+50*Math.cos(a0)} ${60+50*Math.sin(a0)} A50 50 0 0 1 ${60+50*Math.cos(a1)} ${60+50*Math.sin(a1)} Z" fill="${i<n?"#ffb703":"#fff"}" stroke="#3a0ca3" stroke-width="4"/>`}return SV(120,120,s)}
+function svgFbar(n,d){const w=240/d;let s="";for(let i=0;i<d;i++)s+=`<rect x="${4+i*w}" y="14" width="${w}" height="44" fill="${i<n?"#80ed99":"#fff"}" stroke="#3a0ca3" stroke-width="4"/>`;return SV(248,72,s)}
+function svgBars(data,max,step){const H=110,bw=Math.min(54,220/data.length),gap=14,x0=34;let s="";const sc=v=>H-12-(v/max)*(H-30);
+  for(let v=0;v<=max;v+=step){s+=`<line x1="${x0}" x2="${x0+data.length*(bw+gap)}" y1="${sc(v)}" y2="${sc(v)}" stroke="#ddd"/><text x="${x0-6}" y="${sc(v)+4}" font-size="11" text-anchor="end" fill="#666">${v}</text>`}
+  data.forEach((d,i)=>{const x=x0+8+i*(bw+gap);s+=`<rect x="${x}" y="${sc(d.v)}" width="${bw}" height="${sc(0)-sc(d.v)}" rx="4" fill="${["#4cc9f0","#f15bb5","#ffb703","#80ed99"][i%4]}"/><text x="${x+bw/2}" y="${H+8}" font-size="16" text-anchor="middle">${d.e}</text>`});
+  return SV(x0+data.length*(bw+gap)+10,H+14,s)}
+function svgPic(data,per){let s="",y=24;data.forEach(d=>{s+=`<text x="4" y="${y}" font-size="20">${d.e}</text><line x1="32" x2="32" y1="${y-18}" y2="${y+6}" stroke="#bbb"/>`;for(let i=0;i<d.v/per;i++)s+=`<text x="${40+i*24}" y="${y}" font-size="19">${d.icon||"⭐"}</text>`;y+=28});if(per>1)s+=`<text x="4" y="${y}" font-size="12" fill="#555">Each ${data[0].icon||"⭐"} = ${per}</text>`;return SV(300,y+(per>1?8:0),s)}
+function svgRuler(len,max,unit,obj){const u=Math.min(26,250/max);let s=`<rect x="10" y="44" width="${max*u+8}" height="30" fill="#ffe8a3" stroke="#a5771f" stroke-width="2" rx="3"/>`;
+  for(let i=0;i<=max;i++)s+=`<line x1="${14+i*u}" x2="${14+i*u}" y1="44" y2="${i%1===0?58:52}" stroke="#7a5512" stroke-width="2"/><text x="${14+i*u}" y="70" font-size="10" text-anchor="middle" fill="#7a5512">${i}</text>`;
+  s+=`<rect x="14" y="16" width="${len*u}" height="20" rx="10" fill="${obj[1]}" stroke="#333" stroke-width="2"/><text x="${14+len*u/2}" y="31" font-size="13" text-anchor="middle">${obj[0]}</text>`;
+  if(unit)s+=`<text x="${max*u+18}" y="62" font-size="11" fill="#7a5512">${unit}</text>`;return SV(max*u+44,80,s)}
+function svgLengths(items){let s="",y=20;items.forEach(it=>{s+=`<text x="2" y="${y+6}" font-size="18" font-weight="800">${it.n}</text><rect x="26" y="${y-8}" width="${it.l*22}" height="18" rx="9" fill="${it.c}" stroke="#333" stroke-width="2"/>`;y+=30});return SV(260,y,s)}
+function svgArray(r,c,e="●"){const sz=Math.min(22,240/c,100/r);let s="";for(let i=0;i<r;i++)for(let j=0;j<c;j++)s+=`<text x="${8+j*sz+sz/2}" y="${8+i*sz+sz*.8}" font-size="${sz*.85}" text-anchor="middle" fill="#7b2cbf">${e}</text>`;return SV(c*sz+16,r*sz+16,s)}
+function svgLine(a,b,step,mark,labelEvery){const n=(b-a)/step,u=260/n;let s=`<line x1="14" x2="${14+n*u}" y1="40" y2="40" stroke="#22223b" stroke-width="3"/>`;
+  for(let i=0;i<=n;i++){const v=a+i*step,x=14+i*u;s+=`<line x1="${x}" x2="${x}" y1="32" y2="48" stroke="#22223b" stroke-width="2"/>`;if(i%labelEvery===0)s+=`<text x="${x}" y="66" font-size="12" text-anchor="middle" fill="#22223b">${v}</text>`}
+  const mx=14+(mark-a)/step*u;s+=`<polygon points="${mx-8},10 ${mx+8},10 ${mx},28" fill="#ef233c"/>`;return SV(n*u+28,72,s)}
+function svgFline(d,mark){const u=240/d;let s=`<line x1="20" x2="${20+240}" y1="40" y2="40" stroke="#22223b" stroke-width="3"/>`;for(let i=0;i<=d;i++){const x=20+i*u;s+=`<line x1="${x}" x2="${x}" y1="30" y2="50" stroke="#22223b" stroke-width="2"/>`}s+=`<text x="20" y="68" font-size="13" text-anchor="middle">0</text><text x="260" y="68" font-size="13" text-anchor="middle">1</text>`;const mx=20+mark*u;s+=`<polygon points="${mx-8},8 ${mx+8},8 ${mx},26" fill="#ef233c"/>`;return SV(280,74,s)}
+function svgBlocks(h,t,o){let s="",x=6;for(let i=0;i<h;i++){s+=`<rect x="${x}" y="8" width="50" height="50" fill="#ffd166" stroke="#a5771f" stroke-width="2"/>`;for(let k=1;k<10;k++)s+=`<line x1="${x+k*5}" x2="${x+k*5}" y1="8" y2="58" stroke="#a5771f55"/><line x1="${x}" x2="${x+50}" y1="${8+k*5}" y2="${8+k*5}" stroke="#a5771f55"/>`;x+=56}
+  for(let i=0;i<t;i++){s+=`<rect x="${x}" y="8" width="7" height="50" fill="#4cc9f0" stroke="#3a0ca3" stroke-width="1.5"/>`;x+=10}x+=6;
+  for(let i=0;i<o;i++){s+=`<rect x="${x+(i%3)*10}" y="${44-Math.floor(i/3)*10}" width="8" height="8" fill="#80ed99" stroke="#2d6a4f" stroke-width="1.5"/>`}x+=34;return SV(Math.max(60,x),64,s)}
+function svgGrid(w,h,fill=true){const u=Math.min(24,220/w,96/h);let s="";for(let i=0;i<h;i++)for(let j=0;j<w;j++)s+=`<rect x="${6+j*u}" y="${6+i*u}" width="${u}" height="${u}" fill="${fill?"#c8f7dc":"#fff"}" stroke="#2d6a4f" stroke-width="1.5"/>`;return SV(w*u+12,h*u+12,s)}
+function svgRect(w,h,unit,showAll){const sc=Math.min(150/w,70/h,18),W2=w*sc,H2=h*sc;return SV(W2+90,H2+44,`<rect x="44" y="18" width="${W2}" height="${H2}" fill="#ffe5ec" stroke="#c9184a" stroke-width="4"/><text x="${44+W2/2}" y="13" font-size="13" text-anchor="middle" font-weight="800">${w} ${unit}</text><text x="${44+W2+6}" y="${18+H2/2+4}" font-size="13" font-weight="800">${h} ${unit}</text>${showAll?`<text x="${44+W2/2}" y="${18+H2+16}" font-size="13" text-anchor="middle" font-weight="800">${w} ${unit}</text><text x="40" y="${18+H2/2+4}" font-size="13" text-anchor="end" font-weight="800">${h} ${unit}</text>`:""}`)}
+function svgPairs(n){let s="";for(let i=0;i<n;i++){const x=10+Math.floor(i/2)*26,y=12+(i%2)*26;s+=`<circle cx="${x+10}" cy="${y+10}" r="10" fill="${i===n-1&&n%2?"#ef233c":"#7b2cbf"}"/>`}return SV(Math.ceil(n/2)*26+20,64,s)}
+function svgTenFrame(a){let s="";for(let i=0;i<10;i++){const x=6+(i%5)*26,y=6+Math.floor(i/5)*26;s+=`<rect x="${x}" y="${y}" width="26" height="26" fill="#fff" stroke="#3a0ca3" stroke-width="2"/>`;if(i<a)s+=`<circle cx="${x+13}" cy="${y+13}" r="9" fill="#ef233c"/>`}return SV(142,64,s)}
+const pics=(f,n,cross=0)=>`<span class="g">${f.repeat(n-cross)}<span class="x">${f.repeat(cross)}</span></span>`;
+const fmtT=(h,m)=>`${h}:${String(m).padStart(2,"0")}`;
+const cmpQ=(a,b)=>{const ans=a>b?">":a<b?"<":"=";return {q:`${a} ☐ ${b}`,say:`Is ${a} greater than, less than, or equal to ${b}?`,ans,opts:[">","<","="].map(v=>({label:v,v,emoji:false})),vis:""}};
+function timeOpts(h,m,step){const c=new Set([fmtT(h,m)]);const alts=[[h,(m+30)%60],[h%12+1,m],[(h+10)%12+1,m],[h,(m+step)%60],[h,(m+60-step)%60],[m/5||12,h*5%60]];alts.forEach(([hh,mm])=>{if(hh>=1&&hh<=12&&mm%1===0)c.add(fmtT(hh,mm))});return [...c]}
+/* ---------- topic generators ---------- */
+const CUR={
+g1:[
+ ["Add within 10","➕",()=>{const a=rnd(1,7),b=rnd(1,10-a),f=pick(FRUIT);return numMk(`${a} + ${b} = ?`,`What is ${a} plus ${b}?`,a+b,`${pics(f,a)} + ${pics(f,b)}`)}],
+ ["Take away within 10","➖",()=>{const a=rnd(3,10),b=rnd(1,a-1),f=pick(FRUIT);return numMk(`${a} − ${b} = ?`,`What is ${a} take away ${b}?`,a-b,pics(f,a,b))}],
+ ["Add within 20","🔟",()=>{const a=rnd(4,9),b=rnd(11-a,9);return numMk(`${a} + ${b} = ?`,`What is ${a} plus ${b}?`,a+b,a+b>10?`<span class="g" style="font-size:.7em">Make 10 first: ${a} + ${10-a} = 10</span>`:"")}],
+ ["Subtract within 20","🧮",()=>{const a=rnd(11,18),b=rnd(2,9);return numMk(`${a} − ${b} = ?`,`What is ${a} minus ${b}?`,a-b)}],
+ ["Make 10 & missing numbers","❓",()=>{const k=rnd(1,3);if(k===1){const a=rnd(1,9);return numMk(`${a} + ? = 10`,`${a} plus what makes 10?`,10-a,svgTenFrame(a))}const b=rnd(2,9),x=rnd(2,10);return k===2?numMk(`? + ${b} = ${x+b}`,`What number plus ${b} equals ${x+b}?`,x):numMk(`${x+b} − ? = ${b}`,`${x+b} minus what equals ${b}?`,x)}],
+ ["Story problems","📖",()=>{const N=pick(NAMES2);if(Math.random()<.4){const a=rnd(2,6),b=rnd(2,6),c=rnd(1,6);return numMk(`${N} has ${a} red, ${b} blue and ${c} green balls. How many balls?`,`${N} has ${a} red, ${b} blue, and ${c} green balls. How many balls in all?`,a+b+c,`<span class="g">${"🔴".repeat(a)}${"🔵".repeat(b)}${"🟢".repeat(c)}</span>`)}if(Math.random()<.5){const a=rnd(5,12),b=rnd(2,8);return numMk(`${N} has ${a} cookies. She gets ${b} more. How many now?`.replace("She",N==="Jonah"||N==="Leo"||N==="Max"?"He":"She"),`${N} has ${a} cookies and gets ${b} more. How many now?`,a+b,"<span class='big'>🍪</span>")}const a=rnd(10,19),b=rnd(2,9);return numMk(`There are ${a} birds. ${b} fly away. How many are left?`,`There are ${a} birds. ${b} fly away. How many are left?`,a-b,"<span class='big'>🐦</span>")}],
+ ["Counting to 120","🔢",()=>{const k=rnd(1,3);if(k===1){const n=rnd(19,119);return numMk(`What comes after ${n}?`,`What number comes after ${n}?`,n+1,"",[1,2,10])}if(k===2){const n=rnd(20,120);return numMk(`What comes before ${n}?`,`What number comes just before ${n}?`,n-1,"",[1,2,10])}const s=rnd(1,8)*10;return numMk(`${s}, ${s+10}, ${s+20}, ?`,`Count by tens: ${s}, ${s+10}, ${s+20}. What comes next?`,s+30,"",[10,1,20])}],
+ ["Tens & ones","🧱",()=>{const t=rnd(1,9),o=rnd(0,9),n=t*10+o,k=rnd(1,3);if(k===1)return numMk("What number is this?",`Count the tens and ones. What number is it?`,n,svgBlocks(0,t,o),[1,10,9]);if(k===2)return numMk(`How many tens in ${n}?`,`How many tens are in ${n}?`,t,svgBlocks(0,t,o));return numMk(`${t} tens and ${o} ones = ?`,`${t} tens and ${o} ones makes what number?`,n,"",[1,10,9])}],
+ ["Compare numbers","🐊",()=>{const a=rnd(10,99),b=Math.random()<.15?a:rnd(10,99);return cmpQ(a,b)}],
+ ["10 more, 10 less","🚀",()=>{const k=rnd(1,3),n=rnd(2,8)*10+rnd(0,9);if(k===1)return numMk(`10 more than ${n}?`,`What is 10 more than ${n}?`,n+10,"",[10,1,20]);if(k===2)return numMk(`10 less than ${n}?`,`What is 10 less than ${n}?`,n-10,"",[10,1,20]);const a=rnd(1,6)*10,b=rnd(1,9);return numMk(`${a} + ${b} = ?`,`What is ${a} plus ${b}?`,a+b,"",[1,10,2])}],
+ ["Measure length","📏",()=>{if(Math.random()<.5){const l=rnd(2,9),o=pick([["✏️","#ffd166"],["🖍️","#f15bb5"],["🐛","#80ed99"],["🔑","#ffe066"]]);return numMk("How many units long?",`How many units long is it? Count the ruler.`,l,svgRuler(l,10,"",o),[1,2])}const ls=shuffle([2,3,4,5,6,7,8,9]).slice(0,3);const it=ls.map((l,i)=>({n:"ABC"[i],l,c:["#4cc9f0","#f15bb5","#ffb703"][i]}));const longest=Math.random()<.6;const t=longest?it.reduce((a,b)=>b.l>a.l?b:a):it.reduce((a,b)=>b.l<a.l?b:a);return {q:longest?"Which is the LONGEST?":"Which is the SHORTEST?",say:longest?"Which one is the longest?":"Which one is the shortest?",vis:svgLengths(it),ans:t.n,opts:it.map(x=>({label:x.n,v:x.n,emoji:false}))}}],
+ ["Time: hour & half hour","⏰",()=>{const h=rnd(1,12),m=pick([0,30]);const o=timeOpts(h,m,30);return mk("What time is it?","What time does the clock show?",fmtT(h,m),o,svgClock(h,m))}],
+ ["Coins","🪙",()=>{const k=pick(["p","n","d","q"]),N={p:"penny",n:"nickel",d:"dime",q:"quarter"};if(Math.random()<.5)return mk("What is this coin called?","What is the name of this coin?",N[k],Object.values(N),svgCoins([k]).replace(/>\d+¢</,"><"),4);return numMk(`A ${N[k]} is worth how many cents?`,`A ${N[k]} is worth how many cents?`,COIN[k][0],svgCoins([k]).replace(/>\d+¢</,"><"),[1,4,5,15],4)}],
+ ["Picture graphs","📊",()=>{const cats=shuffle([["🍎","apples"],["🍌","bananas"],["🍇","grapes"],["🍓","strawberries"]]).slice(0,3).map(([e,n])=>({e,n,v:rnd(1,7),icon:e}));const vis=svgPic(cats,1);const k=rnd(1,3);if(k===1){const c=pick(cats);return numMk(`How many ${c.e}?`,`How many ${c.n} are there?`,c.v,vis)}if(k===2){const mx=Math.max(...cats.map(c=>c.v));if(cats.filter(c=>c.v===mx).length>1)cats[0].v=mx+1;const best=cats.reduce((a,b)=>b.v>a.v?b:a);return {q:"Which has the MOST?",say:"Which fruit has the most?",vis:svgPic(cats,1),ans:best.e,opts:cats.map(c=>({label:c.e,v:c.e,emoji:true}))}}const [a,b]=shuffle(cats);if(a.v===b.v)a.v=b.v+2>9?b.v-1:b.v+2;const [hi,lo]=a.v>b.v?[a,b]:[b,a];return numMk(`How many more ${hi.e} than ${lo.e}?`,`How many more ${hi.n} than ${lo.n}?`,hi.v-lo.v,svgPic(cats,1),[1,2])}],
+ ["Shapes & halves","🔺",()=>{const k=rnd(1,3);if(k===1){const s=pick(["triangle","square","rectangle","circle","hexagon","trapezoid"]);return mk("What shape is this?",`What shape is this?`,s,["triangle","square","rectangle","circle","hexagon","trapezoid"],svgShape(s),3)}if(k===2){const s=pick([["triangle",3],["square",4],["rectangle",4],["pentagon",5],["hexagon",6]]);return numMk("How many sides?",`How many sides does this ${s[0]} have?`,s[1],svgShape(s[0]),[1,2],3)}const d=pick([2,4]),n=d===2?1:pick([1,2,4]);const ans=n===d?"whole":d===2?"half":n===1?"quarter":"half";return mk("How much is shaded?","How much of the circle is colored?",ans,["half","quarter","whole"],svgPie(n,d),3)}],
+],
+g2:[
+ ["Fast facts to 20","⚡",()=>{if(Math.random()<.5){const a=rnd(3,9),b=rnd(3,9);return numMk(`${a} + ${b} = ?`,`${a} plus ${b}?`,a+b)}const a=rnd(10,18),b=rnd(3,9);return numMk(`${a} − ${b} = ?`,`${a} minus ${b}?`,a-b)}],
+ ["Odd & even, arrays","🎲",()=>{if(Math.random()<.45){const n=rnd(2,20);return {q:`Is ${n} odd or even?`,say:`Is ${n} odd or even?`,vis:svgPairs(n),ans:n%2?"odd":"even",opts:["odd","even"].map(v=>({label:v,v,emoji:false}))}}const r=rnd(2,5),c=rnd(2,5);return numMk(`${Array(r).fill(c).join(" + ")} = ?`,`${r} rows of ${c}. How many in all?`,r*c,svgArray(r,c),[1,2,c])}],
+ ["Story problems to 100","📖",()=>{const N=pick(NAMES2);if(Math.random()<.5){const a=rnd(15,60),b=rnd(10,39);return numMk(`${N} has ${a} stickers and gets ${b} more. How many now?`,`${N} has ${a} stickers and gets ${b} more. How many now?`,a+b,"<span class='big'>🌟</span>",[1,10,2])}const a=rnd(40,99),b=rnd(10,a-5);return numMk(`A bus has ${a} seats. ${b} are full. How many are empty?`,`A bus has ${a} seats and ${b} are full. How many are empty?`,a-b,"<span class='big'>🚌</span>",[1,10,2])}],
+ ["Hundreds, tens, ones","🏗️",()=>{const h=rnd(1,9),t=rnd(0,9),o=rnd(0,9),n=h*100+t*10+o,k=rnd(1,3);if(k===1&&h<=4)return numMk("What number is this?","Count the hundreds, tens, and ones. What number is it?",n,svgBlocks(h,t,o),[1,10,100]);if(k===2)return numMk(`How many hundreds in ${n}?`,`How many hundreds are in ${n}?`,h,"",[1,2]);return numMk(`${h*100} + ${t*10} + ${o} = ?`,`${h*100} plus ${t*10} plus ${o}?`,n,"",[1,10,100])}],
+ ["Skip counting","🦘",()=>{const by=pick([2,5,10,100]),s=by*rnd(1,by===100?5:8);return numMk(`${s}, ${s+by}, ${s+2*by}, ?`,`Count by ${by}s: ${s}, ${s+by}, ${s+2*by}. What comes next?`,s+3*by,"",[by,1,2*by])}],
+ ["Compare 3-digit numbers","🐊",()=>{const a=rnd(100,999),b=Math.random()<.15?a:Math.random()<.5?a+pick([-10,10,-1,1,100,-100]):rnd(100,999);return cmpQ(a,Math.max(100,Math.min(999,b)))}],
+ ["Add & subtract to 100","➕",()=>{if(Math.random()<.5){const a=rnd(1,6)*10+rnd(3,9),b=rnd(1,2)*10+rnd(1,9);return numMk(`${a} + ${b} = ?`,`What is ${a} plus ${b}?`,a+b,"",[1,10,2])}const a=rnd(4,9)*10+rnd(0,8),b=rnd(1,3)*10+rnd(1,9);return numMk(`${a} − ${b} = ?`,`What is ${a} minus ${b}?`,a-b,"",[1,10,2])}],
+ ["Add & subtract to 1000","💯",()=>{const k=rnd(1,4),n=rnd(150,850);if(k===1)return numMk(`100 more than ${n}?`,`What is 100 more than ${n}?`,n+100,"",[100,10,1]);if(k===2)return numMk(`10 less than ${n}?`,`What is 10 less than ${n}?`,n-10,"",[10,100,1]);if(k===3){const a=rnd(1,5)*100+rnd(0,4)*10+rnd(0,4),b=rnd(1,4)*100+rnd(0,5)*10+rnd(0,5);return numMk(`${a} + ${b} = ?`,`What is ${a} plus ${b}?`,a+b,"",[1,10,100])}const a=rnd(5,9)*100+rnd(5,9)*10+rnd(5,9),b=rnd(1,4)*100+rnd(0,4)*10+rnd(0,4);return numMk(`${a} − ${b} = ?`,`What is ${a} minus ${b}?`,a-b,"",[1,10,100])}],
+ ["Inches & centimeters","📐",()=>{if(Math.random()<.6){const unit=pick(["inches","cm"]),l=rnd(2,unit==="cm"?11:7),o=pick([["✏️","#ffd166"],["🖍️","#f15bb5"],["🐛","#80ed99"]]);return numMk(`How many ${unit} long?`,`How many ${unit==="cm"?"centimeters":"inches"} long is it?`,l,svgRuler(l,unit==="cm"?12:8,unit,o),[1,2])}const a=rnd(6,15),b=rnd(2,a-1);return numMk(`A pencil is ${a} cm. A crayon is ${b} cm. How much longer is the pencil?`,`A pencil is ${a} centimeters and a crayon is ${b} centimeters. How much longer is the pencil?`,a-b,"<span class='big'>✏️🖍️</span>",[1,2])}],
+ ["Number lines","➡️",()=>{if(Math.random()<.5){const m=rnd(1,9)*10;return numMk("What number is the arrow on?","What number is the red arrow pointing to?",m,svgLine(0,100,10,m,1),[10,20,5])}const m=rnd(1,9)*2;return numMk("What number is the arrow on?","What number is the red arrow pointing to?",m,svgLine(0,20,2,m,5),[2,1,4])}],
+ ["Time to 5 minutes","🕒",()=>{if(Math.random()<.25){const a=pick([["eat breakfast","AM"],["go to bed","PM"],["eat lunch at noon time","PM"],["wake up","AM"],["watch the sunset","PM"],["ride the bus to school","AM"]]);return {q:`You ${a[0]}. AM or PM?`,say:`You ${a[0]}. Is that A M or P M?`,vis:"<span class='big'>"+(a[1]==="AM"?"🌅":"🌙")+"</span>",ans:a[1],opts:["AM","PM"].map(v=>({label:v,v,emoji:false}))}}const h=rnd(1,12),m=rnd(0,11)*5;return mk("What time is it?","What time does the clock show?",fmtT(h,m),timeOpts(h,m,5),svgClock(h,m))}],
+ ["Money","🪙",()=>{if(Math.random()<.3){const k=pick(["p","n","d","q"]);return numMk("How many cents is this coin?","How many cents is this coin worth?",COIN[k][0],svgCoins([k]).replace(/>\d+¢</,">?<"),[1,4,5],3)}const list=[];let t=0;const n=rnd(2,5);for(let i=0;i<n;i++){const k=pick(["p","n","d","q"]);if(t+COIN[k][0]>99)break;list.push(k);t+=COIN[k][0]}list.sort((a,b)=>COIN[b][0]-COIN[a][0]);return numMk("How many cents?","Count the coins. How many cents in all?",t,svgCoins(list),[1,5,10])}],
+ ["Bar graphs","📊",()=>{const cats=shuffle([["⚽","soccer"],["🏊","swimming"],["🤺","fencing"],["🎨","art"]]).slice(0,rnd(3,4)).map(([e,n])=>({e,n,v:rnd(1,10)}));const vis=svgBars(cats,10,2);const k=rnd(1,3);if(k===1){const c=pick(cats);return numMk(`How many kids picked ${c.e}?`,`How many kids picked ${c.n}?`,c.v,vis,[1,2])}if(k===2){const [a,b]=shuffle(cats);if(a.v===b.v)return numMk(`How many picked ${a.e} and ${b.e} together?`,`How many kids picked ${a.n} and ${b.n} together?`,a.v+b.v,vis,[1,2]);const [hi,lo]=a.v>b.v?[a,b]:[b,a];return numMk(`How many more picked ${hi.e} than ${lo.e}?`,`How many more kids picked ${hi.n} than ${lo.n}?`,hi.v-lo.v,vis,[1,2])}const [a,b]=shuffle(cats);return numMk(`${a.e} + ${b.e} together?`,`How many kids picked ${a.n} and ${b.n} together?`,a.v+b.v,vis,[1,2])}],
+ ["Shapes & equal parts","🔷",()=>{const k=rnd(1,4);if(k===1){const s=pick(["pentagon","hexagon","octagon","rhombus","trapezoid","rectangle"]);return mk("What shape is this?","What shape is this?",s,["pentagon","hexagon","octagon","rhombus","trapezoid","rectangle","triangle"],svgShape(s),3)}if(k===2){const s=pick([["cube","cube"],["cylinder","cylinder"],["sphere","sphere"],["cone","cone"]]);return mk("What 3D shape is this?","What solid shape is this?",s[0],["cube","cylinder","sphere","cone"],svgShape(s[0]),3)}if(k===3){const s=pick([["triangle",3],["square",4],["pentagon",5],["hexagon",6],["octagon",8]]);return numMk("How many corners?",`How many corners does this shape have?`,s[1],svgShape(s[0]),[1,2],3)}const d=pick([2,3,4]),n=rnd(1,d);const lab=n===d?"whole":n===1?{2:"one half",3:"one third",4:"one fourth"}[d]:`${n===2?"two":"three"} ${d===3?"thirds":"fourths"}`;return mk("How much is shaded?","How much of the shape is colored?",lab,["one half","one third","one fourth","two thirds","three fourths","whole"],svgFbar(n,d),3)}],
+],
+g3:[
+ ["Equal groups & arrays","🍱",()=>{const r=rnd(2,5),c=rnd(2,6);return numMk(`${r} × ${c} = ?`,`${r} rows of ${c}. ${r} times ${c} is?`,r*c,svgArray(r,c,pick(["🍪","⭐","🍎","●"])),[1,2,c])}],
+ ["Times tables 2, 5, 10","✖️",()=>{const a=pick([2,5,10]),b=rnd(1,10);return numMk(Math.random()<.5?`${a} × ${b} = ?`:`${b} × ${a} = ?`,`What is ${a} times ${b}?`,a*b,"",[a,1,2])}],
+ ["Times tables 3, 4, 6","✖️",()=>{const a=pick([3,4,6]),b=rnd(1,10);return numMk(Math.random()<.5?`${a} × ${b} = ?`:`${b} × ${a} = ?`,`What is ${a} times ${b}?`,a*b,"",[a,1,2])}],
+ ["Times tables 7, 8, 9","✖️",()=>{const a=pick([7,8,9]),b=rnd(1,10);return numMk(Math.random()<.5?`${a} × ${b} = ?`:`${b} × ${a} = ?`,`What is ${a} times ${b}?`,a*b,"",[a,1,2])}],
+ ["Division facts","➗",()=>{const b=rnd(2,9),c=rnd(1,10),a=b*c;if(Math.random()<.35&&a<=24)return numMk(`${a} cookies shared by ${b} friends. How many each?`,`${a} cookies are shared equally by ${b} friends. How many does each friend get?`,c,svgArray(b,c,"🍪"),[1,2]);return numMk(`${a} ÷ ${b} = ?`,`What is ${a} divided by ${b}?`,c,"",[1,2])}],
+ ["Missing factors & patterns","🔍",()=>{const k=rnd(1,3),a=rnd(2,9),b=rnd(2,9);if(k===1)return numMk(`? × ${b} = ${a*b}`,`What times ${b} equals ${a*b}?`,a,"",[1,2]);if(k===2)return numMk(`${a} × ? = ${a*b}`,`${a} times what equals ${a*b}?`,b,"",[1,2]);const s=rnd(1,9),st=rnd(2,9);return numMk(`${s}, ${s+st}, ${s+2*st}, ${s+3*st}, ?`,`What comes next in the pattern? ${s}, ${s+st}, ${s+2*st}, ${s+3*st}.`,s+4*st,"",[st,1,2])}],
+ ["Two-step problems","🧩",()=>{const N=pick(NAMES2),k=rnd(1,3);if(k===1){const g=rnd(2,5),e=rnd(2,6),x=rnd(1,g*e-1);return numMk(`${N} has ${g} bags with ${e} apples each. ${x} get eaten. How many are left?`,`${N} has ${g} bags with ${e} apples in each bag. ${x} apples get eaten. How many apples are left?`,g*e-x,"<span class='big'>🍎</span>",[1,2,e])}if(k===2){const a=rnd(10,40),b=rnd(5,20),c=rnd(3,a+b-1);return numMk(`${N} has $${a}, earns $${b}, then spends $${c}. How much now?`,`${N} has ${a} dollars, earns ${b} dollars, then spends ${c} dollars. How many dollars now?`,a+b-c,"<span class='big'>💵</span>",[1,10,5])}const p=rnd(2,6),q=rnd(2,6),r=rnd(2,5);return numMk(`${p} boxes of ${q} crayons, plus ${r} more crayons. How many?`,`There are ${p} boxes with ${q} crayons each, plus ${r} more crayons. How many crayons in all?`,p*q+r,"<span class='big'>🖍️</span>",[1,2,q])}],
+ ["Rounding","🎯",()=>{if(Math.random()<.55){const n=rnd(11,99);if(n%10===5)return numMk(`Round ${n} to the nearest ten`,`Round ${n} to the nearest ten.`,n+5,svgLine(Math.floor(n/10)*10,Math.floor(n/10)*10+10,1,n,10),[10,20]);return numMk(`Round ${n} to the nearest ten`,`Round ${n} to the nearest ten.`,Math.round(n/10)*10,svgLine(Math.floor(n/10)*10,Math.floor(n/10)*10+10,1,n,10),[10,20])}const n=rnd(101,949);const r=Math.floor((n+50)/100)*100;return numMk(`Round ${n} to the nearest hundred`,`Round ${n} to the nearest hundred.`,r,"",[100,200])}],
+ ["Add & subtract to 1000","🏔️",()=>{if(Math.random()<.5){const a=rnd(120,580),b=rnd(110,390);return numMk(`${a} + ${b} = ?`,`What is ${a} plus ${b}?`,a+b,"",[10,100,1])}const a=rnd(400,950),b=rnd(120,a-50);return numMk(`${a} − ${b} = ?`,`What is ${a} minus ${b}?`,a-b,"",[10,100,1])}],
+ ["Multiply by tens","🔟",()=>{const a=rnd(2,9),b=rnd(1,9)*10;return numMk(`${a} × ${b} = ?`,`What is ${a} times ${b}?`,a*b,"",[10,a*10,20])}],
+ ["Fractions","🍕",()=>{const d=pick([2,3,4,6,8]),n=rnd(1,d-1);const vis=Math.random()<.5?svgPie(n,d):svgFbar(n,d);const ds=uniq([`${n}/${d}`,`${d-n}/${d}`,`${n}/${d+1}`,`${n+1}/${d}`,`${n}/${d*2}`,`1/${d}`].filter(x=>!x.startsWith("0/")));return mk("What fraction is shaded?","What fraction of the shape is colored?",`${n}/${d}`,ds,vis)}],
+ ["Fraction number lines","📍",()=>{const k=rnd(1,3);if(k===1){const d=pick([2,3,4,6,8]),n=rnd(1,d-1);return mk("What fraction is the arrow on?","What fraction is the red arrow pointing to?",`${n}/${d}`,[`${n+1}/${d}`,`${Math.max(1,n-1)}/${d}`,`1/${d}`,`${n}/${d+2}`],svgFline(d,n))}if(k===2){const pairs=[["1/2","2/4"],["1/2","3/6"],["1/2","4/8"],["1/3","2/6"],["2/3","4/6"],["1/4","2/8"],["3/4","6/8"]];const [a,b]=pick(pairs);return mk(`${a} = ?`,`Which fraction is equal to ${a}?`,b,["1/3","3/4","2/3","1/8","5/8","1/6","2/5","3/8"].filter(x=>!pairs.some(p=>p.includes(a)&&p.includes(x))),svgFbar(+a[0],+a[2]))}const d1=pick([2,3,4,6,8]),d2=pick([2,3,4,6,8]);const v1=1/d1,v2=1/d2;const ans=v1>v2?">":v1<v2?"<":"=";return {q:`1/${d1} ☐ 1/${d2}`,say:`Is one over ${d1} greater than, less than, or equal to one over ${d2}?`,vis:svgFbar(1,d1)+svgFbar(1,d2),ans,opts:[">","<","="].map(v=>({label:v,v,emoji:false}))}}],
+ ["Time & elapsed time","⏱️",()=>{if(Math.random()<.5){const h=rnd(1,12),m=rnd(0,59);return mk("What time is it?","What time does the clock show? Look closely at the minutes.",fmtT(h,m),timeOpts(h,m,1).concat([fmtT(h,(m+5)%60),fmtT(h,(m+55)%60)]),svgClock(h,m))}const h=rnd(1,10),m=rnd(0,5)*5,d=pick([15,20,30,45,60]);let eh=h,em=m+d;while(em>=60){em-=60;eh++}return mk(`Starts at ${fmtT(h,m)}. Lasts ${d} minutes. Ends at?`,`It starts at ${fmtT(h,m)} and lasts ${d} minutes. What time does it end?`,fmtT(eh,em),[fmtT(eh,(em+15)%60),fmtT(eh+1,em),fmtT(eh,(em+5)%60),fmtT(eh===1?12:eh-1,em),fmtT(eh,(em+45)%60)],svgClock(h,m))}],
+ ["Mass & volume","⚖️",()=>{const k=rnd(1,3);if(k===1){const it=pick([["An apple weighs about 150 ___","grams","🍎"],["A dog weighs about 20 ___","kilograms","🐕"],["A paper clip weighs about 1 ___","gram","📎"],["A bike weighs about 12 ___","kilograms","🚲"]]);return mk(it[0],it[0].replace("___","what"),it[1],["grams","kilograms","liters","gram","milliliters"].filter(x=>x!==it[1]),`<span class='big'>${it[2]}</span>`,3)}if(k===2){const it=pick([["A bathtub holds about 200 ___","liters","🛁"],["A spoon holds about 5 ___","milliliters","🥄"],["A water bottle holds about 1 ___","liter","🧴"],["A fish tank holds about 40 ___","liters","🐠"]]);return mk(it[0],it[0].replace("___","what"),it[1],["liters","milliliters","kilograms","grams","liter"].filter(x=>x!==it[1]),`<span class='big'>${it[2]}</span>`,3)}const a=rnd(2,9),b=rnd(2,9),u=pick(["kg","L"]);return numMk(`${a} ${u} + ${b} ${u} = ? ${u}`,`${a} ${u==="kg"?"kilograms":"liters"} plus ${b} ${u==="kg"?"kilograms":"liters"} is how many?`,a+b,`<span class='big'>${u==="kg"?"⚖️":"🥛"}</span>`)}],
+ ["Dollars, cents & change","💵",()=>{const k=rnd(1,3);if(k===1){const d=rnd(1,5),c=rnd(1,19)*5;const list=[...Array(d).fill("b"),...(c>=25?Array(Math.floor(c/25)).fill("q"):[]),...Array(Math.floor((c%25)/10)).fill("d"),...((c%25)%10===5?["n"]:[])];return mk("How much money?","Count the bills and coins. How much money is it?",`$${d}.${String(c).padStart(2,"0")}`,[`$${d}.${String((c+5)%100).padStart(2,"0")}`,`$${d+1}.${String(c).padStart(2,"0")}`,`$${d}.${String((c+10)%100).padStart(2,"0")}`,`$${Math.max(1,d-1)}.${String(c).padStart(2,"0")}`],svgCoins(list))}if(k===2){const p=rnd(1,19)*5;return numMk(`You pay $1 for a ${p}¢ toy. Change?`,`A toy costs ${p} cents. You pay with one dollar. How many cents of change do you get?`,100-p,"<span class='big'>🧸</span>",[5,10,15])}const a=rnd(2,9),b=rnd(2,9);return numMk(`$${a} + $${b} = $?`,`${a} dollars plus ${b} dollars is how many dollars?`,a+b,"<span class='big'>💵</span>")}],
+ ["Metric units","📏",()=>{const k=rnd(1,4);if(k===1){const it=pick([["A door is about 2 ___ tall","meters","🚪"],["A pencil is about 15 ___ long","centimeters","✏️"],["A walk to the park is about 1 ___","kilometer","🏞️"],["A paper clip is about 3 ___ long","centimeters","📎"],["A car is about 4 ___ long","meters","🚗"]]);return mk(it[0],it[0].replace("___","what"),it[1],["meters","centimeters","kilometer","kilograms","liters"].filter(x=>x!==it[1]),`<span class='big'>${it[2]}</span>`,3)}if(k===2){const m=rnd(1,5);return numMk(`${m} m = ? cm`,`How many centimeters are in ${m} meters? Remember, 1 meter is 100 centimeters.`,m*100,"<span class='g' style='font-size:.65em'>1 m = 100 cm</span>",[100,10,50])}if(k===3){const g=rnd(1,4);return numMk(`${g} kg = ? g`,`How many grams are in ${g} kilograms? 1 kilogram is 1000 grams.`,g*1000,"<span class='g' style='font-size:.65em'>1 kg = 1000 g</span>",[1000,100,500])}const l=rnd(1,4);return numMk(`${l} L = ? mL`,`How many milliliters are in ${l} liters? 1 liter is 1000 milliliters.`,l*1000,"<span class='g' style='font-size:.65em'>1 L = 1000 mL</span>",[1000,100,500])}],
+ ["Scaled graphs","📈",()=>{const per=pick([2,5]);const cats=shuffle([["🐶","dogs"],["🐱","cats"],["🐟","fish"],["🐰","rabbits"]]).slice(0,3).map(([e,n])=>({e,n,v:per*rnd(1,per===2?6:5),icon:"⭐"}));const vis=per===2?svgPic(cats,2):svgBars(cats,25,5);const k=rnd(1,2);if(k===1){const c=pick(cats);return numMk(`How many ${c.e}?`,per===2?`Each star means 2. How many ${c.n}?`:`How many ${c.n}?`,c.v,vis,[per,1,2*per])}const [a,b]=shuffle(cats);return numMk(`${a.e} + ${b.e} together?`,`How many ${a.n} and ${b.n} together?`,a.v+b.v,vis,[per,1,2*per])}],
+ ["Area","🟩",()=>{const w=rnd(2,8),h=rnd(2,4);if(Math.random()<.5)return numMk("How many square units?","Count the squares. What is the area?",w*h,svgGrid(w,h),[1,2,w]);const W2=rnd(3,10),H2=rnd(2,6);return numMk(`Area = ? square units`,`The rectangle is ${W2} long and ${H2} wide. What is its area?`,W2*H2,svgRect(W2,H2,"",false),[1,2,W2])}],
+ ["Perimeter","🔲",()=>{const w=rnd(2,10),h=rnd(2,8);if(Math.random()<.6)return numMk("Perimeter = ?",`Add all the sides. What is the perimeter of the rectangle?`,2*(w+h),svgRect(w,h,"cm",true),[1,2,w]);const s=rnd(2,9),n=pick([3,4,5,6]),nmz={3:"triangle",4:"square",5:"pentagon",6:"hexagon"}[n];return numMk(`Each side is ${s} cm. Perimeter?`,`This ${nmz} has every side ${s} centimeters. What is the perimeter?`,s*n,svgShape(nmz),[1,2,s])}],
+ ["Quadrilaterals","🔶",()=>{if(Math.random()<.5){const s=pick(["square","rectangle","rhombus","trapezoid"]);return mk("What kind of shape is this?","What is the name of this four-sided shape?",s,["square","rectangle","rhombus","trapezoid","pentagon"],svgShape(s),3)}const c=pick([["4 equal sides and 4 square corners","square"],["4 square corners, 2 long sides, 2 short sides","rectangle"],["4 equal sides, slanted corners","rhombus"],["Just 1 pair of parallel sides","trapezoid"]]);return mk(`Which shape has ${c[0]}?`,`Which shape has ${c[0]}?`,c[1],["square","rectangle","rhombus","trapezoid"],"",3)}],
+]};
+const GALS=[["g1","1️⃣ Grade 1"],["g2","2️⃣ Grade 2"],["g3","3️⃣ Grade 3"],["words","🔤 Words"]];
+function topicName(g,lv){return g==="words"?WORD_NAMES[lv]:CUR[g][lv-1][0]}
+function galSize(g){return g==="words"?8:CUR[g].length}
+function makeQ(g,lv){if(g==="words"){const q=wordsQ(lv);return q}const t=CUR[g][lv-1];const q=t[2]();q.skill=`${g}_${lv}`;q.say=q.say.replace(/[☐]/g," ");return q}
+
 /* ================= planets ================= */
-const PLANETS={
-  math:[["Counting Comet","#ffd6a5","#f4a261"],["Pebble Moon","#f4a261","#e76f51"],["Crater Rock","#90be6d","#43aa8b"],["Take-Away Bay","#ffafcc","#e5383b"],["Ten Town","#caffbf","#2a9d8f"],["Twenty Town","#4cc9f0","#4361ee"],["Mystery Isle","#c77dff","#7b2cbf"],["Big Bang Base","#ffd166","#f3722c"],["Captain's Star","#ffbe0b","#fb5607"],["Galaxy Gate","#a0c4ff","#3a0ca3"],["Rocket Ridge","#ff9f1c","#d00000"],["Nebula Nest","#e0aaff","#5a189a"],["Star Commander","#fff3b0","#e09f3e"]],
-  words:[["Picture Planet","#90e0ef","#0077b6"],["Sound Swamp","#95d5b2","#2d6a4f"],["Rhyme Rings","#ffafcc","#cd4f8b"],["Reading Reef","#ffd6a5","#e85d04"],["Letter Lagoon","#bde0fe","#5e60ce"],["Sight Summit","#caffbf","#38b000"],["Opposite Orbit","#ffc6ff","#9d4edd"],["Word Wizard World","#fdffb6","#e9c46a"]]};
+const PAL=[["#ffd6a5","#f4a261"],["#90be6d","#43aa8b"],["#4cc9f0","#4361ee"],["#c77dff","#7b2cbf"],["#ffd166","#f3722c"],["#06d6a0","#118ab2"],["#ef476f","#b5179e"],["#ffbe0b","#fb5607"],["#a0c4ff","#3a0ca3"],["#ff9f1c","#d00000"],["#e0aaff","#5a189a"],["#caffbf","#2a9d8f"],["#ffafcc","#e5383b"],["#bde0fe","#5e60ce"]];
+const PLANETS={g1:CUR.g1.map((t,i)=>[t[0],...PAL[i%PAL.length],t[1]]),g2:CUR.g2.map((t,i)=>[t[0],...PAL[(i+5)%PAL.length],t[1]]),g3:CUR.g3.map((t,i)=>[t[0],...PAL[(i+9)%PAL.length],t[1]]),words:[["Picture Planet","#90e0ef","#0077b6"],["Sound Swamp","#95d5b2","#2d6a4f"],["Rhyme Rings","#ffafcc","#cd4f8b"],["Reading Reef","#ffd6a5","#e85d04"],["Letter Lagoon","#bde0fe","#5e60ce"],["Sight Summit","#caffbf","#38b000"],["Opposite Orbit","#ffc6ff","#9d4edd"],["Word Wizard World","#fdffb6","#e9c46a"]]};
 const BOSSES=["👾","👽","🛸","🐙","🤖","🦈","🐲","🦑","🦖","🐊","🐉","🦂"];
-function unlocked(g,lv){return lv<=S.lv[g]}
+function unlocked(g,lv){return lv<=(S.lv[g]||0)}
 function pstars(g,lv){return (S.prog[g][lv]||[0,0,0])}
 
 /* ================= canvas world ================= */
@@ -322,7 +413,7 @@ function rockR(r){const base=Math.max(40,Math.min(70,Math.min(W,H)*.085));if(r.e
 function startMission(g,lv,m){
   G={g,lv,m,boss:m===2,rescue:m===1,qi:0,res:[],coinsWon:0,bossHp:QPER,lasers:[],rocks:[],bossX:W+160,bossHit:0,streak:0,rescued:0,count:3.6,waitT:0,ending:0,flyIn:0};
   show("game");mode="game";layoutLanes();ship.y=H*.62;ship.ty=ship.y;
-  $("hud").classList.add("on");$("pg").textContent=G.boss?BOSSES[(lv-1)%12]:G.rescue?"👽":"🪐";
+  $("hud").classList.add("on");$("pg").textContent=G.boss?BOSSES[(lv-1)%BOSSES.length]:G.rescue?"👽":"🪐";
   const intro=G.boss?`Boss battle! Beat the ${["space","sneaky","giant"][lv%3]} monster!`:G.rescue?"Rescue mission! Save the aliens with the right answers!":"Asteroid blast! Ready?";
   floaters.push({t:G.boss?"⚔️ BOSS BATTLE":G.rescue?"👽 ALIEN RESCUE":"☄️ ASTEROID BLAST",x:W/2,y:H*.3,c:"#ffd166",size:Math.min(56,W*.07),life:1.4});
   updProg();speak(intro);timerOn();
@@ -330,7 +421,7 @@ function startMission(g,lv,m){
 function nextQ(){
   if(!G)return;
   if(G.qi>=QPER){finishMission();return}
-  const lv=G.lv;G.q=G.g==="math"?mathQ(lv,lv<=2?3:4):wordsQ(lv);G.tries=0;G.lock=false;
+  const lv=G.lv;G.q=makeQ(G.g,lv);G.tries=0;G.lock=false;
   $("qtext").textContent=G.q.q;$("qvis").innerHTML=G.q.vis;$("qcard").classList.remove("on");void $("qcard").offsetWidth;$("qcard").classList.add("on");$("fb").textContent="";
   G.waitT=0;G.nudged=0;G.rocks=G.q.opts.map((o,i)=>({...o,i,pod:G.rescue,alien:pick(["👽","👾","🐙","🦖","🐱","🐸"]),x:W+80+i*60,state:"in",rot:Math.random()*6,vr:(Math.random()-.5)*.8,hit:0,shape:Array.from({length:11},()=>.82+Math.random()*.25),craters:[[.35,-.3,.16],[-.3,.25,.12],[.2,.4,.08]]}));
   layoutLanes();G.rocks.forEach(r=>{r.y=r.y0});
@@ -383,9 +474,9 @@ function finishMission(){
   timerOff();const first=G.res.filter(x=>x===2).length;
   const stars=first>=QPER?3:first>=4?2:1;
   const pg=S.prog[G.g][G.lv]||[0,0,0];const prev=pg[G.m];pg[G.m]=Math.max(prev,stars);S.prog[G.g][G.lv]=pg;
-  S.stars=Object.values(S.prog.math).concat(Object.values(S.prog.words)).flat().reduce((a,b)=>a+b,0);
+  S.stars=Object.values(S.prog).flatMap(o=>Object.values(o)).flat().reduce((a,b)=>a+b,0);
   let unlock="";
-  if(G.m===2&&G.lv===S.lv[G.g]&&G.lv<MAXLV[G.g]){S.lv[G.g]=G.lv+1;unlock=`🔓 New planet unlocked: ${PLANETS[G.g][G.lv][0]}!`}
+  if(G.m===2&&G.lv===S.lv[G.g]){if(G.lv<galSize(G.g)){S.lv[G.g]=G.lv+1;unlock=`🔓 New planet unlocked: ${PLANETS[G.g][G.lv][0]}!`}else{const nx={g1:"g2",g2:"g3"}[G.g];if(nx&&!S.lv[nx]){S.lv[nx]=1;unlock=`🌌 NEW GALAXY unlocked: ${nx==="g2"?"Grade 2":"Grade 3"}!`}}}
   save();
   $("qcard").classList.remove("on");$("fb").textContent="";
   sfx.whoosh();ship.boost=1.5;G.ending=.001;const g=G;
@@ -402,7 +493,7 @@ function finishMission(){
 function nextMission(){$("mDone").classList.remove("on");if(sessionOver()){breakTime();return}
   const g=G.g;let lv=G.lv,m=G.m+1;if(m>2){m=0;lv=Math.min(lv+1,S.lv[g])}startMission(g,lv,m)}
 function quitGame(){timerOff();G=null;mode="idle";$("hud").classList.remove("on");$("qcard").classList.remove("on");$("fb").textContent="";speechSynthesis&&speechSynthesis.cancel()}
-function record(first){const d=day();d.q++;if(first)d.c++;const k=G.q.skill;S.skills[k]=S.skills[k]||{q:0,c:0};S.skills[k].q++;if(first)S.skills[k].c++;save()}
+function record(first){const d=day();d.q++;if(first)d.c++;const k=G.q.skill;S.skillNames[k]=topicName(G.g,G.lv);S.skills[k]=S.skills[k]||{q:0,c:0};S.skills[k].q++;if(first)S.skills[k].c++;save()}
 
 /* ================= timer / breaks ================= */
 let tick=null;
@@ -433,7 +524,7 @@ function loop(now){
     if(G.boss){
       const tx=W-Math.max(80,W*.1);G.bossX+=(tx-G.bossX)*dt*2;const by=H*.62+Math.sin(tNow*2)*16;
       cx.save();if(G.bossHit>0){G.bossHit-=dt;cx.globalAlpha=.5+.5*Math.sin(tNow*40)}
-      const bs=Math.min(W,H)*.17;const au=cx.createRadialGradient(G.bossX,by,bs*.2,G.bossX,by,bs*1.1);au.addColorStop(0,"#ff4d6d55");au.addColorStop(1,"#ff4d6d00");cx.fillStyle=au;cx.beginPath();cx.arc(G.bossX,by,bs*1.1,0,7);cx.fill();cx.font=`${bs}px serif`;cx.textAlign="center";cx.textBaseline="middle";cx.fillText(BOSSES[(G.lv-1)%12],G.bossX,by);cx.restore();
+      const bs=Math.min(W,H)*.17;const au=cx.createRadialGradient(G.bossX,by,bs*.2,G.bossX,by,bs*1.1);au.addColorStop(0,"#ff4d6d55");au.addColorStop(1,"#ff4d6d00");cx.fillStyle=au;cx.beginPath();cx.arc(G.bossX,by,bs*1.1,0,7);cx.fill();cx.font=`${bs}px serif`;cx.textAlign="center";cx.textBaseline="middle";cx.fillText(BOSSES[(G.lv-1)%BOSSES.length],G.bossX,by);cx.restore();
       // hp bar
       const bw=bs*1.2;cx.fillStyle="#0008";cx.fillRect(G.bossX-bw/2,by-bs*.8,bw,10);cx.fillStyle="#80ed99";cx.fillRect(G.bossX-bw/2,by-bs*.8,bw*Math.max(0,G.bossHp)/QPER,10);
     }
@@ -494,17 +585,17 @@ function drawRock(r){
 cv.addEventListener("pointerdown",e=>{A();if(mode==="game")tapAt(e.clientX,e.clientY)});
 
 /* ================= screens ================= */
-let curLayer="title",curGal="math";
+let curLayer="title",curGal="g1";
 function show(id){curLayer=id;document.querySelectorAll(".layer").forEach(l=>l.classList.toggle("on",l.id===id));if(id!=="game"){$("hud").classList.remove("on")}setCoins();if(id==="map")renderMap();if(id==="hangar")renderHangar();if(id==="parents")renderParents()}
 function renderMap(){
-  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.g===curGal));
+  $("tabs").innerHTML=GALS.map(([g,l])=>`<button class="tab ${g===curGal?"on":""}" data-g="${g}">${(S.lv[g]||0)?"":"🔒 "}${l}</button>`).join("");$("tabs").querySelectorAll(".tab").forEach(t=>t.onclick=()=>{if(!(S.lv[t.dataset.g]||0)){toast("Finish the galaxy before to unlock it!");return}curGal=t.dataset.g;renderMap()});
   const P=PLANETS[curGal],box=$("path"),w=Math.min(box.clientWidth||680,680),n=P.length,step=140,HH=n*step+120;box.style.height=HH+"px";
   const pts=P.map((p,i)=>({x:w*(i%2===0?.3:.7)+(i%4===1?w*.05:i%4===3?-w*.05:0),y:HH-80-i*step}));
   let d=`M${pts[0].x} ${pts[0].y}`;for(let i=1;i<n;i++){const a=pts[i-1],b=pts[i];d+=` C${a.x} ${a.y-70},${b.x} ${b.y+70},${b.x} ${b.y}`}
-  const cur=S.lv[curGal];
+  const cur=Math.max(1,S.lv[curGal]||0);
   let html=`<svg viewBox="0 0 ${w} ${HH}" preserveAspectRatio="none"><path d="${d}" fill="none" stroke="#ffffff40" stroke-width="8" stroke-dasharray="2 18" stroke-linecap="round"/></svg>`;
   P.forEach((p,i)=>{const lv=i+1,lock=!unlocked(curGal,lv),st=pstars(curGal,lv),sz=lv===cur?118:96;
-    html+=`<button class="pl ${lock?"lock":""} ${lv===cur?"cur":""}" data-lv="${lv}" style="left:${pts[i].x}px;top:${pts[i].y}px;width:${sz}px;height:${sz}px;background:radial-gradient(circle at 32% 30%,${p[1]},${p[2]})"><span class="lv">${lock?"🔒":lv}</span><span class="pips">${lock?"":st.map((s,k)=>k===2?(s?"👾":"▫️"):(s?"⭐":"▫️")).join("")}</span><span class="nm">${p[0]}</span></button>`});
+    html+=`<button class="pl ${lock?"lock":""} ${lv===cur?"cur":""}" data-lv="${lv}" style="left:${pts[i].x}px;top:${pts[i].y}px;width:${sz}px;height:${sz}px;background:radial-gradient(circle at 32% 30%,${p[1]},${p[2]})"><span class="lv">${lock?"🔒":(p[3]||lv)}</span><span class="pips">${lock?"":st.map((s,k)=>k===2?(s?"👾":"▫️"):(s?"⭐":"▫️")).join("")}</span><span class="nm">${p[0]}</span></button>`});
   const cp=pts[cur-1];html+=`<div class="you" style="left:${cp.x}px;top:${cp.y-40}px">🚀</div>`;
   box.innerHTML=html;
   box.querySelectorAll(".pl").forEach(b=>b.onclick=()=>{const lv=+b.dataset.lv;if(!unlocked(curGal,lv)){toast("Beat the boss on the planet before to unlock!");return}openPlanet(curGal,lv)});
@@ -512,8 +603,8 @@ function renderMap(){
 }
 function openPlanet(g,lv){
   const p=PLANETS[g][lv-1],st=pstars(g,lv);
-  $("mpName").textContent=`${p[0]}`;$("mpSkill").textContent=(g==="math"?MATH_NAMES:WORD_NAMES)[lv];
-  $("mpMissions").innerHTML=[0,1,2].map(m=>{const open=m===0||st[m-1]>0;return `<button class="mb ${open?"":"lock"}" data-m="${m}"><span class="ic">${m===2?BOSSES[(lv-1)%12]:open?"🚀":"🔒"}</span>${m===2?"Boss":"Mission "+(m+1)}<br>${[0,1,2].map(i=>i<st[m]?"⭐":"☆").join("")}</button>`}).join("");
+  $("mpName").textContent=`${p[3]?p[3]+" ":""}${p[0]}`;$("mpSkill").textContent=g==="words"?"Word Galaxy":`Grade ${g[1]} · planet ${lv} of ${galSize(g)}`;
+  $("mpMissions").innerHTML=[0,1,2].map(m=>{const open=m===0||st[m-1]>0;return `<button class="mb ${open?"":"lock"}" data-m="${m}"><span class="ic">${m===2?BOSSES[(lv-1)%BOSSES.length]:open?"🚀":"🔒"}</span>${m===2?"Boss":"Mission "+(m+1)}<br>${[0,1,2].map(i=>i<st[m]?"⭐":"☆").join("")}</button>`}).join("");
   $("mpMissions").querySelectorAll(".mb").forEach(b=>b.onclick=()=>{if(b.classList.contains("lock")){toast("Finish the mission before it first!");return}$("mPlanet").classList.remove("on");if(sessionOver()){breakTime();return}startMission(g,lv,+b.dataset.m)});
   $("mPlanet").classList.add("on");speak(p[0]);
 }
@@ -539,18 +630,21 @@ function renderParents(){
   const d=day();$("pToday").textContent=minutesToday()+" min";$("pTodayQ").textContent=`${d.q} questions · ${acc(d.q,d.c)} first-try`;
   let ws=0,wd=0;for(let i=0;i<7;i++){const k=new Date(Date.now()-i*864e5).toLocaleDateString("en-CA");if(S.days[k]&&S.days[k].sec){ws+=S.days[k].sec;wd++}}
   $("pWeek").textContent=Math.round(ws/60)+" min";$("pWeekD").textContent=`${wd} of 7 days played`;
-  const sum=p=>Object.entries(S.skills).filter(([k])=>k.startsWith(p)).reduce((a,[,v])=>({q:a.q+v.q,c:a.c+v.c}),{q:0,c:0});const m=sum("math"),w=sum("words");
-  $("pMath").textContent=`Planet ${S.lv.math}: ${MATH_NAMES[S.lv.math]}`;$("pMathAcc").textContent=`${m.q} questions · ${acc(m.q,m.c)} first-try`;
-  $("pWords").textContent=`Planet ${S.lv.words}: ${WORD_NAMES[S.lv.words]}`;$("pWordsAcc").textContent=`${w.q} questions · ${acc(w.q,w.c)} first-try`;
-  const rows=[];for(let i=1;i<=12;i++)["math","words"].forEach(p=>{const s=S.skills[p+i];if(s)rows.push(`<tr><td>${p==="math"?"🔢 "+MATH_NAMES[i]:"🔤 "+WORD_NAMES[i]}</td><td>${acc(s.q,s.c)}</td><td>${s.q}</td></tr>`)});
+  const sum=p=>Object.entries(S.skills).filter(([k])=>k.startsWith(p)).reduce((a,[,v])=>({q:a.q+v.q,c:a.c+v.c}),{q:0,c:0});
+  const lab=g=>(S.lv[g]||0)?`Planet ${S.lv[g]}/${galSize(g)}: ${topicName(g,S.lv[g])}`:"Locked";
+  const all=["g1","g2","g3"].map(sum).reduce((a,b)=>({q:a.q+b.q,c:a.c+b.c}),{q:0,c:0}),w=sum("words");
+  $("pMath").innerHTML=["g1","g2","g3"].map(g=>`<div style="font-size:15px">G${g[1]}: ${lab(g)}</div>`).join("");$("pMathAcc").textContent=`${all.q} math questions · ${acc(all.q,all.c)} first-try`;
+  $("pWords").textContent=lab("words");$("pWordsAcc").textContent=`${w.q} questions · ${acc(w.q,w.c)} first-try`;
+  const rows=[];GALS.forEach(([g])=>{for(let i=1;i<=galSize(g);i++){const k=g==="words"?"words"+i:`${g}_${i}`,v=S.skills[k];if(v)rows.push(`<tr><td>${g==="words"?"🔤":"G"+g[1]} ${topicName(g,i)}</td><td>${acc(v.q,v.c)}</td><td>${v.q}</td></tr>`)}});
   $("pSkills").innerHTML=rows.join("")||`<tr><td colspan="3" class="note">No missions flown yet.</td></tr>`;
   $("sLen").value=S.len;$("sVoice").value=S.voice;
-  [["sMath","math",MATH_NAMES],["sWords","words",WORD_NAMES]].forEach(([id,g,N])=>{$(id).innerHTML=N.slice(1).map((x,i)=>`<option value="${i+1}">Planet ${i+1} · ${x}</option>`).join("");$(id).value=S.lv[g]});
+  $("unlocks").innerHTML=GALS.map(([g,l])=>`<div class="set">${l}: <select data-ug="${g}">${g==="words"?"":`<option value="0">Locked</option>`}${Array.from({length:galSize(g)},(_,i)=>`<option value="${i+1}" ${S.lv[g]===i+1?"selected":""}>up to ${i+1} · ${topicName(g,i+1)}</option>`).join("")}</select></div>`).join("");
+  $("unlocks").querySelectorAll("select").forEach(sel=>{if(!S.lv[sel.dataset.ug])sel.value="0";sel.onchange=()=>{S.lv[sel.dataset.ug]=+sel.value;save()}});
   $("pMsg").textContent="";
 }
-function summary(){const L=[`${NAME} — Space Quest progress (${today()})`,`Coins: ${S.coins} · Mission stars: ${S.stars}`,`Number Galaxy: planet ${S.lv.math} (${MATH_NAMES[S.lv.math]})`,`Word Galaxy: planet ${S.lv.words} (${WORD_NAMES[S.lv.words]})`,"","Last 7 days:"];
+function summary(){const L=[`${NAME} — Space Quest progress (${today()})`,`Coins: ${S.coins} · Mission stars: ${S.stars}`];GALS.forEach(([g,l])=>L.push(`${l.replace(/^\S+ /,"")}: ${(S.lv[g]||0)?`planet ${S.lv[g]}/${galSize(g)} (${topicName(g,S.lv[g])})`:"locked"}`));L.push("","Last 7 days:");
   for(let i=6;i>=0;i--){const k=new Date(Date.now()-i*864e5).toLocaleDateString("en-CA"),d=S.days[k];if(d&&d.sec)L.push(`${k}: ${Math.round(d.sec/60)} min, ${d.q} questions, ${acc(d.q,d.c)} first-try`)}
-  L.push("","By skill:");for(let i=1;i<=12;i++)["math","words"].forEach(p=>{const s=S.skills[p+i];if(s)L.push(`${p==="math"?"Math":"Words"} ${i} ${p==="math"?MATH_NAMES[i]:WORD_NAMES[i]}: ${acc(s.q,s.c)} of ${s.q}`)});return L.join("\n")}
+  L.push("","By skill:");GALS.forEach(([g])=>{for(let i=1;i<=galSize(g);i++){const k=g==="words"?"words"+i:`${g}_${i}`,v=S.skills[k];if(v)L.push(`${g==="words"?"Words":"Grade "+g[1]} · ${topicName(g,i)}: ${acc(v.q,v.c)} of ${v.q}`)}});return L.join("\n")}
 
 /* ================= wiring ================= */
 $("hello").textContent=`Ready to fly, ${NAME}?`;
@@ -559,7 +653,7 @@ $("play").onclick=()=>{A();if(sessionOver()){breakTime();return}show("map");spea
 $("toHangar").onclick=$("mapHangar").onclick=()=>{A();show("hangar")};
 $("hgBack").onclick=()=>show(G?"game":"map");
 $("mapHome").onclick=()=>show("title");
-document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{curGal=t.dataset.g;renderMap()});
+
 $("say").onclick=()=>G&&speak(G.q.say);
 $("quit").onclick=()=>{quitGame();show("map")};
 $("mpClose").onclick=()=>$("mPlanet").classList.remove("on");
@@ -568,7 +662,7 @@ $("mdMap").onclick=()=>{$("mDone").classList.remove("on");quitGame();if(sessionO
 $("bkOk").onclick=()=>$("mBreak").classList.remove("on");
 $("toParents").onclick=()=>show("parents");$("pBack").onclick=()=>show("title");
 $("sLen").onchange=e=>{S.len=+e.target.value;save()};$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};
-$("sMath").onchange=e=>{S.lv.math=+e.target.value;save()};$("sWords").onchange=e=>{S.lv.words=+e.target.value;save()};
+
 $("pTime").onclick=()=>{day().sec=0;save();renderParents();$("pMsg").textContent="Today's timer reset."};
 $("pCopy").onclick=async()=>{try{await navigator.clipboard.writeText(summary());$("pMsg").textContent="Copied."}catch(e){$("pMsg").textContent=summary()}};
 document.querySelector("#game")||document.body.insertAdjacentHTML("beforeend",'<section class="layer" id="game" style="pointer-events:none"></section>');

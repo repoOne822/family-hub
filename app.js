@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261120j";
-import * as Pix from "./pixel.js?v=20261120j";
+import { STR } from "./i18n.js?v=20261120k";
+import * as Pix from "./pixel.js?v=20261120k";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -871,22 +871,21 @@ function goalProgress(m) {
   return { cur, last: rs[rs.length - 1]?.date, p: span ? clamp01((cur - (+m.baseline)) / span) : 1 };
 }
 /* ---- Space Quest (Jonah's math + words game): parent summary from app_saves ---- */
-const SQ_M = ["", "Count them", "Add within 5", "Add within 10", "Take away within 10", "Make 10", "Add & subtract to 20", "Missing number", "Biggest & smallest", "Tens & ones", "2-digit, no regrouping", "2-digit with regrouping", "Story problems"];
 const SQ_W = ["", "Find the picture", "First sounds", "Rhyming words", "Read the word", "Missing letter", "Sight words", "Opposites", "Word meanings"];
-const SQ_L = { en: { t: "🚀 Space Quest progress", none: "No games played yet. He opens it from his 🚀 world.", stars: "mission stars", coins: "coins", math: "Number Galaxy", words: "Word Galaxy", lv: "Level", planet: "Planet", wk: "Last 7 days", days: "days played", min: "min", q: "questions", ft: "first-try", skill: "Skill", acc: "First-try correct", n: "Questions", note: "Each planet = 2 missions + a boss; beating the boss unlocks the next planet. Sessions stop after 10 minutes (he finishes the mission), then a movement break." },
-  zh: { t: "🚀 太空探险进度", none: "还没玩过。他可以从自己的 🚀 世界打开。", stars: "颗任务星", coins: "金币", math: "数字星系", words: "单词星系", lv: "等级", planet: "星球", wk: "最近7天", days: "天玩过", min: "分钟", q: "题", ft: "一次答对", skill: "技能", acc: "一次答对率", n: "题数", note: "每个星球有2个任务和1个大怪兽；打败大怪兽解锁下一个星球。每次10分钟后（完成当前任务）休息活动。" } };
+const SQ_G = { g1: { en: "Grade 1", zh: "一年级", n: 15 }, g2: { en: "Grade 2", zh: "二年级", n: 14 }, g3: { en: "Grade 3", zh: "三年级", n: 20 }, words: { en: "Words", zh: "单词", n: 8 } };
+const SQ_L = { en: { t: "🚀 Space Quest progress", none: "No missions flown yet. He opens it from the 🚀 Space Quest card on his page.", stars: "mission stars", coins: "coins", wk: "Last 7 days", days: "days played", min: "min", q: "questions", ft: "first-try", skill: "Topic", acc: "First-try correct", n: "Questions", planet: "Planet", locked: "locked", note: "Grade 1–3 math (all areas: operations, place value, fractions, time, money, measurement incl. metric, graphs, geometry) + words. Each planet = 2 missions + a boss; the boss unlocks the next planet, the last planet unlocks the next grade. 10-minute sessions, then a movement break." },
+  zh: { t: "🚀 太空探险进度", none: "还没玩过。他可以从自己页面上的 🚀 太空探险卡片打开。", stars: "颗任务星", coins: "金币", wk: "最近7天", days: "天玩过", min: "分钟", q: "题", ft: "一次答对", skill: "主题", acc: "一次答对率", n: "题数", planet: "星球", locked: "未解锁", note: "一至三年级数学（运算、位值、分数、时间、钱币、测量含公制、图表、几何）+ 单词。每个星球2个任务+1个大怪兽；打败大怪兽解锁下一个星球，最后一个星球解锁下一个年级。每次10分钟后休息活动。" } };
 function spaceStatsHtml(kid) {
   const L = SQ_L[lang] || SQ_L.en, save = (S.app_saves || []).find(a => a.kid === kid && a.app === "space"), P = save && save.data ? save.data[`${kid}_space_state`] : null;
   if (!P) return `<div class="coach"><h4>${L.t}</h4><div class="meta">${L.none}</div></div>`;
-  const pct = (q, c) => q ? Math.round(c / q * 100) + "%" : "–";
+  const pct = (q, c) => q ? Math.round(c / q * 100) + "%" : "–", names = P.skillNames || {}, lv = P.lv || {};
   let sec = 0, dp = 0, wq = 0, wc = 0;
   for (let i = 0; i < 7; i++) { const k = new Date(Date.now() - i * 864e5).toLocaleDateString("en-CA"), d = (P.days || {})[k]; if (d && d.sec > 0) { sec += d.sec; dp++; wq += d.q || 0; wc += d.c || 0; } }
-  const sum = p => Object.entries(P.skills || {}).filter(([k]) => k.startsWith(p)).reduce((a, [, v]) => ({ q: a.q + v.q, c: a.c + v.c }), { q: 0, c: 0 });
-  const m = sum("math"), w = sum("words"), lv = P.lv || {};
-  const rows = []; for (let i = 1; i <= 12; i++) for (const p of ["math", "words"]) { const v = (P.skills || {})[p + i]; if (v) rows.push(`<tr><td>${p === "math" ? "🔢 " + SQ_M[i] : "🔤 " + SQ_W[i]}</td><td>${pct(v.q, v.c)}</td><td>${v.q}</td></tr>`); }
+  const gal = Object.entries(SQ_G).map(([g, x]) => `${x[lang] || x.en}: ${lv[g] ? `${L.planet} ${lv[g]}/${x.n}` : L.locked}`).join(" · ");
+  const rows = Object.entries(P.skills || {}).filter(([k]) => P.v === 3 || k.startsWith("words")).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true })).map(([k, v]) => { const nmz = names[k] || (k.startsWith("words") ? SQ_W[+k.slice(5)] : k); const tag = k.startsWith("words") ? "🔤" : "G" + k[1]; return `<tr><td>${tag} ${esc(nmz || k)}</td><td>${pct(v.q, v.c)}</td><td>${v.q}</td></tr>`; });
   return `<div class="coach"><h4>${L.t}</h4>
     <div class="meta">⭐ ${P.stars || 0} ${L.stars} · 🪙 ${P.coins || 0} ${L.coins} · ${L.wk}: ${Math.round(sec / 60)} ${L.min}, ${dp}/7 ${L.days}, ${wq} ${L.q}, ${pct(wq, wc)} ${L.ft}</div>
-    <div class="meta">🪐 ${L.math}: ${L.planet} ${lv.math || "–"} · ${SQ_M[lv.math] || ""} (${pct(m.q, m.c)} ${L.ft}) &nbsp; 🌍 ${L.words}: ${L.planet} ${lv.words || "–"} · ${SQ_W[lv.words] || ""} (${pct(w.q, w.c)} ${L.ft})</div>
+    <div class="meta">${gal}</div>
     ${rows.length ? `<table style="margin-top:6px"><tr><th>${L.skill}</th><th>${L.acc}</th><th>${L.n}</th></tr>${rows.join("")}</table>` : ""}
     <div class="meta" style="margin-top:6px">${L.note}</div></div>`;
 }
@@ -1050,7 +1049,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120j${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120k${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; };
   fs.querySelector(".appclose").onclick = () => appOpen();
@@ -1226,7 +1225,7 @@ function kidRender() {
         <button class="kw-tap ${myMood ? "done" : "todo"}" id="kTap"><span class="big">${myMood ? kiFace(myMood, 44) : KI("hand", 44)}</span>${myMood ? t.checkedIn : t.tapToStart}</button>
         <div class="kw-streak ${g.streak ? "" : "rest"}"><span class="fire">${KI("fire", 44)}</span><div>${g.streak ? t.streak(g.streak) : t.streakRest}<div class="kw-sub" style="opacity:.7">${g.best ? KI("trophy", 16) + " " + g.best : ""}</div></div></div>
       </div>
-      ${S.subjects.filter(x => x.active && x.app_url === "space/").map(x => `<button class="kw-spacegame" data-app="space/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#fff;font:inherit;background:radial-gradient(circle at 85% 30%,#9b5de5 0,transparent 45%),linear-gradient(135deg,#1b1f4b,#3a2f7a);box-shadow:0 8px 0 #0003,0 10px 30px #3a2f7a66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.4s ease-in-out infinite">🚀</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "太空探险" : "Space Quest"}</b><span style="opacity:.9;font-size:17px">${lang === "zh" ? "开火箭、打陨石、救外星人，学数学和单词！" : "Fly your rocket, blast asteroids, rescue aliens. Math + words!"}</span></span><span style="background:linear-gradient(#ffd166,#f4a300);color:#3b2400;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0004">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
+      ${S.subjects.filter(x => x.active && x.app_url === "space/").map(x => `<button class="kw-spacegame" data-app="space/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#fff;font:inherit;background:radial-gradient(circle at 85% 30%,#9b5de5 0,transparent 45%),linear-gradient(135deg,#1b1f4b,#3a2f7a);box-shadow:0 8px 0 #0003,0 10px 30px #3a2f7a66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.4s ease-in-out infinite">🚀</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "太空探险" : "Space Quest"}</b><span style="opacity:.9;font-size:17px">${lang === "zh" ? "一至三年级数学和单词：打陨石、救外星人、打败大怪兽！" : "Grade 1–3 math + words: blast asteroids, rescue aliens, beat bosses!"}</span></span><span style="background:linear-gradient(#ffd166,#f4a300);color:#3b2400;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0004">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
       ${kidCalendarHtml(k.id)}
       ${worlds.length || loose.length || goals.length || mine.length ? `${kwH("globe", "worlds", t.myWorlds)}
       <div class="kw-worlds">${worlds.map((w, i) => `<div class="kw-world" style="background:${worldColors[i % worldColors.length]}"><div class="wi">${KI(w.x.icon, 48)}</div><span class="kw-arrow">→</span><h3>${esc(sName(w.x))}</h3>${sDesc(w.x) ? `<div class="wd">${esc(sDesc(w.x))}</div>` : ""}${w.x.app_url ? `<button class="kw-play" data-app="${esc(w.x.app_url)}" data-appkid="${esc(w.x.kid)}">${KI("play", 16)} ${esc(appLabel(w.x.app_url))}</button>` : ""}${w.ms.map(goalHtml).join("")}${w.docs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">${KI("book", 16)} ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}</div>`).join("")}
