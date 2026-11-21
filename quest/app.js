@@ -115,7 +115,7 @@ const bar = (v, max, cls, label) => `<div class="bar ${cls}"><i style="width:${c
 
 function create() {
   app.innerHTML = `<div class="title"><div class="logo">⚔️ Realm of Forces</div><div class="sub">力之境 · a turn-based dungeon crawl where knowledge is your weapon</div></div>
-   <div class="panel"><h2>Choose your hero</h2><div class="classes">${Object.entries(D.classes).map(([id, c]) => `<button class="cls" data-c="${id}"><div class="big">${c.icon}</div><b>${c.name}</b> <span class="zh">${c.zh}</span><p>${c.blurb}</p><p class="skl">${c.skill.icon} ${c.skill.name}: ${c.skill.desc}</p></button>`).join("")}</div>
+   <div class="panel"><h2>Choose your hero</h2><div class="classes">${Object.entries(D.classes).map(([id, c]) => `<button class="cls" data-c="${id}"><div class="big">${window.QA ? QA.sprite(id, 72) : c.icon}</div><b>${c.name}</b> <span class="zh">${c.zh}</span><p>${c.blurb}</p><p class="skl">${c.skill.icon} ${c.skill.name}: ${c.skill.desc}</p></button>`).join("")}</div>
    <label class="nm">Hero name <input id="hname" maxlength="16" value="${esc(KID.charAt(0).toUpperCase() + KID.slice(1))}"></label>
    <p class="hint">How it works: every Strike is a question. Right answers hit (fast right answers dodge the counterattack and hit harder). Wrong answers miss, and you see the explanation so you learn it. Bosses are mastery tests for each unit.</p></div>`;
   app.querySelectorAll("[data-c]").forEach(b => b.onclick = () => {
@@ -130,7 +130,7 @@ function town() {
   const h = H(), s = stats(), c = CLS();
   const mins = Math.floor(P.daily.secs / 60);
   app.innerHTML = top("🏰 Haven") + `
-   <div class="panel herobox"><div class="portrait">${c.icon}</div><div class="hinfo"><div class="hname">${esc(h.name)} <span class="lv">Lv ${h.lvl} ${c.name}</span></div>
+   <div class="panel herobox"><div class="portrait">${window.QA ? QA.sprite(h.cls, 70) : c.icon}</div><div class="hinfo"><div class="hname">${esc(h.name)} <span class="lv">Lv ${h.lvl} ${c.name}</span></div>
      ${bar(h.xp, xpNeed(h.lvl), "xp", `XP ${h.xp} / ${xpNeed(h.lvl)}`)}
      <div class="chips"><span>⚔️ ${s.dmg} dmg</span><span>🛡️ ${s.arm} armor</span><span>❤️ ${s.hp} HP</span><span>💥 ${s.crit}% crit</span><span>🔷 ${s.mp} mana</span><span>🧪 ${h.potions}</span></div></div></div>
    ${P.settings.limit ? `<div class="limit">⏳ Adventure time today: ${mins} / ${P.settings.limit} min</div>` : ""}
@@ -259,10 +259,11 @@ function combatView(msg) {
    </div><div id="qbox"></div>`;
   wire(() => {}); if ($("#back")) $("#back").remove();
   app.querySelectorAll("[data-x]").forEach(b => b.onclick = () => act(b.dataset.x));
+  if (window.QA) QA.mount(F, H().cls);
 }
 function act(x) {
   const s = stats(), c = CLS();
-  if (x === "potion") { H().potions--; RUN.hp = Math.min(s.hp, RUN.hp + s.hp * .5); SFX.heal(); save(); return enemyTurn("🧪 You drink a potion and feel much better."); }
+  if (x === "potion") { H().potions--; RUN.hp = Math.min(s.hp, RUN.hp + s.hp * .5); SFX.heal(); save(); if (window.QA) QA.later(() => QA.heal()); return enemyTurn("🧪 You drink a potion and feel much better."); }
   if (x === "flee") { if (F.kind === "train") { RUN = null; return codex(); } return endRun(false); }
   const skill = x === "skill";
   if (skill) RUN.mp -= c.skill.cost;
@@ -291,11 +292,12 @@ function ask(q, skill) {
     if (ok && F.first && F.kind !== "train") award(`${today()}:${P.stats.q}`, 2, "Realm of Forces: correct answer", "力之境：答对");
     save();
     if (F.kind === "train") { F.trainLeft--; return feedback(q, ok, ans, why, () => { if (F.trainLeft <= 0) return trainDone(); combatView(ok ? "🎯 Bullseye!" : "❌ Missed. Read it and try the next one."); }); }
-    if (!ok) { SFX.miss(); shake("#me"); return feedback(q, ok, ans, why, () => enemyTurn(`❌ Your ${skill ? CLS().skill.name : "strike"} misses!`)); }
+    if (!ok) { SFX.miss(); window.QA ? QA.heroMiss(H().cls, skill) : shake("#me"); return feedback(q, ok, ans, why, () => enemyTurn(`❌ Your ${skill ? CLS().skill.name : "strike"} misses!`)); }
     // hit!
     const s2 = stats(), crit = Math.random() * 100 < s2.crit;
     let dmg = s2.dmg * RUN.buff * (skill ? s2.skillMult : 1) * (fast ? 1.25 : 1) * (crit ? 1.75 : 1) * (.9 + Math.random() * .2);
-    dmg = Math.round(dmg); F.hp -= dmg; (crit ? SFX.crit : SFX.hit)(); floatNum("#foe", dmg, crit); shake("#foe");
+    dmg = Math.round(dmg); F.hp -= dmg; (crit ? SFX.crit : SFX.hit)();
+    if (window.QA) QA.heroHit({ cls: H().cls, skill, crit, dmg, kill: F.hp <= 0 }); else { floatNum("#foe", dmg, crit); shake("#foe"); }
     let msg = `${crit ? "💥 CRITICAL! " : ""}${fast ? "⚡ Swift " : ""}${skill ? CLS().skill.name : "Strike"} hits for ${dmg}!`;
     if (skill && H().cls === "vanguard") { F.stun = true; msg += " 💫 Stunned!"; }
     if (skill && H().cls === "arcanist") { const heal = Math.round(dmg * .25); RUN.hp = Math.min(s2.hp, RUN.hp + heal); msg += ` (+${heal} HP)`; }
@@ -319,11 +321,12 @@ function feedback(q, ok, ans, why, next, fast) {
 function enemyTurn(msg, dodge) {
   const s = stats();
   if (F.stun) { F.stun = false; return combatView(msg + ` ${F.name} is stunned and can't attack.`); }
-  if (dodge) return combatView(msg + " You dodge the counterattack!");
+  if (dodge) { if (window.QA) QA.later(() => QA.dodge()); return combatView(msg + " You dodge the counterattack!"); }
   const dmg = Math.max(1, Math.round(F.atk * (100 / (100 + s.arm * 3)) * (.85 + Math.random() * .3)));
   RUN.hp -= dmg;
-  setTimeout(() => { SFX.hurt(); shake("#me"); floatNum("#me", dmg, false, true); }, 50);
-  if (RUN.hp <= 0) { RUN.hp = 0; return setTimeout(() => endRun(true), 650); }
+  if (window.QA) QA.later(() => QA.foeHit(dmg, RUN.hp <= 0, () => SFX.hurt()));
+  else setTimeout(() => { SFX.hurt(); shake("#me"); floatNum("#me", dmg, false, true); }, 50);
+  if (RUN.hp <= 0) { RUN.hp = 0; if (window.QA) { combatView(msg + ` ${F.name} hits you for ${dmg}.`); $("#acts").style.display = "none"; return setTimeout(() => endRun(true), 1700); } return setTimeout(() => endRun(true), 650); }
   combatView(msg + ` ${F.name} hits you for ${dmg}.`);
 }
 function victory() {
