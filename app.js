@@ -1104,7 +1104,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121z4${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121z5${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
   fs.querySelector(".appclose").onclick = () => appOpen();
@@ -1278,6 +1278,20 @@ const VOXEL_DECO = (() => { const cube = (x, y, c) => `<g transform="translate($
   cols.forEach((c, i) => { for (let j = 0; j < 3; j++) g += cube(10 + i * 10 + j * 10, 70 - i * 6 + j * 6 - i * 6, c); });
   return `<svg class="kt-deco kt-deco-voxel" viewBox="0 0 120 110" aria-hidden="true">${g}</svg>`; })();
 const PIXEL_DECO = `<div class="kt-deco kt-deco-pixel" aria-hidden="true"><span class="px-hearts">${[1, 2, 3].map(() => `<span class="ki" style="width:14px;height:14px">${kiSvg("heart", "pixel")}</span>`).join("")}</span><span class="ki" style="width:14px;height:14px">${kiSvg("coin", "pixel")}</span></div>`;
+// 📋 Today's plan: habits still to do (ticked when done), today's calendar events, and the study-plan day for his apps
+function kidPlanHtml(k) {
+  const zh = lang === "zh", d = today(), dow = new Date(d + "T12:00").getDay(), items = [];
+  S.metrics.filter(m => m.kid === k.id && m.type === "rate").forEach(m => { const r = S.readings.find(x => x.metric === m.id && x.date === d); items.push({ done: !!(r && +r.value), t: mKidLabel(m), ic: "check" }); });
+  calItems(d, d, k.id).filter(x => x.kind !== "competition" || x.source !== "manual").forEach(x => items.push({ done: false, t: calTitle(x) + (x.time ? " · " + x.time : ""), ic: "calendar", ev: true }));
+  const apps = S.subjects.filter(x => x.kid === k.id && x.active !== false && x.app_url);
+  if (apps.some(x => x.app_url === "physics/") && [2, 4, 6].includes(dow)) items.push({ done: false, t: zh ? ["", "", "物理：读一节 + 练习", "", "物理：挑战或单元测验", "", "物理：可选小测验"][dow] : ["", "", "Physics: read + Practice", "", "Physics: Challenge or Unit test", "", "Physics: optional quick quiz"][dow], ic: "magnet", app: "physics/" });
+  if (!items.length) return "";
+  const todo = items.filter(x => !x.ev), done = todo.filter(x => x.done).length, eb = { voxel: ["Today", "今天"], pixel: ["Daily quests", "每日任务"] }[kiTheme()];
+  return `<div class="kw-h">${eb ? `<span class="kw-eyebrow">${zh ? eb[1] : eb[0]}</span>` : ""}<span class="kw-ht">${KI("target", 28)} ${zh ? "今天的计划" : "Today's plan"}</span>${todo.length ? `<span class="tagc">${done}/${todo.length}</span>` : ""}</div>
+    <div class="kw-card kplan">${todo.length ? `<div class="kneed" style="margin-bottom:10px"><i style="width:${Math.round(100 * done / todo.length)}%"></i></div>` : ""}
+      ${items.map(x => `<div class="kpl ${x.done ? "done" : ""}">${KI(x.done ? "check" : x.ev ? "calendar" : x.ic === "magnet" ? "magnet" : "box", 22)}<span>${esc(x.t)}</span>${x.app ? `<button class="btn sm primary" data-app="${x.app}" data-appkid="${esc(k.id)}">${zh ? "开始" : "Start"}</button>` : ""}</div>`).join("")}
+      ${todo.length && done === todo.length ? `<div class="kw-sub" style="opacity:1;margin-top:8px">🎉 ${zh ? "今天的习惯全部完成！" : "All of today's habits done!"}</div>` : todo.some(x => !x.done) ? `<div class="kw-sub" style="opacity:.8;margin-top:8px">${zh ? "做完后点上面的“打卡”记录。" : "Done one? Tap the check-in button above to log it."}</div>` : ""}</div>`;
+}
 function kidJumpBar() {
   const zh = lang === "zh", little = S.kids[0] && +S.kids[0].age > 0 && +S.kids[0].age < 7;
   const items = [["ks-home", "hand", zh ? "首页" : "Home"], ["ks-worlds", "globe", zh ? "世界" : "Worlds"], ["ks-shop", "coin", zh ? "商店" : "Shop"], ["ks-cal", "calendar", zh ? "日历" : "Calendar"], ["ks-stick", "medal", zh ? "贴纸" : "Stickers"]];
@@ -1324,6 +1338,7 @@ function kidRender() {
         <div class="kw-streak ${g.streak ? "" : "rest"}"><span class="fire">${KI("fire", 44)}</span><div>${g.streak ? t.streak(g.streak) : t.streakRest}<div class="kw-sub" style="opacity:.7">${g.best ? KI("trophy", 16) + " " + g.best : ""}</div></div></div>
       </div>
       <div class="kw-layout"><div class="kw-main"><section id="ks-home" class="kw-sec">
+      ${little ? "" : kidPlanHtml(k)}
       ${S.subjects.filter(x => x.active && x.app_url === "space/").map(x => `<button class="kw-spacegame" data-app="space/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#fff;font:inherit;background:radial-gradient(circle at 85% 30%,#9b5de5 0,transparent 45%),linear-gradient(135deg,#1b1f4b,#3a2f7a);box-shadow:0 8px 0 #0003,0 10px 30px #3a2f7a66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.4s ease-in-out infinite">🚀</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "太空探险" : "Space Quest"}</b><span style="opacity:.9;font-size:17px">${lang === "zh" ? "一至三年级数学和单词：打陨石、救外星人、打败大怪兽！" : "Grade 1–3 math + words: blast asteroids, rescue aliens, beat bosses!"}</span></span><span style="background:linear-gradient(#ffd166,#f4a300);color:#3b2400;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0004">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
       </section><section id="ks-worlds" class="kw-sec">
       ${worlds.length || loose.length || goals.length || mine.length ? `${kwH("globe", "worlds", t.myWorlds)}

@@ -825,3 +825,8 @@ button:focus:not(:focus-visible),a:focus:not(:focus-visible){outline:none}
 .rwsrc i{height:10px;background:var(--card2);border-radius:5px;overflow:hidden}.rwsrc i b{display:block;height:100%;background:var(--lime);border-radius:5px}
 .rwsrc em{font-style:normal;font-weight:800;text-align:right}
 @media (max-width:560px){.rwsrc{grid-template-columns:118px 1fr 40px;font-size:13px}}
+.kplan .kpl{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-weight:700}
+.kplan .kpl:last-of-type{border-bottom:0}.kplan .kpl span{flex:1;min-width:0}
+.kplan .kpl.done span{text-decoration:line-through;opacity:.6}
+.kt-pixel .kplan .kpl{border-color:#3a4a9a}
+.kplan{text-align:left}.kplan .kpl span{text-align:left}
