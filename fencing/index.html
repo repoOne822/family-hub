@@ -1756,6 +1756,25 @@ function pdLimitBanner(){
     <div class="row" style="justify-content:center"><button class="btn" data-go2="quiz">🧠 Brain Battles</button><button class="btn ghost" data-go2="rf">🎭 Real or Fake</button><button class="btn ghost" data-go2="comics">📖 Comics</button></div></div>`;
   return `<div class="pdlim"><span>⏳ Piste Duel today: <b>${Math.ceil(left/60)} min left</b> of ${PD_DAY_MIN}</span><div class="pdlimbar"><i style="width:${pct}%"></i></div></div>`;
 }
+// ---------- 🔒 Piste Duel opens after 1 active AMC hour today (parents not limited) ----------
+// Minutes come from the hub (fh_amc_today, computed when the game opens) or from his AMC progress on this device.
+const PD_AMC_MIN=60;
+function pdAmcSec(){
+  const d=evoToday();let a=0,b=0;
+  try{const x=JSON.parse(localStorage.getItem('fh_amc_today')||'null');if(x&&x.d===d&&(!x.kid||x.kid==='ellis'))a=+x.s||0}catch(e){}
+  try{const P=JSON.parse(localStorage.getItem('ellis_amc_progress')||'null');b=((P&&P.sessions)||[]).filter(s=>s&&s.date===d).reduce((t,s)=>t+(+s.active||0),0)}catch(e){}
+  return Math.max(a,b);
+}
+const pdAmcOk=()=>PD_PARENT||pdAmcSec()>=PD_AMC_MIN*60;
+function pdAmcLock(){
+  const sec=pdAmcSec(),m=Math.floor(sec/60),pct=Math.min(100,Math.round(sec/(PD_AMC_MIN*60)*100)),left=Math.max(1,PD_AMC_MIN-m);
+  return `<div class="tier pdrest"><div style="font-size:54px">🔒</div><h2 style="margin:4px 0">AMC first, then Piste Duel!</h2>
+    <p>Piste Duel opens after <b>${PD_AMC_MIN} active minutes</b> of AMC today.</p>
+    <div class="pdlimbar" style="max-width:360px;margin:8px auto;height:14px"><i style="width:${pct}%;background:#7c3aed"></i></div>
+    <p><b>Today: ${m} / ${PD_AMC_MIN} minutes</b> · ${left} min to go</p>
+    <p class="small">Only real working time counts. Brain Battles, Real or Fake, Distance, Rhythm and Comics are open now.</p>
+    <div class="row" style="justify-content:center"><button class="btn" id="pdToAmc">📚 Open AMC lessons</button><button class="btn ghost" data-go2="quiz">🧠 Brain Battles</button></div></div>`;
+}
 // ---------- menu ----------
 function pdLevels(){
   const lv=pdLv(),x=state.pdx.xp,nx=PD_LVL[lv]||null;
@@ -1772,6 +1791,8 @@ function pdLevels(){
   document.querySelectorAll('[data-df]').forEach(b=>b.onclick=()=>{state.pdDiff=b.dataset.df;save();pdLevels();toast(DIFF[state.pdDiff].n+' mode')});
   $('skip12').onclick=()=>pdSkip(1);$('skip14').onclick=()=>pdSkip(2);
   try{evolveDaily()}catch(e){console.error(e)}
+  if(!pdAmcOk()){$('pdLevels').innerHTML=pdAmcLock();$('pdLevels').querySelectorAll('[data-go2]').forEach(b=>b.onclick=()=>goTo(b.dataset.go2));
+    $('pdToAmc').onclick=()=>{try{if(window.parent&&window.parent!==window&&window.parent.fhOpenApp){window.parent.fhOpenApp('amc/','ellis');return}}catch(e){}toast('Go back (top left) and open 🧩 AMC 8')};return}
   if(!PD_PARENT&&pdLeft()<=0){$('pdLevels').innerHTML=pdLimitBanner();$('pdLevels').querySelectorAll('[data-go2]').forEach(b=>b.onclick=()=>goTo(b.dataset.go2));return}
   $('pdLevels').innerHTML=pdLimitBanner()+rivalCard()+PTIERS.map((T,ti)=>{const tOpen=lv>=T.req&&(ti===0||state.pdWins[PTIERS[ti-1].opps.slice(-1)[0].id]);
     const champ=state.pdWins[T.opps.slice(-1)[0].id];
@@ -1818,6 +1839,7 @@ function pickPerk(){
 }
 // ---------- bout ----------
 function pdScout(id){
+  if(!pdAmcOk()){toast('🔒 Do 60 minutes of AMC first');pdLevels();return}
   if(pdLeft()<=0){toast('🌙 Piste Duel is resting until tomorrow');pdLevels();return}
   const o=ALLOPP[id],T=PTIERS[o.tier];
   $('pdModal').innerHTML=`<div class="modalBox" style="width:min(480px,92vw);text-align:left"><div style="text-align:center"><div style="font-size:56px">${o.e}</div>
@@ -1828,6 +1850,7 @@ function pdScout(id){
   $('pdModal').classList.add('on');$('scGo').onclick=()=>{$('pdModal').classList.remove('on');pdStart(id)};$('scNo').onclick=()=>$('pdModal').classList.remove('on');
 }
 function pdStart(id){
+  if(!pdAmcOk()){toast('🔒 Do 60 minutes of AMC first');pdLevels();return}
   if(pdLeft()<=0){toast('🌙 Piste Duel is resting until tomorrow');pdMenu();return}
   if(id==='rival')ALLOPP.rival=rivalOpp();
   const L=ALLOPP[id];PD={M:{},raw:[],t0:Date.now(),id,L,tgtHist:[],guard:null,steps:[],paused:false,score:[0,0],hist:[],step:0,over:false,combo:0,gained:0,streakE:0,style:L.style,spun:0};

@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261121g7";
-import * as Pix from "./pixel.js?v=20261121g7";
+import { STR } from "./i18n.js?v=20261121w1";
+import * as Pix from "./pixel.js?v=20261121w1";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -1093,7 +1093,7 @@ $("#sArchive").onclick = async () => { if (!editingSubj) return; const { error }
 /* ---------------- KID APP: his own page ---------------- */
 let kidTap = null;
 /* ---- kid apps (e.g. Ellis's Fencing Brain Academy): full-screen, progress synced to app_saves ---- */
-const APPS = { "fencing/": { id: "fencing", prefix: "ellis_", skip: ["ellis_pin", "ellis_coachNotes"], label: { en: "Play Fencing Brain Academy", zh: "进入击剑大脑学院" } },
+const APPS = { "fencing/": { id: "fencing", prefix: "ellis_", skip: ["ellis_pin", "ellis_coachNotes"], skipPre: ["ellis_amc_", "ellis_space_", "ellis_brain_", "ellis_physics_", "ellis_quest_"], label: { en: "Play Fencing Brain Academy", zh: "进入击剑大脑学院" } },
   "amc/": { id: "amc", prefix: kid => `${kid}_amc_`, skip: [], perKid: true, label: { en: "Open my AMC 8 lessons", zh: "打开我的 AMC 8 课程" } },
   "space/": { id: "space", prefix: kid => `${kid}_space_`, skip: [], perKid: true, label: { en: "Play Space Quest", zh: "进入太空探险" } },
   "brain/": { id: "brain", prefix: kid => `${kid}_brain_`, skip: [], perKid: true, label: { en: "Play Brain Park", zh: "进入大脑乐园" } },
@@ -1109,33 +1109,38 @@ window.fhAsk = async body => {
 };
 const appLabel = url => (APPS[url]?.label || {})[lang] || T().openApp;
 let appOpen = null;
-/* ---- 🔒 AMC-first: some games open only after 2 active AMC hours this week (Mon–Sun). Parents and previews are never blocked. ---- */
-const AMC_GATE = { eric: ["quest"] }, AMC_GATE_SEC = 2 * 3600;
-const weekStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toLocaleDateString("en-CA"); };
-async function amcWeekSec(kid) {
-  const since = weekStart(), sum = P => ((P && P.sessions) || []).filter(x => x && x.date >= since).reduce((a, x) => a + (+x.active || 0), 0);
+/* ---- 🔒 AMC-first: daily active AMC minutes unlock games. Eric: Realm of Forces after 90 min. Ellis: Piste Duel after 60 min
+   (enforced inside the fencing app; the hub hands it today's minutes). Parents and previews are never blocked. ---- */
+const AMC_GATE = { eric: { apps: ["quest"], min: 90 } }, AMC_FOR_APP = { ellis: { fencing: 60 } };
+const dayStr = () => new Date().toLocaleDateString("en-CA");
+async function amcDaySec(kid) {
+  const d = dayStr(), sum = P => ((P && P.sessions) || []).filter(x => x && x.date === d).reduce((a, x) => a + (+x.active || 0), 0);
   let db = 0, local = 0;
   try { const { data } = await sb.from("app_saves").select("data").eq("kid", kid).eq("app", "amc").maybeSingle(); db = sum(data && data.data ? data.data[`${kid}_amc_progress`] : null); } catch (e) {}
   try { local = sum(JSON.parse(localStorage.getItem(`${kid}_amc_progress`) || "null")); } catch (e) {}
   return Math.max(db, local);
 }
 async function amcGateOk(cfg, kid) {
-  if (!isKid() || preview || !(AMC_GATE[kid] || []).includes(cfg.id)) return true;
-  const sec = await amcWeekSec(kid); if (sec >= AMC_GATE_SEC) return true;
-  const zh = lang === "zh", m = Math.floor(sec / 60), left = Math.max(1, Math.ceil((AMC_GATE_SEC - sec) / 60)), pct = Math.min(100, Math.round(sec / AMC_GATE_SEC * 100));
+  if (AMC_FOR_APP[kid] && AMC_FOR_APP[kid][cfg.id]) { try { localStorage.setItem("fh_amc_today", JSON.stringify({ kid, d: dayStr(), s: await amcDaySec(kid), need: AMC_FOR_APP[kid][cfg.id] * 60 })); } catch (e) {} }
+  const g = AMC_GATE[kid];
+  if (!isKid() || preview || !g || !g.apps.includes(cfg.id)) return true;
+  const need = g.min * 60, sec = await amcDaySec(kid); if (sec >= need) return true;
+  const zh = lang === "zh", m = Math.floor(sec / 60), left = Math.max(1, Math.ceil((need - sec) / 60)), pct = Math.min(100, Math.round(sec / need * 100));
   const ov = document.createElement("div"); ov.className = "amcgate";
   ov.innerHTML = `<div class="amcgate-box"><div style="font-size:58px">🔒</div>
     <h2>${zh ? "先学 AMC，再玩游戏！" : "AMC first, then play!"}</h2>
-    <p>${zh ? `这周做满 <b>2 小时</b>认真学习 AMC，游戏就会解锁（每周一重新开始）。` : `This game unlocks after <b>2 active hours</b> of AMC this week (it resets every Monday).`}</p>
+    <p>${zh ? `今天认真学习 AMC 满 <b>${g.min} 分钟</b>，游戏就会解锁（每天重新开始）。` : `This game unlocks after <b>${g.min} active minutes</b> of AMC today (it starts fresh every day).`}</p>
     <div class="amcgate-bar"><i style="width:${pct}%"></i></div>
-    <p><b>${zh ? `本周：${m} / 120 分钟` : `This week: ${m} / 120 minutes`}</b> · ${zh ? `还差 ${left} 分钟` : `${left} min to go`}</p>
-    <p class="meta">${zh ? "只有认真做题、看课的时间才算（停下来超过 90 秒不算）。" : "Only real working time counts (it pauses if you stop for 90 seconds)."}</p>
+    <p><b>${zh ? `今天：${m} / ${g.min} 分钟` : `Today: ${m} / ${g.min} minutes`}</b> · ${zh ? `还差 ${left} 分钟` : `${left} min to go`}</p>
+    <p class="meta">${zh ? "只有认真做题、看课的时间才算（停下来超过 1 分钟不算）。" : "Only real working time counts (it pauses if you stop for 1 minute)."}</p>
     <div class="amcgate-row"><button class="btn primary" data-go="amc">${zh ? "📚 去学 AMC" : "📚 Open AMC lessons"}</button><button class="btn" data-x="1">${zh ? "返回" : "Back"}</button></div></div>`;
   document.body.appendChild(ov);
   ov.querySelector("[data-x]").onclick = () => ov.remove();
   ov.querySelector("[data-go]").onclick = () => { ov.remove(); openApp("amc/", kid); };
   return false;
 }
+// lets a game (e.g. the fencing app's Piste Duel lock) send him straight to his AMC lessons
+window.fhOpenApp = async (url, kid) => { if (appOpen) await appOpen(); openApp(url, kid); };
 async function openApp(url, kid) {
   const cfg = APPS[url]; if (!cfg) return;
   if (!(await amcGateOk(cfg, kid))) return;
@@ -1144,7 +1149,7 @@ async function openApp(url, kid) {
   try {
     const { data } = await sb.from("app_saves").select("data,updated_at").eq("kid", kid).eq("app", cfg.id).maybeSingle();
     const localAt = localStorage.getItem(mark) || "";
-    if (data && (preview || data.updated_at > localAt)) { Object.entries(data.data || {}).forEach(([k, v]) => { if (k.startsWith(pre) && !cfg.skip.includes(k)) localStorage.setItem(k, JSON.stringify(v)); }); localStorage.setItem(mark, data.updated_at); }
+    if (data && (preview || data.updated_at > localAt)) { Object.entries(data.data || {}).forEach(([k, v]) => { if (k.startsWith(pre) && !cfg.skip.includes(k) && !(cfg.skipPre || []).some(x => k.startsWith(x))) localStorage.setItem(k, JSON.stringify(v)); }); localStorage.setItem(mark, data.updated_at); }
   } catch (e) {}
   if (cfg.id === "fencing") { // coach lesson notes written by parents → shown inside the game
     try { const { data } = await sb.from("fencing_lessons").select("date,kind,points,focus,homework").eq("kid", kid).order("date", { ascending: false }).limit(20);
@@ -1153,16 +1158,16 @@ async function openApp(url, kid) {
   let timer = null;
   const push = async () => {
     timer = null; if (preview) return;
-    const out = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith(pre) && !cfg.skip.includes(k)) { try { out[k] = JSON.parse(localStorage.getItem(k)); } catch (e) {} } }
+    const out = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith(pre) && !cfg.skip.includes(k) && !(cfg.skipPre || []).some(x => k.startsWith(x))) { try { out[k] = JSON.parse(localStorage.getItem(k)); } catch (e) {} } }
     const at = new Date().toISOString();
     const { error } = await sb.from("app_saves").upsert({ kid, app: cfg.id, data: out, updated_at: at });
     const st = document.querySelector("#appFs .appst"); if (st) st.textContent = error ? "⚠️ " + t.appSaveErr : "☁️ " + t.appSaved;
     if (!error) localStorage.setItem(mark, at);
   };
-  const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
+  const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121g7${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121w1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);

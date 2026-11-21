@@ -161,6 +161,9 @@ button{font:inherit;cursor:pointer}
 @media (max-width:900px){.blay{grid-template-columns:1fr}.bside{position:fixed;left:0;right:0;bottom:0;top:auto;max-height:70vh;border-radius:18px 18px 0 0;transform:translateY(105%);transition:transform .25s;z-index:50;box-shadow:0 -8px 30px rgba(0,0,0,.2)}.bside.open{transform:none}.bsh .btn{display:inline-block}
 .hfab{display:block;position:fixed;right:14px;bottom:14px;z-index:40;background:#f59e0b;color:#fff;border:0;border-radius:999px;padding:12px 16px;font-size:17px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.25)}}
 
+.goalcard{border-color:#7c3aed}.goalbar{height:12px;background:#ede9fe;border-radius:99px;overflow:hidden;margin-top:8px;border:2px solid var(--line)}.goalbar i{display:block;height:100%;background:#7c3aed;transition:width .4s}
+.goalchip{position:fixed;top:10px;right:12px;z-index:65;background:#7c3aed;color:#fff;font-weight:700;border-radius:999px;padding:6px 12px;font-size:15px;box-shadow:0 3px 10px rgba(0,0,0,.2);pointer-events:none}
+.goaltoast{position:fixed;left:50%;top:60px;transform:translateX(-50%);z-index:80;background:#16a34a;color:#fff;font-weight:700;border-radius:14px;padding:12px 18px;font-size:18px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 </style>
 </head>
 <body>
@@ -203,10 +206,30 @@ const awardFor = ev => {
   if (ev.m === "scratch" && ev.done) hubAward(`lesson:${ev.t}`, 10, "Finished an AMC basics lesson", "完成一节 AMC 基础课");
 };
 const track = ev => { P.events.push(ev); if (P.events.length > 1500) P.events = P.events.slice(-1500); awardFor(ev); };
-let lastInput = Date.now(); ["click", "keydown", "touchstart", "scroll", "pointermove"].forEach(e => addEventListener(e, () => { lastInput = Date.now(); }, { passive: true }));
+// Active time = page visible AND he clicked/typed/tapped/scrolled in the last 60 s (mouse wiggling or leaving it open doesn't count).
+let lastInput = Date.now(); ["click", "keydown", "touchstart", "scroll"].forEach(e => addEventListener(e, () => { lastInput = Date.now(); }, { passive: true }));
 const SESS = { id: Date.now(), date: new Date().toLocaleDateString("en-CA"), start: new Date().toISOString(), active: 0 };
 P.sessions.push(SESS); P.sessions = P.sessions.filter(x => x === SESS || x.active >= 15).slice(-300);
-setInterval(() => { if (document.visibilityState === "visible" && Date.now() - lastInput < 90000) SESS.active += 5; }, 5000);
+setInterval(() => { if (document.visibilityState === "visible" && Date.now() - lastInput < 60000) { SESS.active += 5; amcGoalTick(); } }, 5000);
+// ⏱️ Daily AMC goal (active minutes). Reaching it unlocks: Eric → Realm of Forces, Ellis → Piste Duel (enforced by the hub / fencing app).
+const AMC_DAILY = { eric: { min: 90, prize: "🎮 Realm of Forces" }, ellis: { min: 60, prize: "🤺 Piste Duel" } };
+const amcTodaySec = () => { const d = new Date().toLocaleDateString("en-CA"); return P.sessions.filter(x => x && x.date === d).reduce((a, x) => a + (+x.active || 0), 0); };
+function amcGoalHtml() {
+  const g = AMC_DAILY[KID]; if (!g) return "";
+  const m = Math.floor(amcTodaySec() / 60), done = m >= g.min, pct = Math.min(100, Math.round(m / g.min * 100));
+  return `<div class="card goalcard" id="goalCard"><div class="row" style="align-items:center"><b>⏱️ Today's AMC: <span id="goalMin">${m}</span> / ${g.min} active minutes</b><span class="spacer"></span><span class="sub">${done ? `✅ Done! ${g.prize} is unlocked today.` : `${g.prize} unlocks at ${g.min} min`}</span></div>
+    <div class="goalbar"><i id="goalBar" style="width:${pct}%"></i></div><div class="sub" style="margin-top:4px">Only real working time counts: it pauses if you stop clicking, typing or scrolling for 1 minute.</div></div>`;
+}
+function amcGoalTick() {
+  const g = AMC_DAILY[KID]; if (!g) return; const m = Math.floor(amcTodaySec() / 60);
+  let chip = document.getElementById("goalChip");
+  if (!chip) { chip = document.createElement("div"); chip.id = "goalChip"; chip.className = "goalchip"; document.body.appendChild(chip); }
+  const was = chip.dataset.m ? +chip.dataset.m : m;
+  chip.dataset.m = m; chip.textContent = m >= g.min ? `✅ ${m} min today` : `⏱️ ${m} / ${g.min} min`;
+  const gm = document.getElementById("goalMin"), gb = document.getElementById("goalBar"); if (gm) gm.textContent = m; if (gb) gb.style.width = Math.min(100, Math.round(m / g.min * 100)) + "%";
+  if (was < g.min && m >= g.min) { save(); try { confetti(); } catch (e) {} const t = document.createElement("div"); t.className = "goaltoast"; t.textContent = `🎉 ${g.min} active minutes done! ${g.prize} is unlocked for today.`; document.body.appendChild(t); setTimeout(() => t.remove(), 6000); }
+}
+setTimeout(amcGoalTick, 300);
 setInterval(() => { SESS.end = new Date().toISOString(); save(); }, 30000);
 addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") { SESS.end = new Date().toISOString(); save(); } });
 const levelOf = (p, mode) => p.level || (p.lvl === "challenge" ? "hard" : mode === "gym" || p.gen ? "medium" : "easy");
@@ -346,6 +369,7 @@ function home() {
   const lastMix = P.mixed[P.mixed.length - 1];
   app.innerHTML = `<div class="top"><h1>🏆 AMC 8 Lessons</h1><span class="pill">⭐ ${total()} / ${LES.length * 5}</span></div>
     <p class="sub">${esc(CFG.intro)}</p>
+    ${amcGoalHtml()}
     ${todayHtml()}
     ${examsHtml()}
     <div class="row"><button class="btn pink" id="mixBtn">🔀 Mixed review (10 problems)</button>${lastMix ? `<span class="sub">Last mixed review: ${lastMix.score}/${lastMix.of} on ${lastMix.date}</span>` : `<span class="sub">Mixing chapters is how the real test feels.</span>`}</div>
