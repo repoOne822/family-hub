@@ -1065,7 +1065,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121d${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121e${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; };
   fs.querySelector(".appclose").onclick = () => appOpen();
@@ -1097,11 +1097,15 @@ async function kidBoot() {
 const AVATARS = ["🦊","🦁","🐼","🐯","🐸","🐨","🦄","🐲","🐙","🦖","🐵","🐧","🦉","🐬","🚀","⚽","🤺","🎸"];
 const LEVEL_AT = [0, 50, 150, 300, 500, 800];
 const BADGES = [["first","👣"],["s3","🔥"],["s7","⚡"],["s14","🌟"],["hero","🦸"],["stars5","⭐"],["stars20","🏅"],["writer","✏️"],["dreamer","💡"],["explorer","🧭"],["champ","🏆"]];
+// Journal points need 500+ words. Chinese counts each character as a word; entries saved before the rule (2026-11-21 04:00 UTC) keep their points.
+const JOURNAL_MIN_WORDS = 500, JOURNAL_RULE_FROM = "2026-11-21T04:00:00Z";
+const wordCount = str => { const s = String(str || ""); const cjk = (s.match(/[\u3400-\u9fff\uf900-\ufaff]/g) || []).length; const rest = s.replace(/[\u3400-\u9fff\uf900-\ufaff]/g, " ").match(/[A-Za-z0-9\u00C0-\u024F]+(?:['’-][A-Za-z0-9]+)*/g) || []; return cjk + rest.length; };
+const journalCounts = j => (j.created_at && j.created_at < JOURNAL_RULE_FROM) || wordCount(j.body) >= JOURNAL_MIN_WORDS;
 function kidGame() {
   const d = today(), moodDays = new Set(S.moods.map(m => m.date));
   const rateIds = new Set(S.metrics.filter(m => m.type === "rate").map(m => m.id));
   const taps = S.readings.filter(r => rateIds.has(r.metric)).reduce((s, r) => s + (+r.value || 0), 0);
-  const myWins = S.entries.filter(e => e.by_kid).length, jn = S.journal.length, ideas = S.goals.filter(g => g.proposed_by_kid).length;
+  const myWins = S.entries.filter(e => e.by_kid).length, jn = S.journal.filter(journalCounts).length, ideas = S.goals.filter(g => g.proposed_by_kid).length;
   const xp = moodDays.size * 10 + taps * 5 + myWins * 8 + jn * 12 + ideas * 5;
   let lvl = 0; LEVEL_AT.forEach((v, i) => { if (xp >= v) lvl = i; });
   const extra = Math.max(0, Math.floor((xp - 800) / 400)); const lvlNum = lvl + 1 + extra;
@@ -1262,8 +1266,10 @@ function kidRender() {
       <div class="kw-card"><div class="kw-mood">${days.map(x => `<div><div class="f ${x.m ? "" : "none"}">${x.m ? kiFace(x.m, 30) : "○"}</div><small>${fmtDate(x.dd)}</small></div>`).join("")}</div></div>
       ${little ? "" : `${kwH("book", "note", t.secretNotebook, `<span class="tagc">${KI("lock", 14)}</span>`)}
       <div class="kw-notebook"><div style="font:600 12px var(--kfont);color:#888;line-height:20px">${t.journalPrivate}</div>
-        <form id="jForm"><textarea id="jIn" maxlength="4000" placeholder="${t.journalPh}" required></textarea><button class="btn sm primary">${t.saveEntry}</button></form>
-        ${journal.map(j => `<div class="entry"><small>${fmtDate(j.date)} <button class="x" style="opacity:.5;color:#888" data-delj="${j.id}">✕</button></small>${esc(j.body)}</div>`).join("")}</div>`}
+        <form id="jForm"><textarea id="jIn" maxlength="30000" placeholder="${t.journalPh}" required></textarea>
+          <div class="kw-wc" id="jWc">${lang === "zh" ? `0 / ${JOURNAL_MIN_WORDS} 字 · 写满 ${JOURNAL_MIN_WORDS} 字才能得 +12 分` : `0 / ${JOURNAL_MIN_WORDS} words · write ${JOURNAL_MIN_WORDS} to earn +12 points`}</div><div class="kw-wcbar"><i id="jWcBar"></i></div>
+          <button class="btn sm primary">${t.saveEntry}</button></form>
+        ${journal.map(j => `<div class="entry"><small>${fmtDate(j.date)} · ${wordCount(j.body)} ${lang === "zh" ? "字" : "words"}${journalCounts(j) ? " ⭐+12" : ""} <button class="x" style="opacity:.5;color:#888" data-delj="${j.id}">✕</button></small>${esc(j.body)}</div>`).join("")}</div>`}
       ${kwH("medal", "stick", t.stickerBook, `<span class="tagc">${Object.values(g.got).filter(Boolean).length}/${BADGES.length}</span>`)}
       <div class="kw-stickers">${BADGES.map(([id, em]) => `<div class="kw-sticker ${g.got[id] ? "" : "lock"} ${newly.includes(id) ? "got" : ""}"><span class="se">${g.got[id] ? KI(em, 44) : KI("question", 40)}</span><b>${esc(t.badges[id][0])}</b><small>${g.got[id] ? esc(t.badges[id][1]) : t.locked}</small></div>`).join("")}</div>
       <div class="kw-card" style="margin-top:22px"><b style="font-family:var(--kfont)">${KI("sparkle", 18)} ${t.howEarn}</b><div class="kw-earn">${t.earnList.map(x => `<span>${esc(x)}</span>`).join("")}</div></div>
@@ -1318,7 +1324,12 @@ function kidRender() {
   };
   if ($("#propBtn")) $("#propBtn").onclick = () => { const v = $("#propIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("goals").insert({ kid: k.id, text: v, status: "proposed", proposed_by_kid: true }); if (error) throw error; }); };
   if ($("#winForm")) $("#winForm").onsubmit = e => { e.preventDefault(); const v = $("#winIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("entries").insert({ kid: k.id, date: today(), cat: "other", tone: "positive", title: v, by_kid: true }); if (error) throw error; }); };
-  if ($("#jForm")) $("#jForm").onsubmit = e => { e.preventDefault(); const v = $("#jIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("journal").insert({ kid: k.id, date: today(), body: v }); if (error) throw error; }); };
+  if ($("#jIn")) $("#jIn").oninput = () => { const n = wordCount($("#jIn").value), ok = n >= JOURNAL_MIN_WORDS;
+    $("#jWc").textContent = ok ? (lang === "zh" ? `${n} 字 · 太棒了！保存就能得 +12 分 ⭐` : `${n} words · awesome! Save it to earn +12 points ⭐`) : (lang === "zh" ? `${n} / ${JOURNAL_MIN_WORDS} 字 · 再写 ${JOURNAL_MIN_WORDS - n} 字就能得 +12 分` : `${n} / ${JOURNAL_MIN_WORDS} words · ${JOURNAL_MIN_WORDS - n} more to earn +12 points`);
+    $("#jWc").classList.toggle("ok", ok); $("#jWcBar").style.width = Math.min(100, Math.round(100 * n / JOURNAL_MIN_WORDS)) + "%"; };
+  if ($("#jForm")) $("#jForm").onsubmit = e => { e.preventDefault(); const v = $("#jIn").value.trim(); if (!v) return; const n = wordCount(v);
+    R(async () => { const { error } = await sb.from("journal").insert({ kid: k.id, date: today(), body: v }); if (error) throw error; })
+      .then(() => { if (!preview && n < JOURNAL_MIN_WORDS) setStatus(lang === "zh" ? `已保存（${n} 字）。写满 ${JOURNAL_MIN_WORDS} 字的日记才能得分哦。` : `Saved (${n} words). Entries with ${JOURNAL_MIN_WORDS}+ words earn points.`); }); };
   $("#root").onclick = e => {
     const x = e.target.closest("[data-unprop],[data-delwin],[data-delj],[data-kdoc],[data-lwin]"); if (!x) return;
     if (x.dataset.lwin) R(async () => { const { error } = await sb.from("entries").insert({ kid: k.id, date: today(), cat: "other", tone: "positive", title: T().littleWins[+x.dataset.lwin], by_kid: true }); if (error) throw error; });
