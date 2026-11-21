@@ -935,6 +935,34 @@ function spaceStatsHtml(kid) {
     <div class="meta" style="margin-top:6px">${L.note}</div></div>`;
 }
 
+/* ---- Brain Park (Jonah's memory / focus / logic / creative games): parent summary from app_saves ---- */
+const BP_G = [["match", "🃏", "Pair Match", "配对翻牌", 6], ["simon", "💡", "Copy the Lights", "跟着灯光", 8], ["odd", "🔍", "Odd One Out", "找不同", 6], ["gonogo", "🚦", "Stop & Go", "红灯绿灯", 6], ["switch", "🔀", "Rule Switch", "规则切换", 5], ["pattern", "🚂", "Pattern Train", "规律火车", 6], ["shapes", "🔷", "Shape Puzzle", "形状拼图", 5], ["robot", "🤖", "Robot Coder", "机器人编程", 6], ["draw", "🖍️", "Color Pad", "画画板", 0], ["music", "🎵", "Music Maker", "音乐小屋", 4]];
+function brainMeasure(id, m) {
+  const zh = lang === "zh", last = (m || []).slice(-5); if (!last.length) return "–"; const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+  if (id === "match") return zh ? `每对 ${avg(last).toFixed(1)} 次（越低记忆越好）` : `${avg(last).toFixed(1)} tries per pair (lower = better memory)`;
+  if (id === "simon") return zh ? `记忆广度 ${Math.max(...last)} 个` : `memory span ${Math.max(...last)} lights`;
+  if (id === "odd") return `${(avg(last.filter(x => x)) / 1000).toFixed(1)} s`;
+  if (id === "gonogo") return zh ? `冲动误按 ${avg(last.map(x => x.impulse || 0)).toFixed(1)}/轮 · 反应 ${Math.round(avg(last.map(x => x.rt || 0)))} ms` : `impulse taps ${avg(last.map(x => x.impulse || 0)).toFixed(1)}/round · reaction ${Math.round(avg(last.map(x => x.rt || 0)))} ms`;
+  if (id === "switch") { const sw = last.map(x => x.sw).filter(x => x != null); return `${zh ? "正确率" : "accuracy"} ${Math.round(avg(last.map(x => x.acc)) * 100)}%${sw.length ? ` · ${zh ? "规则切换后" : "after a switch"} ${Math.round(avg(sw) * 100)}%` : ""}`; }
+  if (id === "pattern") return `${zh ? "正确率" : "accuracy"} ${Math.round(avg(last) * 100)}%`;
+  if (id === "shapes") return zh ? `放错 ${avg(last).toFixed(1)} 次` : `${avg(last).toFixed(1)} wrong drops`;
+  if (id === "robot") return zh ? `每题 ${avg(last).toFixed(1)} 次尝试` : `${avg(last).toFixed(1)} tries per puzzle`;
+  if (id === "draw") return zh ? `${m.length} 幅画` : `${m.length} drawings`;
+  if (id === "music") { const b = last.filter(x => x.beat != null); return b.length ? `${zh ? "节奏模仿" : "beat copying"} ${Math.round(avg(b.map(x => x.beat)) * 100)}%` : (zh ? "弹过歌曲" : "songs played"); }
+  return "–";
+}
+function brainStatsHtml(kid) {
+  const zh = lang === "zh", save = (S.app_saves || []).find(a => a.kid === kid && a.app === "brain"), P = save && save.data ? save.data[`${kid}_brain_state`] : null;
+  const h = zh ? "🧠 大脑乐园进度" : "🧠 Brain Park progress";
+  if (!P) return `<div class="coach"><h4>${h}</h4><div class="meta">${zh ? "还没玩过。他可以从自己页面上的 🧠 大脑乐园卡片打开。" : "Not played yet. He opens it from the 🧠 Brain Park card on his page."}</div></div>`;
+  let r7 = 0, d7 = 0; for (let i = 0; i < 7; i++) { const d = (P.days || {})[new Date(Date.now() - i * 864e5).toLocaleDateString("en-CA")]; if (d && d.rounds) { r7 += d.rounds; d7++; } }
+  const rows = BP_G.map(([id, ic, en, z, max]) => { const s = (P.st || {})[id]; return `<tr><td>${ic} ${zh ? z : en}</td><td>${max ? `${(P.lv || {})[id] || 1}/${max}` : "–"}</td><td>${s ? s.rounds : 0}</td><td>${s && s.rounds ? (s.stars / s.rounds).toFixed(1) : "–"}</td><td>${s ? brainMeasure(id, s.m) : "–"}</td></tr>`; }).join("");
+  return `<div class="coach"><h4>${h}</h4>
+    <div class="meta">🪙 ${P.coins || 0} ${zh ? "金币" : "coins"} · ${zh ? "最近7天" : "Last 7 days"}: ${r7} ${zh ? "局" : "rounds"}, ${d7}/7 ${zh ? "天" : "days"}</div>
+    <table style="margin-top:6px"><tr><th>${zh ? "游戏" : "Game"}</th><th>${zh ? "级别" : "Level"}</th><th>${zh ? "局数" : "Rounds"}</th><th>${zh ? "平均星" : "Avg ⭐"}</th><th>${zh ? "大脑指标（看趋势）" : "Brain measure (watch the trend)"}</th></tr>${rows}</table>
+    <div class="meta" style="margin-top:6px">${zh ? "10个小游戏：记忆与专注（配对翻牌、跟着灯光、找不同）、大脑练习（红灯绿灯=冲动控制、规则切换=灵活思维）、拼图与逻辑（规律火车、形状拼图、机器人编程）、创作与音乐（画画板、音乐小屋）。每个游戏自动调难度：3星升一级，1星降一级。语音读题，每天最多40积分。" : "10 mini-games: Memory & focus (Pair Match, Copy the Lights, Odd One Out), Brain builders (Stop & Go = impulse control, Rule Switch = flexible thinking), Puzzles & logic (Pattern Train, Shape Puzzle, Robot Coder), Create & music (Color Pad, Music Maker). Each game adapts on its own: 3 stars moves up a level, 1 star moves down. Instructions are read aloud. Up to 40 hub points a day; the 20/5 break coach applies."}</div></div>`;
+}
+
 /* ---- fencing coach notes (parents write after each lesson; the Fencing Brain game shows them) ---- */
 const FLS = { en: { h: "🤺 Coach notes → shown in his game", none: "No lesson notes yet.", add: "+ Add today's lesson notes", date: "Date", kind: "Type", kinds: { lesson: "Private lesson", practice: "Group practice", tournament: "Tournament" }, focus: "Big focus (one line)", points: "What coach taught (one per line)", hw: "Homework / questions (one per line)", raw: "Original notes (optional, e.g. 中文 from the coach)", save: "Save notes", tip: "Write it the way Ellis should read it in the game. Short lines work best.", saved: "Lesson notes saved. They'll show in his game next time he opens it." },
   zh: { h: "🤺 教练笔记 → 显示在他的游戏里", none: "还没有课堂笔记。", add: "+ 添加今天的课堂笔记", date: "日期", kind: "类型", kinds: { lesson: "私教课", practice: "集体训练", tournament: "比赛" }, focus: "重点（一句话）", points: "教练教了什么（每行一条）", hw: "作业 / 思考题（每行一条）", raw: "原始笔记（可选，例如教练的中文笔记）", save: "保存笔记", tip: "游戏是英文的，请尽量用 Ellis 能看懂的简短句子（也可以把中文发给 Claude 帮忙翻译）。", saved: "课堂笔记已保存，他下次打开游戏就能看到。" } };
@@ -1016,7 +1044,7 @@ function viewSubjects() {
   const card = x => { const ms = S.metrics.filter(m => m.subject_id === x.id), notes = S.entries.filter(e => e.subject_id === x.id).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5), docs = S.docs.filter(d => d.subject_id === x.id);
     return `<div class="kid" style="--kc:${kidColor(x.kid)};cursor:default"><div class="kid-top"><div><h2>${x.icon} ${esc(sName(x))}</h2>${sDesc(x) ? `<div class="meta">${esc(sDesc(x))}</div>` : ""}</div><div style="display:flex;gap:6px">${x.app_url ? `<button class="btn sm primary" data-app="${esc(x.app_url)}" data-appkid="${esc(x.kid)}">▶ ${t.openApp}</button>` : ""}<button class="btn sm ghost" data-esubj="${x.id}">${t.edit}</button></div></div>
       ${x.app_url === "fencing/" ? fencingLessonsHtml(x.kid) : ""}
-      ${x.app_url === "space/" ? spaceStatsHtml(x.kid) : ""}
+      ${x.app_url === "space/" ? spaceStatsHtml(x.kid) : ""}${x.app_url === "brain/" ? brainStatsHtml(x.kid) : ""}
       <div class="goals"><h4>${t.goals}</h4>${ms.length ? ms.map(goalRow).join("") : `<div class="meta">${t.noGoals}</div>`}${goalForm(x.id)}</div>
       <div class="latest"><h4>${t.notes}</h4>${notes.map(e => `<div class="meta" style="color:var(--ink)"><span class="tag ${e.tone}">${{ positive: t.toneWin, concern: t.toneConcern, neutral: t.toneNote }[e.tone]}</span>${esc(e.title)} <span class="meta">· ${fmtDate(e.date)}</span></div>`).join("")}
         <form class="nform addgoal" data-sid="${x.id}" style="margin-top:6px"><select name="tone" style="width:auto"><option value="positive">${t.toneWin}</option><option value="neutral">${t.toneNote}</option><option value="concern">${t.toneConcern}</option></select><input name="title" maxlength="140" placeholder="${t.noteIn}" required><button class="btn sm">${t.addNote}</button></form></div>
@@ -1068,6 +1096,7 @@ let kidTap = null;
 const APPS = { "fencing/": { id: "fencing", prefix: "ellis_", skip: ["ellis_pin", "ellis_coachNotes"], label: { en: "Play Fencing Brain Academy", zh: "进入击剑大脑学院" } },
   "amc/": { id: "amc", prefix: kid => `${kid}_amc_`, skip: [], perKid: true, label: { en: "Open my AMC 8 lessons", zh: "打开我的 AMC 8 课程" } },
   "space/": { id: "space", prefix: kid => `${kid}_space_`, skip: [], perKid: true, label: { en: "Play Space Quest", zh: "进入太空探险" } },
+  "brain/": { id: "brain", prefix: kid => `${kid}_brain_`, skip: [], perKid: true, label: { en: "Play Brain Park", zh: "进入大脑乐园" } },
   "physics/": { id: "physics", prefix: kid => `${kid}_physics_`, skip: [], perKid: true, label: { en: "Open my Physics lessons", zh: "打开我的物理课程" } },
   "quest/": { id: "quest", prefix: kid => `${kid}_quest_`, skip: [], perKid: true, label: { en: "Play Realm of Forces", zh: "进入力之境" } } };
 // 🤖 Ask Buddy bridge: the AMC app (same-origin iframe) calls window.parent.fhAsk(...) to reach the amc-tutor edge function.
@@ -1104,7 +1133,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121z7${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121z8${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   appOpen = async () => { stopCoach(); window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
@@ -1378,6 +1407,7 @@ function kidRender() {
       <div class="kw-layout"><div class="kw-main"><section id="ks-home" class="kw-sec">
       ${little ? "" : kidPlanHtml(k)}
       ${S.subjects.filter(x => x.active && x.app_url === "space/").map(x => `<button class="kw-spacegame" data-app="space/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#fff;font:inherit;background:radial-gradient(circle at 85% 30%,#9b5de5 0,transparent 45%),linear-gradient(135deg,#1b1f4b,#3a2f7a);box-shadow:0 8px 0 #0003,0 10px 30px #3a2f7a66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.4s ease-in-out infinite">🚀</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "太空探险" : "Space Quest"}</b><span style="opacity:.9;font-size:17px">${lang === "zh" ? "一至三年级数学和单词：打陨石、救外星人、打败大怪兽！" : "Grade 1–3 math + words: blast asteroids, rescue aliens, beat bosses!"}</span></span><span style="background:linear-gradient(#ffd166,#f4a300);color:#3b2400;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0004">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
+      ${S.subjects.filter(x => x.active && x.app_url === "brain/").map(x => `<button class="kw-spacegame" data-app="brain/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#2b2d42;font:inherit;background:radial-gradient(circle at 85% 30%,#ffd6e8 0,transparent 45%),linear-gradient(135deg,#caffbf,#a0c4ff);box-shadow:0 8px 0 #0002,0 10px 30px #a0c4ff66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.8s ease-in-out infinite">🧠</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "大脑乐园" : "Brain Park"}</b><span style="opacity:.85;font-size:17px">${lang === "zh" ? "记忆、拼图、机器人编程、画画和音乐！" : "Memory games, puzzles, robot coding, drawing and music!"}</span></span><span style="background:#fff;color:#2b2d42;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0002">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
       </section><section id="ks-worlds" class="kw-sec">
       ${worlds.length || loose.length || goals.length || mine.length ? `${kwH("globe", "worlds", t.myWorlds)}
       <div class="kw-worlds">${worlds.map((w, i) => `<div class="kw-world" style="background:${worldColors[i % worldColors.length]}"><div class="wi">${KI(w.x.icon, 48)}</div><span class="kw-arrow">→</span><h3>${esc(sName(w.x))}</h3>${sDesc(w.x) ? `<div class="wd">${esc(sDesc(w.x))}</div>` : ""}${w.x.app_url ? `<button class="kw-play" data-app="${esc(w.x.app_url)}" data-appkid="${esc(w.x.kid)}">${KI("play", 16)} ${esc(appLabel(w.x.app_url))}</button>` : ""}${w.ms.map(goalHtml).join("")}${w.docs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">${KI("book", 16)} ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}</div>`).join("")}
