@@ -178,9 +178,10 @@ const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const today=()=>new Date().toLocaleDateString("en-CA");
-let S={v:3,coins:0,stars:0,lv:{g1:6,g2:0,g3:0,words:2},prog:{g1:{},g2:{},g3:{},words:{}},skillNames:{},days:{},skills:{},len:10,block:20,rest:5,playSec:0,breakUntil:0,lastPlay:0,voice:1,ship:{color:"red",trail:"flame",pet:"none",model:"m_classic",skin:"s_plain",laser:"l_blue"},owned:["red","flame","none","m_classic","s_plain","l_blue"],ach:{},st:{missions:0,bosses:0,perfect:0,correct:0,rescued:0,bestStreak:0}};
-try{const raw=localStorage.getItem(KEY);if(raw){const o=JSON.parse(raw);if(o.v===3)S=Object.assign(S,o);else{S.coins=o.v===2?(o.coins||0):(o.stars||0)*10;S.days=o.days||{};S.len=o.len||10;S.voice=o.voice??1;if(o.ship)S.ship=o.ship;if(o.owned)S.owned=o.owned;if(o.prog&&o.prog.words)S.prog.words=o.prog.words;if(o.lv&&o.lv.words)S.lv.words=Math.max(2,o.lv.words);S.skills={};Object.entries(o.skills||{}).forEach(([k,v])=>{if(k.startsWith("words"))S.skills[k]=v})}}}catch(e){}
+let S={v:4,coins:0,stars:0,lv:{g1:1,g2:0,g3:0,words:1},prog:{g1:{},g2:{},g3:{},words:{}},skillNames:{},days:{},skills:{},len:10,block:20,rest:5,playSec:0,breakUntil:0,lastPlay:0,voice:1,ship:{color:"red",trail:"flame",pet:"none",model:"m_classic",skin:"s_plain",laser:"l_blue"},owned:["red","flame","none","m_classic","s_plain","l_blue"],ach:{},st:{missions:0,bosses:0,perfect:0,correct:0,rescued:0,bestStreak:0}};
+try{const raw=localStorage.getItem(KEY);if(raw){const o=JSON.parse(raw);if(o.v===4)S=Object.assign(S,o);else if(o.v===3){S=Object.assign(S,o);S.v=4;S._mig3=1}else{S.coins=o.v===2?(o.coins||0):(o.stars||0)*10;S.days=o.days||{};S.len=o.len||10;S.voice=o.voice??1;if(o.ship)S.ship=o.ship;if(o.owned)S.owned=o.owned;if(o.prog&&o.prog.words)S.prog.words=o.prog.words;S.skills={};Object.entries(o.skills||{}).forEach(([k,v])=>{if(k.startsWith("words"))S.skills[k]=v})}}}catch(e){}
 S.ship=Object.assign({model:"m_classic",skin:"s_plain",laser:"l_blue"},S.ship);["m_classic","s_plain","l_blue"].forEach(i=>{if(!S.owned.includes(i))S.owned.push(i)});S.ach=S.ach||{};S.st=Object.assign({missions:0,bosses:0,perfect:0,correct:0,rescued:0,bestStreak:0},S.st||{});
+function galDone0(g){const P=(S.prog||{})[g]||{};return !!(P[galSize(g)]&&P[galSize(g)][2])}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function day(){return S.days[today()]||(S.days[today()]={sec:0,q:0,c:0})}
 function setCoins(){document.querySelectorAll(".cc").forEach(e=>e.textContent=S.coins)}
@@ -686,8 +687,8 @@ let curLayer="title",curGal="g1";
 function show(id){curLayer=id;document.querySelectorAll(".layer").forEach(l=>l.classList.toggle("on",l.id===id));if(id!=="game"){$("hud").classList.remove("on")}setCoins();if(id==="map")renderMap();if(id==="hangar")renderHangar();if(id==="parents")renderParents();if(id==="trophies")renderTrophies()}
 function renderMap(){
   $("tabs").innerHTML=GALS.map(([g,l])=>`<button class="tab ${g===curGal?"on":""}" data-g="${g}">${(S.lv[g]||0)?"":"🔒 "}${l}</button>`).join("");$("tabs").querySelectorAll(".tab").forEach(t=>t.onclick=()=>{if(!(S.lv[t.dataset.g]||0)){toast("Finish the galaxy before to unlock it!");return}curGal=t.dataset.g;renderMap()});
-  const P=PLANETS[curGal],box=$("path"),w=Math.min(box.clientWidth||680,680),n=P.length,step=140,HH=n*step+120;box.style.height=HH+"px";
-  const pts=P.map((p,i)=>({x:w*(i%2===0?.3:.7)+(i%4===1?w*.05:i%4===3?-w*.05:0),y:HH-80-i*step}));
+  const P=PLANETS[curGal],box=$("path"),w=Math.min(box.clientWidth||680,680),n=P.length,step=140,HH=n*step+170;box.style.height=HH+"px";
+  const pts=P.map((p,i)=>({x:w*(i%2===0?.3:.7)+(i%4===1?w*.05:i%4===3?-w*.05:0),y:HH-120-i*step}));
   let d=`M${pts[0].x} ${pts[0].y}`;for(let i=1;i<n;i++){const a=pts[i-1],b=pts[i];d+=` C${a.x} ${a.y-70},${b.x} ${b.y+70},${b.x} ${b.y}`}
   const cur=Math.max(1,S.lv[curGal]||0);
   let html=`<svg viewBox="0 0 ${w} ${HH}" preserveAspectRatio="none"><path d="${d}" fill="none" stroke="#ffffff40" stroke-width="8" stroke-dasharray="2 18" stroke-linecap="round"/></svg>`;
@@ -769,6 +770,7 @@ $("sBlock").onchange=e=>{S.block=+e.target.value;save()};$("sRest").onchange=e=>
 $("pTime").onclick=()=>{S.playSec=0;save();renderParents();$("pMsg").textContent="Play-block timer reset."};
 $("pCopy").onclick=async()=>{try{await navigator.clipboard.writeText(summary());$("pMsg").textContent="Copied."}catch(e){$("pMsg").textContent=summary()}};
 document.querySelector("#game")||document.body.insertAdjacentHTML("beforeend",'<section class="layer" id="game" style="pointer-events:none"></section>');
+if(S._mig3){const earned=g=>{let n=1;const P=(S.prog||{})[g]||{};while(n<galSize(g)&&P[n]&&P[n][2])n++;return n};S.lv.g1=earned("g1");S.lv.words=earned("words");S.lv.g2=galDone0("g1")?earned("g2"):0;S.lv.g3=galDone0("g2")?earned("g3"):0;delete S._mig3}
 resize();setCoins();save();if(onBreak()){$("mBreak").classList.add("on");runBreak()}requestAnimationFrame(loop);requestAnimationFrame(hangarLoop);
 </script>
 </body>
