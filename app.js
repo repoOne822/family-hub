@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261121f";
-import * as Pix from "./pixel.js?v=20261121f";
+import { STR } from "./i18n.js?v=20261121v";
+import * as Pix from "./pixel.js?v=20261121v";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -1109,8 +1109,36 @@ window.fhAsk = async body => {
 };
 const appLabel = url => (APPS[url]?.label || {})[lang] || T().openApp;
 let appOpen = null;
+/* ---- 🔒 AMC-first: some games open only after 2 active AMC hours this week (Mon–Sun). Parents and previews are never blocked. ---- */
+const AMC_GATE = { eric: ["quest"] }, AMC_GATE_SEC = 2 * 3600;
+const weekStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toLocaleDateString("en-CA"); };
+async function amcWeekSec(kid) {
+  const since = weekStart(), sum = P => ((P && P.sessions) || []).filter(x => x && x.date >= since).reduce((a, x) => a + (+x.active || 0), 0);
+  let db = 0, local = 0;
+  try { const { data } = await sb.from("app_saves").select("data").eq("kid", kid).eq("app", "amc").maybeSingle(); db = sum(data && data.data ? data.data[`${kid}_amc_progress`] : null); } catch (e) {}
+  try { local = sum(JSON.parse(localStorage.getItem(`${kid}_amc_progress`) || "null")); } catch (e) {}
+  return Math.max(db, local);
+}
+async function amcGateOk(cfg, kid) {
+  if (!isKid() || preview || !(AMC_GATE[kid] || []).includes(cfg.id)) return true;
+  const sec = await amcWeekSec(kid); if (sec >= AMC_GATE_SEC) return true;
+  const zh = lang === "zh", m = Math.floor(sec / 60), left = Math.max(1, Math.ceil((AMC_GATE_SEC - sec) / 60)), pct = Math.min(100, Math.round(sec / AMC_GATE_SEC * 100));
+  const ov = document.createElement("div"); ov.className = "amcgate";
+  ov.innerHTML = `<div class="amcgate-box"><div style="font-size:58px">🔒</div>
+    <h2>${zh ? "先学 AMC，再玩游戏！" : "AMC first, then play!"}</h2>
+    <p>${zh ? `这周做满 <b>2 小时</b>认真学习 AMC，游戏就会解锁（每周一重新开始）。` : `This game unlocks after <b>2 active hours</b> of AMC this week (it resets every Monday).`}</p>
+    <div class="amcgate-bar"><i style="width:${pct}%"></i></div>
+    <p><b>${zh ? `本周：${m} / 120 分钟` : `This week: ${m} / 120 minutes`}</b> · ${zh ? `还差 ${left} 分钟` : `${left} min to go`}</p>
+    <p class="meta">${zh ? "只有认真做题、看课的时间才算（停下来超过 90 秒不算）。" : "Only real working time counts (it pauses if you stop for 90 seconds)."}</p>
+    <div class="amcgate-row"><button class="btn primary" data-go="amc">${zh ? "📚 去学 AMC" : "📚 Open AMC lessons"}</button><button class="btn" data-x="1">${zh ? "返回" : "Back"}</button></div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector("[data-x]").onclick = () => ov.remove();
+  ov.querySelector("[data-go]").onclick = () => { ov.remove(); openApp("amc/", kid); };
+  return false;
+}
 async function openApp(url, kid) {
   const cfg = APPS[url]; if (!cfg) return;
+  if (!(await amcGateOk(cfg, kid))) return;
   const t = T(), mark = `fh_save_${kid}_${cfg.id}`, pre = typeof cfg.prefix === "function" ? cfg.prefix(kid) : cfg.prefix;
   try {
     const { data } = await sb.from("app_saves").select("data,updated_at").eq("kid", kid).eq("app", cfg.id).maybeSingle();
@@ -1133,7 +1161,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121m1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121v${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   appOpen = async () => { stopCoach(); window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };

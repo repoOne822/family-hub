@@ -830,3 +830,9 @@ button:focus:not(:focus-visible),a:focus:not(:focus-visible){outline:none}
 .kplan .kpl.done span{text-decoration:line-through;opacity:.6}
 .kt-pixel .kplan .kpl{border-color:#3a4a9a}
 .kplan{text-align:left}.kplan .kpl span{text-align:left}
+
+/* 🔒 AMC-first gate */
+.amcgate{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(10,8,30,.72);padding:16px}
+.amcgate-box{max-width:440px;width:100%;background:#fff;color:#16161d;border:3px solid #16161d;border-radius:22px;padding:22px;text-align:center;box-shadow:6px 6px 0 #16161d}
+.amcgate-box h2{margin:6px 0 8px}.amcgate-bar{height:14px;background:#e9d5ff;border-radius:99px;overflow:hidden;margin:12px 0 6px;border:2px solid #16161d}.amcgate-bar i{display:block;height:100%;background:#7c3aed}
+.amcgate-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px}

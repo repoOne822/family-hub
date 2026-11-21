@@ -411,6 +411,9 @@ body.duelfocus main{padding-top:6px}
 .rvgrid{display:grid;grid-template-columns:1fr 150px;gap:12px;align-items:start}.rvgrid ul{margin:4px 0 6px;padding-left:20px}.rvside{text-align:center}
 .rvbars{display:flex;align-items:flex-end;gap:3px;height:48px;justify-content:center;margin-top:4px}.rvbars i{display:block;width:8px;background:#7c3aed;border-radius:3px 3px 0 0;min-height:4px}
 @media (max-width:640px){.rvgrid{grid-template-columns:1fr}}
+.pdlim{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0;padding:8px 12px;border:2px solid #16161d;border-radius:14px;background:#fff7ed;font-size:16px}
+.pdlimbar{flex:1;min-width:120px;height:10px;background:#fde68a;border-radius:99px;overflow:hidden}.pdlimbar i{display:block;height:100%;background:#f59e0b}
+.pdrest{text-align:center;background:linear-gradient(135deg,#e0e7ff,#fae8ff)!important;border:3px solid #16161d}
 </style>
 </head>
 <body>
@@ -1725,6 +1728,34 @@ function rivalCard(){
    </div><div class="rvside"><div style="font-size:54px">🥷</div><button class="btn" id="rvGo">⚔️ Fight Shadow</button>
     <div class="small" style="margin-top:6px">Level history</div><div class="rvbars">${h.map(x=>`<i title="${x.d}: v${x.lvl}${x.n?` · you won ${x.w}/${x.n}`:''}" style="height:${Math.round(x.lvl/mx*100)}%"></i>`).join('')||'<span class="small">starts today</span>'}</div></div></div></div>`;
 }
+// ---------- ⏳ Piste Duel daily limit: 60 active minutes a day (parents not limited) ----------
+// Counts only while a bout is on screen, not paused, and he's been tapping in the last 90 s.
+// Saved as ellis_pdTime, so it syncs across devices like the rest of his progress.
+// When time runs out mid-bout he may finish that bout (up to 3 extra minutes); then Piste Duel rests until tomorrow.
+const PD_DAY_MIN=60,PD_PARENT=new URLSearchParams(location.search).get('p')==='1';
+let pdTime=store.get('pdTime',{d:'',s:0});
+const pdT=()=>{const t=evoToday();if(pdTime.d!==t)pdTime={d:t,s:0};return pdTime};
+const pdLeft=()=>PD_PARENT?99999:Math.max(0,PD_DAY_MIN*60-pdT().s);
+const pdOverBy=()=>Math.max(0,pdT().s-PD_DAY_MIN*60);
+let pdLastIn=Date.now();['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>{pdLastIn=Date.now()},true));
+setInterval(()=>{
+  if(PD_PARENT||document.hidden||!PD||PD.over||PD.paused)return;
+  const g=$('pdGame');if(!g||g.style.display==='none'||Date.now()-pdLastIn>90000)return;
+  const before=pdLeft();pdT().s+=5;if(pdTime.s%30===0)store.set('pdTime',pdTime);
+  const left=pdLeft();
+  if(before>300&&left<=300)toast('⏳ 5 minutes of Piste Duel left today');
+  if(before>0&&left<=0){store.set('pdTime',pdTime);toast('⏰ Time\'s up for today. Finish this bout!');$('pdHoot').innerHTML='⏰ <b>Last bout today!</b> Finish this one. Piste Duel opens again tomorrow.'}
+  if(left<=0&&pdOverBy()>=180){store.set('pdTime',pdTime);toast('⏰ Piste Duel is resting until tomorrow');pdMenu()}
+},5000);
+function pdLimitBanner(){
+  if(PD_PARENT)return `<div class="tip" style="margin:8px 0">👀 Parent view: no daily limit here. Ellis gets ${PD_DAY_MIN} minutes of Piste Duel a day.</div>`;
+  const left=pdLeft(),used=Math.round(pdT().s/60),pct=Math.min(100,Math.round(pdT().s/(PD_DAY_MIN*60)*100));
+  if(left<=0)return `<div class="tier pdrest"><div style="font-size:54px">🌙</div><h2 style="margin:4px 0">Piste Duel is resting until tomorrow</h2>
+    <p>You fenced <b>${used} minutes</b> today. Great work! Your brain keeps learning while you rest, and 🥷 Shadow is studying your moves tonight.</p>
+    <p class="small">Still want to train? These are open: 🧠 Brain Battles, 🎭 Real or Fake, 📏 Distance, 🥁 Rhythm, 📖 Comics.</p>
+    <div class="row" style="justify-content:center"><button class="btn" data-go2="quiz">🧠 Brain Battles</button><button class="btn ghost" data-go2="rf">🎭 Real or Fake</button><button class="btn ghost" data-go2="comics">📖 Comics</button></div></div>`;
+  return `<div class="pdlim"><span>⏳ Piste Duel today: <b>${Math.ceil(left/60)} min left</b> of ${PD_DAY_MIN}</span><div class="pdlimbar"><i style="width:${pct}%"></i></div></div>`;
+}
 // ---------- menu ----------
 function pdLevels(){
   const lv=pdLv(),x=state.pdx.xp,nx=PD_LVL[lv]||null;
@@ -1741,7 +1772,8 @@ function pdLevels(){
   document.querySelectorAll('[data-df]').forEach(b=>b.onclick=()=>{state.pdDiff=b.dataset.df;save();pdLevels();toast(DIFF[state.pdDiff].n+' mode')});
   $('skip12').onclick=()=>pdSkip(1);$('skip14').onclick=()=>pdSkip(2);
   try{evolveDaily()}catch(e){console.error(e)}
-  $('pdLevels').innerHTML=rivalCard()+PTIERS.map((T,ti)=>{const tOpen=lv>=T.req&&(ti===0||state.pdWins[PTIERS[ti-1].opps.slice(-1)[0].id]);
+  if(!PD_PARENT&&pdLeft()<=0){$('pdLevels').innerHTML=pdLimitBanner();$('pdLevels').querySelectorAll('[data-go2]').forEach(b=>b.onclick=()=>goTo(b.dataset.go2));return}
+  $('pdLevels').innerHTML=pdLimitBanner()+rivalCard()+PTIERS.map((T,ti)=>{const tOpen=lv>=T.req&&(ti===0||state.pdWins[PTIERS[ti-1].opps.slice(-1)[0].id]);
     const champ=state.pdWins[T.opps.slice(-1)[0].id];
     return `<div class="tier" style="background:${T.col}"><div class="tierh"><b>${T.n}</b> <span class="small">${T.sub}</span>${champ?' 🏆 Champion!':''}${tOpen?'':` <span class="tagd close">🔒 Fencer Lv ${T.req}${ti?' + beat the '+PTIERS[ti-1].n+' champion':''}</span>`}</div>
     <div class="bosses">${T.opps.map((o,i)=>{const open=tOpen&&(i===0||state.pdWins[T.opps[i-1].id]),won=state.pdWins[o.id];
@@ -1786,6 +1818,7 @@ function pickPerk(){
 }
 // ---------- bout ----------
 function pdScout(id){
+  if(pdLeft()<=0){toast('🌙 Piste Duel is resting until tomorrow');pdLevels();return}
   const o=ALLOPP[id],T=PTIERS[o.tier];
   $('pdModal').innerHTML=`<div class="modalBox" style="width:min(480px,92vw);text-align:left"><div style="text-align:center"><div style="font-size:56px">${o.e}</div>
     <h2 style="margin:0">${o.n}</h2><div class="small">${o.rival?'Your rival · it learns from you every day':T.n+' · '+(o.final?'Direct elimination':'Pool bout')} · first to ${o.win} touches</div></div>
@@ -1795,6 +1828,7 @@ function pdScout(id){
   $('pdModal').classList.add('on');$('scGo').onclick=()=>{$('pdModal').classList.remove('on');pdStart(id)};$('scNo').onclick=()=>$('pdModal').classList.remove('on');
 }
 function pdStart(id){
+  if(pdLeft()<=0){toast('🌙 Piste Duel is resting until tomorrow');pdMenu();return}
   if(id==='rival')ALLOPP.rival=rivalOpp();
   const L=ALLOPP[id];PD={M:{},raw:[],t0:Date.now(),id,L,tgtHist:[],guard:null,steps:[],paused:false,score:[0,0],hist:[],step:0,over:false,combo:0,gained:0,streakE:0,style:L.style,spun:0};
   $('pdPick').style.display='none';$('pdGame').style.display='block';$('pdOver').style.display='none';document.body.classList.add('duelfocus');window.scrollTo(0,0);
@@ -2230,6 +2264,7 @@ function pdEnd(){
     ${fav?`<p class="small">Your most-used move: ${PD_ACTS[fav].i} ${PD_ACTS[fav].n} (${favPct}%). ${favPct>=40?'Opponents can predict that. Mix it up!':'Nice variety!'}</p>`:''}
     <div class="row" style="justify-content:center"><button class="btn" id="pdNext">${nx?'Next: '+nx.e+' '+nx.n+' ➜':'Play again'}</button><button class="btn ghost" id="pdMenuB">Menu</button></div>`;
   $('pdNext').onclick=()=>pdScout(nx?nx.id:o.id);$('pdMenuB').onclick=pdMenu;
+  if(pdLeft()<=0){$('pdNext').textContent='🌙 Done for today';$('pdNext').onclick=pdMenu}
 }
 function pdMenu(){if(PD&&!PD.over&&PD.raw&&PD.raw.length>=3)perfDuel(false);document.body.classList.remove('duelfocus');clearInterval(pdTimerI);clearTimeout(pdLaterT);if(PD)PD.over=true;$('pdGame').style.display='none';$('pdPick').style.display='block';pdLevels()}
 function duelPause(){document.body.classList.remove('duelfocus');clearTimeout(pdLaterT);clearInterval(pdTimerI);if(PD&&!PD.over)pdMenu()}
