@@ -404,6 +404,9 @@ function skinPattern(c,sk,s,c1,c2){
   else if(sk==="s_diamond"){c.strokeStyle="#ffffffaa";c.lineWidth=1.5;for(let i=-4;i<5;i++){c.beginPath();c.moveTo(i*s*.3,-s);c.lineTo(i*s*.3+s*.5,s);c.stroke();c.beginPath();c.moveTo(i*s*.3,s);c.lineTo(i*s*.3+s*.5,-s);c.stroke()}if(Math.random()<.3){c.fillStyle="#fff";c.beginPath();c.arc((Math.random()-.5)*s*1.6,(Math.random()-.5)*s*.6,s*.05,0,7);c.fill()}}
   else if(sk==="s_camo"){[["#5a6e3a",-.4,-.1,.18],["#8d6e4a",.1,.12,.16],["#3e4e2a",.45,-.12,.14],["#8d6e4a",-.75,.12,.12]].forEach(([col,a,b,r])=>{c.fillStyle=col;c.beginPath();c.ellipse(a*s,b*s,r*s*1.4,r*s,.4,0,7);c.fill()})}
 }
+// pilot reacts: blinks, cheers on a right answer, gasps on a miss, gets determined in boss fights
+let pilotMood=null,pilotUntil=0;const setPilot=(m,ms)=>{pilotMood=m;pilotUntil=performance.now()+ms};
+const pilotFace=()=>{const now=performance.now();if(pilotMood&&now<pilotUntil)return pilotMood;if(G&&G.streak>=3)return"😎";if(G&&G.boss)return"😤";return(now%4200)<160?"😌":"🙂"};
 function drawShip(c,x,y,s,tilt,boost,trail,pet,flameOn=true){
   const [c1,c2]=COLORS[S.ship.color]||COLORS.red,m=S.ship.model||"m_classic",sk=S.ship.skin||"s_plain";
   c.save();c.translate(x,y);c.rotate(tilt);
@@ -432,7 +435,7 @@ function drawShip(c,x,y,s,tilt,boost,trail,pet,flameOn=true){
     for(let i=0;i<5;i++){c.fillStyle=Math.floor(tNow*4+i)%2?"#ffd166":"#ff4d6d";c.beginPath();c.arc(-s*.7+i*s*.35,s*.18,s*.06,0,7);c.fill()}}
   else{const wx=m==="m_jet"?s*.45:m==="m_star"?s*.05:m==="m_shuttle"?s*.45:s*.18,wr=m==="m_jet"?s*.14:m==="m_star"?s*.16:s*.18;
     c.fillStyle=c2;c.beginPath();c.arc(wx,0,wr+s*.06,0,7);c.fill();const wg=c.createRadialGradient(wx-wr*.3,-wr*.4,1,wx,0,wr);wg.addColorStop(0,"#e0fbff");wg.addColorStop(1,"#4cc9f0");c.fillStyle=wg;c.beginPath();c.arc(wx,0,wr,0,7);c.fill();
-    c.font=`${wr*1.35}px serif`;c.textAlign="center";c.textBaseline="middle";c.fillText("🙂",wx,s*.01)}
+    c.font=`${wr*1.35}px serif`;c.textAlign="center";c.textBaseline="middle";const pf=pilotFace(),bob=pf==="😄"||pf==="🤩"?Math.sin(tNow*18)*wr*.12:0;c.fillText(pf,wx,s*.01+bob)}
   c.restore();
   if(pet&&pet!=="none"){c.font=`${s*.7}px serif`;c.textAlign="center";c.textBaseline="middle";c.fillText(PETS.find(p=>p.id===pet).e,x-s*1.5,y-s*.9+Math.sin(tNow*3)*s*.12)}
 }
@@ -646,7 +649,7 @@ function tapAt(px,py){
 }
 function fire(r){
   if(isRetro(G.kind)){retroFire(r);return}
-  G.lock=true;const ok=r.v===G.q.ans;
+  G.lock=true;const ok=r.v===G.q.ans;setPilot(ok?(G.streak>=2?"🤩":"😄"):"😮",ok?1300:1100);
   if(G.kind==="race"){ship.ty=r.y;sfx.whoosh();setTimeout(()=>resolve(r),120);return}
   if(G.kind!=="rescue"){ship.ty=VERT(G.kind)?r.y:ship.ty;sfx.laser();G.lasers.push({x1:ship.x+ship.s,y1:VERT(G.kind)?r.y:ship.y,x2:r.x,y2:r.y,life:.25,ok})}
   else{ship.ty=r.y;tone(500,.2,0,"sine",.08,900)}

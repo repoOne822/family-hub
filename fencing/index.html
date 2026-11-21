@@ -71,6 +71,13 @@ p.lead{color:var(--muted);margin:0 0 10px;font-size:18px}
 .piste{position:relative;height:150px;background:linear-gradient(#24476f,#1b3657);border-radius:14px;overflow:hidden;margin:12px 0;user-select:none}
 .piste::after{content:"";position:absolute;left:0;right:0;bottom:30px;height:4px;background:#5d82b0}
 .fencer{position:absolute;bottom:34px;font-size:56px;line-height:1;transition:left .05s linear}
+/* fencers stay "en garde": a light bounce on the balls of the feet + a shadow on the piste (separate translate/scale props, so game transforms still work) */
+.fencer{animation:enGarde .8s ease-in-out infinite}
+.fencer#opp,.fencer#rfOpp{animation-delay:-.4s}
+.fencer::after{content:"";position:absolute;left:12%;right:12%;bottom:-4px;height:7px;border-radius:50%;background:radial-gradient(ellipse,#0008,transparent 70%);animation:enShadow .8s ease-in-out infinite;animation-delay:inherit}
+@keyframes enGarde{0%,100%{translate:0 0;scale:1 1}50%{translate:0 -4px;scale:1.02 .98}}
+@keyframes enShadow{50%{transform:scaleX(.82);opacity:.6}}
+@media (prefers-reduced-motion: reduce){.fencer,.fencer::after{animation:none}}
 .zone{position:absolute;bottom:30px;height:4px;background:var(--ok);box-shadow:0 0 12px var(--ok)}
 .fb{min-height:34px;font-size:22px;font-weight:800;text-align:center}
 .bigbtn{display:block;width:100%;border:0;border-radius:18px;padding:18px;font:inherit;font-size:28px;font-weight:800;
@@ -2232,7 +2239,7 @@ document.addEventListener('keydown',ev=>{if(PD&&!PD.over&&$('duel').classList.co
   if(!PD||PD.over||PD.locked||PD.paused||!$('duel').classList.contains('on'))return;
   const n=parseInt(ev.key);if($('atkPick').style.display==='block'){const ts=Object.keys(TGT);if(n>=1&&n<=4)pdChoose('lunge',ts[n-1]);if(ev.key==='Escape')closeAtk();return}
   const keys=Object.keys(PD_ACTS).filter(unlocked);if(n>=1&&n<=keys.length){keys[n-1]==='lunge'?openAtk():pdChoose(keys[n-1])}});
-pdLevels();
+// pdLevels() runs at the end of this script, after everything it reads is declared
 
 
 // ================= 🧠 BRAIN LADDER: endless scenarios that adapt to Ellis =================
@@ -2511,6 +2518,7 @@ document.querySelectorAll('#nav button').forEach(b=>b.addEventListener('click',(
   $('pageTitle').textContent=home?'':b.textContent.trim()}));
 
 save();
+try{pdLevels()}catch(e){console.warn('pdLevels',e)}
 </script>
 </body>
 </html>
