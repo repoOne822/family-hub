@@ -125,7 +125,7 @@ function lesson(i, step, mode) {
     <div class="steps">${names.map((n, k) => { const lock = !PARENT && k > readOf(l.id) + 1; return `<button class="${k === step ? "on" : k <= readOf(l.id) ? "done" : lock ? "lock" : ""}" data-s="${k}"${lock ? ' data-lock="1"' : ""}>${lock ? "🔒 " : ""}${n}</button>`; }).join("")}</div>`;
   const nav = label => `<div class="row"><span class="spacer"></span><button class="btn go" id="next">${label}</button></div>`;
   let body = "";
-  if (step === 0) body = `<div class="card six"><div class="big" style="font-size:48px">${l.emoji}</div>${l.six.map(p => `<p>${esc(p)}</p>`).join("")}</div>${nav("Got it! →")}`;
+  if (step === 0) body = `<div class="card six"><div class="big" style="font-size:48px">${l.emoji}</div>${l.six.map(p => `<p>${esc(p)}</p>`).join("")}</div>${window.SIMS && SIMS[l.id] ? `<div class="card"><div class="q">🧪 Try it yourself</div><p class="sub">Move the sliders and watch the numbers. This is the same math as the formulas in section 3.</p><div id="sim"></div></div>` : ""}${nav("Got it! →")}`;
   if (step === 1) body = `<div class="card"><div class="q">📘 Key words</div><p class="sub">Dr. Covert's tests use these exact words. Know them cold.</p><div class="words">${l.words.map(w => `<div class="word"><div class="wt">${esc(w[0])} <span class="zh">${esc(w[1])}</span></div><div>${esc(w[2])}</div><div class="eg">e.g. ${esc(w[3])}</div>${needGate(1) ? `<button class="tick" data-tick>✓ Got it</button>` : ""}</div>`).join("")}</div></div>${nav("Next →")}`;
   if (step === 2) body = `<div class="card"><div class="q">⚡ Formulas & moves</div><p class="sub">Each one comes with WHY it works. Always write the formula, list what you know with units, then plug in.</p>${l.moves.map((m, k) => `<div class="move"><b>${k + 1}</b><div style="flex:1;min-width:0"><div class="mm">${esc(m.m)}</div><div class="why"><span>Why?</span> ${esc(m.why)}</div>${needGate(2) ? `<button class="tick" data-tick>✓ Got it</button>` : ""}</div></div>`).join("")}</div>${nav("Next →")}`;
   if (step === 3) body = `<div id="exs"></div>`;
@@ -138,6 +138,7 @@ function lesson(i, step, mode) {
       <button data-m="test" class="${mode === "test" ? "on" : ""}">📝 Unit test (10)<span>${t ? `best ${t.best}/${t.of}` : "15 min, no hints"}</span></button></div><div id="play"></div>`;
   }
   app.innerHTML = head + body;
+  if (step === 0 && window.SIMS && SIMS[l.id] && document.getElementById("sim")) { try { SIMS[l.id](document.getElementById("sim")); } catch (e) { console.warn("sim", e); } }
   $("#back").onclick = home;
   app.querySelectorAll("[data-s]").forEach(b => b.onclick = () => { if (b.dataset.lock) { b.animate([{ transform: "translateX(-4px)" }, { transform: "translateX(4px)" }, { transform: "none" }], 250); return; } lesson(i, +b.dataset.s); });
   if ($("#next")) {
