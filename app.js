@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261121w1";
-import * as Pix from "./pixel.js?v=20261121w1";
+import { STR } from "./i18n.js?v=20261121e9";
+import * as Pix from "./pixel.js?v=20261121e9";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -923,12 +923,14 @@ function spaceStatsHtml(kid) {
   const L = SQ_L[lang] || SQ_L.en, save = (S.app_saves || []).find(a => a.kid === kid && a.app === "space"), P = save && save.data ? save.data[`${kid}_space_state`] : null;
   if (!P) return `<div class="coach"><h4>${L.t}</h4><div class="meta">${L.none}</div></div>`;
   const pct = (q, c) => q ? Math.round(c / q * 100) + "%" : "–", names = P.skillNames || {}, lv = P.lv || {};
-  let sec = 0, dp = 0, wq = 0, wc = 0;
+  let sec = 0, dp = 0, wq = 0, wc = 0, ps = 0, pq = 0, pc = 0;
+  for (let i = 7; i < 14; i++) { const k = new Date(Date.now() - i * 864e5).toLocaleDateString("en-CA"), d = (P.days || {})[k]; if (d) { ps += d.sec || 0; pq += d.q || 0; pc += d.c || 0; } }
   for (let i = 0; i < 7; i++) { const k = new Date(Date.now() - i * 864e5).toLocaleDateString("en-CA"), d = (P.days || {})[k]; if (d && d.sec > 0) { sec += d.sec; dp++; wq += d.q || 0; wc += d.c || 0; } }
   const gal = Object.entries(SQ_G).map(([g, x]) => `${x[lang] || x.en}: ${lv[g] ? `${L.planet} ${lv[g]}/${x.n}` : L.locked}`).join(" · ");
   const rows = Object.entries(P.skills || {}).filter(([k]) => P.v === 3 || k.startsWith("words")).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true })).map(([k, v]) => { const nmz = names[k] || (k.startsWith("words") ? SQ_W[+k.slice(5)] : k); const tag = k.startsWith("words") ? "📚" : k.startsWith("zh") ? "🀄" : "G" + k[1]; return `<tr><td>${tag} ${esc(nmz || k)}</td><td>${pct(v.q, v.c)}</td><td>${v.q}</td></tr>`; });
   return `<div class="coach"><h4>${L.t}</h4>
     <div class="meta">⭐ ${P.stars || 0} ${L.stars} · 🪙 ${P.coins || 0} ${L.coins} · 🏆 ${Object.keys(P.ach || {}).length}/18 · ${L.wk}: ${Math.round(sec / 60)} ${L.min}, ${dp}/7 ${L.days}, ${wq} ${L.q}, ${pct(wq, wc)} ${L.ft}</div>
+    <div class="meta">📈 ${lang === "zh" ? `本周 vs 上周：${Math.round(sec / 60)} vs ${Math.round(ps / 60)} 分钟，首次答对率 ${pct(wq, wc)} vs ${pct(pq, pc)}` : `This week vs last week: ${Math.round(sec / 60)} vs ${Math.round(ps / 60)} min, first-try ${pct(wq, wc)} vs ${pct(pq, pc)}`} · ⚡ ${lang === "zh" ? `挑战题 ${(P.st || {}).chalWon || 0}/${(P.st || {}).chal || 0} 答对` : `stretch questions won ${(P.st || {}).chalWon || 0}/${(P.st || {}).chal || 0}`}</div>
     <div class="meta">${gal}</div>
     <div class="meta">❌ ${(P.st || {}).mistakes || 0} ${lang === "zh" ? "次错误" : "mistakes"} · 🧠 ${(P.st || {}).learned || 0} ${lang === "zh" ? "次重做答对" : "fixed on the retry"} · 🌟 ${(P.st || {}).perfect || 0} ${lang === "zh" ? "次满分任务" : "perfect missions"} · 🔁 ${(P.rv || []).length} ${lang === "zh" ? "道错题等下次复习" : "missed questions waiting for review"} · ✅ ${(P.st || {}).reviewed || 0} ${lang === "zh" ? "道复习时答对" : "got right on a later review"}</div>
     ${rows.length ? `<table style="margin-top:6px"><tr><th>${L.skill}</th><th>${L.acc}</th><th>${L.n}</th></tr>${rows.join("")}</table>` : ""}
@@ -936,7 +938,7 @@ function spaceStatsHtml(kid) {
 }
 
 /* ---- Brain Park (Jonah's memory / focus / logic / creative games): parent summary from app_saves ---- */
-const BP_G = [["match", "🃏", "Pair Match", "配对翻牌", 6], ["simon", "💡", "Copy the Lights", "跟着灯光", 8], ["odd", "🔍", "Odd One Out", "找不同", 6], ["gonogo", "🚦", "Stop & Go", "红灯绿灯", 6], ["switch", "🔀", "Rule Switch", "规则切换", 5], ["pattern", "🚂", "Pattern Train", "规律火车", 6], ["shapes", "🔷", "Shape Puzzle", "形状拼图", 5], ["robot", "🤖", "Robot Coder", "机器人编程", 6], ["draw", "🖍️", "Color Pad", "画画板", 0], ["music", "🎵", "Music Maker", "音乐小屋", 4]];
+const BP_G = [["feel", "💛", "Feelings Friends", "情绪小伙伴", 5], ["match", "🃏", "Pair Match", "配对翻牌", 6], ["simon", "💡", "Copy the Lights", "跟着灯光", 8], ["odd", "🔍", "Odd One Out", "找不同", 6], ["gonogo", "🚦", "Stop & Go", "红灯绿灯", 6], ["switch", "🔀", "Rule Switch", "规则切换", 5], ["pattern", "🚂", "Pattern Train", "规律火车", 6], ["shapes", "🔷", "Shape Puzzle", "形状拼图", 5], ["robot", "🤖", "Robot Coder", "机器人编程", 6], ["draw", "🖍️", "Color Pad", "画画板", 0], ["music", "🎵", "Music Maker", "音乐小屋", 4]];
 function brainMeasure(id, m) {
   const zh = lang === "zh", last = (m || []).slice(-5); if (!last.length) return "–"; const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
   if (id === "match") return zh ? `每对 ${avg(last).toFixed(1)} 次（越低记忆越好）` : `${avg(last).toFixed(1)} tries per pair (lower = better memory)`;
@@ -944,7 +946,7 @@ function brainMeasure(id, m) {
   if (id === "odd") return `${(avg(last.filter(x => x)) / 1000).toFixed(1)} s`;
   if (id === "gonogo") return zh ? `冲动误按 ${avg(last.map(x => x.impulse || 0)).toFixed(1)}/轮 · 反应 ${Math.round(avg(last.map(x => x.rt || 0)))} ms` : `impulse taps ${avg(last.map(x => x.impulse || 0)).toFixed(1)}/round · reaction ${Math.round(avg(last.map(x => x.rt || 0)))} ms`;
   if (id === "switch") { const sw = last.map(x => x.sw).filter(x => x != null); return `${zh ? "正确率" : "accuracy"} ${Math.round(avg(last.map(x => x.acc)) * 100)}%${sw.length ? ` · ${zh ? "规则切换后" : "after a switch"} ${Math.round(avg(sw) * 100)}%` : ""}`; }
-  if (id === "pattern") return `${zh ? "正确率" : "accuracy"} ${Math.round(avg(last) * 100)}%`;
+  if (id === "pattern" || id === "feel") return `${zh ? "正确率" : "accuracy"} ${Math.round(avg(last) * 100)}%`;
   if (id === "shapes") return zh ? `放错 ${avg(last).toFixed(1)} 次` : `${avg(last).toFixed(1)} wrong drops`;
   if (id === "robot") return zh ? `每题 ${avg(last).toFixed(1)} 次尝试` : `${avg(last).toFixed(1)} tries per puzzle`;
   if (id === "draw") return zh ? `${m.length} 幅画` : `${m.length} drawings`;
@@ -956,11 +958,15 @@ function brainStatsHtml(kid) {
   const h = zh ? "🧠 大脑乐园进度" : "🧠 Brain Park progress";
   if (!P) return `<div class="coach"><h4>${h}</h4><div class="meta">${zh ? "还没玩过。他可以从自己页面上的 🧠 大脑乐园卡片打开。" : "Not played yet. He opens it from the 🧠 Brain Park card on his page."}</div></div>`;
   let r7 = 0, d7 = 0; for (let i = 0; i < 7; i++) { const d = (P.days || {})[new Date(Date.now() - i * 864e5).toLocaleDateString("en-CA")]; if (d && d.rounds) { r7 += d.rounds; d7++; } }
-  const rows = BP_G.map(([id, ic, en, z, max]) => { const s = (P.st || {})[id]; return `<tr><td>${ic} ${zh ? z : en}</td><td>${max ? `${(P.lv || {})[id] || 1}/${max}` : "–"}</td><td>${s ? s.rounds : 0}</td><td>${s && s.rounds ? (s.stars / s.rounds).toFixed(1) : "–"}</td><td>${s ? brainMeasure(id, s.m) : "–"}</td></tr>`; }).join("");
+  const lvh = P.lvh || {}, past = Object.keys(lvh).sort().filter(d => d <= new Date(Date.now() - 7 * 864e5).toLocaleDateString("en-CA")).pop() || Object.keys(lvh).sort()[0], L0 = past ? lvh[past] : null;
+  const dl = id => { if (!L0) return ""; const d = ((P.lv || {})[id] || 1) - (L0[id] || 1); return d > 0 ? ` <b style="color:#2d6a4f">▲${d}</b>` : d < 0 ? ` <span style="color:#c9184a">▼${-d}</span>` : ""; };
+  const gained = L0 ? BP_G.reduce((s, [id]) => s + Math.max(0, ((P.lv || {})[id] || 1) - (L0[id] || 1)), 0) : 0, stt = P.st || {};
+  const rows = BP_G.map(([id, ic, en, z, max]) => { const s = (P.st || {})[id]; return `<tr><td>${ic} ${zh ? z : en}</td><td>${max ? `${(P.lv || {})[id] || 1}/${max}${dl(id)}` : "–"}</td><td>${s ? s.rounds : 0}</td><td>${s && s.rounds ? (s.stars / s.rounds).toFixed(1) : "–"}</td><td>${s ? brainMeasure(id, s.m) : "–"}</td></tr>`; }).join("");
   return `<div class="coach"><h4>${h}</h4>
     <div class="meta">🪙 ${P.coins || 0} ${zh ? "金币" : "coins"} · ${zh ? "最近7天" : "Last 7 days"}: ${r7} ${zh ? "局" : "rounds"}, ${d7}/7 ${zh ? "天" : "days"}</div>
-    <table style="margin-top:6px"><tr><th>${zh ? "游戏" : "Game"}</th><th>${zh ? "级别" : "Level"}</th><th>${zh ? "局数" : "Rounds"}</th><th>${zh ? "平均星" : "Avg ⭐"}</th><th>${zh ? "大脑指标（看趋势）" : "Brain measure (watch the trend)"}</th></tr>${rows}</table>
-    <div class="meta" style="margin-top:6px">${zh ? "10个小游戏：记忆与专注（配对翻牌、跟着灯光、找不同）、大脑练习（红灯绿灯=冲动控制、规则切换=灵活思维）、拼图与逻辑（规律火车、形状拼图、机器人编程）、创作与音乐（画画板、音乐小屋）。每个游戏自动调难度：3星升一级，1星降一级。轮换规则：同一类（记忆、大脑练习、拼图）连续3局后休息，先玩2局其他类才解锁；每个游戏每天最多4局；画画和音乐要用🎟️票，每玩2局大脑游戏得1张；当天玩得最少的一类+5金币。语音读题，每天最多40积分。" : "10 mini-games: Memory & focus (Pair Match, Copy the Lights, Odd One Out), Brain builders (Stop & Go = impulse control, Rule Switch = flexible thinking), Puzzles & logic (Pattern Train, Shape Puzzle, Robot Coder), Create & music (Color Pad, Music Maker). Each game adapts on its own: 3 stars moves up a level, 1 star moves down. Instructions are read aloud. Mix-it-up rule: each kind (memory, brain builders, puzzles) rests after 3 rounds in a row until he plays 2 rounds of other kinds; each game max 4 rounds a day; art & music cost a 🎟️ ticket earned every 2 brain games; the least-played kind gives +5 coins. Up to 40 hub points a day; the 20/5 break coach applies."}</div></div>`;
+    <div class="meta">📈 ${zh ? `过去7天升了 ${gained} 级` : `${gained} level${gained === 1 ? "" : "s"} gained in the last 7 days`} · ⚡ ${zh ? `挑战关 ${stt.chalWon || 0}/${stt.chal || 0} 过关` : `challenge rounds beaten ${stt.chalWon || 0}/${stt.chal || 0}`}</div>
+    <table style="margin-top:6px"><tr><th>${zh ? "游戏" : "Game"}</th><th>${zh ? "级别（▲7天变化）" : "Level (▲ = 7-day change)"}</th><th>${zh ? "局数" : "Rounds"}</th><th>${zh ? "平均星" : "Avg ⭐"}</th><th>${zh ? "大脑指标（看趋势）" : "Brain measure (watch the trend)"}</th></tr>${rows}</table>
+    <div class="meta" style="margin-top:6px">${zh ? "11个小游戏：💛情绪小伙伴（情商：认识情绪、理解别人的感受、友善和冷静的选择、气球呼吸）、记忆与专注（配对翻牌、跟着灯光、找不同）、大脑练习（红灯绿灯=冲动控制、规则切换=灵活思维）、拼图与逻辑（规律火车、形状拼图、机器人编程）、创作与音乐（画画板、音乐小屋）。每个游戏自动调难度：3星升一级，1星降一级。轮换规则：同一类（记忆、大脑练习、拼图）连续3局后休息，先玩2局其他类才解锁；每个游戏每天最多4局；画画和音乐要用🎟️票，每玩2局大脑游戏得1张；当天玩得最少的一类+5金币。语音读题，每天最多40积分。" : "11 mini-games: 💛 Feelings Friends (EQ: name feelings, how others feel, kind and calm-down choices, balloon breathing), Memory & focus (Pair Match, Copy the Lights, Odd One Out), Brain builders (Stop & Go = impulse control, Rule Switch = flexible thinking), Puzzles & logic (Pattern Train, Shape Puzzle, Robot Coder), Create & music (Color Pad, Music Maker). Each game adapts on its own: 3 stars moves up a level, 1 star moves down. Instructions are read aloud. Mix-it-up rule: each kind (memory, brain builders, puzzles) rests after 3 rounds in a row until he plays 2 rounds of other kinds; each game max 4 rounds a day; art & music cost a 🎟️ ticket earned every 2 brain games; the least-played kind gives +5 coins. Up to 40 hub points a day; the 20/5 break coach applies."}</div></div>`;
 }
 
 /* ---- fencing coach notes (parents write after each lesson; the Fencing Brain game shows them) ---- */
@@ -1167,7 +1173,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121w1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121e9${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);

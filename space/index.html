@@ -155,9 +155,12 @@ body.retro::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:
   <table><thead><tr><th>Skill</th><th>First-try</th><th>Qs</th></tr></thead><tbody id="pSkills"></tbody></table>
   <h3 style="margin:14px 0 4px">Settings</h3>
   <div class="set">Play time before a break <select id="sBlock"><option value="15">15 min</option><option value="20">20 min</option><option value="25">25 min</option><option value="30">30 min</option></select> then break for <select id="sRest"><option value="3">3 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
+  <div class="set">⚡ Stretch challenges <select id="sChal"><option value="1">On</option><option value="0">Off</option></select> <span class="note">When he's on a roll (3 first-try answers in a row, or his last mission was perfect), question 4 becomes one harder question from 2 planets ahead or the next galaxy. +15 coins if he gets it first try; no coins or shields lost if he misses (he still gets the explanation card).</span></div>
   <div class="set">Mix it up <select id="sMix"><option value="3">On: rest after 3 missions in a row</option><option value="4">On: after 4 in a row</option><option value="6">On: after 6 in a row</option><option value="0">Off</option></select> <button class="btn" id="sMixReset" style="font-size:14px;padding:4px 10px">Wake all for today</button> <span class="note">Math, Reading and 中文 take turns: after N missions in a row in one area it rests until he plays 2 missions elsewhere. The least-played area today gives +10 coins.</span></div>
   <div class="set">Focus mode <select id="sFocus"><option value="1">On (calmer)</option><option value="0">Off</option></select> <span class="note">calm screen, no shaking or lucky stars, still targets, think time before tapping, 3 choices in Grade 1 & Words</span></div>
   <div class="set">Read questions aloud <select id="sVoice"><option value="1">On</option><option value="0">Off</option></select></div>
+  <div class="set">English voice <select id="sVoiceEn" style="max-width:260px"></select> <button class="btn" id="tVoiceEn" style="font-size:14px;padding:4px 10px">▶ Test</button></div>
+  <div class="set">中文 voice <select id="sVoiceZh" style="max-width:260px"></select> <button class="btn" id="tVoiceZh" style="font-size:14px;padding:4px 10px">▶ 试听</button> <span class="note">For the most human-sounding voice on an iPad: Settings → Accessibility → Spoken Content → Voices → download an English and a Chinese voice marked "Premium" or "Enhanced". It is picked automatically.</span></div>
   <div style="font-size:16px;margin-top:6px"><b>Unlock planets</b></div><div id="unlocks"></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
     <button class="btn" id="pCopy" style="font-size:17px">Copy summary</button>
@@ -207,10 +210,22 @@ function tone(f,d,t=0,type="sine",v=.14,f2){const a=A();if(!a)return;try{const o
 function boom(){const a=A();if(!a)return;try{const n=a.sampleRate*.35,b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.2);const s=a.createBufferSource(),g=a.createGain(),f=a.createBiquadFilter();f.type="lowpass";f.frequency.value=900;s.buffer=b;g.gain.value=.35;s.connect(f);f.connect(g);g.connect(a.destination);s.start()}catch(e){}}
 const sfx0={laser:()=>tone(1200,.18,0,"square",.06,200),good:()=>{tone(660,.12,.05);tone(880,.12,.15);tone(1175,.22,.25)},bad:()=>tone(220,.25,0,"triangle",.15,150),coin:()=>{tone(988,.07,0,"square",.05);tone(1319,.12,.07,"square",.05)},win:()=>[523,659,784,1047,1319].forEach((f,i)=>tone(f,.2,i*.12,"triangle",.12)),whoosh:()=>tone(300,.5,0,"sawtooth",.04,1400)};
 const sfx=new Proxy({}, {get:(o,k)=>S.retro&&chip[{good:"good",bad:"bad",laser:"zap"}[k]]?chip[{good:"good",bad:"bad",laser:"zap"}[k]]:sfx0[k]});
+/* ---------- voice: pick the most human-sounding voice the device has ---------- */
+let VOICES=[];function loadVoices(){try{VOICES=speechSynthesis.getVoices()||[]}catch(e){}}loadVoices();try{speechSynthesis.addEventListener("voiceschanged",loadVoices)}catch(e){}
+const BADV=/compact|eloquence|albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|\bfred\b|junior|ralph|kathy|grandma|grandpa|rocko|shelley|\bflo\b|eddy|reed|sandy|novelty/i;
+function voiceList(L){return VOICES.filter(v=>v.lang&&v.lang.toLowerCase().replace("_","-").startsWith(L))}
+function voiceScore(v,L){const n=v.name.toLowerCase();let s=0;if(/premium/.test(n))s+=70;if(/enhanced/.test(n))s+=55;if(/natural|neural/.test(n))s+=60;if(/online/.test(n))s+=20;if(/siri/.test(n))s+=45;if(/google/.test(n))s+=30;
+  if(L==="en"){if(/\b(ava|zoe|samantha|allison|susan|nicky|joelle|noelle|aria|jenny|michelle|emma|ana|evan|nathan)\b/.test(n))s+=15;if(/en-us/.test(v.lang.toLowerCase().replace("_","-")))s+=10}
+  if(L==="zh"){if(/xiaoxiao|xiaoyi|yunxi|tingting|ting-ting|lili|lilian|yu-shu|meijia/.test(n))s+=15;if(/zh-cn/.test(v.lang.toLowerCase().replace("_","-")))s+=10}
+  if(BADV.test(n))s-=200;return s}
+function bestVoice(L){const vs=voiceList(L);if(!vs.length)return null;const want=L==="zh"?S.voiceZh:S.voiceEn;if(want){const f=vs.find(v=>v.name===want);if(f)return f}return vs.slice().sort((a,b)=>voiceScore(b,L)-voiceScore(a,L))[0]}
+function mkUtter(t){const zhT=/[一-鿿]/.test(t),L=zhT?"zh":"en",u=new SpeechSynthesisUtterance(t),v=bestVoice(L);if(v){u.voice=v;u.lang=v.lang}else u.lang=zhT?"zh-CN":"en-US";
+  const nat=v&&/premium|enhanced|natural|neural|siri|google/i.test(v.name);u.rate=zhT?.85:(nat?.95:.9);u.pitch=1.0;return u}
+function voiceOptions(L,cur){const vs=voiceList(L).slice().sort((a,b)=>voiceScore(b,L)-voiceScore(a,L));return `<option value="">Auto (best on this device${vs[0]?": "+vs[0].name:""})</option>`+vs.filter(v=>!BADV.test(v.name)).map(v=>`<option value="${v.name.replace(/"/g,"&quot;")}" ${v.name===cur?"selected":""}>${v.name} (${v.lang})</option>`).join("")}
 function estRead(t){return Math.max(2000,String(t).trim().split(/\s+/).length*300)}
 function speakDone(t){return new Promise(res=>{let done=false;const fin=()=>{if(!done){done=true;res()}};const est=estRead(t);
   if(!+S.voice||!window.speechSynthesis){setTimeout(fin,est);return}
-  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);const zhT=/[\u4e00-\u9fff]/.test(t);u.rate=zhT?.8:.88;u.pitch=1.1;u.lang=zhT?"zh-CN":"en-US";u.onend=()=>setTimeout(fin,400);u.onerror=()=>setTimeout(fin,est);speechSynthesis.speak(u)}catch(e){setTimeout(fin,est)}
+  try{speechSynthesis.cancel();const u=mkUtter(t);u.onend=()=>setTimeout(fin,400);u.onerror=()=>setTimeout(fin,est);speechSynthesis.speak(u)}catch(e){setTimeout(fin,est)}
   setTimeout(fin,est*2.2+3000)})}
 let gateTok=0;
 /* Gate card: shown after a mistake; the button only unlocks once the message has been read aloud (or reading time has passed). */
@@ -233,7 +248,7 @@ function wrongWhy(q,v){const a=+q.ans,p=+v;if(isNaN(a)||isNaN(p)||String(q.ans).
   const d=p-a;if(Math.abs(d)===1)return "So close! You were just 1 away. Count again slowly.";
   if(Math.abs(d)===10||Math.abs(d)===100)return "Check the place value: look at the tens and hundreds.";
   return d>0?"Your answer is too big.":"Your answer is too small."}
-function speak(t){if(!+S.voice||!t)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);const zhT=/[\u4e00-\u9fff]/.test(t);u.rate=zhT?.8:.88;u.pitch=1.1;u.lang=zhT?"zh-CN":"en-US";speechSynthesis.speak(u)}catch(e){}}
+function speak(t){if(!+S.voice||!t)return;try{speechSynthesis.cancel();speechSynthesis.speak(mkUtter(t))}catch(e){}}
 
 /* ================= question generators ================= */
 const FRUIT=["🍎","🍓","⭐","🐟","🍪","🎈","🚗","🌸"];
@@ -709,16 +724,17 @@ function updShields(){if(!G)return;$("shields").textContent="🛡️".repeat(G.s
 function nextQ(){
   if(!G)return;
   G.isRedo=false;$("qtag").textContent="";
-  G.isReview=false;let rq=null;
+  G.isReview=false;G.isChal=false;let rq=null,cq=null;
   if(G.qi>=QPER){if(G.redo.length){G.isRedo=true;rq=G.redo.shift();$("qtag").textContent="🔁 Again! The one you missed";}else{finishMission();return}}
   else if(G.qi===0&&!G.warmDone&&!G.boss){G.warmDone=1;const it=(S.rv||[]).find(x=>x.g===G.g);if(it){G.isRedo=true;G.isReview=true;G.rvK=it.k;rq=it.q;$("qtag").textContent="🔁 Remember this one? You missed it last time";}}
-  const lv=G.lv;G.q=rq?{...rq,opts:shuffle(rq.opts.map(o=>({...o})))}:makeQ(G.g,lv);G.tries=0;G.lock=false;G.ex=null;
+  else if(G.qi===3&&!G.chalDone&&!G.boss&&S.chal!==0&&(G.streak>=3||(S.st.pstreak||0)>=1)){const src=chalSrc(G.g,G.lv);if(src){G.chalDone=1;G.isRedo=true;G.isChal=true;cq=src;$("qtag").textContent=`⚡ Super challenge! From ${src[0]===G.g?"planet "+src[1]:"the next galaxy"}`;S.st.chal=(S.st.chal||0)+1;save()}}
+  const lv=G.lv;G.q=rq?{...rq,opts:shuffle(rq.opts.map(o=>({...o})))}:cq?makeQ(cq[0],cq[1]):makeQ(G.g,lv);G.tries=0;G.lock=false;G.ex=null;
   $("qtext").textContent=G.q.q;$("qvis").innerHTML=G.q.vis;$("qhint").className="";$("qhint").textContent="";$("qcard").classList.remove("on");void $("qcard").offsetWidth;$("qcard").classList.add("on");$("fb").textContent="";
   G.waitT=0;G.nudged=0;G.rocks=G.q.opts.map((o,i)=>({...o,i,pod:G.rescue,alien:pick(["👽","👾","🐙","🦖","🐱","🐸"]),gem:pick(["#c77dff","#4cc9f0","#80ed99","#ffafcc","#ffd166"]),x:W+80+i*60,state:"in",rot:Math.random()*6,vr:(Math.random()-.5)*.8,hit:0,fade:1,shape:Array.from({length:11},()=>.82+Math.random()*.25),craters:[[.35,-.3,.16],[-.3,.25,.12],[.2,.4,.08]]}));
   layoutLanes();G.rocks.forEach((r,i)=>{if(VERT(G.kind)){r.x=W+80+i*60;r.y0=r.ty}else if(G.kind==="comet"){r.x=r.tx+60;r.y0=-r.r-i*70}else{r.x=r.tx;r.y0=H+r.r+i*30}r.y=r.y0});
   if(isRetro(G.kind)){G.rocks.forEach((r,i)=>{if(G.kind==="blockdrop"||G.kind==="invaders"||G.kind==="bricks"){r.x=r.tx;r.y0=-r.r-i*60}else if(G.kind==="hopper"){r.x=(i%2?-r.r*2:W+r.r*2);r.y0=r.ty}else if(G.kind==="jumper"){r.x=W+r.r*2+i*80;r.y0=r.ty}else{r.x=r.tx;r.y0=r.ty;r.state="wait"}r.y=r.y0});const hh=heroHome();if(!G.hero)G.hero={x:hh.x,y:hh.y,anim:null};else if(!G.hero.anim){G.hero.anim={type:"slide",fx:G.hero.x,fy:G.hero.y,tx:hh.x,ty:hh.y,t:0,d:.3,end:()=>{}}}}
   G.landed=0;G.readyAt=Date.now()+(FOCUS()?Math.min(3500,Math.max(1400,G.q.say.length*55)):0);G.shownAt=G.readyAt;
-  updProg();speak(G.isReview?"Remember this one? You missed it last time. "+G.q.say:G.isRedo?"Let's try the one you missed again. "+G.q.say:G.q.say);
+  updProg();speak(G.isChal?"Super challenge! This one is from a harder planet. Take your time and give it your best try. "+G.q.say:G.isReview?"Remember this one? You missed it last time. "+G.q.say:G.isRedo?"Let's try the one you missed again. "+G.q.say:G.q.say);
 }
 function updProg(){const f=G.qi/QPER*100;$("pf").style.width=f+"%";$("pr").style.left=f+"%"}
 function waitX(r){return Math.min(W*.66,W-r.r-20)}
@@ -752,14 +768,14 @@ function resolve(r){
     else{r.state="dead";boom();shake=10;burst(r.x,r.y,["#ffd166","#ff6b6b","#fff","#4cc9f0","#c77dff"],38,380)}
     sfx.good();
     G.streak=first?G.streak+1:0;const combo=G.streak>=3;S.st.correct++;S.st.bestStreak=Math.max(S.st.bestStreak,G.streak);if(G.kind==="rescue"){S.st.rescued++;G.rescued++}
-    let gain=G.isRedo?5:(first?10:5)*(combo?2:1);G.coinsWon+=gain;S.coins+=gain;save();
+    let gain=G.isChal?(first?15:3):G.isRedo?5:(first?10:5)*(combo?2:1);if(G.isChal&&first){S.st.chalWon=(S.st.chalWon||0)+1}G.coinsWon+=gain;S.coins+=gain;save();
     floaters.push({t:`+${gain}`,x:r.x,y:r.y-r.r,c:"#ffd166",size:40,life:1.1});
     if(G.streak===5||G.streak===10)setTimeout(checkAch,600);if(combo&&!G.isRedo&&!FOCUS()){floaters.push({t:`🔥 COMBO x${G.streak}!`,x:W/2,y:H*.36,c:"#ff9f1c",size:Math.min(52,W*.065),life:1.2});tone(1568,.25,.3,"triangle",.1)}
     if(G.kind==="rescue")floaters.push({t:"Rescued!",x:r.x,y:r.y-r.r-34,c:"#80ffdb",size:30,life:1});
     if(G.kind==="crystal")floaters.push({t:"💎 Mined!",x:r.x,y:r.y-r.r-34,c:"#e0aaff",size:30,life:1});
     if(G.kind==="comet")floaters.push({t:"🌠 Caught!",x:r.x,y:r.y+r.r+24,c:"#fff3b0",size:30,life:1});
     for(let i=0;i<Math.min(gain,8);i++)setTimeout(()=>{sfx.coin();setCoins()},150+i*60);
-    let p=pick(PRAISE);if(G.isRedo&&first){p="You learned it! 🧠";G.learned++;S.st.learned=(S.st.learned||0)+1;if(G.isReview){S.rv=(S.rv||[]).filter(x=>x.k!==G.rvK);S.st.reviewed=(S.st.reviewed||0)+1;save()}}else if(G.isRedo)p="Yes! Now you know it!";else if(G.tries>1)p="Yes! You fixed it!";
+    let p=pick(PRAISE);if(G.isChal)p=first?"⚡ Challenge won! Your brain is growing!":"You figured out a hard one!";else if(G.isRedo&&first){p="You learned it! 🧠";G.learned++;S.st.learned=(S.st.learned||0)+1;if(G.isReview){S.rv=(S.rv||[]).filter(x=>x.k!==G.rvK);S.st.reviewed=(S.st.reviewed||0)+1;save()}}else if(G.isRedo)p="Yes! Now you know it!";else if(G.tries>1)p="Yes! You fixed it!";
     $("fb").textContent=(first&&!G.isRedo?"⭐ ":"")+p;speak(p.replace("🧠",""));
     if(G.ex&&G.tries>1){$("qhint").className="on why";$("qhint").textContent="✅ "+G.ex.why}
     G.rocks.forEach(o=>{if(o!==r&&o.state!=="dead"&&o.state!=="beam"&&o.state!=="pass")o.state="gone"});
@@ -768,9 +784,9 @@ function resolve(r){
     ship.boost=.9;if(!G.isRedo){G.qi++;updProg()}
     setTimeout(nextQ,(G.boss?1700:1350)+(G.tries>1?1400:0));
   }else{
-    r.state="wrong";r.hit=.5;if(isRetro(G.kind)){chip.bad();setTimeout(()=>{if(G&&G.hero)heroReturn()},250);if(G.kind==="hopper"||G.kind==="jumper")pxBurst(r.x+(r.ox||0),r.y,["#90e0ef","#ffffff"],14)}else sfx.bad();shake=G.kind==="race"?12:5;G.streak=0;G.waitT=0;G.mistakes++;S.st.mistakes=(S.st.mistakes||0)+1;
-    const pen=Math.min(2,S.coins);S.coins-=pen;G.penalty+=pen;G.coinsWon-=pen;save();setCoins();
-    if(G.shields>0){G.shields--;updShields()}
+    r.state="wrong";r.hit=.5;if(isRetro(G.kind)){chip.bad();setTimeout(()=>{if(G&&G.hero)heroReturn()},250);if(G.kind==="hopper"||G.kind==="jumper")pxBurst(r.x+(r.ox||0),r.y,["#90e0ef","#ffffff"],14)}else sfx.bad();shake=G.kind==="race"?12:5;G.streak=0;G.waitT=0;if(!G.isChal){G.mistakes++;S.st.mistakes=(S.st.mistakes||0)+1}
+    const pen=G.isChal?0:Math.min(2,S.coins);S.coins-=pen;G.penalty+=pen;G.coinsWon-=pen;save();setCoins();
+    if(G.shields>0&&!G.isChal){G.shields--;updShields()}
     floaters.push({t:pen?`-${pen} 🪙`:"Boing!",x:r.x,y:r.y-r.r,c:"#ff6b6b",size:32,life:1});
     if(G.shields===0&&!G.shieldMsg){G.shieldMsg=1;floaters.push({t:"Shields down! Keep going, you can do it!",x:W/2,y:H*.4,c:"#ffafcc",size:Math.min(30,W*.045),life:1.6})}
     if(G.kind==="race"){ship.boost=0;G.lasers.push({x1:ship.x+ship.s,y1:r.y,x2:r.x,y2:r.y,life:.2,ok:false})}
@@ -778,16 +794,17 @@ function resolve(r){
     if(G.tries===1){const base={...G.q,opts:G.q.opts.map(o=>({...o}))};
       if(!G.isRedo){G.missed.push({q:G.q.q,ans:G.q.ans,why:G.ex.why});if(G.redo.length<3)G.redo.push({...base,rc:1});
         S.rv=S.rv||[];if(!S.rv.some(x=>x.q.q===G.q.q&&String(x.q.ans)===String(G.q.ans))){S.rv.push({k:Date.now()+"_"+rnd(0,999),g:G.g,lv:G.lv,q:base,n:1});if(S.rv.length>12)S.rv.shift()}save()}
+      else if(G.isChal){}
       else if(G.isReview){const it=(S.rv||[]).find(x=>x.k===G.rvK);if(it){it.n=(it.n||1)+1;save()}}
       else if((G.q.rc||1)<2&&G.redo.length<4)G.redo.push({...base,rc:(G.q.rc||1)+1})}
     const okO=G.q.opts.find(o=>String(o.v)===String(G.q.ans)),why2=wrongWhy(G.q,r.v),EX=G.ex,Q0=G.q;G.lock=true;
     const unlock=()=>{if(!G)return;G.lock=false;G.readyAt=Date.now();G.waitT=0;if(G.hero)setTimeout(()=>{G&&heroReturn()},50);setTimeout(()=>{G&&layoutLanes()},50)};
     if(G.tries>=2){
       const ok=G.rocks.find(o=>o.v===G.q.ans);if(ok)ok.glow=true;G.tries=9;
-      gate({emoji:"🧠",title:"Let's learn from this",html:`<div class="wp">You picked ${optLabel(r)} ❌</div>${why2?`<div>${why2}</div>`:""}<div class="wa">The answer is ${optLabel(okO)||G.q.ans} ✅</div><div class="ww">${EX.why}</div>`,
+      gate({emoji:G.isChal?"⚡":"🧠",title:G.isChal?"That was a stretch! Great try":"Let's learn from this",html:`<div class="wp">You picked ${optLabel(r)} ❌</div>${why2?`<div>${why2}</div>`:""}<div class="wa">The answer is ${optLabel(okO)||G.q.ans} ✅</div><div class="ww">${EX.why}</div>`,
         say:`You picked ${optSay(r)}. ${why2} The answer is ${optSay(okO)||G.q.ans}. ${EX.why}`,btn:"I got it 👍"}).then(()=>{if(!G||G.q!==Q0)return;$("qhint").className="on why";$("qhint").textContent="🧠 "+EX.why;$("fb").textContent="👉 Tap the glowing one";speak("Now tap the glowing one.");unlock()});
     }else{const fast=FOCUS()&&Date.now()-(G.shownAt||0)<1500;
-      gate({emoji:"🤔",title:fast?"Slow down and think":"Not quite!",html:`<div class="wp">You picked ${optLabel(r)} ❌</div>${why2?`<div>${why2}</div>`:""}<div class="wh">💡 Hint: ${EX.hint}</div>`,
+      gate({emoji:G.isChal?"⚡":"🤔",title:G.isChal?"Hard one! No coins lost":fast?"Slow down and think":"Not quite!",html:`<div class="wp">You picked ${optLabel(r)} ❌</div>${why2?`<div>${why2}</div>`:""}<div class="wh">💡 Hint: ${EX.hint}</div>`,
         say:`${fast?"Slow down and think first. ":""}You picked ${optSay(r)}. That's not it. ${why2} Here's a hint. ${EX.hint}`,btn:"Try again 💪"}).then(()=>{if(!G||G.q!==Q0)return;$("qhint").className="on";$("qhint").textContent="💡 Hint: "+EX.hint;$("fb").textContent="You can do it! 💪";speak(Q0.say);unlock()});
     }
   }
@@ -957,6 +974,8 @@ function drawRock(r){
 }
 cv.addEventListener("pointerdown",e=>{A();if(mode==="game")tapAt(e.clientX,e.clientY)});
 
+/* ⚡ stretch challenge: when he's on a roll, one question from 2 planets ahead (or the next galaxy). No penalty if wrong. */
+function chalSrc(g,lv){const n=galSize(g);if(lv+2<=n)return [g,lv+2];if(lv<n)return [g,n];const nx={g1:"g2",g2:"g3"}[g];return nx?[nx,1]:null}
 /* ================= mix-it-up rule (Bobby 2026-11-21): no grinding one area ================= */
 const SQA=g=>g==="words"?"read":g==="zh"?"zh":"math";
 const SQA_N={math:"🔢 Math",read:"📚 Reading",zh:"🀄 中文"},SQA_S={math:"math",read:"reading",zh:"Chinese"};
@@ -1034,7 +1053,7 @@ function renderParents(){
   const zz=sum("zh_");$("pWords").innerHTML=`<div style="font-size:15px">📚 ${lab("words")}</div><div style="font-size:15px">🀄 ${lab("zh")}</div>`;$("pWordsAcc").textContent=`Reading ${w.q} q · ${acc(w.q,w.c)} · 中文 ${zz.q} q · ${acc(zz.q,zz.c)} first-try`;
   const rows=[];GALS.forEach(([g])=>{for(let i=1;i<=galSize(g);i++){const k=g==="words"?"words"+i:`${g}_${i}`,v=S.skills[k];if(v)rows.push(`<tr><td>${g==="words"?"🔤":"G"+g[1]} ${topicName(g,i)}</td><td>${acc(v.q,v.c)}</td><td>${v.q}</td></tr>`)}});
   $("pSkills").innerHTML=rows.join("")||`<tr><td colspan="3" class="note">No missions flown yet.</td></tr>`;
-  $("sFocus").value=FOCUS()?"1":"0";$("sMix").value=MIXON()?String(MIXN()):"0";$("sBlock").value=S.block||20;$("sRest").value=S.rest||5;$("sVoice").value=S.voice;
+  $("sFocus").value=FOCUS()?"1":"0";$("sMix").value=MIXON()?String(MIXN()):"0";$("sChal").value=S.chal===0?"0":"1";$("sBlock").value=S.block||20;$("sRest").value=S.rest||5;$("sVoice").value=S.voice;$("sVoiceEn").innerHTML=voiceOptions("en",S.voiceEn);$("sVoiceZh").innerHTML=voiceOptions("zh",S.voiceZh);
   $("unlocks").innerHTML=GALS.map(([g,l])=>`<div class="set">${l}: <select data-ug="${g}">${g==="words"?"":`<option value="0">Locked</option>`}${Array.from({length:galSize(g)},(_,i)=>`<option value="${i+1}" ${S.lv[g]===i+1?"selected":""}>up to ${i+1} · ${topicName(g,i+1)}</option>`).join("")}</select></div>`).join("");
   $("unlocks").querySelectorAll("select").forEach(sel=>{if(!S.lv[sel.dataset.ug])sel.value="0";sel.onchange=()=>{S.lv[sel.dataset.ug]=+sel.value;save()}});
   $("pMsg").textContent="";
@@ -1059,8 +1078,8 @@ $("mdNext").onclick=()=>{$("mdNext").classList.remove("ready");nextMission()};
 $("mdMap").onclick=()=>{$("mDone").classList.remove("on");quitGame();if(sessionOver())breakTime();else show("map")};
 $("bkOk").onclick=()=>{if(onBreak())return;$("mBreak").classList.remove("on");show("map")};$("pEndBreak").onclick=()=>{S.breakUntil=0;S.playSec=0;save();$("pMsg").textContent="Break ended. He can play again."};
 $("toParents").onclick=()=>show("parents");$("pBack").onclick=()=>show("title");
-$("sMix").onchange=e=>{const v=+e.target.value;if(v){S.mix=1;S.mixN=v}else S.mix=0;save()};$("sMixReset").onclick=()=>{gmix().rest={};gmix().log.push("|");save();toast("All galaxies are awake for today")};
-$("sFocus").onchange=e=>{S.focus=e.target.value==="1";save()};$("sBlock").onchange=e=>{S.block=+e.target.value;save()};$("sRest").onchange=e=>{S.rest=+e.target.value;save()};$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};
+$("sChal").onchange=e=>{S.chal=+e.target.value;save()};$("sMix").onchange=e=>{const v=+e.target.value;if(v){S.mix=1;S.mixN=v}else S.mix=0;save()};$("sMixReset").onclick=()=>{gmix().rest={};gmix().log.push("|");save();toast("All galaxies are awake for today")};
+$("sFocus").onchange=e=>{S.focus=e.target.value==="1";save()};$("sBlock").onchange=e=>{S.block=+e.target.value;save()};$("sRest").onchange=e=>{S.rest=+e.target.value;save()};$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};$("sVoiceEn").onchange=e=>{S.voiceEn=e.target.value;save()};$("sVoiceZh").onchange=e=>{S.voiceZh=e.target.value;save()};$("tVoiceEn").onclick=()=>{const v=S.voice;S.voice=1;speak("Hi Jonah! Ready for a space adventure? Let's go!");S.voice=v};$("tVoiceZh").onclick=()=>{const v=S.voice;S.voice=1;speak("你好，Jonah！我们一起去太空吧！");S.voice=v};
 
 $("pTime").onclick=()=>{S.playSec=0;save();renderParents();$("pMsg").textContent="Play-block timer reset."};
 $("pCopy").onclick=async()=>{try{await navigator.clipboard.writeText(summary());$("pMsg").textContent="Copied."}catch(e){$("pMsg").textContent=summary()}};

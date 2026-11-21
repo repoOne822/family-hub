@@ -134,8 +134,10 @@ table{width:100%;border-collapse:collapse;font-size:15px}td,th{text-align:left;p
     <div class="card">
       <p class="note">Each game adapts: 3 stars moves up a level, 1 star moves down. Brain measures below are trends for you, not test scores.</p>
       <table><thead><tr><th>Game</th><th>Level</th><th>Rounds</th><th>Avg stars</th><th>Brain measure</th></tr></thead><tbody id="pTable"></tbody></table>
+      <p class="note" style="margin-top:10px">⚡ Challenge levels: <select id="sChal"><option value="1">On</option><option value="0">Off</option></select> After 2 rounds in a row with 3 stars, the next round of that game is played one level higher. Beat it (2+ stars) and he jumps ahead (3 stars = 2 levels) with +10 coins; if not, his level stays put — no step down.</p>
       <p class="note" style="margin-top:10px">Mix it up: <select id="sMix"><option value="3">On: rest after 3 rounds in a row of one kind</option><option value="4">On: after 4 in a row</option><option value="0">Off</option></select> <button class="btn" id="sMixReset" style="font-size:14px;padding:4px 10px">Unlock all for today</button><br>Each kind of brain game (memory, brain builders, puzzles) rests after N rounds in a row until he plays 2 rounds of other kinds. Each game max 4 rounds a day. Art & music cost a 🎟️ ticket, earned every 2 brain games (1 free each day). The kind he has played least today glows ⭐ for +5 coins.</p>
       <p class="note" style="margin-top:10px">Read instructions aloud: <select id="sVoice"><option value="1">On</option><option value="0">Off</option></select></p>
+      <p class="note">Voice: <select id="sVoiceEn" style="max-width:260px"></select> <button class="btn" id="tVoiceEn" style="font-size:14px;padding:4px 10px">▶ Test</button><br>For the most human-sounding voice on an iPad: Settings → Accessibility → Spoken Content → Voices → English → download a voice marked "Premium" or "Enhanced" (e.g. Ava or Zoe). It is picked automatically.</p>
       <button class="btn" id="pCopy" style="font-size:16px">Copy summary</button> <span class="note" id="pMsg"></span>
     </div>
   </section>
@@ -156,11 +158,23 @@ const setCoins=()=>document.querySelectorAll(".cc").forEach(e=>e.textContent=S.c
 let ac;function A(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume()}catch(e){}return ac}
 function tone(f,d,t=0,type="sine",v=.15){const a=A();if(!a)return;try{const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,a.currentTime+t);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+t+d);o.connect(g);g.connect(a.destination);o.start(a.currentTime+t);o.stop(a.currentTime+t+d+.02)}catch(e){}}
 const sfx={good:()=>{tone(660,.12);tone(880,.18,.1)},bad:()=>tone(200,.22,0,"triangle"),win:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.2,i*.12,"triangle",.12)),tap:()=>tone(520,.06,0,"sine",.08)};
-function speak(t){if(!+S.voice||!t)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.88;u.pitch=1.1;u.lang="en-US";speechSynthesis.speak(u)}catch(e){}}
+function speak(t){if(!+S.voice||!t)return;try{speechSynthesis.cancel();speechSynthesis.speak(mkUtter(t))}catch(e){}}
+/* ---------- voice: pick the most human-sounding voice the device has ---------- */
+let VOICES=[];function loadVoices(){try{VOICES=speechSynthesis.getVoices()||[]}catch(e){}}loadVoices();try{speechSynthesis.addEventListener("voiceschanged",loadVoices)}catch(e){}
+const BADV=/compact|eloquence|albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|\bfred\b|junior|ralph|kathy|grandma|grandpa|rocko|shelley|\bflo\b|eddy|reed|sandy|novelty/i;
+function voiceList(L){return VOICES.filter(v=>v.lang&&v.lang.toLowerCase().replace("_","-").startsWith(L))}
+function voiceScore(v,L){const n=v.name.toLowerCase();let s=0;if(/premium/.test(n))s+=70;if(/enhanced/.test(n))s+=55;if(/natural|neural/.test(n))s+=60;if(/online/.test(n))s+=20;if(/siri/.test(n))s+=45;if(/google/.test(n))s+=30;
+  if(L==="en"){if(/\b(ava|zoe|samantha|allison|susan|nicky|joelle|noelle|aria|jenny|michelle|emma|ana|evan|nathan)\b/.test(n))s+=15;if(/en-us/.test(v.lang.toLowerCase().replace("_","-")))s+=10}
+  if(L==="zh"){if(/xiaoxiao|xiaoyi|yunxi|tingting|ting-ting|lili|lilian|yu-shu|meijia/.test(n))s+=15;if(/zh-cn/.test(v.lang.toLowerCase().replace("_","-")))s+=10}
+  if(BADV.test(n))s-=200;return s}
+function bestVoice(L){const vs=voiceList(L);if(!vs.length)return null;const want=L==="zh"?S.voiceZh:S.voiceEn;if(want){const f=vs.find(v=>v.name===want);if(f)return f}return vs.slice().sort((a,b)=>voiceScore(b,L)-voiceScore(a,L))[0]}
+function mkUtter(t){const zhT=/[一-鿿]/.test(t),L=zhT?"zh":"en",u=new SpeechSynthesisUtterance(t),v=bestVoice(L);if(v){u.voice=v;u.lang=v.lang}else u.lang=zhT?"zh-CN":"en-US";
+  const nat=v&&/premium|enhanced|natural|neural|siri|google/i.test(v.name);u.rate=zhT?.85:(nat?.95:.9);u.pitch=1.0;return u}
+function voiceOptions(L,cur){const vs=voiceList(L).slice().sort((a,b)=>voiceScore(b,L)-voiceScore(a,L));return `<option value="">Auto (best on this device${vs[0]?": "+vs[0].name:""})</option>`+vs.filter(v=>!BADV.test(v.name)).map(v=>`<option value="${v.name.replace(/"/g,"&quot;")}" ${v.name===cur?"selected":""}>${v.name} (${v.lang})</option>`).join("")}
 function estRead(t){return Math.max(2000,String(t).trim().split(/\s+/).length*300)}
 function speakDone(t){return new Promise(res=>{let done=false;const fin=()=>{if(!done){done=true;res()}};const est=estRead(t);
   if(!+S.voice||!window.speechSynthesis){setTimeout(fin,est);return}
-  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.88;u.pitch=1.1;u.lang="en-US";u.onend=()=>setTimeout(fin,400);u.onerror=()=>setTimeout(fin,est);speechSynthesis.speak(u)}catch(e){setTimeout(fin,est)}
+  try{speechSynthesis.cancel();const u=mkUtter(t);u.onend=()=>setTimeout(fin,400);u.onerror=()=>setTimeout(fin,est);speechSynthesis.speak(u)}catch(e){setTimeout(fin,est)}
   setTimeout(fin,est*2.2+3000)})}
 let gateTok=0;
 /* After a mistake: explain why, read it aloud, and only unlock the button once it has been heard. */
@@ -172,7 +186,8 @@ function gate(o){return new Promise(res=>{const tok=++gateTok;$("wEmoji").textCo
   b.onclick=()=>{if(b.disabled||gateTok!==tok)return;gateTok++;$("mWhy").classList.remove("on");try{speechSynthesis.cancel()}catch(e){}res(true)}})}
 function closeGate(){gateTok++;$("mWhy").classList.remove("on")}
 const st=id=>S.st[id]||(S.st[id]={rounds:0,stars:0,m:[]});
-const lv=id=>S.lv[id]||1;
+let chalId=null;const GMAX=id=>(GAMES.find(g=>g.id===id)||{max:1}).max;
+const lv=id=>Math.min(GMAX(id),(S.lv[id]||1)+(chalId===id?1:0));
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 let token=0; // cancels running games
 function fb(t,c){$("fb").textContent=t;$("fb").className="fb "+(c||"")}
@@ -187,6 +202,7 @@ const GAMES=[
  {sec:"🧮 Puzzles & logic",id:"pattern",ic:"🚂",n:"Pattern Train",max:6,run:playPattern,say:"What comes next on the pattern train?"},
  {sec:"🧮 Puzzles & logic",id:"shapes",ic:"🔷",n:"Shape Puzzle",max:5,run:playShapes,say:"Drag each shape into the matching outline."},
  {sec:"🧮 Puzzles & logic",id:"robot",ic:"🤖",n:"Robot Coder",max:6,run:playRobot,say:"Tap the arrows to make a plan, then press Go to help the robot reach the star!"},
+ {sec:"💛 Feelings (EQ)",id:"feel",ic:"💛",n:"Feelings Friends",max:5,run:playFeel,say:"Let's learn about feelings!"},
  {sec:"🎨 Create & music",id:"draw",ic:"🖍️",n:"Color Pad",max:1,run:playDraw,say:"Draw anything you like!"},
  {sec:"🎨 Create & music",id:"music",ic:"🎵",n:"Music Maker",max:4,run:playMusic,say:"Play the music bars, or copy the drum beat!"},
 ];
@@ -196,9 +212,9 @@ function renderHome(){setCoins();let html="",cur="";GAMES.forEach(g=>{if(g.sec!=
 function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));window.scrollTo(0,0)}
 let curG=null;
 /* ---------- mix-it-up rule (Bobby 2026-11-21): no grinding one type of game ---------- */
-const AREA={match:"mem",simon:"mem",odd:"mem",gonogo:"exec",switch:"exec",pattern:"logic",shapes:"logic",robot:"logic",draw:"create",music:"create"};
-const AREA_N={mem:"🧩 Memory & focus",exec:"🧠 Brain builders",logic:"🧮 Puzzles & logic",create:"🎨 Create & music"},AREA_S={mem:"memory games",exec:"brain builder games",logic:"puzzle games",create:"art and music"};
-const IQ=["mem","exec","logic"];
+const AREA={feel:"feel",match:"mem",simon:"mem",odd:"mem",gonogo:"exec",switch:"exec",pattern:"logic",shapes:"logic",robot:"logic",draw:"create",music:"create"};
+const AREA_N={feel:"💛 Feelings",mem:"🧩 Memory & focus",exec:"🧠 Brain builders",logic:"🧮 Puzzles & logic",create:"🎨 Create & music"},AREA_S={feel:"feelings games",mem:"memory games",exec:"brain builder games",logic:"puzzle games",create:"art and music"};
+const IQ=["mem","exec","logic","feel"];
 const MIXON=()=>S.mix!==0,MIXN=()=>S.mixN||3,CAP=4,PER=2;
 function mixT(){const d=today();if(!S.mixd||S.mixd.day!==d)S.mixd={day:d,log:[],n:{},gn:{},rest:{},iq:0,tix:1};return S.mixd}
 function lockOf(id){if(!MIXON())return null;const m=mixT(),a=AREA[id];
@@ -216,11 +232,16 @@ function lockMsg(id,L){const g=GAMES.find(x=>x.id===id),a=AREA[id],others=IQ.fil
   return {e:"💤",t:"Time to mix it up!",html:`<div class="wp">${AREA_N[a]} games are resting 💤</div><div>Your brain grows more when you mix it up!</div><div class="wa">Play ${L.need} game${L.need>1?"s":""} from ${others} to wake them up ✅</div>`,say:`The ${AREA_S[a]} are resting. Your brain grows more when you mix it up! Play ${L.need} game${L.need>1?"s":""} from the ${IQ.filter(x=>x!==a).map(x=>AREA_S[x]).join(" or ")} to wake them up.`}}
 function openGame(id){const L=lockOf(id);if(L){const M=lockMsg(id,L);token++;closeGate();show("home");renderHome();gate({emoji:M.e,title:M.t,html:M.html,say:M.say,btn:"Pick another game 👍"});return}
   if(AREA[id]==="create"&&MIXON())recordRound(id);
-  curG=GAMES.find(g=>g.id===id);curG.boost=MIXON()&&boostArea()===AREA[id];token++;show("game");$("gTitle").textContent=curG.ic+" "+curG.n;$("gLvl").textContent=id==="draw"?"":"Level "+lv(id);$("instr").textContent=curG.say;fb("");$("area").innerHTML="";speak(curG.say);setTimeout(()=>curG.run(token),400)}
+  curG=GAMES.find(g=>g.id===id);curG.boost=MIXON()&&boostArea()===AREA[id];token++;
+  {const s=S.st[id];chalId=(S.chal!==0&&AREA[id]!=="create"&&s&&(s.h3||0)>=2&&(S.lv[id]||1)<curG.max)?id:null;}show("game");$("gTitle").textContent=curG.ic+" "+curG.n;$("gLvl").textContent=id==="draw"?"":(chalId===id?"⚡ Challenge level ":"Level ")+lv(id);if(chalId===id){setTimeout(()=>speak("Challenge time! You are doing so well, so this one is a little harder. Give it your best try!"),2600)}$("instr").textContent=curG.say;fb("");$("area").innerHTML="";speak(curG.say);setTimeout(()=>curG.run(token),400)}
 function finish(id,score,metric,extra){const g=GAMES.find(x=>x.id===id),s=st(id);const stars=score>=.9?3:score>=.6?2:1;s.rounds++;s.stars+=stars;s.m.push(metric);if(s.m.length>20)s.m.shift();
-  const old=lv(id);let lvMsg="";if(stars===3&&old<g.max){S.lv[id]=old+1;lvMsg=`⬆️ Level ${old+1} next!`}else if(stars===1&&old>1){S.lv[id]=old-1;lvMsg="Let's practice an easier level."}
-  const rested=AREA[id]!=="create"?recordRound(id):null;const bonus=g.boost?5:0;g.boost=false;
-  if(bonus)extra=(extra?extra+"<br>":"")+"⭐ Brain boost bonus +5";if(rested)lvMsg+=(lvMsg?" ":"")+`💤 ${AREA_N[rested]} games rest now. Play 2 other kinds to wake them!`;
+  const old=S.lv[id]||1,isCh=chalId===id;chalId=null;let lvMsg="",chBonus=0;
+  if(isCh){S.st.chal=(S.st.chal||0)+1;s.chal=(s.chal||0)+1;if(stars>=2){const nl=Math.min(g.max,old+(stars===3?2:1));S.lv[id]=nl;chBonus=10;s.chalWon=(s.chalWon||0)+1;S.st.chalWon=(S.st.chalWon||0)+1;lvMsg=`⚡ Challenge beaten! Jump to level ${nl}!`}else lvMsg="⚡ That was a stretch. Your brain grew just by trying! We'll try again soon."}
+  else if(stars===3&&old<g.max){S.lv[id]=old+1;lvMsg=`⬆️ Level ${old+1} next!`}else if(stars===1&&old>1){S.lv[id]=old-1;lvMsg="Let's practice an easier level."}
+  s.h3=stars===3?(s.h3||0)+1:0;if(isCh)s.h3=0;
+  S.lvh=S.lvh||{};S.lvh[today()]={...S.lv};{const ks=Object.keys(S.lvh).sort();while(ks.length>60)delete S.lvh[ks.shift()]}
+  const rested=AREA[id]!=="create"?recordRound(id):null;const bonus=(g.boost?5:0)+chBonus;if(chBonus)extra=(extra?extra+"<br>":"")+"⚡ Challenge bonus +10";g.boost=false;
+  if(bonus-chBonus)extra=(extra?extra+"<br>":"")+"⭐ Brain boost bonus +5";if(rested)lvMsg+=(lvMsg?" ":"")+`💤 ${AREA_N[rested]} games rest now. Play 2 other kinds to wake them!`;
   const c=stars*5+bonus;S.coins+=c;const d=S.days[today()]||(S.days[today()]={rounds:0});d.rounds++;save();setCoins();
   try{if(window.parent!==window&&window.parent.fhAward)window.parent.fhAward("brain",`${id}:${Date.now()}`,stars,`Brain Park ${g.n} ${"⭐".repeat(stars)}`,`大脑乐园 ${g.n} ${"⭐".repeat(stars)}`)}catch(e){}
   $("mdE").textContent=stars===3?"🌟":stars===2?"🎉":"💪";$("mdT").textContent=stars===3?"Amazing!":stars===2?"Great job!":"Good try!";$("mdS").innerHTML=[0,1,2].map(i=>`<span class="${i<stars?"":"off"}">⭐</span>`).join("");
@@ -356,6 +377,57 @@ function playRobot(tk){const L=lv("robot"),M=robotLevel(L);let prog=[],tries=0,r
     else{if(ok){sfx.bad();const dx=M.g[0]-p[0],dy=M.g[1]-p[1],need=[dx?`${Math.abs(dx)} ${dx>0?"➡️":"⬅️"}`:"",dy?`${Math.abs(dy)} ${dy>0?"⬇️":"⬆️"}`:""].filter(Boolean).join(" and ");
         await gate({emoji:"🤖",title:"Almost there!",html:`<div class="wp">The robot stopped before the star ❌</div><div class="wa">It still needs ${need} ✅</div>`,say:`The robot stopped before the star. It still needs ${[dx?`${Math.abs(dx)} ${dx>0?"right":"left"}`:"",dy?`${Math.abs(dy)} ${dy>0?"down":"up"}`:""].filter(Boolean).join(" and ")}. Add those arrows to your plan.`,btn:"Fix my plan 🔧"});if(tk!==token)return}
       draw();drawProg();running=false}}}
+/* ---------- 11. Feelings Friends (EQ) ---------- */
+const FEELS={happy:"😀",sad:"😢",angry:"😠",scared:"😨",surprised:"😲",tired:"😴",worried:"😟",excited:"🤩",calm:"😌",shy:"😳",frustrated:"😤",proud:"😊",lonely:"🥺",disappointed:"😞"};
+const FSC=[ // [story, feeling, other choices, why]
+ ["Mia's ice cream fell on the ground.","sad",["happy","excited"],"Losing something you like can make you feel sad. That's okay."],
+ ["It's Leo's birthday party today!","excited",["sad","scared"],"Something fun is coming, so he feels excited."],
+ ["A big dog barks loudly at Ava.","scared",["proud","calm"],"Loud, big things can feel scary."],
+ ["Sam built a tall tower all by himself.","proud",["sad","angry"],"When we work hard and do something, we feel proud."],
+ ["Someone knocked over Noah's blocks on purpose.","angry",["happy","calm"],"When someone breaks our things on purpose, we can feel angry."],
+ ["Zoe opened a box and a toy jumped out!","surprised",["tired","sad"],"Something unexpected happened, so she's surprised."],
+ ["Ben is meeting a new class for the first time.","shy",["angry","excited"],"Meeting new people can make us feel shy."],
+ ["Lily tried to tie her shoes five times and it still didn't work.","frustrated",["happy","proud"],"Trying again and again without it working can feel frustrating. Keep going!"],
+ ["Max is playing alone and nobody wants to play with him.","lonely",["excited","proud"],"When we have nobody to play with, we can feel lonely."],
+ ["The trip to the zoo got cancelled because of rain.","disappointed",["happy","excited"],"When something we wanted doesn't happen, we feel disappointed."],
+ ["Eva stayed up very late and now it's morning.","tired",["excited","angry"],"Not enough sleep makes us tired."],
+ ["Ethan can't find his mom at the store.","worried",["happy","proud"],"When we don't know where someone is, we can feel worried."]];
+const FKIND=[ // [story, good choice, [bad choices], why]  (choices: [emoji, words])
+ ["Your friend fell down and is crying.",["🤗","Ask if they're OK"],[["😂","Laugh at them"],["🚶","Walk away"]],"Being kind helps someone feel better. Asking if they're OK shows you care."],
+ ["A new kid is sitting alone at lunch.",["👋","Say hi and sit with them"],[["🙈","Ignore them"],["😝","Make a face"]],"Including others makes them feel welcome."],
+ ["You and your brother both want the same toy.",["🔄","Take turns"],[["✊","Grab it"],["😭","Scream"]],"Taking turns is fair, and everyone gets to play."],
+ ["You bumped into someone and they dropped their books.",["🙏","Say sorry and help pick up"],[["🏃","Run away"],["🤷","Say it's not my fault"]],"Saying sorry and helping fixes the problem."],
+ ["Your friend is sad because their fish died.",["💛","Say I'm sorry, that's sad"],[["😄","Tell a joke about fish"],["🙄","Say who cares"]],"When someone is sad, we show we understand how they feel."],
+ ["Mom looks very tired after work.",["🧸","Help clean up your toys"],[["📢","Ask for more snacks loudly"],["🏀","Throw the ball inside"]],"Helping out is a kind way to show love."]];
+const FCALM=[
+ ["You feel really angry because your tower got knocked over.",["🌬️","Take 3 deep breaths"],[["👊","Hit something"],["😡","Yell at everyone"]],"Deep breaths calm your body so you can think clearly."],
+ ["You feel worried before a test.",["🗣️","Tell a grown-up how you feel"],[["🤐","Keep it all inside"],["🙅","Refuse to go"]],"Talking about worries makes them smaller."],
+ ["You lost a game and feel upset.",["🤝","Say good game and try again"],[["😤","Throw the pieces"],["🚫","Never play again"]],"Everyone loses sometimes. Trying again is how we get better."],
+ ["You feel frustrated because a puzzle is hard.",["⏸️","Take a break, then try again"],[["🗑️","Throw it away"],["😭","Cry and give up"]],"A short break helps your brain find new ideas."],
+ ["You feel scared of the dark at bedtime.",["🔦","Ask for a night light and hug your teddy"],[["😱","Scream all night"],["🚪","Run out of the house"]],"Small things like a light or a hug help us feel safe."]];
+function feelQ(L){const fl=L<=1?["happy","sad","angry","scared"]:Object.keys(FEELS).slice(0,L===2?8:14);
+  const type=L<=2?"face":L===3?pick(["face","story","story"]):L===4?pick(["story","kind","kind"]):pick(["story","kind","calm","calm"]);
+  if(type==="face"){const f=pick(fl),others=shuffle(fl.filter(x=>x!==f)).slice(0,L<=1?2:3);return {say:`Tap the ${f} face.`,text:`Tap the <b>${f}</b> face`,opts:shuffle([f,...others]).map(x=>({k:x,e:FEELS[x]})),ans:f,why:`This is the ${f} face ${FEELS[f]}. Look at the eyes and the mouth.`,ansE:FEELS[f]}}
+  if(type==="story"){const s=pick(FSC);return {say:`${s[0]} How might they feel?`,text:`${s[0]}<br><b>How might they feel?</b>`,opts:shuffle([s[1],...s[2]]).map(x=>({k:x,e:FEELS[x],w:x})),ans:s[1],why:s[3],ansE:FEELS[s[1]]+" "+s[1]}}
+  const s=pick(type==="kind"?FKIND:FCALM),all=shuffle([s[1],...s[2]]);
+  return {say:`${s[0]} What is a good thing to do? ${all.map(o=>o[1]).join(", or ")}?`,text:`${s[0]}<br><b>What is a good thing to do?</b>`,opts:all.map(o=>({k:o[1],e:o[0],w:o[1]})),ans:s[1][1],why:s[3],ansE:s[1][0]+" "+s[1][1],kind:type}}
+async function breathe(tk){$("instr").textContent="🎈 Calm balloon: breathe with the balloon";$("area").innerHTML=`<div style="height:300px;display:flex;align-items:center;justify-content:center"><div id="bal" style="font-size:90px;transition:transform 4s ease-in-out;transform:scale(.8)">🎈</div></div><div class="fb" id="btx"></div>`;
+  speak("Let's breathe with the calm balloon.");await delay(2200);
+  for(let i=0;i<3&&tk===token;i++){$("btx").textContent=`Breathe in… 👃 (${i+1}/3)`;$("bal").style.transform="scale(1.9)";speak("Breathe in");await delay(4000);if(tk!==token)return;$("btx").textContent="Breathe out… 🌬️";$("bal").style.transform="scale(.8)";speak("And breathe out");await delay(4200)}
+  if(tk===token){$("btx").textContent="You feel calm and ready 😌";await delay(900)}}
+async function playFeel(tk){const L=lv("feel"),N=5;let right=0,kindR=0,kindN=0;const missed=[];
+  const ask=async(q,label,scored)=>{$("instr").innerHTML=label;
+    $("area").innerHTML=`<div style="text-align:center;font-size:22px;margin:4px 0 14px">${q.text}</div><div class="choices">${q.opts.map((o,i)=>`<button class="ch" data-i="${i}" style="${o.w?"width:auto;min-width:96px;height:auto;padding:10px 12px;font-size:18px;display:flex;flex-direction:column;align-items:center;gap:2px":"font-size:52px;width:100px;height:100px"}"><span style="font-size:${o.w?"40px":"52px"}">${o.e}</span>${o.w?`<span>${o.w}</span>`:""}</button>`).join("")}</div>`;
+    speak(q.say);let first=true,busy=false;
+    await new Promise(res=>document.querySelectorAll(".ch").forEach(b=>b.onclick=async()=>{if(tk!==token||busy)return;const o=q.opts[+b.dataset.i];
+      if(o.k===q.ans){b.classList.add("good");sfx.good();if(first&&scored){right++;if(q.kind){kindN++;kindR++}}fb(first?pick(["Yes! You understand feelings!","That's right!","Kind thinking!"]):"Now you've got it! 💛","good");speak(q.why);setTimeout(res,Math.min(5000,Math.max(1600,estRead(q.why)*.8)))}
+      else{busy=true;b.classList.add("bad");sfx.bad();if(first&&scored){missed.push(q);if(q.kind)kindN++}first=false;
+        await gate({emoji:"💛",title:"Let's think about it",html:`<div class="wp">You picked <span class="big">${o.e}</span> ${o.w||o.k} ❌</div><div class="wa">A better answer: <span class="big">${q.ansE.split(" ")[0]}</span> ${q.ansE.split(" ").slice(1).join(" ")||q.ans} ✅</div><div>${q.why}</div>`,say:`You picked ${o.w||o.k}. A better answer is ${q.ans}. ${q.why}`,btn:"Try again 💪"});
+        if(tk!==token)return;busy=false;fb("")}}))};
+  for(let i=0;i<N&&tk===token;i++){fb("");await ask(feelQ(L),`Feelings ${i+1}/${N}`,true)}
+  for(const q of missed){if(tk!==token)return;fb("");await ask({...q,opts:shuffle(q.opts)},`<span class="tag">🔁 Again</span>`,false)}
+  if(tk!==token)return;fb("");await breathe(tk);
+  if(tk===token)finish("feel",right/N,right/N,[kindN?`Kind & calm choices: ${kindR}/${kindN}`:"",missed.length?`practiced ${missed.length} again`:""].filter(Boolean).join(" · "))}
 /* ---------- 9. Color Pad ---------- */
 const PCOL=["#2b2d42","#ef233c","#ff9f1c","#ffd166","#38b000","#4361ee","#9d4edd","#f15bb5","#8d5524","#ffffff"];
 const PROMPTS=["a rocket","your family","a happy sun","a monster friend","your favorite food","a big tree","a fish in the sea","a rainbow","your house","a robot"];
@@ -402,12 +474,12 @@ function measure(id){const m=(S.st[id]||{}).m||[];if(!m.length)return "–";cons
   if(id==="odd")return `find time ${(avg(last.filter(x=>x))/1000||0).toFixed(1)} s`;
   if(id==="gonogo"){const im=avg(last.map(x=>x.impulse||0)),rt=avg(last.map(x=>x.rt||0));return `impulse taps ${im.toFixed(1)}/round · reaction ${Math.round(rt)} ms`}
   if(id==="switch"){const sw=last.map(x=>x.sw).filter(x=>x!=null);return `accuracy ${Math.round(avg(last.map(x=>x.acc))*100)}%${sw.length?` · after switch ${Math.round(avg(sw)*100)}%`:""}`}
-  if(id==="pattern")return `accuracy ${Math.round(avg(last)*100)}%`;if(id==="shapes")return `${avg(last).toFixed(1)} wrong drops`;if(id==="robot")return `${avg(last).toFixed(1)} tries per puzzle`;
+  if(id==="pattern"||id==="feel")return `accuracy ${Math.round(avg(last)*100)}%`;if(id==="shapes")return `${avg(last).toFixed(1)} wrong drops`;if(id==="robot")return `${avg(last).toFixed(1)} tries per puzzle`;
   if(id==="draw")return `${m.length} drawings`;if(id==="music"){const b=last.filter(x=>x.beat!=null);return b.length?`beat copying ${Math.round(avg(b.map(x=>x.beat))*100)}%`:"songs played"}return "–"}
-function renderParents(){$("pTable").innerHTML=GAMES.map(g=>{const s=S.st[g.id];return `<tr><td>${g.ic} ${g.n}</td><td>${g.id==="draw"?"–":lv(g.id)+"/"+g.max}</td><td>${s?s.rounds:0}</td><td>${s&&s.rounds?(s.stars/s.rounds).toFixed(1):"–"}</td><td>${measure(g.id)}</td></tr>`}).join("");$("sVoice").value=S.voice;$("sMix").value=MIXON()?String(MIXN()):"0";$("pMsg").textContent=""}
+function renderParents(){$("pTable").innerHTML=GAMES.map(g=>{const s=S.st[g.id];return `<tr><td>${g.ic} ${g.n}</td><td>${g.id==="draw"?"–":lv(g.id)+"/"+g.max}</td><td>${s?s.rounds:0}</td><td>${s&&s.rounds?(s.stars/s.rounds).toFixed(1):"–"}</td><td>${measure(g.id)}</td></tr>`}).join("");$("sVoice").value=S.voice;$("sVoiceEn").innerHTML=voiceOptions("en",S.voiceEn);$("sMix").value=MIXON()?String(MIXN()):"0";$("sChal").value=S.chal===0?"0":"1";$("pMsg").textContent=""}
 $("toParents").onclick=()=>{renderParents();show("parents")};$("pBack").onclick=()=>{show("home");renderHome()};
-$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};
-$("sMix").onchange=e=>{const v=+e.target.value;if(v){S.mix=1;S.mixN=v}else S.mix=0;save()};$("sMixReset").onclick=()=>{const m=mixT();m.rest={};m.gn={};m.tix=Math.max(m.tix||0,3);m.log.push("|");save();$("pMsg").textContent="Unlocked for today."};
+$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};$("sVoiceEn").onchange=e=>{S.voiceEn=e.target.value;save()};$("tVoiceEn").onclick=()=>{const v=S.voice;S.voice=1;speak("Hi Jonah! Welcome to Brain Park. Let's play and grow your brain!");S.voice=v};
+$("sChal").onchange=e=>{S.chal=+e.target.value;save()};$("sMix").onchange=e=>{const v=+e.target.value;if(v){S.mix=1;S.mixN=v}else S.mix=0;save()};$("sMixReset").onclick=()=>{const m=mixT();m.rest={};m.gn={};m.tix=Math.max(m.tix||0,3);m.log.push("|");save();$("pMsg").textContent="Unlocked for today."};
 $("pCopy").onclick=async()=>{const t=[`${NAME} — Brain Park (${today()})`,`Coins: ${S.coins}`,...GAMES.map(g=>{const s=S.st[g.id];return `${g.n}: level ${g.id==="draw"?"-":lv(g.id)}, ${s?s.rounds:0} rounds, ${measure(g.id)}`})].join("\n");try{await navigator.clipboard.writeText(t);$("pMsg").textContent="Copied."}catch(e){$("pMsg").textContent=t}};
 if(!IS_PARENT)$("toParents").style.display="none";
 renderHome();save();
