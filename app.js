@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261121c";
-import * as Pix from "./pixel.js?v=20261121c";
+import { STR } from "./i18n.js?v=20261121d";
+import * as Pix from "./pixel.js?v=20261121d";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -880,8 +880,8 @@ function goalProgress(m) {
 /* ---- Space Quest (Jonah's math + words game): parent summary from app_saves ---- */
 const SQ_W = ["", "Find the picture", "First sounds", "Rhyming words", "Read the word", "Missing letter", "Sight words", "Opposites", "Word meanings"];
 const SQ_G = { g1: { en: "Grade 1", zh: "一年级", n: 15 }, g2: { en: "Grade 2", zh: "二年级", n: 14 }, g3: { en: "Grade 3", zh: "三年级", n: 20 }, words: { en: "Words", zh: "单词", n: 8 } };
-const SQ_L = { en: { t: "🚀 Space Quest progress", none: "No missions flown yet. He opens it from the 🚀 Space Quest card on his page.", stars: "mission stars", coins: "coins", wk: "Last 7 days", days: "days played", min: "min", q: "questions", ft: "first-try", skill: "Topic", acc: "First-try correct", n: "Questions", planet: "Planet", locked: "locked", note: "Grade 1–3 math (all areas: operations, place value, fractions, time, money, measurement incl. metric, graphs, geometry) + words. Each planet = 2 missions + a boss; the boss unlocks the next planet, the last planet unlocks the next grade. 20 minutes of play, then a 5-minute break he can't skip (countdown + movement ideas); trophies unlock special rockets, skins and lasers." },
-  zh: { t: "🚀 太空探险进度", none: "还没玩过。他可以从自己页面上的 🚀 太空探险卡片打开。", stars: "颗任务星", coins: "金币", wk: "最近7天", days: "天玩过", min: "分钟", q: "题", ft: "一次答对", skill: "主题", acc: "一次答对率", n: "题数", planet: "星球", locked: "未解锁", note: "一至三年级数学（运算、位值、分数、时间、钱币、测量含公制、图表、几何）+ 单词。每个星球2个任务+1个大怪兽；打败大怪兽解锁下一个星球，最后一个星球解锁下一个年级。每玩20分钟强制休息5分钟（倒计时+活动建议）；奖杯可解锁特别火箭、皮肤和激光。" } };
+const SQ_L = { en: { t: "🚀 Space Quest progress", none: "No missions flown yet. He opens it from the 🚀 Space Quest card on his page.", stars: "mission stars", coins: "coins", wk: "Last 7 days", days: "days played", min: "min", q: "questions", ft: "first-try", skill: "Topic", acc: "First-try correct", n: "Questions", planet: "Planet", locked: "locked", note: "Grade 1–3 math (all areas: operations, place value, fractions, time, money, measurement incl. metric, graphs, geometry) + words. Each planet = 2 missions + a boss; the boss unlocks the next planet, the last planet unlocks the next grade. 20 minutes of play, then a 5-minute break he can't skip (countdown + movement ideas); trophies unlock special rockets, skins and lasers. Mission types: Asteroid Blast, Star Race, Alien Rescue, Comet Catch, Crystal Cave, Boss. Perfect (3-star) missions open a treasure chest (coins or rare items). A mistake costs 2 coins and a shield, shows a hint, then a worked explanation; each missed topic gets a retry question and a review at the end." },
+  zh: { t: "🚀 太空探险进度", none: "还没玩过。他可以从自己页面上的 🚀 太空探险卡片打开。", stars: "颗任务星", coins: "金币", wk: "最近7天", days: "天玩过", min: "分钟", q: "题", ft: "一次答对", skill: "主题", acc: "一次答对率", n: "题数", planet: "星球", locked: "未解锁", note: "一至三年级数学（运算、位值、分数、时间、钱币、测量含公制、图表、几何）+ 单词。每个星球2个任务+1个大怪兽；打败大怪兽解锁下一个星球，最后一个星球解锁下一个年级。每玩20分钟强制休息5分钟（倒计时+活动建议）；奖杯可解锁特别火箭、皮肤和激光。任务类型：打陨石、星际赛跑、救外星人、接彗星、水晶洞、大怪兽。满分任务开宝箱；答错扣2金币和1个护盾，先给提示再讲解，错题会重做并在结束时复习。" } };
 function spaceStatsHtml(kid) {
   const L = SQ_L[lang] || SQ_L.en, save = (S.app_saves || []).find(a => a.kid === kid && a.app === "space"), P = save && save.data ? save.data[`${kid}_space_state`] : null;
   if (!P) return `<div class="coach"><h4>${L.t}</h4><div class="meta">${L.none}</div></div>`;
@@ -893,6 +893,7 @@ function spaceStatsHtml(kid) {
   return `<div class="coach"><h4>${L.t}</h4>
     <div class="meta">⭐ ${P.stars || 0} ${L.stars} · 🪙 ${P.coins || 0} ${L.coins} · 🏆 ${Object.keys(P.ach || {}).length}/18 · ${L.wk}: ${Math.round(sec / 60)} ${L.min}, ${dp}/7 ${L.days}, ${wq} ${L.q}, ${pct(wq, wc)} ${L.ft}</div>
     <div class="meta">${gal}</div>
+    <div class="meta">❌ ${(P.st || {}).mistakes || 0} ${lang === "zh" ? "次错误" : "mistakes"} · 🧠 ${(P.st || {}).learned || 0} ${lang === "zh" ? "次重做答对" : "fixed on the retry"} · 🌟 ${(P.st || {}).perfect || 0} ${lang === "zh" ? "次满分任务" : "perfect missions"}</div>
     ${rows.length ? `<table style="margin-top:6px"><tr><th>${L.skill}</th><th>${L.acc}</th><th>${L.n}</th></tr>${rows.join("")}</table>` : ""}
     <div class="meta" style="margin-top:6px">${L.note}</div></div>`;
 }
