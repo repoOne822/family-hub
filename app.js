@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261121e9x";
-import * as Pix from "./pixel.js?v=20261121e9x";
+import { STR } from "./i18n.js?v=20261121h3";
+import * as Pix from "./pixel.js?v=20261121h3";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -961,10 +961,17 @@ function brainStatsHtml(kid) {
   const lvh = P.lvh || {}, past = Object.keys(lvh).sort().filter(d => d <= new Date(Date.now() - 7 * 864e5).toLocaleDateString("en-CA")).pop() || Object.keys(lvh).sort()[0], L0 = past ? lvh[past] : null;
   const dl = id => { if (!L0) return ""; const d = ((P.lv || {})[id] || 1) - (L0[id] || 1); return d > 0 ? ` <b style="color:#2d6a4f">▲${d}</b>` : d < 0 ? ` <span style="color:#c9184a">▼${-d}</span>` : ""; };
   const gained = L0 ? BP_G.reduce((s, [id]) => s + Math.max(0, ((P.lv || {})[id] || 1) - (L0[id] || 1)), 0) : 0, stt = P.st || {};
+  const CKN = [["reason", "🧩", "Reasoning", "推理"], ["memory", "🧠", "Memory", "记忆"], ["speed", "⚡", "Speed", "速度"], ["verbal", "🗣️", "Words", "词语"], ["number", "🔢", "Numbers", "数感"], ["feel", "😊", "Feelings", "认识情绪"], ["persp", "👀", "Others' view", "理解他人"], ["calm", "🧘", "Good choices", "自控选择"]];
+  const cks = (P.checks || []).slice(-8), ck = cks[cks.length - 1], ckp = cks[cks.length - 2];
+  const ckd = (a, b) => b == null ? "" : a > b ? ` <b style="color:#2d6a4f">▲${a - b}</b>` : a < b ? ` <span style="color:#c9184a">▼${b - a}</span>` : "";
+  const ckHtml = ck ? `<div class="meta" style="margin-top:6px"><b>🧪 ${zh ? "大脑小测" : "Brain Check"} ${ck.d}</b> · ${zh ? "思维" : "Thinking"} <b>${ck.iq}</b>${ckd(ck.iq, ckp && ckp.iq)} · ${zh ? "情商" : "Heart (EQ)"} <b>${ck.eq}</b>${ckd(ck.eq, ckp && ckp.eq)} · ${zh ? "趋势" : "trend"}: ${cks.map(c => c.iq + "/" + c.eq).join(" → ")}</div>
+    <div class="meta">${CKN.map(([k, ic, en, z]) => `${ic} ${zh ? z : en} ${ck.s[k] ?? "–"}${ckd(ck.s[k], ckp && ckp.s[k])}`).join(" · ")} · ${zh ? "数字广度" : "digit span"} ${ck.raw.fwd || 0}/${ck.raw.bwd || 0}</div>
+    <div class="meta" style="opacity:.8">${zh ? "分数=每项答对的百分比，看趋势，不是临床智商。" : "Scores = % of each subtest. Watch the trend; this is not a clinical IQ score."}</div>` : `<div class="meta">🧪 ${zh ? "还没做过大脑小测（每3天一次，打开大脑乐园时提示）。" : "No Brain Check yet (every 3 days, prompted when he opens Brain Park)."}</div>`;
   const rows = BP_G.map(([id, ic, en, z, max]) => { const s = (P.st || {})[id]; return `<tr><td>${ic} ${zh ? z : en}</td><td>${max ? `${(P.lv || {})[id] || 1}/${max}${dl(id)}` : "–"}</td><td>${s ? s.rounds : 0}</td><td>${s && s.rounds ? (s.stars / s.rounds).toFixed(1) : "–"}</td><td>${s ? brainMeasure(id, s.m) : "–"}</td></tr>`; }).join("");
   return `<div class="coach"><h4>${h}</h4>
     <div class="meta">🪙 ${P.coins || 0} ${zh ? "金币" : "coins"} · ${zh ? "最近7天" : "Last 7 days"}: ${r7} ${zh ? "局" : "rounds"}, ${d7}/7 ${zh ? "天" : "days"}</div>
     <div class="meta">📈 ${zh ? `过去7天升了 ${gained} 级` : `${gained} level${gained === 1 ? "" : "s"} gained in the last 7 days`} · ⚡ ${zh ? `挑战关 ${stt.chalWon || 0}/${stt.chal || 0} 过关` : `challenge rounds beaten ${stt.chalWon || 0}/${stt.chal || 0}`}</div>
+    ${ckHtml}
     <table style="margin-top:6px"><tr><th>${zh ? "游戏" : "Game"}</th><th>${zh ? "级别（▲7天变化）" : "Level (▲ = 7-day change)"}</th><th>${zh ? "局数" : "Rounds"}</th><th>${zh ? "平均星" : "Avg ⭐"}</th><th>${zh ? "大脑指标（看趋势）" : "Brain measure (watch the trend)"}</th></tr>${rows}</table>
     <div class="meta" style="margin-top:6px">${zh ? "11个小游戏：💛情绪小伙伴（情商：认识情绪、理解别人的感受、友善和冷静的选择、气球呼吸）、记忆与专注（配对翻牌、跟着灯光、找不同）、大脑练习（红灯绿灯=冲动控制、规则切换=灵活思维）、拼图与逻辑（规律火车、形状拼图、机器人编程）、创作与音乐（画画板、音乐小屋）。每个游戏自动调难度：3星升一级，1星降一级。轮换规则：同一类（记忆、大脑练习、拼图）连续3局后休息，先玩2局其他类才解锁；每个游戏每天最多4局；画画和音乐要用🎟️票，每玩2局大脑游戏得1张；当天玩得最少的一类+5金币。语音读题，每天最多40积分。" : "11 mini-games: 💛 Feelings Friends (EQ: name feelings, how others feel, kind and calm-down choices, balloon breathing), Memory & focus (Pair Match, Copy the Lights, Odd One Out), Brain builders (Stop & Go = impulse control, Rule Switch = flexible thinking), Puzzles & logic (Pattern Train, Shape Puzzle, Robot Coder), Create & music (Color Pad, Music Maker). Each game adapts on its own: 3 stars moves up a level, 1 star moves down. Instructions are read aloud. Mix-it-up rule: each kind (memory, brain builders, puzzles) rests after 3 rounds in a row until he plays 2 rounds of other kinds; each game max 4 rounds a day; art & music cost a 🎟️ ticket earned every 2 brain games; the least-played kind gives +5 coins. Up to 40 hub points a day; the 20/5 break coach applies."}</div></div>`;
 }
@@ -1173,7 +1180,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121e9x${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121h3${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);

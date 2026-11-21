@@ -133,11 +133,14 @@ table{width:100%;border-collapse:collapse;font-size:15px}td,th{text-align:left;p
     <div class="top"><button class="btn round" id="pBack">⬅️</button><h1 style="font-size:24px">Parent corner</h1></div>
     <div class="card">
       <p class="note">Each game adapts: 3 stars moves up a level, 1 star moves down. Brain measures below are trends for you, not test scores.</p>
+      <h3 style="margin:6px 0">🧪 Brain Check history</h3><div id="ckHist" class="note"></div>
+      <p class="note">Brain Check every <select id="sCkE"><option value="1">day</option><option value="3">3 days</option><option value="7">week</option><option value="0">off</option></select> · games wait until it's done <select id="sCkF"><option value="1">yes</option><option value="0">no</option></select> <button class="btn" id="ckNow" style="font-size:14px;padding:4px 10px">Start one now</button><br>8 subtests at Grade 1–2 level: Reasoning (pattern grids), Memory (numbers forwards &amp; backwards), Speed (30 s symbol search), Word smarts (analogies, odd one out), Number sense (series, mental math); EQ: Reading feelings, Understanding others (false-belief and intention stories), Good choices (self-control). Scores are % of each subtest — progress trends, not a clinical IQ.</p>
       <table><thead><tr><th>Game</th><th>Level</th><th>Rounds</th><th>Avg stars</th><th>Brain measure</th></tr></thead><tbody id="pTable"></tbody></table>
       <p class="note" style="margin-top:10px">⚡ Challenge levels: <select id="sChal"><option value="1">On</option><option value="0">Off</option></select> After 2 rounds in a row with 3 stars, the next round of that game is played one level higher. Beat it (2+ stars) and he jumps ahead (3 stars = 2 levels) with +10 coins; if not, his level stays put — no step down.</p>
       <p class="note" style="margin-top:10px">Mix it up: <select id="sMix"><option value="3">On: rest after 3 rounds in a row of one kind</option><option value="4">On: after 4 in a row</option><option value="0">Off</option></select> <button class="btn" id="sMixReset" style="font-size:14px;padding:4px 10px">Unlock all for today</button><br>Each kind of brain game (memory, brain builders, puzzles) rests after N rounds in a row until he plays 2 rounds of other kinds. Each game max 4 rounds a day. Art & music cost a 🎟️ ticket, earned every 2 brain games (1 free each day). The kind he has played least today glows ⭐ for +5 coins.</p>
       <p class="note" style="margin-top:10px">Read instructions aloud: <select id="sVoice"><option value="1">On</option><option value="0">Off</option></select></p>
-      <p class="note">Voice: <select id="sVoiceEn" style="max-width:260px"></select> <button class="btn" id="tVoiceEn" style="font-size:14px;padding:4px 10px">▶ Test</button><br>For the most human-sounding voice on an iPad: Settings → Accessibility → Spoken Content → Voices → English → download a voice marked "Premium" or "Enhanced" (e.g. Ava or Zoe). It is picked automatically.</p>
+      <p class="note">Voice style: <select id="sAiV"><option value="1">Natural AI voice (recommended)</option><option value="0">Device voice</option></select> <select id="sAiName"></select> <button class="btn" id="tAi" style="font-size:14px;padding:4px 10px">▶ Test</button><br><span id="aiSt"></span><br>The natural voice is a real neural voice that runs on this device (no account needed). It downloads about 90 MB the first time, then works from the cache.</p>
+      <p class="note">Device voice: <select id="sVoiceEn" style="max-width:260px"></select> <button class="btn" id="tVoiceEn" style="font-size:14px;padding:4px 10px">▶ Test</button><br>For the most human-sounding voice on an iPad: Settings → Accessibility → Spoken Content → Voices → English → download a voice marked "Premium" or "Enhanced" (e.g. Ava or Zoe). It is picked automatically.</p>
       <button class="btn" id="pCopy" style="font-size:16px">Copy summary</button> <span class="note" id="pMsg"></span>
     </div>
   </section>
@@ -158,7 +161,7 @@ const setCoins=()=>document.querySelectorAll(".cc").forEach(e=>e.textContent=S.c
 let ac;function A(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume()}catch(e){}return ac}
 function tone(f,d,t=0,type="sine",v=.15){const a=A();if(!a)return;try{const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,a.currentTime+t);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+t+d);o.connect(g);g.connect(a.destination);o.start(a.currentTime+t);o.stop(a.currentTime+t+d+.02)}catch(e){}}
 const sfx={good:()=>{tone(660,.12);tone(880,.18,.1)},bad:()=>tone(200,.22,0,"triangle"),win:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.2,i*.12,"triangle",.12)),tap:()=>tone(520,.06,0,"sine",.08)};
-function speak(t){if(!+S.voice||!t)return;try{speechSynthesis.cancel();speechSynthesis.speak(mkUtter(t))}catch(e){}}
+function webSpeak(t){try{speechSynthesis.cancel();speechSynthesis.speak(mkUtter(t))}catch(e){}}
 /* ---------- voice: pick the most human-sounding voice the device has ---------- */
 let VOICES=[];function loadVoices(){try{VOICES=speechSynthesis.getVoices()||[]}catch(e){}}loadVoices();try{speechSynthesis.addEventListener("voiceschanged",loadVoices)}catch(e){}
 const BADV=/compact|eloquence|albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|\bfred\b|junior|ralph|kathy|grandma|grandpa|rocko|shelley|\bflo\b|eddy|reed|sandy|novelty/i;
@@ -172,7 +175,16 @@ function mkUtter(t){const zhT=/[一-鿿]/.test(t),L=zhT?"zh":"en",u=new SpeechSy
   const nat=v&&/premium|enhanced|natural|neural|siri|google/i.test(v.name);u.rate=zhT?.85:(nat?.95:.9);u.pitch=1.0;return u}
 function voiceOptions(L,cur){const vs=voiceList(L).slice().sort((a,b)=>voiceScore(b,L)-voiceScore(a,L));return `<option value="">Auto (best on this device${vs[0]?": "+vs[0].name:""})</option>`+vs.filter(v=>!BADV.test(v.name)).map(v=>`<option value="${v.name.replace(/"/g,"&quot;")}" ${v.name===cur?"selected":""}>${v.name} (${v.lang})</option>`).join("")}
 function estRead(t){return Math.max(2000,String(t).trim().split(/\s+/).length*300)}
-function speakDone(t){return new Promise(res=>{let done=false;const fin=()=>{if(!done){done=true;res()}};const est=estRead(t);
+
+/* ---------- natural AI voice (hub only): shared/hubvoice.js; falls back to the device voice ---------- */
+let HV=null;const PREFETCH=()=>["1","2","3","4","5","6","7","8","9",...GAMES.map(g=>g.say),"Amazing!","Great job!","Good try! Practice makes your brain stronger.","Now you've got it!","Choo choo! Right!","You spotted it!","Yes!","Tap the different one"];
+if(window.top!==window||/family-hub/.test(location.pathname)){import("../shared/hubvoice.js").then(m=>{HV=m;m.init({getS:()=>S});setTimeout(()=>{try{m.prefetch(PREFETCH())}catch(e){}},1500)}).catch(()=>{})}
+function stopSpeech(){try{speechSynthesis.cancel()}catch(e){}if(HV)HV.stop()}
+function speak(t){if(!+S.voice||!t)return;if(HV&&HV.canSpeak(t)){try{speechSynthesis.cancel()}catch(e){}HV.speakDone(t).catch(e=>{if(String(e&&e.message)==="timeout"){HV.stop();webSpeak(t)}});return}if(HV)HV.stop();webSpeak(t)}
+function speakDone(t){if(+S.voice&&HV&&HV.canSpeak(t)){try{speechSynthesis.cancel()}catch(e){}return HV.speakDone(t).catch(()=>{HV.stop();return webSpeakDone(t)})}if(HV)HV.stop();return webSpeakDone(t)}
+function aiVoiceStatus(){if(!HV)return "Natural voice: only available inside the Family Hub (this preview uses the device voice).";const s=HV.status();
+  return s.st==="ready"?`Natural voice ready ✅${s.slow?" — this device is slow at making it, so some lines may use the device voice":""}`:s.st==="loading"?`Natural voice downloading… ${s.pct||0}% (about 90 MB, only the first time)`:s.st==="fail"?`Natural voice couldn't load (${s.err}). Using the device voice.`:"Natural voice is off."}
+function webSpeakDone(t){return new Promise(res=>{let done=false;const fin=()=>{if(!done){done=true;res()}};const est=estRead(t);
   if(!+S.voice||!window.speechSynthesis){setTimeout(fin,est);return}
   try{speechSynthesis.cancel();const u=mkUtter(t);u.onend=()=>setTimeout(fin,400);u.onerror=()=>setTimeout(fin,est);speechSynthesis.speak(u)}catch(e){setTimeout(fin,est)}
   setTimeout(fin,est*2.2+3000)})}
@@ -183,7 +195,7 @@ function gate(o){return new Promise(res=>{const tok=++gateTok;$("wEmoji").textCo
   const run=()=>{const ms=estRead(o.say);bar.style.transition="none";bar.style.width="0";void bar.offsetWidth;bar.style.transition=`width ${ms/1000}s linear`;bar.style.width="100%";return Promise.all([speakDone(o.say),delay(Math.min(ms,4000))])};
   run().then(()=>{if(gateTok!==tok)return;b.disabled=false;b.textContent=o.btn||"I got it 👍";b.classList.add("ready")});
   $("wAgain").onclick=()=>run();
-  b.onclick=()=>{if(b.disabled||gateTok!==tok)return;gateTok++;$("mWhy").classList.remove("on");try{speechSynthesis.cancel()}catch(e){}res(true)}})}
+  b.onclick=()=>{if(b.disabled||gateTok!==tok)return;gateTok++;$("mWhy").classList.remove("on");stopSpeech();res(true)}})}
 function closeGate(){gateTok++;$("mWhy").classList.remove("on")}
 const st=id=>S.st[id]||(S.st[id]={rounds:0,stars:0,m:[]});
 let chalId=null;const GMAX=id=>(GAMES.find(g=>g.id===id)||{max:1}).max;
@@ -208,7 +220,7 @@ const GAMES=[
 ];
 function renderHome(){setCoins();let html="",cur="";GAMES.forEach(g=>{if(g.sec!==cur){if(cur)html+="</div>";cur=g.sec;html+=`<div class="sec">${g.sec}</div><div class="tiles">`}
   const s=S.st[g.id],L=lockOf(g.id),bs=MIXON()&&!L&&boostArea()===AREA[g.id];html+=`<button class="tile ${L?"lk":""} ${bs?"bst":""}" data-g="${g.id}">${L?`<span class="lkb">${L.k==="cap"?"🌙 tomorrow":L.k==="tix"?`🎟️ ${L.need} more`:`💤 ${L.need} other`}</span>`:bs?`<span class="lkb b">⭐ boost</span>`:""}<span class="ic">${g.ic}</span><b>${g.n}</b><small>${g.id==="draw"?"Free play":`Level ${lv(g.id)}`}${s&&s.rounds?` · ${"⭐".repeat(Math.round(s.stars/s.rounds))}`:""}</small></button>`});
-  const m=mixT();$("tiles").innerHTML=(MIXON()?`<div class="mixbar">${IQ.map(a=>`<span class="mx ${m.rest[a]>0?"rest":""}">${AREA_N[a].split(" ")[0]} ${m.n[a]||0}${m.rest[a]>0?" 💤":""}</span>`).join("")}<span class="mx">🎟️ ${m.tix||0}</span></div>`:"")+html+"</div>";document.querySelectorAll(".tile").forEach(b=>b.onclick=()=>{A();openGame(b.dataset.g)})}
+  const m=mixT(),lc=ckLast();$("tiles").innerHTML=(S.chkEvery===0?"":ckDue()?`<button class="tile" id="ckGo" style="width:100%;display:flex;align-items:center;gap:14px;justify-content:center;background:linear-gradient(135deg,#fff3c4,#ffd6e8);margin:6px 0 4px"><span class="ic">🧪</span><span style="text-align:left"><b style="font-size:22px">Brain Check time!</b><small style="display:block">8 quick brain games · about 8 minutes · +30 coins</small></span></button>`:`<div class="note" style="text-align:center">🧪 Last Brain Check ${lc?lc.d:"–"} · next in ${ckIn()} day${ckIn()===1?"":"s"}</div>`)+(MIXON()?`<div class="mixbar">${IQ.map(a=>`<span class="mx ${m.rest[a]>0?"rest":""}">${AREA_N[a].split(" ")[0]} ${m.n[a]||0}${m.rest[a]>0?" 💤":""}</span>`).join("")}<span class="mx">🎟️ ${m.tix||0}</span></div>`:"")+html+"</div>";document.querySelectorAll(".tile[data-g]").forEach(b=>b.onclick=()=>{A();openGame(b.dataset.g)});const cg=document.getElementById("ckGo");if(cg)cg.onclick=()=>{A();openCheck()}}
 function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));window.scrollTo(0,0)}
 let curG=null;
 /* ---------- mix-it-up rule (Bobby 2026-11-21): no grinding one type of game ---------- */
@@ -230,7 +242,8 @@ function lockMsg(id,L){const g=GAMES.find(x=>x.id===id),a=AREA[id],others=IQ.fil
   if(L.k==="cap")return {e:"🌙",t:`${g.n} is done for today`,html:`<div class="wp">You played ${g.n} ${CAP} times today 🌟</div><div class="wa">Try a different game. ${g.n} wakes up tomorrow!</div>`,say:`You played ${g.n} ${CAP} times today. Great work! Try a different game. It wakes up tomorrow.`};
   if(L.k==="tix")return {e:"🎟️",t:"Earn an art & music ticket",html:`<div>Art and music are your reward!</div><div class="wa">Play ${L.need} more brain game${L.need>1?"s":""} to earn a 🎟️ ticket</div>`,say:`Art and music are your reward! Play ${L.need} more brain game${L.need>1?"s":""} to earn a ticket.`};
   return {e:"💤",t:"Time to mix it up!",html:`<div class="wp">${AREA_N[a]} games are resting 💤</div><div>Your brain grows more when you mix it up!</div><div class="wa">Play ${L.need} game${L.need>1?"s":""} from ${others} to wake them up ✅</div>`,say:`The ${AREA_S[a]} are resting. Your brain grows more when you mix it up! Play ${L.need} game${L.need>1?"s":""} from the ${IQ.filter(x=>x!==a).map(x=>AREA_S[x]).join(" or ")} to wake them up.`}}
-function openGame(id){const L=lockOf(id);if(L){const M=lockMsg(id,L);token++;closeGate();show("home");renderHome();gate({emoji:M.e,title:M.t,html:M.html,say:M.say,btn:"Pick another game 👍"});return}
+function openGame(id){if(ckDue()&&S.chkForce!==0){token++;closeGate();show("home");renderHome();gate({emoji:"🧪",title:"Brain Check time!",html:`<div>8 quick brain games (about 8 minutes) to see how your brain is growing.</div><div class="wa">Then all the games open ✅</div>`,say:"Brain Check time! Eight quick brain games, then all the games open.",btn:"Start Brain Check 🧪"}).then(()=>openCheck());return}
+  const L=lockOf(id);if(L){const M=lockMsg(id,L);token++;closeGate();show("home");renderHome();gate({emoji:M.e,title:M.t,html:M.html,say:M.say,btn:"Pick another game 👍"});return}
   if(AREA[id]==="create"&&MIXON())recordRound(id);
   curG=GAMES.find(g=>g.id===id);curG.boost=MIXON()&&boostArea()===AREA[id];token++;
   {const s=S.st[id];chalId=(S.chal!==0&&AREA[id]!=="create"&&s&&(s.h3||0)>=2&&(S.lv[id]||1)<curG.max)?id:null;}show("game");$("gTitle").textContent=curG.ic+" "+curG.n;$("gLvl").textContent=id==="draw"?"":(chalId===id?"⚡ Challenge level ":"Level ")+lv(id);if(chalId===id){setTimeout(()=>speak("Challenge time! You are doing so well, so this one is a little harder. Give it your best try!"),2600)}$("instr").textContent=curG.say;fb("");$("area").innerHTML="";speak(curG.say);setTimeout(()=>curG.run(token),400)}
@@ -246,9 +259,9 @@ function finish(id,score,metric,extra){const g=GAMES.find(x=>x.id===id),s=st(id)
   try{if(window.parent!==window&&window.parent.fhAward)window.parent.fhAward("brain",`${id}:${Date.now()}`,stars,`Brain Park ${g.n} ${"⭐".repeat(stars)}`,`大脑乐园 ${g.n} ${"⭐".repeat(stars)}`)}catch(e){}
   $("mdE").textContent=stars===3?"🌟":stars===2?"🎉":"💪";$("mdT").textContent=stars===3?"Amazing!":stars===2?"Great job!":"Good try!";$("mdS").innerHTML=[0,1,2].map(i=>`<span class="${i<stars?"":"off"}">⭐</span>`).join("");
   $("mdC").innerHTML=`<span class="coin" style="vertical-align:middle"></span> +${c} coins${extra?`<div style="font-size:16px;color:#555">${extra}</div>`:""}`;$("mdL").textContent=lvMsg;$("mDone").classList.add("on");sfx.win();speak(stars===3?"Amazing!":stars===2?"Great job!":"Good try! Practice makes your brain stronger.")}
-$("mdAgain").onclick=()=>{$("mDone").classList.remove("on");openGame(curG.id)};
+$("mdAgain").onclick=()=>{$("mDone").classList.remove("on");if(curG.id==="check"){show("home");renderHome();return}openGame(curG.id)};
 $("mdHome").onclick=()=>{closeGate();$("mDone").classList.remove("on");token++;show("home");renderHome()};
-$("back").onclick=()=>{token++;closeGate();speechSynthesis&&speechSynthesis.cancel();show("home");renderHome()};
+$("back").onclick=()=>{token++;closeGate();stopSpeech();show("home");renderHome()};
 $("gSay").onclick=()=>speak($("instr").textContent);
 
 /* ---------- 1. Pair Match ---------- */
@@ -467,6 +480,115 @@ function playMusic(tk){const L=lv("music");
         await gate({emoji:"🥁",title:"Listen to the beat",html:`<div class="wp">You tapped ${taps.length} time${taps.length===1?"":"s"}</div><div class="wa">The beat had ${n} taps: ${"🔵".repeat(n)}</div>${taps.length===n?`<div>Match the slow and fast gaps: ${pat.join(", ")}</div>`:""}`,say:taps.length!==n?`You tapped ${taps.length} times. The beat had ${n} taps. Count them while you listen.`:`You had the right number of taps. Now match the slow and fast gaps: ${pat.join(", ")}.`,btn:"Next beat 🥁"});if(tk!==token)return}}
     if(tk===token)finish("music",good/rounds,{beat:good/rounds},`${good}/${rounds} beats copied`)}}
 
+/* ================= 🧪 Brain Check: regular IQ + EQ test (Bobby 2026-11-21: "constant test EQ and IQ") =================
+   8 short subtests at Grade 1–2 level. Neutral feedback during the test; missed items are explained at the end.
+   Each subtest stops after 2 misses in a row. Scores are % of the subtest and are tracked over time (not a clinical IQ). */
+const CK_SUB=[["reason","🧩","Reasoning"],["memory","🧠","Memory"],["speed","⚡","Speed"],["verbal","🗣️","Word smarts"],["number","🔢","Number sense"],["feel","😊","Reading feelings"],["persp","👀","Understanding others"],["calm","🧘","Good choices"]];
+const CK_IQ=["reason","memory","speed","verbal","number"],CK_EQ=["feel","persp","calm"];
+const ckEvery=()=>S.chkEvery||3;
+function ckLast(){return (S.checks||[]).slice(-1)[0]||null}
+function ckDue(){if(S.chkEvery===0)return false;const l=ckLast();if(!l)return true;return (Date.now()-l.at)/864e5>=ckEvery()-0.25}
+function ckIn(){const l=ckLast();return l?Math.max(0,Math.ceil(ckEvery()-(Date.now()-l.at)/864e5)):0}
+const opt=(h,v)=>({h,v:v===undefined?h:v});
+/* --- item banks (ordered easy → hard; generators randomise each check) --- */
+function matItem(d){const fam=[["🔴","🟢","🔵"],["🟥","🟩","🟦"],["❤️","💚","💙"]],ani=shuffle(["🐶","🐱","🐰","🦊","🐸","🐼","🐵","🐯","🐮","🐷"]);let g,why;
+  if(d===1){const r=ani.slice(0,3);g=r.map(x=>[x,x,x]);why="Each row has the same picture."}
+  else if(d===2){const r=ani.slice(0,3);g=[r,[r[1],r[2],r[0]],[r[2],r[0],r[1]]];why="Every row has each picture once."}
+  else if(d===3){const r=ani.slice(0,3);g=r.map(x=>[1,2,3].map(n=>x.repeat(n)));why="Each column has one more."}
+  else if(d===4){const f=shuffle([0,1,2]),c=shuffle([0,1,2]);g=f.map(F=>c.map(ci=>fam[F][ci]));why="Each row is one shape. Each column is one color."}
+  else if(d===5){const f=shuffle([0,1,2]),c=shuffle([0,1,2]);g=[0,1,2].map(r=>[0,1,2].map(k=>fam[f[(r+k)%3]][c[(r+2*k)%3]]));why="Every row and every column has each shape and each color once."}
+  else{const a=rnd(1,3);g=[0,1,2].map(r=>[1,2,3].map(k=>String((a+r)*k)));why="Each row counts up by the same jump."}
+  const ans=g[2][2];const pool=[...new Set(g.flat().filter(x=>x!==ans))];
+  if(d===3)pool.push(g[2][0].slice(0,g[2][0].length/1)+g[2][0]);if(d===6)pool.push(String(+ans+1),String(+ans-1));if(d>=4)pool.push(...fam.flat());
+  const opts=shuffle([ans,...shuffle([...new Set(pool.filter(x=>x!==ans))]).slice(0,3)]).map(x=>opt(`<span style="font-size:${String(x).length>6?20:36}px">${x}</span>`,x));g[2][2]="❓";
+  return {say:"Look at the pattern in the boxes. Which picture goes in the question mark box?",html:`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:300px;margin:0 auto">${g.flat().map(x=>`<div style="background:#fff;border-radius:12px;min-height:70px;display:flex;align-items:center;justify-content:center;font-size:${String(x).length>6?18:30}px;box-shadow:0 2px 0 #0001">${x}</div>`).join("")}</div>`,opts,ans,why}}
+const reasonItems=()=>[1,2,2,3,3,4,4,5,5,6,6].map(matItem);
+const VERB=[ // [question, answer [emoji,word], wrong options, why]
+ [["Bird is to fly, as fish is to…",["🏊","swim"],[["🚶","walk"],["🛌","sleep"]],"Birds fly and fish swim. That's how they move."],["Puppy is to dog, as kitten is to…",["🐱","cat"],[["🐶","dog"],["🐭","mouse"]],"A puppy grows into a dog, and a kitten grows into a cat."]],
+ [["Glove goes on a hand, sock goes on a…",["🦶","foot"],[["👃","nose"],["👂","ear"]],"Gloves go on hands and socks go on feet."],["Hot is the opposite of cold. Up is the opposite of…",["⬇️","down"],[["⬆️","high"],["➡️","over"]],"Up and down are opposites."]],
+ [["Which one goes with apple and banana?",["🍇","grapes"],[["🚗","car"],["🧦","sock"]],"Apple, banana and grapes are all fruits."],["Which one doesn't belong: dog, cat, cow, chair?",["🪑","chair"],[["🐮","cow"],["🐱","cat"]],"Dog, cat and cow are animals. A chair is not."]],
+ [["How are a hammer and a saw alike? They are both…",["🧰","tools"],[["🍎","food"],["🐾","animals"]],"A hammer and a saw are both tools for building."],["How are a shirt and pants alike? They are both…",["👕","clothes"],[["🎮","toys"],["🌳","plants"]],"You wear shirts and pants. They are clothes."]],
+ [["Which word means the same as huge?",["🐘","very big"],[["🐜","very small"],["🏃","very fast"]],"Huge means very, very big."],["Which word means the same as exhausted?",["😴","very tired"],[["😃","very happy"],["😡","very angry"]],"Exhausted means very tired."]],
+ [["Morning is to breakfast, as night is to…",["🍝","dinner"],[["🥞","pancakes"],["☀️","sun"]],"We eat breakfast in the morning and dinner at night."],["Car is to road, as boat is to…",["🌊","water"],[["🛣️","street"],["☁️","sky"]],"Cars go on roads and boats go on water."]],
+ [["Seed is to tree, as egg is to…",["🐤","chick"],[["🥚","shell"],["🍳","pan"]],"A seed grows into a tree. An egg hatches into a chick."],["Painter is to painting, as author is to…",["📖","book"],[["🖌️","brush"],["🎵","song"]],"A painter makes paintings. An author writes books."]],
+ [["Which is the odd one: circle, square, triangle, banana?",["🍌","banana"],[["🔺","triangle"],["⬛","square"]],"Circle, square and triangle are shapes. A banana is a fruit."],["Which is the odd one: happy, sad, angry, table?",["🪑","table"],[["😢","sad"],["😠","angry"]],"Happy, sad and angry are feelings. A table is not."]]];
+const verbItems=()=>VERB.map(p=>{const v=pick(p);return {say:v[0]+" "+[v[1],...v[2]].map(o=>o[1]).join(", or ")+"?",html:`<div style="font-size:22px;text-align:center">${v[0]}</div>`,opts:shuffle([v[1],...v[2]]).map(o=>opt(`<span style="font-size:34px">${o[0]}</span><br>${o[1]}`,o[1])),ans:v[1][1],why:v[3]}});
+function numItems(){const it=[];const ser=(a,why)=>{const ans=a.pop();it.push({say:`What comes next? ${a.join(", ")}, and then?`,html:`<div style="font-size:30px;text-align:center;font-weight:800">${a.join(", ")}, ❓</div>`,opts:shuffle([...new Set([ans,ans+1,ans-1,ans+2])].slice(0,4)).map(x=>opt(String(x))),ans:String(ans),why})};
+  const s=rnd(1,5);ser([s,s+1,s+2,s+3,s+4],"It counts up by 1.");
+  const t=rnd(1,3)*2;ser([t,t+2,t+4,t+6,t+8],"It counts up by 2.");
+  const f=5*rnd(1,3);ser([f,f+5,f+10,f+15,f+20],"It counts up by 5.");
+  const d=rnd(15,20);ser([d,d-1,d-2,d-3,d-4],"It counts down by 1.");
+  const w=(q,ans,why,ch)=>it.push({say:q,html:`<div style="font-size:22px;text-align:center">${q}</div>`,opts:shuffle(ch).map(x=>opt(String(x))),ans:String(ans),why});
+  const a1=rnd(4,7),a2=rnd(1,3),a3=rnd(2,5);w(`You have ${a1} apples. You eat ${a2}, then get ${a3} more. How many now?`,a1-a2+a3,`${a1} take away ${a2} is ${a1-a2}, plus ${a3} is ${a1-a2+a3}.`,[a1-a2+a3,a1+a2+a3,a1-a2,a1+a3]);
+  const k=rnd(3,5);w(`${k} groups of 2. How many in all?`,k*2,`${k} groups of 2 is ${k*2}.`,[k*2,k+2,k*2+1,k]);
+  const o=rnd(1,4)*2+1;ser([o,o+2,o+4,o+6,o+8],"Odd numbers, counting up by 2.");
+  const tn=rnd(2,4);w(`Which is more: ${tn} tens, or ${tn*10-3}?`,`${tn} tens`,`${tn} tens is ${tn*10}, which is more than ${tn*10-3}.`,[`${tn} tens`,String(tn*10-3)]);
+  const h=rnd(3,8)*2;w(`What is half of ${h}?`,h/2,`Half of ${h} is ${h/2}, because ${h/2} plus ${h/2} is ${h}.`,[h/2,h,h/2+1,h-2]);
+  ser([1,2,4,8,16],"Each number doubles.");
+  const dd=rnd(20,30);ser([dd,dd-3,dd-6,dd-9,dd-12],"It counts down by 3.");
+  return it}
+const CK_FACE=[["happy","😀"],["sad","😢"],["angry","😠"],["scared","😨"],["surprised","😲"],["worried","😟"],["disappointed","😞"],["embarrassed","😳"],["confused","😕"],["proud","😊"],["frustrated","😤"],["bored","🥱"]];
+function feelItems(){const it=[];const face=(i)=>{const [w,e]=CK_FACE[i],ch=shuffle(CK_FACE.filter(x=>x[0]!==w)).slice(0,3);it.push({say:`Which face looks ${w}? `,html:`<div style="font-size:24px;text-align:center">Which face looks <b>${w}</b>?</div>`,opts:shuffle([[w,e],...ch]).map(x=>opt(`<span style="font-size:46px">${x[1]}</span>`,x[0])),ans:w,why:`${e} is the ${w} face. Look at the eyes, eyebrows and mouth.`})};
+  [0,3,5,shuffle([6,7,8])[0],shuffle([9,10,11])[0]].forEach(face);
+  const sit=[["Noah's friend didn't come to his party.","disappointed",["proud","bored"],"When something we hoped for doesn't happen, we feel disappointed."],["Ava tripped in front of the whole class.","embarrassed",["proud","bored"],"When others see us make a mistake, we can feel embarrassed."],["Leo doesn't understand the new game rules.","confused",["angry","proud"],"Not understanding something makes us feel confused."],["Mia finished a really hard puzzle by herself.","proud",["worried","bored"],"Doing something hard on your own makes you proud."]];
+  shuffle(sit).slice(0,3).forEach(s=>it.push({say:`${s[0]} How might they feel? ${[s[1],...s[2]].join(", or ")}?`,html:`<div style="font-size:22px;text-align:center">${s[0]}<br><b>How might they feel?</b></div>`,opts:shuffle([s[1],...s[2]]).map(x=>opt(`<span style="font-size:36px">${(CK_FACE.find(f=>f[0]===x)||["","🙂"])[1]}</span><br>${x}`,x)),ans:s[1],why:s[3]}));
+  return it}
+const PERSP=[
+ ["Sam puts his ball in the basket 🧺 and goes outside. While he's gone, Mia moves the ball into the box 📦. When Sam comes back, where will he look for his ball first?",["🧺","the basket"],[["📦","the box"],["🛏️","under the bed"]],"Sam didn't see Mia move it, so he still thinks it's in the basket."],
+ ["Lily sees a crayon box 🖍️. But inside there are rocks 🪨! Before Lily opens it, what does she think is inside?",["🖍️","crayons"],[["🪨","rocks"],["🍪","cookies"]],"Lily hasn't looked inside yet, so she thinks it has crayons."],
+ ["Tom bumped into you by accident and said sorry. Did Tom mean to hurt you?",["🙅","No, it was an accident"],[["😠","Yes, on purpose"],["🤷","He wanted to play"]],"An accident means he didn't mean to do it. Saying sorry shows he cares."],
+ ["Grandma got a sweater she doesn't like, but she says 'Thank you!' Why?",["💛","To be kind"],[["😠","She is angry"],["😴","She is tired"]],"She says thank you to be kind, so the person who gave it doesn't feel sad."],
+ ["Ben wins a game and jumps up shouting. His friend lost and looks down. How does the friend feel?",["😞","disappointed"],[["🤩","excited"],["😀","happy"]],"Losing can feel disappointing, even when someone else is happy."],
+ ["Max is new and stands alone at recess, looking at the other kids play. What might Max want?",["🤝","Someone to play with"],[["🍦","Ice cream"],["😴","A nap"]],"Looking at others play can mean he wants to join in."],
+ ["Your sister's tower fell and she's crying. You think it's funny. Should you laugh?",["🙅","No, she feels sad"],[["😂","Yes, it's funny"],["📢","Tell everyone"]],"Even if something looks funny to you, laughing would hurt her feelings."],
+ ["Zoe gave her friend the last cookie 🍪 even though she wanted it. How might her friend feel?",["😊","thankful"],[["😠","angry"],["😨","scared"]],"Sharing something you wanted is very kind. Her friend feels thankful."]];
+const CALM=[
+ ["Your brother takes your toy without asking. What's the best thing to do first?",["🗣️","Say 'Please give it back'"],[["✊","Grab it"],["👊","Hit him"]],"Using your words solves problems without hurting anyone."],
+ ["You really want a cookie, but it's almost dinner. What's a good choice?",["⏳","Wait until after dinner"],[["🤫","Sneak one"],["😭","Cry until you get it"]],"Waiting is hard, but it shows strong self-control."],
+ ["You're losing a game and feel frustrated. What can you do?",["🌬️","Take a deep breath and keep trying"],[["🗑️","Quit and throw it"],["😡","Yell at your friend"]],"A deep breath calms your body. Trying again is how we get better."],
+ ["Your friend wants to play tag but you want to play blocks. What's a fair idea?",["🔄","Play one, then the other"],[["🙉","Only do what you want"],["🚶","Walk away"]],"Taking turns lets both friends have fun."],
+ ["The teacher is talking, and you have something exciting to say. What should you do?",["✋","Raise your hand and wait"],[["📢","Shout it out"],["🤸","Jump around"]],"Raising your hand and waiting is respectful."],
+ ["You made a mistake on your homework. What's the best thing to think?",["💪","Mistakes help me learn"],[["😞","I'm bad at everything"],["🙈","Hide it"]],"Everyone makes mistakes. Fixing them makes your brain stronger."],
+ ["Someone at school calls you a mean name. What's a good choice?",["🧑‍🏫","Tell a grown-up you trust"],[["😠","Call them a name back"],["👊","Push them"]],"Telling a trusted grown-up keeps everyone safe."],
+ ["You feel very worried about something. What can help?",["🗣️","Talk to Mom or Dad"],[["🤐","Keep it secret forever"],["🙅","Stop eating"]],"Sharing worries with people who love you makes them smaller."]];
+const scenItems=(B)=>shuffle(B).slice(0,6).map(v=>({say:v[0]+" "+[v[1],...v[2]].map(o=>o[1]).join(", or ")+"?",html:`<div style="font-size:20px;text-align:center;line-height:1.35">${v[0]}</div>`,opts:shuffle([v[1],...v[2]]).map(o=>opt(`<span style="font-size:30px">${o[0]}</span><br>${o[1]}`,o[1])),ans:v[1][1],why:v[3]}));
+/* --- runner --- */
+let CK=null;
+async function ckAsk(tk,it,label){$("instr").innerHTML=label;
+  $("area").innerHTML=`<div style="margin:4px 0 14px">${it.html}</div><div class="choices">${it.opts.map((o,i)=>`<button class="ch" data-i="${i}" style="width:auto;min-width:92px;height:auto;min-height:84px;padding:8px 12px;font-size:22px">${o.h}</button>`).join("")}</div>`;
+  speak(it.say);
+  return await new Promise(res=>document.querySelectorAll(".ch").forEach(b=>b.onclick=()=>{if(tk!==token)return;document.querySelectorAll(".ch").forEach(x=>x.onclick=null);const o=it.opts[+b.dataset.i];b.style.outline="4px solid #a0c4ff";sfx.tap();fb(pick(["Got it! 👍","Thanks! Next one.","OK! 👍"]),"");setTimeout(()=>{fb("");res(o.v===it.ans?{ok:1}:{ok:0,picked:o})},450)}))}
+async function ckList(tk,id,items,basal){const sub=CK_SUB.find(s=>s[0]===id);let right=basal,miss=0;
+  for(let i=basal;i<items.length&&tk===token;i++){const r=await ckAsk(tk,items[i],`${sub[1]} ${sub[2]} · ${i+1-basal}`);if(r.ok){right++;miss=0}else{miss++;CK.missed.push({...items[i],picked:r.picked});if(miss>=2)break}}
+  return Math.round(right/items.length*100)}
+async function ckSpan(tk,back){let best=0;for(let len=2;len<=8&&tk===token;len++){let okAny=false;for(let tr=0;tr<2&&tk===token;tr++){const seq=Array.from({length:len},()=>rnd(1,9));
+    $("instr").innerHTML=`🧠 ${back?"Backwards":"Remember the numbers"} · ${len} numbers`;$("area").innerHTML=`<div style="font-size:70px;text-align:center;height:120px" id="ear">👂</div><div id="dg" style="text-align:center;font-size:56px;font-weight:800;height:70px"></div>`;
+    await speakDone(back?"Listen, then tap the numbers backwards, starting with the last one.":"Listen, then tap the numbers in the same order.");
+    for(const d of seq){if(tk!==token)return best;if(+S.voice){$("ear").textContent="🔊";await speakDone(String(d));await delay(350)}else{$("dg").textContent=d;await delay(900);$("dg").textContent="";await delay(250)}}
+    $("ear").textContent="✍️";const want=back?seq.slice().reverse():seq,got=[];
+    $("area").insertAdjacentHTML("beforeend",`<div id="typed" style="text-align:center;font-size:36px;min-height:48px;letter-spacing:6px"></div><div style="display:grid;grid-template-columns:repeat(3,72px);gap:8px;justify-content:center">${[1,2,3,4,5,6,7,8,9].map(n=>`<button class="ch kp" style="width:72px;height:64px;font-size:30px">${n}</button>`).join("")}<span></span><button class="ch" id="kpDel" style="width:72px;height:64px;font-size:24px">⌫</button></div>`);
+    await new Promise(res=>{document.querySelectorAll(".kp").forEach(b=>b.onclick=()=>{if(tk!==token)return;got.push(+b.textContent);sfx.tap();$("typed").textContent=got.join(" ");if(got.length===len){document.querySelectorAll(".kp").forEach(x=>x.onclick=null);setTimeout(res,400)}});$("kpDel").onclick=()=>{got.pop();$("typed").textContent=got.join(" ")}});
+    if(got.join()===want.join()){okAny=true;best=len;break}}
+    if(!okAny)break}
+  return best}
+async function ckSpeed(tk){const SYM=["★","●","▲","■","♥","◆","✚","☾"];let c=0,w=0;const end=Date.now()+30000;$("instr").innerHTML="⚡ Speed · Is the first shape in the row? Go fast!";await speakDone("Look at the first shape. Is it in the row? Tap yes or no, as fast as you can!");
+  while(Date.now()<end&&tk===token){const tgt=pick(SYM),has=Math.random()<.5,row=shuffle(SYM.filter(x=>x!==tgt)).slice(0,has?3:4);if(has)row.splice(rnd(0,3),0,tgt);
+    $("area").innerHTML=`<div style="display:flex;align-items:center;justify-content:center;gap:16px;font-size:44px;margin:20px 0"><b style="background:#ffd166;border-radius:12px;padding:0 12px">${tgt}</b><span>→</span><span style="letter-spacing:10px">${row.join("")}</span></div><div class="choices"><button class="ch" data-y="1" style="width:130px">✅ Yes</button><button class="ch" data-y="0" style="width:130px">❌ No</button></div><div class="note" style="text-align:center">${Math.ceil((end-Date.now())/1000)} s</div>`;
+    const ans=await new Promise(res=>document.querySelectorAll(".ch").forEach(b=>b.onclick=()=>res(+b.dataset.y)));if(tk!==token)return 0;if(!!ans===has){c++;sfx.tap()}else{w++;sfx.bad()}}
+  CK.raw.speedC=c;CK.raw.speedW=w;return Math.max(0,Math.min(100,Math.round((c-w)/18*100)))}
+async function openCheck(){token++;const tk=token;closeGate();curG={id:"check",n:"Brain Check",ic:"🧪",say:""};show("game");$("gTitle").textContent="🧪 Brain Check";$("gLvl").textContent="";fb("");
+  CK={s:{},raw:{},missed:[]};$("area").innerHTML=`<div style="text-align:center;font-size:70px">🧪</div><p style="text-align:center;font-size:20px">8 quick brain games to see how your brain is growing. Some are easy and some are tricky — just try your best!</p>`;$("instr").textContent="Brain Check";
+  await speakDone("It's Brain Check time! Eight quick brain games to see how your brain is growing. Some are easy and some are tricky. Just try your best!");
+  const steps=[["reason",()=>ckList(tk,"reason",reasonItems(),1)],["memory",async()=>{const f=await ckSpan(tk,false),b=await ckSpan(tk,true);CK.raw.fwd=f;CK.raw.bwd=b;return Math.round((f+b)/13*100)}],["speed",()=>ckSpeed(tk)],["verbal",()=>ckList(tk,"verbal",verbItems(),1)],["number",()=>ckList(tk,"number",numItems(),1)],["feel",()=>ckList(tk,"feel",feelItems(),1)],["persp",()=>ckList(tk,"persp",scenItems(PERSP),0)],["calm",()=>ckList(tk,"calm",scenItems(CALM),0)]];
+  for(const [id,fn] of steps){if(tk!==token)return;const sub=CK_SUB.find(s=>s[0]===id);$("area").innerHTML=`<div style="text-align:center;font-size:80px;margin-top:30px">${sub[1]}</div><h2 style="text-align:center">${sub[2]}</h2>`;$("instr").textContent=`Part ${steps.findIndex(s=>s[0]===id)+1} of 8`;await delay(1300);CK.s[id]=await fn()}
+  if(tk!==token)return;
+  const avg=k=>Math.round(k.reduce((a,x)=>a+(CK.s[x]||0),0)/k.length),rec={d:today(),at:Date.now(),s:CK.s,raw:CK.raw,iq:avg(CK_IQ),eq:avg(CK_EQ)};
+  S.checks=(S.checks||[]).concat([rec]).slice(-60);S.coins+=30;save();setCoins();
+  try{if(window.parent!==window&&window.parent.fhAward)window.parent.fhAward("brain",`check:${today()}`,5,"Brain Check done","大脑小测完成")}catch(e){}
+  const rev=CK.missed.filter(m=>m.ans).slice(0,4);
+  for(const m of rev){if(tk!==token)return;await gate({emoji:"🧠",title:"Let's learn from this one",html:`<div>${m.html}</div><div class="wp">You picked ${m.picked?m.picked.h:"–"} ❌</div><div class="wa">Answer: <b>${m.ans}</b> ✅</div><div>${m.why}</div>`,say:`Let's look at this one. The answer is ${m.ans}. ${m.why}`,btn:"Got it 👍"})}
+  if(tk!==token)return;$("mdE").textContent="🧪";$("mdT").textContent="Brain Check done!";$("mdS").innerHTML="";$("mdC").innerHTML=`<span class="coin" style="vertical-align:middle"></span> +30 coins<div style="font-size:16px;color:#555">You worked hard on every part. Your brain is growing!</div>`;$("mdL").textContent="All games are open 🎉";$("mDone").classList.add("on");sfx.win();speak("Brain Check done! You worked hard on every part. All the games are open!")}
+
 /* ---------- parents ---------- */
 function measure(id){const m=(S.st[id]||{}).m||[];if(!m.length)return "–";const last=m.slice(-5);const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
   if(id==="match")return `${avg(last).toFixed(1)} tries per pair (lower = better memory)`;
@@ -476,12 +598,18 @@ function measure(id){const m=(S.st[id]||{}).m||[];if(!m.length)return "–";cons
   if(id==="switch"){const sw=last.map(x=>x.sw).filter(x=>x!=null);return `accuracy ${Math.round(avg(last.map(x=>x.acc))*100)}%${sw.length?` · after switch ${Math.round(avg(sw)*100)}%`:""}`}
   if(id==="pattern"||id==="feel")return `accuracy ${Math.round(avg(last)*100)}%`;if(id==="shapes")return `${avg(last).toFixed(1)} wrong drops`;if(id==="robot")return `${avg(last).toFixed(1)} tries per puzzle`;
   if(id==="draw")return `${m.length} drawings`;if(id==="music"){const b=last.filter(x=>x.beat!=null);return b.length?`beat copying ${Math.round(avg(b.map(x=>x.beat))*100)}%`:"songs played"}return "–"}
-function renderParents(){$("pTable").innerHTML=GAMES.map(g=>{const s=S.st[g.id];return `<tr><td>${g.ic} ${g.n}</td><td>${g.id==="draw"?"–":lv(g.id)+"/"+g.max}</td><td>${s?s.rounds:0}</td><td>${s&&s.rounds?(s.stars/s.rounds).toFixed(1):"–"}</td><td>${measure(g.id)}</td></tr>`}).join("");$("sVoice").value=S.voice;$("sVoiceEn").innerHTML=voiceOptions("en",S.voiceEn);$("sMix").value=MIXON()?String(MIXN()):"0";$("sChal").value=S.chal===0?"0":"1";$("pMsg").textContent=""}
+function ckHistHtml(){const c=(S.checks||[]).slice(-6).reverse();if(!c.length)return "No Brain Check yet.";const ar=(a,b)=>b==null?"":a>b?` <b style="color:#2d6a4f">▲${a-b}</b>`:a<b?` <span style="color:#c9184a">▼${b-a}</span>`:"";
+  return `<table><tr><th>Date</th><th>Thinking</th><th>Heart (EQ)</th>${CK_SUB.map(s=>`<th>${s[1]}</th>`).join("")}</tr>${c.map((r,i)=>{const p=c[i+1];return `<tr><td>${r.d}</td><td><b>${r.iq}</b>${ar(r.iq,p&&p.iq)}</td><td><b>${r.eq}</b>${ar(r.eq,p&&p.eq)}</td>${CK_SUB.map(s=>`<td>${r.s[s[0]]??"–"}</td>`).join("")}</tr>`}).join("")}</table><div>Memory span: forwards ${c[0].raw.fwd||0}, backwards ${c[0].raw.bwd||0} · Speed: ${c[0].raw.speedC||0} right, ${c[0].raw.speedW||0} wrong in 30 s</div>`}
+function renderParents(){$("ckHist").innerHTML=ckHistHtml();$("sCkE").value=String(S.chkEvery===0?0:ckEvery());$("sCkF").value=S.chkForce===0?"0":"1";$("pTable").innerHTML=GAMES.map(g=>{const s=S.st[g.id];return `<tr><td>${g.ic} ${g.n}</td><td>${g.id==="draw"?"–":lv(g.id)+"/"+g.max}</td><td>${s?s.rounds:0}</td><td>${s&&s.rounds?(s.stars/s.rounds).toFixed(1):"–"}</td><td>${measure(g.id)}</td></tr>`}).join("");$("sVoice").value=S.voice;$("sVoiceEn").innerHTML=voiceOptions("en",S.voiceEn);$("sAiV").value=S.aiVoice===0?"0":"1";$("sAiName").innerHTML=(HV?HV.VOICES:[["af_heart","Heart — warm (default)"]]).map(([k,n])=>`<option value="${k}" ${k===(S.aiVoiceName||"af_heart")?"selected":""}>${n}</option>`).join("");$("aiSt").textContent=aiVoiceStatus();clearInterval(window._aiT);window._aiT=setInterval(()=>{const e=$("aiSt");if(e)e.textContent=aiVoiceStatus()},1500);$("sMix").value=MIXON()?String(MIXN()):"0";$("sChal").value=S.chal===0?"0":"1";$("pMsg").textContent=""}
 $("toParents").onclick=()=>{renderParents();show("parents")};$("pBack").onclick=()=>{show("home");renderHome()};
-$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};$("sVoiceEn").onchange=e=>{S.voiceEn=e.target.value;save()};$("tVoiceEn").onclick=()=>{const v=S.voice;S.voice=1;speak("Hi Jonah! Welcome to Brain Park. Let's play and grow your brain!");S.voice=v};
+$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};$("sAiV").onchange=e=>{S.aiVoice=+e.target.value;save();if(S.aiVoice&&HV)HV.init({getS:()=>S})};$("sAiName").onchange=e=>{S.aiVoiceName=e.target.value;save()};$("tAi").onclick=()=>{const v=S.voice;S.voice=1;speak("Hi Jonah! Welcome to Brain Park. Let's play some games and grow your amazing brain!");S.voice=v};
+$("sVoiceEn").onchange=e=>{S.voiceEn=e.target.value;save()};$("tVoiceEn").onclick=()=>{const v=S.voice;S.voice=1;speak("Hi Jonah! Welcome to Brain Park. Let's play and grow your brain!");S.voice=v};
+$("sCkE").onchange=e=>{S.chkEvery=+e.target.value;save()};$("sCkF").onchange=e=>{S.chkForce=+e.target.value;save()};$("ckNow").onclick=()=>openCheck();
 $("sChal").onchange=e=>{S.chal=+e.target.value;save()};$("sMix").onchange=e=>{const v=+e.target.value;if(v){S.mix=1;S.mixN=v}else S.mix=0;save()};$("sMixReset").onclick=()=>{const m=mixT();m.rest={};m.gn={};m.tix=Math.max(m.tix||0,3);m.log.push("|");save();$("pMsg").textContent="Unlocked for today."};
 $("pCopy").onclick=async()=>{const t=[`${NAME} — Brain Park (${today()})`,`Coins: ${S.coins}`,...GAMES.map(g=>{const s=S.st[g.id];return `${g.n}: level ${g.id==="draw"?"-":lv(g.id)}, ${s?s.rounds:0} rounds, ${measure(g.id)}`})].join("\n");try{await navigator.clipboard.writeText(t);$("pMsg").textContent="Copied."}catch(e){$("pMsg").textContent=t}};
 if(!IS_PARENT)$("toParents").style.display="none";
+/* Bobby 2026-11-21: treat Jonah as Grade 1–2, not kindergarten — raise starting levels (never lowers a level he already has). */
+if(!S._g12){S._g12=1;const B={match:2,simon:2,odd:2,gonogo:2,switch:3,pattern:3,shapes:2,robot:2,feel:3,music:2};for(const k in B)S.lv[k]=Math.max(S.lv[k]||1,B[k])}
 renderHome();save();
 </script>
 </body>

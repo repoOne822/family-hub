@@ -159,6 +159,7 @@ body.retro::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:
   <div class="set">Mix it up <select id="sMix"><option value="3">On: rest after 3 missions in a row</option><option value="4">On: after 4 in a row</option><option value="6">On: after 6 in a row</option><option value="0">Off</option></select> <button class="btn" id="sMixReset" style="font-size:14px;padding:4px 10px">Wake all for today</button> <span class="note">Math, Reading and 中文 take turns: after N missions in a row in one area it rests until he plays 2 missions elsewhere. The least-played area today gives +10 coins.</span></div>
   <div class="set">Focus mode <select id="sFocus"><option value="1">On (calmer)</option><option value="0">Off</option></select> <span class="note">calm screen, no shaking or lucky stars, still targets, think time before tapping, 3 choices in Grade 1 & Words</span></div>
   <div class="set">Read questions aloud <select id="sVoice"><option value="1">On</option><option value="0">Off</option></select></div>
+  <div class="set">Voice style <select id="sAiV"><option value="1">Natural AI voice (recommended)</option><option value="0">Device voice</option></select> <select id="sAiName"></select> <button class="btn" id="tAi" style="font-size:14px;padding:4px 10px">▶ Test</button><br><span class="note" id="aiSt"></span> <span class="note">The natural voice is a real neural voice that runs on this device (no account needed). It downloads about 90 MB the first time, then works from the cache. English only — 中文 uses the device voice below.</span></div>
   <div class="set">English voice <select id="sVoiceEn" style="max-width:260px"></select> <button class="btn" id="tVoiceEn" style="font-size:14px;padding:4px 10px">▶ Test</button></div>
   <div class="set">中文 voice <select id="sVoiceZh" style="max-width:260px"></select> <button class="btn" id="tVoiceZh" style="font-size:14px;padding:4px 10px">▶ 试听</button> <span class="note">For the most human-sounding voice on an iPad: Settings → Accessibility → Spoken Content → Voices → download an English and a Chinese voice marked "Premium" or "Enhanced". It is picked automatically.</span></div>
   <div style="font-size:16px;margin-top:6px"><b>Unlock planets</b></div><div id="unlocks"></div>
@@ -223,7 +224,16 @@ function mkUtter(t){const zhT=/[一-鿿]/.test(t),L=zhT?"zh":"en",u=new SpeechSy
   const nat=v&&/premium|enhanced|natural|neural|siri|google/i.test(v.name);u.rate=zhT?.85:(nat?.95:.9);u.pitch=1.0;return u}
 function voiceOptions(L,cur){const vs=voiceList(L).slice().sort((a,b)=>voiceScore(b,L)-voiceScore(a,L));return `<option value="">Auto (best on this device${vs[0]?": "+vs[0].name:""})</option>`+vs.filter(v=>!BADV.test(v.name)).map(v=>`<option value="${v.name.replace(/"/g,"&quot;")}" ${v.name===cur?"selected":""}>${v.name} (${v.lang})</option>`).join("")}
 function estRead(t){return Math.max(2000,String(t).trim().split(/\s+/).length*300)}
-function speakDone(t){return new Promise(res=>{let done=false;const fin=()=>{if(!done){done=true;res()}};const est=estRead(t);
+
+/* ---------- natural AI voice (hub only): shared/hubvoice.js; falls back to the device voice ---------- */
+let HV=null;const PREFETCH=()=>[...PRAISE,"Now tap the glowing one.","You can do it!","Mission complete!","Perfect mission! Open your treasure chest!","Boss defeated! Amazing!","Let's try the one you missed again.","Remember this one? You missed it last time."];
+if(window.top!==window||/family-hub/.test(location.pathname)){import("../shared/hubvoice.js").then(m=>{HV=m;m.init({getS:()=>S});setTimeout(()=>{try{m.prefetch(PREFETCH())}catch(e){}},1500)}).catch(()=>{})}
+function stopSpeech(){try{speechSynthesis.cancel()}catch(e){}if(HV)HV.stop()}
+function speak(t){if(!+S.voice||!t)return;if(HV&&HV.canSpeak(t)){try{speechSynthesis.cancel()}catch(e){}HV.speakDone(t).catch(e=>{if(String(e&&e.message)==="timeout"){HV.stop();webSpeak(t)}});return}if(HV)HV.stop();webSpeak(t)}
+function speakDone(t){if(+S.voice&&HV&&HV.canSpeak(t)){try{speechSynthesis.cancel()}catch(e){}return HV.speakDone(t).catch(()=>{HV.stop();return webSpeakDone(t)})}if(HV)HV.stop();return webSpeakDone(t)}
+function aiVoiceStatus(){if(!HV)return "Natural voice: only available inside the Family Hub (this preview uses the device voice).";const s=HV.status();
+  return s.st==="ready"?`Natural voice ready ✅${s.slow?" — this device is slow at making it, so some lines may use the device voice":""}`:s.st==="loading"?`Natural voice downloading… ${s.pct||0}% (about 90 MB, only the first time)`:s.st==="fail"?`Natural voice couldn't load (${s.err}). Using the device voice.`:"Natural voice is off."}
+function webSpeakDone(t){return new Promise(res=>{let done=false;const fin=()=>{if(!done){done=true;res()}};const est=estRead(t);
   if(!+S.voice||!window.speechSynthesis){setTimeout(fin,est);return}
   try{speechSynthesis.cancel();const u=mkUtter(t);u.onend=()=>setTimeout(fin,400);u.onerror=()=>setTimeout(fin,est);speechSynthesis.speak(u)}catch(e){setTimeout(fin,est)}
   setTimeout(fin,est*2.2+3000)})}
@@ -236,7 +246,7 @@ function gate(o){return new Promise(res=>{const tok=++gateTok;if(G)G.gate=true;
     return Promise.all([speakDone(o.say),new Promise(r=>setTimeout(r,Math.min(ms,4500)))])};
   run().then(()=>{if(gateTok!==tok)return;b.disabled=false;b.textContent=o.btn||"I got it 👍";b.classList.add("ready");bar.style.width="100%"});
   $("wAgain").onclick=()=>{run()};
-  b.onclick=()=>{if(b.disabled||gateTok!==tok)return;gateTok++;$("mWhy").classList.remove("on");speechSynthesis&&speechSynthesis.cancel();if(G)G.gate=false;res(true)}})}
+  b.onclick=()=>{if(b.disabled||gateTok!==tok)return;gateTok++;$("mWhy").classList.remove("on");stopSpeech();if(G)G.gate=false;res(true)}})}
 function closeGate(){gateTok++;$("mWhy").classList.remove("on")}
 const optLabel=o=>o?(o.emoji?`<span class="wo">${o.label}</span> ${o.v}`:(/</.test(String(o.label))?String(o.v):String(o.label))):"";
 const optSay=o=>o?String(o.v):"";
@@ -248,7 +258,7 @@ function wrongWhy(q,v){const a=+q.ans,p=+v;if(isNaN(a)||isNaN(p)||String(q.ans).
   const d=p-a;if(Math.abs(d)===1)return "So close! You were just 1 away. Count again slowly.";
   if(Math.abs(d)===10||Math.abs(d)===100)return "Check the place value: look at the tens and hundreds.";
   return d>0?"Your answer is too big.":"Your answer is too small."}
-function speak(t){if(!+S.voice||!t)return;try{speechSynthesis.cancel();speechSynthesis.speak(mkUtter(t))}catch(e){}}
+function webSpeak(t){try{speechSynthesis.cancel();speechSynthesis.speak(mkUtter(t))}catch(e){}}
 
 /* ================= question generators ================= */
 const FRUIT=["🍎","🍓","⭐","🐟","🍪","🎈","🚗","🌸"];
@@ -434,7 +444,7 @@ CUR.zh=[
 const GALS=[["g1","1️⃣ Grade 1"],["g2","2️⃣ Grade 2"],["g3","3️⃣ Grade 3"],["words","📚 Reading"],["zh","🀄 中文"]];
 function topicName(g,lv){return g==="words"?WORD_NAMES[lv]:(CUR[g][lv-1]||[""])[0]}
 function galSize(g){return g==="words"?WORD_NAMES.length-1:CUR[g].length}
-function makeQ(g,lv){const q0=makeQ0(g,lv);if(FOCUS()&&(g==="g1"||g==="words"||g==="zh")&&q0.opts.length>3){const ok=q0.opts.find(o=>String(o.v)===String(q0.ans));const rest=shuffle(q0.opts.filter(o=>o!==ok)).slice(0,2);q0.opts=shuffle([ok,...rest])}return q0}
+function makeQ(g,lv){const q0=makeQ0(g,lv);if(FOCUS()&&g==="zh"&&q0.opts.length>3){const ok=q0.opts.find(o=>String(o.v)===String(q0.ans));const rest=shuffle(q0.opts.filter(o=>o!==ok)).slice(0,2);q0.opts=shuffle([ok,...rest])}return q0}
 function makeQ0(g,lv){if(g==="words"){const q=wordsQ(lv);return q}const t=CUR[g][lv-1];const q=t[2]();q.skill=`${g}_${lv}`;q.say=q.say.replace(/[☐]/g," ");return q}
 
 /* ================= planets ================= */
@@ -728,7 +738,7 @@ function nextQ(){
   if(G.qi>=QPER){if(G.redo.length){G.isRedo=true;rq=G.redo.shift();$("qtag").textContent="🔁 Again! The one you missed";}else{finishMission();return}}
   else if(G.qi===0&&!G.warmDone&&!G.boss){G.warmDone=1;const it=(S.rv||[]).find(x=>x.g===G.g);if(it){G.isRedo=true;G.isReview=true;G.rvK=it.k;rq=it.q;$("qtag").textContent="🔁 Remember this one? You missed it last time";}}
   else if(G.qi===3&&!G.chalDone&&!G.boss&&S.chal!==0&&(G.streak>=3||(S.st.pstreak||0)>=1)){const src=chalSrc(G.g,G.lv);if(src){G.chalDone=1;G.isRedo=true;G.isChal=true;cq=src;$("qtag").textContent=`⚡ Super challenge! From ${src[0]===G.g?"planet "+src[1]:"the next galaxy"}`;S.st.chal=(S.st.chal||0)+1;save()}}
-  const lv=G.lv;G.q=rq?{...rq,opts:shuffle(rq.opts.map(o=>({...o})))}:cq?makeQ(cq[0],cq[1]):makeQ(G.g,lv);G.tries=0;G.lock=false;G.ex=null;
+  const lv=G.lv;G.q=rq?{...rq,opts:shuffle(rq.opts.map(o=>({...o})))}:cq?makeQ(cq[0],cq[1]):(G.pre||makeQ(G.g,lv));if(!rq&&!cq){G.pre=makeQ(G.g,lv);if(HV)HV.prefetch([G.pre.say])}G.tries=0;G.lock=false;G.ex=null;
   $("qtext").textContent=G.q.q;$("qvis").innerHTML=G.q.vis;$("qhint").className="";$("qhint").textContent="";$("qcard").classList.remove("on");void $("qcard").offsetWidth;$("qcard").classList.add("on");$("fb").textContent="";
   G.waitT=0;G.nudged=0;G.rocks=G.q.opts.map((o,i)=>({...o,i,pod:G.rescue,alien:pick(["👽","👾","🐙","🦖","🐱","🐸"]),gem:pick(["#c77dff","#4cc9f0","#80ed99","#ffafcc","#ffd166"]),x:W+80+i*60,state:"in",rot:Math.random()*6,vr:(Math.random()-.5)*.8,hit:0,fade:1,shape:Array.from({length:11},()=>.82+Math.random()*.25),craters:[[.35,-.3,.16],[-.3,.25,.12],[.2,.4,.08]]}));
   layoutLanes();G.rocks.forEach((r,i)=>{if(VERT(G.kind)){r.x=W+80+i*60;r.y0=r.ty}else if(G.kind==="comet"){r.x=r.tx+60;r.y0=-r.r-i*70}else{r.x=r.tx;r.y0=H+r.r+i*30}r.y=r.y0});
@@ -851,7 +861,7 @@ function openChest(){const b=$("chestBtn");if(!b||b.dataset.open)return;b.datase
     save();setCoins();sfx.win();burst(W/2,H/2,["#ffd166","#fff","#80ffdb","#c77dff"],70,480);b.innerHTML=html},900)}
 function nextMission(){$("mDone").classList.remove("on");if(sessionOver()){breakTime();return}
   const g=G.g;let lv=G.lv,m=G.m+1;if(m>2){m=0;lv=Math.min(lv+1,S.lv[g])}startMission(g,lv,m)}
-function quitGame(){timerOff();closeGate();$("qhint").className="";$("qtag").textContent="";G=null;mode="idle";$("hud").classList.remove("on");$("qcard").classList.remove("on");$("fb").textContent="";speechSynthesis&&speechSynthesis.cancel()}
+function quitGame(){timerOff();closeGate();$("qhint").className="";$("qtag").textContent="";G=null;mode="idle";$("hud").classList.remove("on");$("qcard").classList.remove("on");$("fb").textContent="";stopSpeech()}
 function record(first){const d=day();d.q++;if(first)d.c++;const k=G.q.skill;S.skillNames[k]=topicName(G.g,G.lv);S.skills[k]=S.skills[k]||{q:0,c:0};S.skills[k].q++;if(first)S.skills[k].c++;save()}
 
 /* ================= timer / breaks ================= */
@@ -1053,7 +1063,7 @@ function renderParents(){
   const zz=sum("zh_");$("pWords").innerHTML=`<div style="font-size:15px">📚 ${lab("words")}</div><div style="font-size:15px">🀄 ${lab("zh")}</div>`;$("pWordsAcc").textContent=`Reading ${w.q} q · ${acc(w.q,w.c)} · 中文 ${zz.q} q · ${acc(zz.q,zz.c)} first-try`;
   const rows=[];GALS.forEach(([g])=>{for(let i=1;i<=galSize(g);i++){const k=g==="words"?"words"+i:`${g}_${i}`,v=S.skills[k];if(v)rows.push(`<tr><td>${g==="words"?"🔤":"G"+g[1]} ${topicName(g,i)}</td><td>${acc(v.q,v.c)}</td><td>${v.q}</td></tr>`)}});
   $("pSkills").innerHTML=rows.join("")||`<tr><td colspan="3" class="note">No missions flown yet.</td></tr>`;
-  $("sFocus").value=FOCUS()?"1":"0";$("sMix").value=MIXON()?String(MIXN()):"0";$("sChal").value=S.chal===0?"0":"1";$("sBlock").value=S.block||20;$("sRest").value=S.rest||5;$("sVoice").value=S.voice;$("sVoiceEn").innerHTML=voiceOptions("en",S.voiceEn);$("sVoiceZh").innerHTML=voiceOptions("zh",S.voiceZh);
+  $("sFocus").value=FOCUS()?"1":"0";$("sMix").value=MIXON()?String(MIXN()):"0";$("sChal").value=S.chal===0?"0":"1";$("sBlock").value=S.block||20;$("sRest").value=S.rest||5;$("sVoice").value=S.voice;$("sVoiceEn").innerHTML=voiceOptions("en",S.voiceEn);$("sAiV").value=S.aiVoice===0?"0":"1";$("sAiName").innerHTML=(HV?HV.VOICES:[["af_heart","Heart — warm (default)"]]).map(([k,n])=>`<option value="${k}" ${k===(S.aiVoiceName||"af_heart")?"selected":""}>${n}</option>`).join("");$("aiSt").textContent=aiVoiceStatus();clearInterval(window._aiT);window._aiT=setInterval(()=>{const e=$("aiSt");if(e)e.textContent=aiVoiceStatus()},1500);$("sVoiceZh").innerHTML=voiceOptions("zh",S.voiceZh);
   $("unlocks").innerHTML=GALS.map(([g,l])=>`<div class="set">${l}: <select data-ug="${g}">${g==="words"?"":`<option value="0">Locked</option>`}${Array.from({length:galSize(g)},(_,i)=>`<option value="${i+1}" ${S.lv[g]===i+1?"selected":""}>up to ${i+1} · ${topicName(g,i+1)}</option>`).join("")}</select></div>`).join("");
   $("unlocks").querySelectorAll("select").forEach(sel=>{if(!S.lv[sel.dataset.ug])sel.value="0";sel.onchange=()=>{S.lv[sel.dataset.ug]=+sel.value;save()}});
   $("pMsg").textContent="";
@@ -1079,12 +1089,15 @@ $("mdMap").onclick=()=>{$("mDone").classList.remove("on");quitGame();if(sessionO
 $("bkOk").onclick=()=>{if(onBreak())return;$("mBreak").classList.remove("on");show("map")};$("pEndBreak").onclick=()=>{S.breakUntil=0;S.playSec=0;save();$("pMsg").textContent="Break ended. He can play again."};
 $("toParents").onclick=()=>show("parents");$("pBack").onclick=()=>show("title");
 $("sChal").onchange=e=>{S.chal=+e.target.value;save()};$("sMix").onchange=e=>{const v=+e.target.value;if(v){S.mix=1;S.mixN=v}else S.mix=0;save()};$("sMixReset").onclick=()=>{gmix().rest={};gmix().log.push("|");save();toast("All galaxies are awake for today")};
-$("sFocus").onchange=e=>{S.focus=e.target.value==="1";save()};$("sBlock").onchange=e=>{S.block=+e.target.value;save()};$("sRest").onchange=e=>{S.rest=+e.target.value;save()};$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};$("sVoiceEn").onchange=e=>{S.voiceEn=e.target.value;save()};$("sVoiceZh").onchange=e=>{S.voiceZh=e.target.value;save()};$("tVoiceEn").onclick=()=>{const v=S.voice;S.voice=1;speak("Hi Jonah! Ready for a space adventure? Let's go!");S.voice=v};$("tVoiceZh").onclick=()=>{const v=S.voice;S.voice=1;speak("你好，Jonah！我们一起去太空吧！");S.voice=v};
+$("sFocus").onchange=e=>{S.focus=e.target.value==="1";save()};$("sBlock").onchange=e=>{S.block=+e.target.value;save()};$("sRest").onchange=e=>{S.rest=+e.target.value;save()};$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};$("sAiV").onchange=e=>{S.aiVoice=+e.target.value;save();if(S.aiVoice&&HV)HV.init({getS:()=>S})};$("sAiName").onchange=e=>{S.aiVoiceName=e.target.value;save()};$("tAi").onclick=()=>{const v=S.voice;S.voice=1;speak("Hi Jonah! Ready for a space adventure? Let's blast off and learn something amazing today!");S.voice=v};
+$("sVoiceEn").onchange=e=>{S.voiceEn=e.target.value;save()};$("sVoiceZh").onchange=e=>{S.voiceZh=e.target.value;save()};$("tVoiceEn").onclick=()=>{const v=S.voice;S.voice=1;speak("Hi Jonah! Ready for a space adventure? Let's go!");S.voice=v};$("tVoiceZh").onclick=()=>{const v=S.voice;S.voice=1;speak("你好，Jonah！我们一起去太空吧！");S.voice=v};
 
 $("pTime").onclick=()=>{S.playSec=0;save();renderParents();$("pMsg").textContent="Play-block timer reset."};
 $("pCopy").onclick=async()=>{try{await navigator.clipboard.writeText(summary());$("pMsg").textContent="Copied."}catch(e){$("pMsg").textContent=summary()}};
 document.querySelector("#game")||document.body.insertAdjacentHTML("beforeend",'<section class="layer" id="game" style="pointer-events:none"></section>');
 if(S._mig3){const earned=g=>{let n=1;const P=(S.prog||{})[g]||{};while(n<galSize(g)&&P[n]&&P[n][2])n++;return n};S.lv.g1=earned("g1");S.lv.words=earned("words");S.lv.g2=galDone0("g1")?earned("g2"):0;S.lv.g3=galDone0("g2")?earned("g3"):0;delete S._mig3}
+/* Bobby 2026-11-21: treat Jonah as Grade 1–2, not kindergarten — open Grade 2 alongside Grade 1 and skip the K-level reading planets (1–3). */
+if(!S._g12){S._g12=1;S.lv.g1=Math.max(S.lv.g1||1,1);S.lv.g2=Math.max(S.lv.g2||0,1);S.lv.words=Math.max(S.lv.words||1,4);try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 new MutationObserver(()=>placeFb()).observe($("fb"),{childList:true,characterData:true,subtree:true});new MutationObserver(()=>placeFb()).observe($("qcard"),{childList:true,subtree:true,attributes:true});
 applyRetro();resize();setCoins();save();if(onBreak()){$("mBreak").classList.add("on");runBreak()}requestAnimationFrame(loop);requestAnimationFrame(hangarLoop);
 </script>
