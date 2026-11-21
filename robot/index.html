@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><script>if(window.top===window){location.replace("../#robot");}</script>
+<title>Robot Lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#120c24;--panel:#1f1640;--panel2:#2a1f55;--ink:#f5f0ff;--mute:#b8aee0;--mars:#e2683c;--sand:#f3b37a;--lime:#b8f34a;--sky:#5cc8ff;--pink:#ff6fb5;--gold:#ffd166;--line:#000}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}html,body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#3b1d5e 0%,var(--bg) 60%) fixed;color:var(--ink);font-family:"Baloo 2",system-ui,sans-serif;font-size:17px;line-height:1.4}
+button{font:inherit;cursor:pointer}
+.wrap{max-width:1180px;margin:0 auto;padding:14px}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}.top h1{margin:0;font-size:28px}.spacer{flex:1}
+.pill{background:var(--panel2);border-radius:999px;padding:4px 12px;font-weight:700}
+.btn{border:3px solid var(--line);border-radius:14px;padding:8px 14px;background:var(--gold);color:#241500;font-weight:800;box-shadow:3px 3px 0 var(--line);transition:transform .08s}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--line)}.btn.ghost{background:var(--panel2);color:var(--ink)}.btn.go{background:var(--lime);color:#122000}.btn.pink{background:var(--pink);color:#2a0016}.btn.sky{background:var(--sky);color:#002235}
+.btn.sm{padding:4px 10px;font-size:15px;border-width:2px;box-shadow:2px 2px 0 var(--line)}.btn:disabled{opacity:.45;cursor:default}
+.card{background:var(--panel);border:3px solid var(--line);border-radius:18px;padding:16px;box-shadow:5px 5px 0 var(--line);margin:12px 0}
+.sub{color:var(--mute);font-size:15px}
+/* mission map */
+.map{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.planet{position:relative;text-align:left;border:3px solid var(--line);border-radius:20px;padding:14px;background:linear-gradient(135deg,var(--panel2),var(--panel));color:var(--ink);box-shadow:5px 5px 0 var(--line)}
+.planet .em{font-size:40px}.planet h3{margin:2px 0;font-size:21px}.planet.lock{opacity:.5}.planet .prog{height:8px;background:#0006;border-radius:9px;overflow:hidden;margin-top:8px}.planet .prog i{display:block;height:100%;background:var(--lime)}
+.planet .tag{position:absolute;right:12px;top:10px;font-size:13px;background:#0005;border-radius:999px;padding:2px 9px}
+/* lesson */
+.lesson .idea{font-size:19px;margin:8px 0}.codebox{background:#0d0920;border:2px solid #000;border-radius:12px;padding:10px 12px;font:15px/1.5 "JetBrains Mono",ui-monospace,monospace;white-space:pre;overflow-x:auto;color:#e8e3ff}
+.note{background:#ffffff12;border-left:5px solid var(--sky);padding:8px 12px;border-radius:8px;margin-top:10px}
+.dots{display:flex;gap:6px;margin:8px 0}.dots i{width:10px;height:10px;border-radius:50%;background:#ffffff30}.dots i.on{background:var(--gold)}
+/* item list */
+.items{display:grid;gap:8px}.item{display:flex;align-items:center;gap:10px;text-align:left;border:3px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--panel2);color:var(--ink)}
+.item .ic{font-size:24px;width:34px;text-align:center}.item .st{margin-left:auto;font-size:18px;letter-spacing:2px}.item.lock{opacity:.45}.item.boss{background:linear-gradient(90deg,#5b2a00,#2a1f55)}
+/* level */
+.lvl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:14px;align-items:start}
+@media (max-width:900px){.lvl{grid-template-columns:1fr}}
+.world{position:relative;margin:0 auto;border:3px solid #000;border-radius:12px;overflow:hidden;background:#000}
+.cell{position:absolute;display:flex;align-items:center;justify-content:center}
+.cell.floor{background:#c9744a;box-shadow:inset 0 0 0 1px #b8653f}.cell.wall{background:linear-gradient(135deg,#5a3a2e,#3b241c);box-shadow:inset 0 0 0 1px #2a1912}
+.cell.line::after{content:"";position:absolute;inset:32%;background:#1b1b1b;border-radius:4px}
+.cell.trail::before{content:"";width:18%;height:18%;border-radius:50%;background:#ffffff80;position:absolute}
+.cell .ob{position:relative;z-index:2}
+.robot{position:absolute;display:flex;align-items:center;justify-content:center;transition:left .18s ease,top .18s ease;z-index:5}
+.robot .body{filter:drop-shadow(0 3px 2px #0008)}.robot .dirw{position:absolute;inset:0;transition:transform .18s ease}.robot .dir{position:absolute;right:-14%;top:50%;transform:translateY(-50%);font-size:45%;color:var(--gold);text-shadow:0 0 3px #000,0 0 6px #000}
+.robot .eye{position:absolute;width:30%;height:30%;font-size:60%;display:flex;align-items:center;justify-content:center;color:#fff;text-shadow:0 0 4px #000}
+.shake{animation:shake .35s}@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.spark{position:absolute;z-index:6;pointer-events:none;animation:spark .7s forwards}@keyframes spark{to{transform:translateY(-30px);opacity:0}}
+.wtabs{display:flex;gap:6px;margin:8px 0;flex-wrap:wrap}.wtabs button{border:2px solid #000;border-radius:10px;background:var(--panel2);color:var(--ink);padding:2px 10px}.wtabs button.on{background:var(--sky);color:#002235}.wtabs .ok{color:var(--lime)}.wtabs .no{color:#ff8f8f}
+/* editor */
+.ed{position:relative;border:3px solid #000;border-radius:12px;background:#0d0920;overflow:hidden}
+.ed .gut{position:absolute;left:0;top:0;bottom:0;width:38px;background:#1a1236;color:#6e64a3;font:15px/1.55 "JetBrains Mono",monospace;text-align:right;padding:10px 6px 10px 0;overflow:hidden;white-space:pre}
+.ed .hl,.ed textarea{font:15px/1.55 "JetBrains Mono",ui-monospace,monospace;padding:10px 10px 10px 46px;margin:0;border:0;white-space:pre;tab-size:4;overflow:auto;width:100%;min-height:260px;letter-spacing:0}
+.ed .hl{position:absolute;inset:0;pointer-events:none;color:#e8e3ff}
+.ed textarea{position:relative;background:transparent;color:transparent;caret-color:#fff;resize:vertical;outline:none;height:280px;display:block}
+.ed textarea::selection{background:#5cc8ff55;color:transparent}
+.k{color:#ff79c6;font-weight:600}.f{color:#8be9fd}.n{color:#bd93f9}.s{color:#f1fa8c}.c{color:#6e64a3;font-style:italic}.sens{color:#50fa7b}
+.curline{background:#ffd16633;display:inline-block;width:100%}.errline{background:#ff5c5c44;display:inline-block;width:100%}
+.palette{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.palette button{border:2px solid #000;border-radius:10px;padding:3px 9px;font:14px "JetBrains Mono",monospace;background:#2f2560;color:#fff}
+.palette button.cmd{background:#21406b}.palette button.blk{background:#5a2364}.palette button.sns{background:#1f5a3a}
+.runbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.out{background:#000;border:2px solid #333;border-radius:10px;padding:8px 10px;font:14px/1.5 "JetBrains Mono",monospace;min-height:38px;color:#9cff9c;white-space:pre-wrap;margin-top:8px}
+.msg{border:3px solid #000;border-radius:14px;padding:10px 12px;margin-top:10px;font-size:17px}.msg.err{background:#4a1022}.msg.ok{background:#14401f}.msg.info{background:#16325a}
+.goal{background:#ffffff12;border-radius:12px;padding:8px 12px;margin:6px 0 10px;font-size:18px}
+.hintbox{background:#3a2a00;border:2px solid var(--gold);border-radius:12px;padding:8px 12px;margin-top:8px}.hintbox pre{margin:6px 0 0;font:14px/1.5 "JetBrains Mono",monospace;white-space:pre-wrap}
+.choices{display:grid;gap:8px;margin-top:10px}.choices button{text-align:left;border:3px solid #000;border-radius:12px;padding:10px 12px;background:var(--panel2);color:var(--ink);font-size:18px}
+.choices button.right{background:#1f6b35}.choices button.wrong{background:#7a1f2c}
+.stars{font-size:34px;letter-spacing:6px}
+.modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:50;padding:14px}.modal .card{max-width:520px;width:100%;text-align:center}
+.skins{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}.skins button{font-size:34px;width:64px;height:64px;border:3px solid #000;border-radius:14px;background:var(--panel2)}.skins button.on{background:var(--gold)}.skins button:disabled{opacity:.35}
+.ref td{padding:3px 8px;vertical-align:top}.ref code{font:14px "JetBrains Mono",monospace;color:#8be9fd}
+.conf{position:fixed;top:-20px;z-index:60;font-size:22px;animation:fall 2.2s linear forwards;pointer-events:none}@keyframes fall{to{transform:translateY(110vh) rotate(540deg)}}
+.speed{accent-color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script src="engine.js?v=1"></script>
+<script src="levels1.js?v=1"></script>
+<script src="levels2.js?v=1"></script>
+<script>
+(function () {
+"use strict";
+const E = window.RoboEngine, CH = window.ROBO_CHAPTERS;
+const Q = new URLSearchParams(location.search), KID = (Q.get("k") || "ellis").toLowerCase().replace(/[^a-z]/g, "") || "ellis", PARENT = Q.get("p") === "1";
+const NAME = KID[0].toUpperCase() + KID.slice(1), LS = `${KID}_robot_state`;
+let S; try { S = JSON.parse(localStorage.getItem(LS) || "null"); } catch (e) {} S = S || {};
+S.done = S.done || {}; S.seen = S.seen || {}; S.code = S.code || {}; S.log = S.log || []; S.skin = S.skin || "🤖"; S.sound = S.sound !== false; S.days = S.days || {};
+const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
+const $ = s => document.querySelector(s), app = $("#app");
+const esc = t => String(t == null ? "" : t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const ALL = CH.flatMap(c => c.items.map(it => Object.assign({ ch: c }, it)));
+const stars = id => (S.done[id] && S.done[id].stars) || 0, totalStars = () => Object.values(S.done).reduce((a, d) => a + (d.stars || 0), 0), maxStars = ALL.length * 3;
+const today = () => new Date().toLocaleDateString("en-CA");
+// unlocks: a chapter opens when the one before has every item solved; inside a chapter, items open in order
+const chDone = c => c.items.every(it => stars(it.id) > 0);
+const chOpen = (c, i) => PARENT || i === 0 || chDone(CH[i - 1]);
+const itemOpen = (c, k) => PARENT || k === 0 || stars(c.items[k - 1].id) > 0;
+// ---------- sound ----------
+let AC = null; const beep = (f, d, type, vol) => { if (!S.sound) return; try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); const o = AC.createOscillator(), g = AC.createGain(); o.type = type || "square"; o.frequency.value = f; g.gain.value = vol || .04; o.connect(g); g.connect(AC.destination); o.start(); g.gain.exponentialRampToValueAtTime(.0001, AC.currentTime + (d || .08)); o.stop(AC.currentTime + (d || .08)); } catch (e) {} };
+const SFX = { move: () => beep(330, .05), turn: () => beep(440, .04, "triangle"), pick: () => { beep(660, .07, "sine", .06); setTimeout(() => beep(990, .09, "sine", .06), 70); }, crash: () => beep(90, .3, "sawtooth", .08), win: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, .15, "triangle", .07), i * 120)), err: () => beep(160, .2, "square", .05) };
+const confetti = () => { for (let i = 0; i < 40; i++) { const d = document.createElement("div"); d.className = "conf"; d.textContent = ["⭐", "🔋", "✨", "🚀", "🤖"][i % 5]; d.style.left = Math.random() * 100 + "vw"; d.style.animationDelay = Math.random() * .6 + "s"; document.body.appendChild(d); setTimeout(() => d.remove(), 2900); } };
+// ---------- skins (unlocked by stars) ----------
+const SKINS = [["🤖", 0], ["🚙", 8], ["🦾", 20], ["🐶", 35], ["🛸", 55], ["🦖", 80], ["🚀", 110], ["👾", 135]];
+// ---------- syntax highlight ----------
+const KWS = new Set(["def", "for", "in", "while", "if", "elif", "else", "and", "or", "not", "True", "False", "pass", "break", "continue", "return", "None"]);
+const SNS = new Set(["wall_ahead", "wall_left", "wall_right", "path_ahead", "at_goal", "on_battery", "line_ahead", "line_left", "line_right", "batteries"]);
+function hlLine(line) {
+  let out = "", i = 0;
+  while (i < line.length) {
+    const c = line[i];
+    if (c === "#") { out += `<span class="c">${esc(line.slice(i))}</span>`; break; }
+    if (c === '"' || c === "'") { let j = line.indexOf(c, i + 1); if (j < 0) j = line.length - 1; out += `<span class="s">${esc(line.slice(i, j + 1))}</span>`; i = j + 1; continue; }
+    if (/[0-9]/.test(c)) { let j = i; while (j < line.length && /[0-9]/.test(line[j])) j++; out += `<span class="n">${line.slice(i, j)}</span>`; i = j; continue; }
+    if (/[A-Za-z_]/.test(c)) { let j = i; while (j < line.length && /[A-Za-z0-9_]/.test(line[j])) j++; const w = line.slice(i, j);
+      out += KWS.has(w) || w === "range" ? `<span class="k">${w}</span>` : SNS.has(w) ? `<span class="sens">${w}</span>` : line[j] === "(" ? `<span class="f">${w}</span>` : esc(w); i = j; continue; }
+    out += esc(c); i++;
+  }
+  return out;
+}
+const hlCode = (code, cur, err) => code.split("\n").map((l, i) => { const h = hlLine(l) || " "; return i + 1 === cur ? `<span class="curline">${h}</span>` : i + 1 === err ? `<span class="errline">${h}</span>` : h; }).join("\n");
+// ---------- screens ----------
+function header(title, back) {
+  return `<div class="top">${back ? `<button class="btn ghost sm" id="back">← ${back}</button>` : ""}<h1>${title}</h1><span class="spacer"></span>
+    <span class="pill">⭐ ${totalStars()} / ${maxStars}</span><button class="btn ghost sm" id="skinBtn">${S.skin} Skins</button><button class="btn ghost sm" id="refBtn">📘 Cheat sheet</button><button class="btn ghost sm" id="sndBtn">${S.sound ? "🔊" : "🔈"}</button></div>`;
+}
+function wireHeader(back) {
+  if ($("#back")) $("#back").onclick = back;
+  $("#skinBtn").onclick = skinModal; $("#refBtn").onclick = refModal;
+  $("#sndBtn").onclick = () => { S.sound = !S.sound; save(); $("#sndBtn").textContent = S.sound ? "🔊" : "🔈"; };
+}
+function home() {
+  window.scrollTo(0, 0);
+  const next = ALL.find(it => !stars(it.id));
+  app.innerHTML = header(`🤖 ${esc(NAME)}'s Robot Lab`) + `
+    <div class="card"><b style="font-size:20px">🛰️ Mission: rescue Mars Base!</b><p class="sub" style="margin:4px 0">You're learning <b>Python</b>, the real programming language used by NASA, robotics engineers and MIT students. Every level teaches one idea. Read the lesson cards, write the code, and watch your robot do it.</p>
+    ${next ? `<button class="btn go" id="cont">▶ Continue: ${esc(next.ch.emoji)} ${esc(next.title)}</button>` : `<b>🏆 Every mission complete! You're a real robot programmer.</b>`}</div>
+    <div class="map">${CH.map((c, i) => { const open = chOpen(c, i), got = c.items.filter(it => stars(it.id)).length, st = c.items.reduce((a, it) => a + stars(it.id), 0);
+      return `<button class="planet ${open ? "" : "lock"}" data-c="${i}" ${open ? "" : "disabled"}><span class="tag">${open ? (got === c.items.length ? "✅ done" : `${got}/${c.items.length}`) : "🔒"}</span><div class="em">${c.emoji}</div><h3>${c.n}. ${esc(c.title)}</h3>
+        <div class="sub">${esc(c.story.split(". ")[0])}.</div><div class="sub">⭐ ${st} / ${c.items.length * 3}</div><div class="prog"><i style="width:${Math.round(got / c.items.length * 100)}%"></i></div></button>`; }).join("")}</div>
+    <p class="sub" style="margin-top:14px">🎓 Robots at MIT, at NASA and in FIRST robotics all run on these same ideas: commands, loops, functions, sensors, decisions, variables and algorithms.</p>`;
+  wireHeader();
+  if ($("#cont")) $("#cont").onclick = () => { const c = next.ch; if (!S.seen[c.id]) lessons(c, 0); else play(next.id); };
+  app.querySelectorAll("[data-c]").forEach(b => b.onclick = () => chapter(CH[+b.dataset.c]));
+}
+function chapter(c) {
+  window.scrollTo(0, 0);
+  if (!S.seen[c.id] && !PARENT) return lessons(c, 0);
+  app.innerHTML = header(`${c.emoji} ${c.n}. ${esc(c.title)}`, "Mission map") + `
+    <div class="card"><p style="margin:0">${esc(c.story)}</p><div class="row" style="margin-top:8px"><button class="btn sky sm" id="les">📖 Lesson cards (${c.lessons.length})</button></div></div>
+    <div class="items">${c.items.map((it, k) => { const open = itemOpen(c, k), st = stars(it.id);
+      return `<button class="item ${open ? "" : "lock"} ${it.boss ? "boss" : ""}" data-i="${esc(it.id)}" ${open ? "" : "disabled"}><span class="ic">${it.type === "predict" ? "🔮" : it.type === "debug" ? "🐞" : it.boss ? "🌟" : "🛠️"}</span>
+        <span><b>${esc(it.title)}</b><br><span class="sub">${it.type === "predict" ? "Predict: read the code" : it.type === "debug" ? "Debug: fix the code" : "Build: write the code"}</span></span>
+        <span class="st">${open ? "★".repeat(st) + "☆".repeat(3 - st) : "🔒"}</span></button>`; }).join("")}</div>`;
+  wireHeader(home);
+  $("#les").onclick = () => lessons(c, 0);
+  app.querySelectorAll("[data-i]").forEach(b => b.onclick = () => play(b.dataset.i));
+}
+// lesson cards, with "see it run" for examples that drive the robot
+const SANDBOX = "##########\n#>.......#\n#........#\n#....b...#\n##########";
+function lessons(c, k) {
+  window.scrollTo(0, 0);
+  const L = c.lessons[k], last = k === c.lessons.length - 1;
+  const runnable = /move\(|turn_|print\(/.test(L.code) && !/❌/.test(L.code);
+  app.innerHTML = header(`${c.emoji} ${esc(c.title)}: lesson ${k + 1} of ${c.lessons.length}`, "Chapter") + `
+    <div class="card lesson"><div class="dots">${c.lessons.map((_, j) => `<i class="${j <= k ? "on" : ""}"></i>`).join("")}</div>
+      <h2 style="margin:4px 0">${esc(L.t)}</h2>${L.idea.map(p => `<p class="idea">${esc(p)}</p>`).join("")}
+      <div class="codebox">${hlCode(L.code)}</div>
+      ${runnable ? `<div style="margin-top:8px"><button class="btn sky sm" id="seeRun">▶ See it run</button></div><div id="mini" style="margin-top:8px"></div>` : ""}
+      ${L.note ? `<div class="note">💡 ${esc(L.note)}</div>` : ""}
+      <div class="row" style="display:flex;gap:8px;margin-top:14px">${k > 0 ? `<button class="btn ghost" id="prev">← Back</button>` : ""}<span class="spacer"></span><button class="btn go" id="nextL">${last ? "Start the missions ▶" : "Next card →"}</button></div></div>`;
+  wireHeader(() => { S.seen[c.id] = true; save(); chapter(c); });
+  if ($("#prev")) $("#prev").onclick = () => lessons(c, k - 1);
+  $("#nextL").onclick = () => { if (last) { S.seen[c.id] = true; save(); chapter(c); } else lessons(c, k + 1); };
+  if ($("#seeRun")) $("#seeRun").onclick = () => {
+    const code = L.code.replace(/^.*❌.*$/gm, "");
+    const box = $("#mini"); const map = /line_/.test(code) ? "#######\n#>LLLG#\n#######" : SANDBOX;
+    box.innerHTML = `<div id="mw"></div><div class="out" id="mo"></div>`;
+    const r = E.run(code, map, { line: /line_/.test(code) }), v = makeView($("#mw"), map, 30);
+    animate(v, r.frames, 220, f => { $("#mo").textContent = f.out.join("\n"); }, () => { if (r.error) $("#mo").textContent += (r.error ? "\n⚠️ " + r.error.message : ""); });
+  };
+}
+// ---------- world view ----------
+function makeView(el, map, maxCell) {
+  const w = E.makeWorld(map), isLine = /[LB]/.test(map), cs = Math.max(18, Math.min(maxCell || 46, Math.floor(Math.min(el.parentElement ? el.parentElement.clientWidth - 10 : 420, 520) / w.W)));
+  el.className = "world"; el.style.width = w.W * cs + "px"; el.style.height = w.H * cs + "px";
+  let html = "";
+  for (let y = 0; y < w.H; y++) for (let x = 0; x < w.W; x++) { const k = x + "," + y, wall = w.wall.has(k);
+    html += `<div class="cell ${wall ? "wall" : "floor"} ${!wall && isLine && w.line.has(k) ? "line" : ""}" id="c_${x}_${y}" style="left:${x * cs}px;top:${y * cs}px;width:${cs}px;height:${cs}px;font-size:${cs * .62}px">${w.goal === k ? '<span class="ob">🏁</span>' : ""}${w.bat.has(k) ? '<span class="ob bat">🔋</span>' : ""}</div>`; }
+  html += `<div class="robot" id="rb" style="width:${cs}px;height:${cs}px;font-size:${cs * .78}px"><span class="body">${S.skin}</span><span class="dirw"><span class="dir">▶</span></span></div>`;
+  el.innerHTML = html;
+  const v = { el, w, cs, rb: el.querySelector("#rb") };
+  place(v, { x: w.x, y: w.y, d: w.d, bat: [...w.bat] }, true);
+  return v;
+}
+const ROT = { ">": 0, "v": 90, "<": 180, "^": 270 };
+function place(v, f, instant) {
+  if (instant) v.rb.style.transition = "none";
+  v.rb.style.left = f.x * v.cs + "px"; v.rb.style.top = f.y * v.cs + "px";
+  v.rb.querySelector(".dirw").style.transform = `rotate(${ROT[f.d]}deg)`;
+  v.rb.title = "facing " + ({ ">": "right", "v": "down", "<": "left", "^": "up" })[f.d];
+  if (f.bat) v.el.querySelectorAll(".bat").forEach(b => { const id = b.parentElement.id.slice(2).split("_").join(","); b.style.visibility = f.bat.includes(id) ? "visible" : "hidden"; });
+  const c = v.el.querySelector(`#c_${f.x}_${f.y}`); if (c && !instant) c.classList.add("trail");
+  if (instant) setTimeout(() => { v.rb.style.transition = ""; }, 30);
+}
+let animT = null;
+function animate(v, frames, ms, onFrame, onDone) {
+  clearTimeout(animT); let i = 0; v.el.querySelectorAll(".trail").forEach(c => c.classList.remove("trail"));
+  const step = () => {
+    const f = frames[i]; if (!f) { onDone && onDone(); return; }
+    const prev = frames[i - 1]; place(v, f, i === 0);
+    if (prev) { if (f.ev === "crash") { SFX.crash(); v.el.classList.add("shake"); setTimeout(() => v.el.classList.remove("shake"), 400); }
+      else if (f.ev === "pick") { SFX.pick(); spark(v, f, "✨"); } else if (f.x !== prev.x || f.y !== prev.y) SFX.move(); else if (f.d !== prev.d) SFX.turn(); }
+    onFrame && onFrame(f, i); i++; animT = setTimeout(step, f.ev === "var" || f.ev === "print" ? Math.min(ms, 120) : ms);
+  };
+  step();
+}
+function spark(v, f, t) { const s = document.createElement("div"); s.className = "spark"; s.textContent = t; s.style.left = f.x * v.cs + "px"; s.style.top = f.y * v.cs + "px"; s.style.fontSize = v.cs * .6 + "px"; v.el.appendChild(s); setTimeout(() => s.remove(), 800); }
+// ---------- palette ----------
+function paletteFor(it) {
+  const al = new Set(it.allowed || it.ch.allowed), n = it.ch.n, P = [];
+  [["move()", "cmd"], ["turn_left()", "cmd"], ["turn_right()", "cmd"], ["pick_up()", "cmd"]].forEach(([t, c]) => { if (al.has(t.slice(0, -2))) P.push([t, c]); });
+  if (n >= 2) { P.push(["for i in range(3):", "blk"]); P.push(["print()", "cmd"]); }
+  if (n >= 3) P.push(["def my_command():", "blk"]);
+  if (n >= 4) { P.push(["if :", "blk"], ["elif :", "blk"], ["else:", "blk"], ["not ", "blk"]); ["wall_ahead()", "wall_left()", "wall_right()", "path_ahead()", "on_battery()", "at_goal()"].forEach(s => P.push([s, "sns"])); }
+  if (n >= 5) P.push(["while :", "blk"]);
+  if (n >= 7) P.push(["steps = 0", "blk"], ["steps += 1", "blk"]);
+  if (al.has("line_ahead")) ["line_ahead()", "line_left()", "line_right()", "batteries()"].forEach(s => P.push([s, "sns"]));
+  return P;
+}
+function insertAt(ta, snip) {
+  const v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+  const ls = v.lastIndexOf("\n", s - 1) + 1, before = v.slice(ls, s), ind = (before.match(/^ */) || [""])[0];
+  const blankLine = !before.trim();
+  const isCond = /^(not |[a-z_]+\(\))$/.test(snip) && SNS.has(snip.replace(/\(\)$/, "").trim()) || snip === "not ";
+  const wantsCond = /\b(if|elif|while|not|and|or)\s*$/.test(before) || /\($/.test(before);
+  let txt, caret;
+  if (isCond && wantsCond) { txt = snip; caret = txt.length; }                                // fill in a condition: if |:  → if wall_ahead()|:
+  else if (/^(if|elif|while) :$/.test(snip)) { const kw = snip.split(" ")[0]; txt = (blankLine ? "" : "\n" + ind) + kw + " :"; caret = txt.length - 1; } // caret before the colon
+  else if (snip === "print()") { txt = (blankLine ? "" : "\n" + ind) + "print()"; caret = txt.length - 1; }
+  else { const block = /:$/.test(snip); txt = (blankLine ? "" : "\n" + ind) + snip + (block ? "\n" + ind + "    " : ""); caret = txt.length; }
+  ta.value = v.slice(0, s) + txt + v.slice(e); ta.selectionStart = ta.selectionEnd = s + caret; ta.focus(); ta.dispatchEvent(new Event("input"));
+}
+// ---------- play a level ----------
+function play(id) {
+  const it = ALL.find(x => x.id === id); if (!it) return home();
+  window.scrollTo(0, 0); clearTimeout(animT);
+  if (it.type === "predict") return predict(it);
+  const c = it.ch, worlds = it.worlds || [it.map], lvl = Object.assign({ allowed: it.allowed || c.allowed }, it);
+  const rec = S.done[it.id] || {}; let tries = 0, hintN = 0, t0 = Date.now(), wi = 0, running = false;
+  const code0 = S.code[it.id] != null ? S.code[it.id] : (it.start || "");
+  app.innerHTML = header(`${it.boss ? "🌟" : it.type === "debug" ? "🐞" : "🛠️"} ${esc(it.title)}`, c.title) + `
+    <div class="goal">🎯 ${esc(it.goal)}${it.par ? ` <span class="sub">· ⭐⭐ if you solve it in ${it.par} lines or fewer</span>` : ""}${it.bug ? `<div class="sub">🐞 Clue: ${esc(it.bug)}</div>` : ""}</div>
+    <div class="lvl"><div>
+      ${worlds.length > 1 ? `<div class="wtabs" id="wt">${worlds.map((_, i) => `<button data-w="${i}" class="${i === 0 ? "on" : ""}">Map ${i + 1} <span id="wr${i}"></span></button>`).join("")}<span class="sub">One program must solve every map!</span></div>` : ""}
+      <div style="overflow-x:auto"><div id="wv"></div></div>
+      <div class="sub" style="margin-top:6px">Legend: 🏁 flag · 🔋 battery · rock = wall${it.line || c.line ? " · black stripe = line" : ""}. The yellow ▶ arrow shows which way the robot faces.</div>
+    </div><div>
+      <div class="palette" id="pal">${paletteFor(it).map(([t, cl]) => `<button class="${cl}" data-s="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+      <div class="ed"><div class="gut" id="gut"></div><pre class="hl" id="hl"></pre><textarea id="ta" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off">${esc(code0)}</textarea></div>
+      <div class="runbar" style="margin-top:8px"><button class="btn go" id="run">▶ Run</button><button class="btn sky sm" id="stepB">⏭ Step</button><button class="btn ghost sm" id="reset">↺ Reset robot</button>
+        <label class="sub">🐢 <input type="range" min="0" max="2" value="1" class="speed" id="spd"> 🐇</label><span class="spacer"></span><button class="btn pink sm" id="hint">💡 Hint</button>${it.start != null ? `<button class="btn ghost sm" id="restart" title="Start this level's code over">🗑️</button>` : ""}</div>
+      <div class="out" id="out"></div><div id="msg"></div><div id="hints"></div>
+    </div></div>`;
+  wireHeader(() => chapter(c));
+  const ta = $("#ta"), hl = $("#hl"), gut = $("#gut");
+  let curLn = 0, errLn = 0;
+  const paint = () => { hl.innerHTML = hlCode(ta.value, curLn, errLn) + "\n"; const n = ta.value.split("\n").length; gut.textContent = Array.from({ length: n }, (_, i) => i + 1).join("\n"); hl.scrollTop = ta.scrollTop; hl.scrollLeft = ta.scrollLeft; gut.scrollTop = ta.scrollTop; };
+  ta.addEventListener("input", () => { errLn = 0; paint(); S.code[it.id] = ta.value; save(); });
+  ta.addEventListener("scroll", () => { hl.scrollTop = ta.scrollTop; hl.scrollLeft = ta.scrollLeft; gut.scrollTop = ta.scrollTop; });
+  ta.addEventListener("keydown", e => {
+    const v = ta.value, s = ta.selectionStart;
+    if (e.key === "Tab") { e.preventDefault(); ta.setRangeText("    ", s, ta.selectionEnd, "end"); ta.dispatchEvent(new Event("input")); }
+    else if (e.key === "Enter") { e.preventDefault(); const ls = v.lastIndexOf("\n", s - 1) + 1, line = v.slice(ls, s), ind = line.match(/^ */)[0] + (/:\s*$/.test(line) ? "    " : ""); ta.setRangeText("\n" + ind, s, ta.selectionEnd, "end"); ta.dispatchEvent(new Event("input")); }
+    else if (e.key === "Backspace" && s === ta.selectionEnd) { const ls = v.lastIndexOf("\n", s - 1) + 1, before = v.slice(ls, s); if (before.length && /^ +$/.test(before)) { e.preventDefault(); const cut = before.length % 4 || 4; ta.setRangeText("", s - cut, s, "end"); ta.dispatchEvent(new Event("input")); } }
+  });
+  paint();
+  let view = makeView($("#wv"), worlds[0]);
+  const showWorld = i => { wi = i; app.querySelectorAll("[data-w]").forEach(b => b.classList.toggle("on", +b.dataset.w === i)); view = makeView($("#wv"), worlds[i]); };
+  app.querySelectorAll("[data-w]").forEach(b => b.onclick = () => { if (!running) showWorld(+b.dataset.w); });
+  app.querySelectorAll("[data-s]").forEach(b => b.onclick = () => insertAt(ta, b.dataset.s));
+  const speed = () => [420, 220, 70][+$("#spd").value];
+  const msg = (html, cls) => { $("#msg").innerHTML = html ? `<div class="msg ${cls}">${html}</div>` : ""; };
+  $("#reset").onclick = () => { clearTimeout(animT); running = false; curLn = 0; paint(); showWorld(wi); $("#out").textContent = ""; msg(""); };
+  if ($("#restart")) $("#restart").onclick = () => { if (confirm("Start this level's code over?")) { ta.value = it.start || ""; ta.dispatchEvent(new Event("input")); } };
+  $("#hint").onclick = () => {
+    hintN = Math.min(it.hints.length, hintN + 1);
+    $("#hints").innerHTML = it.hints.slice(0, hintN).map((h, i) => `<div class="hintbox"><b>💡 Hint ${i + 1}${i === it.hints.length - 1 ? " (almost the answer)" : ""}</b>${i === it.hints.length - 1 && /\n|\(\)/.test(h) ? `<pre>${hlCode(h)}</pre>` : `<div>${esc(h)}</div>`}</div>`).join("") + (hintN < it.hints.length ? "" : `<div class="sub" style="margin-top:6px">Using the last hint means max ⭐⭐ on this level. Type it yourself, though. Your fingers learn too!</div>`);
+  };
+  // Step: run silently, then show frames one at a time
+  let stepFrames = null, stepI = 0, stepRes = null;
+  $("#stepB").onclick = () => {
+    if (running) return;
+    if (!stepFrames) { stepRes = E.run(ta.value, worlds[wi], { allowed: lvl.allowed, line: lvl.line || c.line }); stepFrames = stepRes.frames; stepI = 0; showWorld(wi); }
+    const f = stepFrames[stepI];
+    if (!f) { stepFrames = null; if (stepRes.error) { errLn = stepRes.error.line; paint(); msg("⚠️ " + esc(stepRes.error.message), "err"); } else msg("End of program. ↺ Reset to step again.", "info"); return; }
+    place(view, f, stepI === 0); curLn = f.ln; paint(); $("#out").textContent = f.out.join("\n"); stepI++;
+    msg(f.ln ? `Line ${f.ln} just ran. Press ⏭ again for the next step.` : "Ready. Press ⏭ to run the first line.", "info");
+  };
+  ta.addEventListener("input", () => { stepFrames = null; });
+  $("#run").onclick = () => {
+    if (running) return; running = true; tries++; stepFrames = null; msg("");
+    const chk = E.check(lvl, ta.value), results = chk.res;
+    let i = 0;
+    const runOne = () => {
+      const r = results[i]; if (!r) return finish();
+      showWorld(i); $("#out").textContent = "";
+      animate(view, r.frames, speed(), f => { curLn = f.ln; paint(); $("#out").textContent = f.out.join("\n"); }, () => {
+        curLn = 0; paint();
+        const mark = $("#wr" + i); if (mark) mark.innerHTML = r.ok ? '<span class="ok">✔</span>' : '<span class="no">✘</span>';
+        if (!r.ok) return fail(r, i);
+        i++; if (i < results.length) setTimeout(runOne, 450); else finish();
+      });
+    };
+    const fail = (r, i) => {
+      running = false; SFX.err();
+      let why;
+      if (r.error) { errLn = r.error.line; paint(); why = `⚠️ ${r.error.line ? `<b>Line ${r.error.line}:</b> ` : ""}${esc(r.error.message)}`; }
+      else if (lvl.out && r.wantOut != null && r.out.join("\n").trim() !== r.wantOut.trim()) why = r.out.length ? `🖨️ You printed <b>${esc(r.out.join(" "))}</b>, but the right answer on this map is <b>${esc(r.wantOut)}</b>.` : "🖨️ Don't forget to print the answer!";
+      else if (lvl.allBats && !r.allBats) why = `🔋 You missed ${r.world.bat.size} batter${r.world.bat.size === 1 ? "y" : "ies"}. Collect them all!`;
+      else if (lvl.backHome) why = "🏠 The robot didn't end on its starting square.";
+      else if (!lvl.noGoal && !r.atGoal) why = "🏁 The program finished, but the robot isn't on the flag yet.";
+      else why = "Not quite. Check the goal again.";
+      msg(`${worlds.length > 1 ? `<b>Map ${i + 1}:</b> ` : ""}${why}<div class="sub" style="margin-top:4px">${tries >= 3 && hintN === 0 ? "Stuck? Try 💡 Hint, or ⏭ Step to watch it line by line." : "Fix it and run again. Every coder debugs!"}</div>`, "err");
+      log(false);
+    };
+    const finish = () => {
+      running = false;
+      if (chk.missing && chk.missing.length) { msg(`Almost! This level wants you to use <b>${esc(chk.missing.join(", "))}</b>. Try writing it that way.`, "info"); log(false); return; }
+      const lines = chk.lines, st = 1 + (it.par && lines <= it.par ? 1 : 0) + (it.par && lines <= it.par && hintN < it.hints.length ? 1 : 0);
+      const best = Math.max(st, rec.stars || 0);
+      S.done[it.id] = { stars: best, lines: Math.min(lines, rec.lines || 999), tries: (rec.tries || 0) + tries, hints: hintN, at: Date.now() };
+      log(true, st); save(); SFX.win(); confetti();
+      const nx = nextItem(it);
+      document.body.insertAdjacentHTML("beforeend", `<div class="modal" id="win"><div class="card"><div style="font-size:54px">${it.boss ? "🏆" : "🎉"}</div><h2 style="margin:4px 0">${it.boss ? "Boss defeated!" : "Mission complete!"}</h2>
+        <div class="stars">${"★".repeat(st)}${"☆".repeat(3 - st)}</div><p class="sub">${lines} line${lines === 1 ? "" : "s"} of code${it.par ? ` · par ${it.par}` : ""}${st < 3 && it.par && lines > it.par ? " · Can you make it shorter? Try a loop or a function!" : ""}</p>
+        ${unlockNote()}<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px"><button class="btn ghost" id="wStay">Keep improving</button>${nx ? `<button class="btn go" id="wNext">Next ▶</button>` : `<button class="btn go" id="wMap">Mission map</button>`}</div></div></div>`);
+      $("#wStay").onclick = () => $("#win").remove();
+      if ($("#wNext")) $("#wNext").onclick = () => { $("#win").remove(); const ch = nx.ch; if (!S.seen[ch.id]) lessons(ch, 0); else play(nx.id); };
+      if ($("#wMap")) $("#wMap").onclick = () => { $("#win").remove(); home(); };
+    };
+    const log = (ok, st) => { S.log.push({ ts: Date.now(), d: today(), id: it.id, ok, st: st || 0, tries, hints: hintN, lines: chk.lines, secs: Math.round((Date.now() - t0) / 1000) }); if (S.log.length > 800) S.log = S.log.slice(-800); S.days[today()] = (S.days[today()] || 0) + 1; save(); };
+    runOne();
+  };
+}
+function unlockNote() { const t = totalStars(), sk = SKINS.find(([e, n]) => n <= t && n > t - 3 && n > 0); return sk ? `<p>🎁 New robot skin unlocked: <span style="font-size:30px">${sk[0]}</span> (tap ${S.skin} Skins)</p>` : ""; }
+function nextItem(it) { const i = ALL.findIndex(x => x.id === it.id); return ALL[i + 1] || null; }
+// ---------- predict ----------
+function predict(it) {
+  const c = it.ch; let tries = 0;
+  app.innerHTML = header(`🔮 ${esc(it.title)}`, c.title) + `
+    <div class="goal">🔮 Read the code. Don't run it! Think like the robot, one line at a time.</div>
+    <div class="lvl"><div><div style="overflow-x:auto"><div id="wv"></div></div><div class="out" id="out"></div></div>
+    <div><div class="codebox">${hlCode(it.code)}</div><h3 style="margin:12px 0 4px">${esc(it.q)}</h3>
+      <div class="choices">${it.choices.map((t, i) => `<button data-a="${i}">${String.fromCharCode(65 + i)}. ${esc(t)}</button>`).join("")}</div><div id="msg"></div></div></div>`;
+  wireHeader(() => chapter(c));
+  const view = makeView($("#wv"), it.map);
+  app.querySelectorAll("[data-a]").forEach(b => b.onclick = () => {
+    if (b.disabled) return; tries++; const ok = +b.dataset.a === it.a;
+    b.classList.add(ok ? "right" : "wrong"); b.disabled = true;
+    if (!ok) { SFX.err(); $("#msg").innerHTML = `<div class="msg err">Not that one. Go through it line by line again, and say each step out loud.</div>`; return; }
+    app.querySelectorAll("[data-a]").forEach(x => x.disabled = true);
+    const st = tries === 1 ? 3 : tries === 2 ? 2 : 1, rec = S.done[it.id] || {};
+    S.done[it.id] = { stars: Math.max(st, rec.stars || 0), tries: (rec.tries || 0) + tries, at: Date.now() };
+    S.log.push({ ts: Date.now(), d: today(), id: it.id, ok: true, st, tries }); save(); SFX.win();
+    const nx = nextItem(it);
+    $("#msg").innerHTML = `<div class="msg ok"><div class="stars" style="font-size:26px">${"★".repeat(st)}${"☆".repeat(3 - st)}</div>✅ ${esc(it.why)}<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn sky sm" id="watch">▶ Watch it run</button>${nx ? `<button class="btn go sm" id="pNext">Next ▶</button>` : ""}</div></div>`;
+    $("#watch").onclick = () => { const r = E.run(it.code, it.map, {}); animate(view, r.frames, 300, f => { $("#out").textContent = f.out.join("\n"); }, () => { if (r.error) $("#out").textContent += "\n⚠️ " + r.error.message; }); };
+    if ($("#pNext")) $("#pNext").onclick = () => { const ch = nx.ch; if (!S.seen[ch.id]) lessons(ch, 0); else play(nx.id); };
+  });
+}
+// ---------- modals ----------
+function skinModal() {
+  const t = totalStars();
+  document.body.insertAdjacentHTML("beforeend", `<div class="modal" id="sk"><div class="card"><h2 style="margin:0 0 8px">Choose your robot</h2><p class="sub">Earn ⭐ to unlock more. You have ${t}.</p>
+    <div class="skins">${SKINS.map(([e, n]) => `<button data-k="${e}" class="${S.skin === e ? "on" : ""}" ${t >= n || PARENT ? "" : "disabled"} title="${n} stars">${e}</button>`).join("")}</div>
+    <p class="sub">${SKINS.filter(([e, n]) => n > t).slice(0, 1).map(([e, n]) => `Next: ${e} at ${n} ⭐`).join("")}</p><button class="btn" id="skX">Done</button></div></div>`);
+  $("#sk").querySelectorAll("[data-k]").forEach(b => b.onclick = () => { S.skin = b.dataset.k; save(); $("#sk").remove(); const r = document.querySelector(".robot .body"); if (r) r.textContent = S.skin; $("#skinBtn").textContent = S.skin + " Skins"; });
+  $("#skX").onclick = () => $("#sk").remove();
+}
+function refModal() {
+  const rows = [["move()", "Drive one square forward"], ["turn_left() / turn_right()", "Turn a quarter turn, staying on the same square"], ["pick_up()", "Grab the battery you're standing on"], ["print(x)", "Show a value in the output box"],
+    ["for i in range(5):", "Repeat the pushed-in lines 5 times (i = 0, 1, 2, 3, 4)"], ["def name():", "Make your own command. Call it with name()"], ["if …: / elif …: / else:", "Choose what to do. Only one part runs"],
+    ["while …:", "Repeat while the question is True"], ["not", "Flip True ↔ False"], ["x = 0 · x += 1", "Put a value in a box · add 1 to it"], ["== != < > <= >=", "Compare (two = to compare!)"],
+    ["wall_ahead() wall_left() wall_right()", "Sensors: is there a wall there? (True/False)"], ["path_ahead()", "Is the square ahead open?"], ["on_battery() · at_goal()", "Am I on a battery? Am I on the flag?"], ["line_ahead() line_left() line_right()", "Light sensors: is the line there?"],
+    ["# comment", "A note for humans. The robot ignores it"], [": and 4 spaces", "Every if/for/while/def line ends with : and its inside is pushed in 4 spaces"]];
+  document.body.insertAdjacentHTML("beforeend", `<div class="modal" id="rf"><div class="card" style="text-align:left;max-width:640px;max-height:86vh;overflow:auto"><h2 style="margin:0 0 8px">📘 Python cheat sheet</h2>
+    <table class="ref">${rows.map(r => `<tr><td><code>${esc(r[0])}</code></td><td>${esc(r[1])}</td></tr>`).join("")}</table><div style="text-align:center;margin-top:10px"><button class="btn" id="rfX">Got it</button></div></div></div>`);
+  $("#rfX").onclick = () => $("#rf").remove();
+}
+home();
+})();
+</script>
+</body>
+</html>

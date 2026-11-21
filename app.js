@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261121h3";
-import * as Pix from "./pixel.js?v=20261121h3";
+import { STR } from "./i18n.js?v=20261121r1";
+import * as Pix from "./pixel.js?v=20261121r1";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -914,6 +914,21 @@ function goalProgress(m) {
   const cur = rs.length ? +rs[rs.length - 1].value : +m.baseline, span = (+m.target) - (+m.baseline);
   return { cur, last: rs[rs.length - 1]?.date, p: span ? clamp01((cur - (+m.baseline)) / span) : 1 };
 }
+/* ---- Robot Lab (coding & robotics): parent summary from app_saves ---- */
+const ROBO_CH = [["c1", "🚀 Commands", 7], ["c2", "🔁 Loops", 7], ["c3", "🧩 Functions", 5], ["c4", "📡 Sensors & if", 6], ["c5", "♾️ While loops", 6], ["c6", "🌀 Maze algorithms", 5], ["c7", "📦 Variables", 6], ["c8", "〰️ Line following", 4], ["c9", "🏆 Final mission", 1]];
+function robotStatsHtml(kid) {
+  const zh = lang === "zh", save = (S.app_saves || []).find(a => a.kid === kid && a.app === "robot"), P = save && save.data ? save.data[`${kid}_robot_state`] : null;
+  if (!P || !P.done) return `<p class="meta" style="margin-top:8px">🤖 ${zh ? "还没开始 Robot Lab。" : "Robot Lab not started yet."}</p>`;
+  const done = P.done, ids = Object.keys(done).filter(k => done[k].stars > 0), stars = ids.reduce((a, k) => a + (done[k].stars || 0), 0);
+  const total = ROBO_CH.reduce((a, c) => a + c[2], 0), since = Date.now() - 7 * 864e5, log = (P.log || []).filter(l => l.ts >= since);
+  const days = new Set(log.map(l => l.d)).size, runs = log.length, solved = log.filter(l => l.ok).length;
+  const hard = Object.entries(done).filter(([k, d]) => (d.tries || 0) >= 5).sort((a, b) => b[1].tries - a[1].tries).slice(0, 3);
+  const cur = ROBO_CH.find(c => ids.filter(k => k.startsWith(c[0])).length < c[2]);
+  return `<div class="pfslow" style="margin-top:8px"><b>🤖 Robot Lab</b> · ⭐ ${stars} · ${ids.length}/${total} ${zh ? "关" : "levels"} · ${zh ? "现在" : "now on"}: <b>${cur ? cur[1] : (zh ? "全部完成 🏆" : "all done 🏆")}</b><br>
+    <span class="meta">${zh ? "最近7天" : "Last 7 days"}: ${days} ${zh ? "天" : "days"} · ${runs} ${zh ? "次运行" : "code runs"} · ${solved} ${zh ? "次通关" : "solved"}</span>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">${ROBO_CH.map(c => { const n = ids.filter(k => k.startsWith(c[0])).length; return `<span class="meta" style="border:1px solid #ffffff33;border-radius:8px;padding:2px 6px">${c[1]} ${n}/${c[2]}</span>`; }).join("")}</div>
+    ${hard.length ? `<div class="meta" style="margin-top:4px">${zh ? "花了最多次尝试" : "Took the most tries"}: ${hard.map(([k, d]) => `${esc(k)} (${d.tries})`).join(", ")}</div>` : ""}</div>`;
+}
 /* ---- Space Quest (Jonah's math + words game): parent summary from app_saves ---- */
 const SQ_W = ["", "Find the picture", "First sounds", "Rhyming words", "Short a words", "Short e, i, o, u words", "Missing letter", "Sight words 1", "Blends", "Digraphs", "Sight words 2", "Magic e", "Read a sentence", "Fill in the sentence", "Opposites", "Word meanings", "Story time"];
 const SQ_G = { g1: { en: "Grade 1", zh: "一年级", n: 15 }, g2: { en: "Grade 2", zh: "二年级", n: 14 }, g3: { en: "Grade 3", zh: "三年级", n: 20 }, words: { en: "Reading", zh: "阅读", n: 16 }, zh: { en: "中文", zh: "中文", n: 10 } };
@@ -1057,7 +1072,7 @@ function viewSubjects() {
   const card = x => { const ms = S.metrics.filter(m => m.subject_id === x.id), notes = S.entries.filter(e => e.subject_id === x.id).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5), docs = S.docs.filter(d => d.subject_id === x.id);
     return `<div class="kid" style="--kc:${kidColor(x.kid)};cursor:default"><div class="kid-top"><div><h2>${x.icon} ${esc(sName(x))}</h2>${sDesc(x) ? `<div class="meta">${esc(sDesc(x))}</div>` : ""}</div><div style="display:flex;gap:6px">${x.app_url ? `<button class="btn sm primary" data-app="${esc(x.app_url)}" data-appkid="${esc(x.kid)}">▶ ${t.openApp}</button>` : ""}<button class="btn sm ghost" data-esubj="${x.id}">${t.edit}</button></div></div>
       ${x.app_url === "fencing/" ? fencingLessonsHtml(x.kid) : ""}
-      ${x.app_url === "space/" ? spaceStatsHtml(x.kid) : ""}${x.app_url === "brain/" ? brainStatsHtml(x.kid) : ""}
+      ${x.app_url === "space/" ? spaceStatsHtml(x.kid) : ""}${x.app_url === "robot/" ? robotStatsHtml(x.kid) : ""}${x.app_url === "brain/" ? brainStatsHtml(x.kid) : ""}
       <div class="goals"><h4>${t.goals}</h4>${ms.length ? ms.map(goalRow).join("") : `<div class="meta">${t.noGoals}</div>`}${goalForm(x.id)}</div>
       <div class="latest"><h4>${t.notes}</h4>${notes.map(e => `<div class="meta" style="color:var(--ink)"><span class="tag ${e.tone}">${{ positive: t.toneWin, concern: t.toneConcern, neutral: t.toneNote }[e.tone]}</span>${esc(e.title)} <span class="meta">· ${fmtDate(e.date)}</span></div>`).join("")}
         <form class="nform addgoal" data-sid="${x.id}" style="margin-top:6px"><select name="tone" style="width:auto"><option value="positive">${t.toneWin}</option><option value="neutral">${t.toneNote}</option><option value="concern">${t.toneConcern}</option></select><input name="title" maxlength="140" placeholder="${t.noteIn}" required><button class="btn sm">${t.addNote}</button></form></div>
@@ -1111,6 +1126,7 @@ const APPS = { "fencing/": { id: "fencing", prefix: "ellis_", skip: ["ellis_pin"
   "space/": { id: "space", prefix: kid => `${kid}_space_`, skip: [], perKid: true, label: { en: "Play Space Quest", zh: "进入太空探险" } },
   "brain/": { id: "brain", prefix: kid => `${kid}_brain_`, skip: [], perKid: true, label: { en: "Play Brain Park", zh: "进入大脑乐园" } },
   "physics/": { id: "physics", prefix: kid => `${kid}_physics_`, skip: [], perKid: true, label: { en: "Open my Physics lessons", zh: "打开我的物理课程" } },
+  "robot/": { id: "robot", prefix: kid => `${kid}_robot_`, skip: [], perKid: true, label: { en: "Open Robot Lab", zh: "进入机器人实验室" } },
   "quest/": { id: "quest", prefix: kid => `${kid}_quest_`, skip: [], perKid: true, label: { en: "Play Realm of Forces", zh: "进入力之境" } } };
 // 🤖 Ask Buddy bridge: the AMC app (same-origin iframe) calls window.parent.fhAsk(...) to reach the amc-tutor edge function.
 window.fhAsk = async body => {
@@ -1180,7 +1196,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121h3${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121r1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
@@ -1501,6 +1517,7 @@ function kidRender() {
       ${little ? "" : kidPlanHtml(k)}
       <section id="ks-money" class="kw-sec">${kidChallengeHtml(k)}</section>
       ${S.subjects.filter(x => x.active && x.app_url === "space/").map(x => `<button class="kw-spacegame" data-app="space/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#fff;font:inherit;background:radial-gradient(circle at 85% 30%,#9b5de5 0,transparent 45%),linear-gradient(135deg,#1b1f4b,#3a2f7a);box-shadow:0 8px 0 #0003,0 10px 30px #3a2f7a66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.4s ease-in-out infinite">🚀</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "太空探险" : "Space Quest"}</b><span style="opacity:.9;font-size:17px">${lang === "zh" ? "一至三年级数学和单词：打陨石、救外星人、打败大怪兽！" : "Grade 1–3 math + words: blast asteroids, rescue aliens, beat bosses!"}</span></span><span style="background:linear-gradient(#ffd166,#f4a300);color:#3b2400;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0004">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
+      ${S.subjects.filter(x => x.active && x.app_url === "robot/").map(x => `<button class="kw-spacegame" data-app="robot/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#fff;font:inherit;background:radial-gradient(circle at 85% 30%,#e2683c 0,transparent 45%),linear-gradient(135deg,#120c24,#3b1d5e);box-shadow:0 8px 0 #0003,0 10px 30px #3b1d5e66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.6s ease-in-out infinite">🤖</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "机器人实验室" : "Robot Lab"}</b><span style="opacity:.9;font-size:17px">${lang === "zh" ? "用真正的 Python 编程，救援火星基地！" : "Code a Mars rover in real Python. Rescue the base!"}</span></span><span style="background:linear-gradient(#b8f34a,#7fc61c);color:#122000;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0004">▶ ${lang === "zh" ? "开始" : "Code"}</span></button>`).join("")}
       ${S.subjects.filter(x => x.active && x.app_url === "brain/").map(x => `<button class="kw-spacegame" data-app="brain/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#2b2d42;font:inherit;background:radial-gradient(circle at 85% 30%,#ffd6e8 0,transparent 45%),linear-gradient(135deg,#caffbf,#a0c4ff);box-shadow:0 8px 0 #0002,0 10px 30px #a0c4ff66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.8s ease-in-out infinite">🧠</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "大脑乐园" : "Brain Park"}</b><span style="opacity:.85;font-size:17px">${lang === "zh" ? "记忆、拼图、机器人编程、画画和音乐！" : "Memory games, puzzles, robot coding, drawing and music!"}</span></span><span style="background:#fff;color:#2b2d42;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0002">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
       </section><section id="ks-worlds" class="kw-sec">
       ${worlds.length || loose.length || goals.length || mine.length ? `${kwH("globe", "worlds", t.myWorlds)}
