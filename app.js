@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261121v";
-import * as Pix from "./pixel.js?v=20261121v";
+import { STR } from "./i18n.js?v=20261121g7";
+import * as Pix from "./pixel.js?v=20261121g7";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -1139,6 +1139,7 @@ async function amcGateOk(cfg, kid) {
 async function openApp(url, kid) {
   const cfg = APPS[url]; if (!cfg) return;
   if (!(await amcGateOk(cfg, kid))) return;
+  if (!gameMixGate(cfg, kid)) return;
   const t = T(), mark = `fh_save_${kid}_${cfg.id}`, pre = typeof cfg.prefix === "function" ? cfg.prefix(kid) : cfg.prefix;
   try {
     const { data } = await sb.from("app_saves").select("data,updated_at").eq("kid", kid).eq("app", cfg.id).maybeSingle();
@@ -1161,11 +1162,57 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121v${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121g7${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
-  appOpen = async () => { stopCoach(); window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
+  const stopMix = gameMixTrack(kid, cfg, fs);
+  appOpen = async () => { stopCoach(); stopMix(); window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
   fs.querySelector(".appclose").onclick = () => appOpen();
+}
+/* ---- 🔀 Game mix (Bobby 2026-11-21): don't spend all the time on one game. Once he has played 15+ min today,
+   no single game may take more than 65% of today's game time; it rests until he plays his other games a bit. Kids only, not previews. ---- */
+const GAMEMIX = { jonah: { share: 0.65, after: 15 } };
+const GM_NAME = { space: ["🚀 Space Quest", "🚀 太空探险"], brain: ["🧠 Brain Park", "🧠 大脑乐园"] };
+const gmName = (kid, id) => { const n = GM_NAME[id]; if (n) return n[lang === "zh" ? 1 : 0]; const s = S.subjects.find(x => x.kid === kid && APPS[x.app_url] && APPS[x.app_url].id === id); return s ? `${s.icon || ""} ${lang === "zh" && s.name_zh ? s.name_zh : s.name}` : id; };
+function gmApps(kid) { return [...new Set(S.subjects.filter(x => x.kid === kid && x.active && x.app_url && APPS[x.app_url]).map(x => x.app_url))]; }
+function gmLoad(kid) { let s = {}; try { s = JSON.parse(localStorage.getItem(`fh_gmix_${kid}`) || "{}"); } catch (e) {} const d = new Date().toLocaleDateString("en-CA"); if (s.day !== d) s = { day: d, sec: {} }; s.sec = s.sec || {}; return s; }
+function gmNeed(kid, id, s) { // seconds of OTHER games needed before `id` may open again (0 = free)
+  const R = GAMEMIX[kid]; if (!R || gmApps(kid).length < 2) return 0;
+  const T = Object.values(s.sec).reduce((x, y) => x + y, 0), ta = s.sec[id] || 0;
+  if (T < R.after * 60 || ta <= R.share * T) return 0;
+  return Math.ceil(ta / R.share - T);
+}
+function gmSay(t) { try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = lang === "zh" ? "zh-CN" : "en-US"; u.rate = .9; speechSynthesis.speak(u); } catch (e) {} }
+function gmRestCard(kid, id, need, onClose) {
+  const zh = lang === "zh", others = gmApps(kid).filter(u => APPS[u].id !== id), mins = Math.max(1, Math.ceil(need / 60)), nm = gmName(kid, id), on = others.map(u => gmName(kid, APPS[u].id));
+  const ov = document.createElement("div"); ov.className = "amcgate";
+  ov.innerHTML = `<div class="amcgate-box"><div style="font-size:58px">💤</div><h2>${zh ? `${nm} 休息一下` : `${nm} is resting`}</h2>
+    <p style="font-size:19px">${zh ? `今天你玩它玩了很多！换个游戏，大脑会长得更全面。` : `You played it a lot today! Switching games grows more of your brain.`}</p>
+    <p style="font-size:19px"><b>${zh ? `去玩 ${on.join(" 或 ")} ${mins} 分钟，它就会醒来。` : `Play ${on.join(" or ")} for ${mins} more minute${mins > 1 ? "s" : ""} to wake it up.`}</b></p>
+    <div class="amcgate-row">${others.map(u => `<button class="btn primary" data-go="${u}">${gmName(kid, APPS[u].id)} ▶</button>`).join("")}<button class="btn" data-x="1">${zh ? "返回" : "Back"}</button></div></div>`;
+  document.body.appendChild(ov);
+  gmSay(zh ? `${nm.replace(/^\S+\s/, "")}要休息一下。去玩${on.map(x => x.replace(/^\S+\s/, "")).join("或")}${mins}分钟，它就会醒来。` : `${nm.replace(/^\S+\s/, "")} is resting. Play ${on.map(x => x.replace(/^\S+\s/, "")).join(" or ")} for ${mins} more minute${mins > 1 ? "s" : ""} to wake it up.`);
+  ov.querySelector("[data-x]").onclick = () => { ov.remove(); onClose && onClose(); };
+  ov.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { ov.remove(); onClose && onClose(); openApp(b.dataset.go, kid); });
+}
+function gameMixGate(cfg, kid) { if (!isKid() || preview || !GAMEMIX[kid]) return true; const need = gmNeed(kid, cfg.id, gmLoad(kid)); if (!need) return true; gmRestCard(kid, cfg.id, need); return false; }
+function gameMixTrack(kid, cfg, fs) {
+  if (!isKid() || preview || !GAMEMIX[kid]) return () => {};
+  const key = `fh_gmix_${kid}`, zh = lang === "zh";
+  const warn = document.createElement("div"); warn.style.cssText = "position:absolute;left:50%;top:56px;transform:translateX(-50%);z-index:4;display:none;background:#bde0fe;color:#0b2545;font-weight:800;padding:8px 16px;border-radius:14px;box-shadow:0 6px 20px #0006;text-align:center";
+  fs.style.position = fs.style.position || "fixed"; fs.appendChild(warn);
+  let warnAt = 0;
+  const tick = setInterval(() => {
+    if (document.hidden) return;
+    try { const c = JSON.parse(localStorage.getItem(`fh_coach_${kid}`) || "{}"); if (c.breakUntil > Date.now()) return;
+      if (cfg.id === "space") { const q = JSON.parse(localStorage.getItem(`${kid}_space_state`) || "{}"); if (q.breakUntil > Date.now()) return; } } catch (e) {}
+    const s = gmLoad(kid); s.sec[cfg.id] = (s.sec[cfg.id] || 0) + 5; try { localStorage.setItem(key, JSON.stringify(s)); } catch (e) {}
+    if (gmNeed(kid, cfg.id, s)) {
+      if (!warnAt) { warnAt = Date.now(); const on = gmApps(kid).filter(u => APPS[u].id !== cfg.id).map(u => gmName(kid, APPS[u].id)).join(zh ? " 或 " : " or "); warn.textContent = zh ? `⏳ 再玩2分钟，然后换去 ${on}！` : `⏳ 2 more minutes, then switch to ${on}!`; warn.style.display = "block"; }
+      else if (Date.now() - warnAt > 120000) { clearInterval(tick); const need = gmNeed(kid, cfg.id, gmLoad(kid)); if (appOpen) appOpen(); gmRestCard(kid, cfg.id, need); }
+    }
+  }, 5000);
+  return () => clearInterval(tick);
 }
 /* ---- 🧘 Play & break coach: wraps every hub game for the boys (Space Quest has its own) ---- */
 const COACH = { jonah: { play: 20, rest: 5 }, eric: { play: 30, rest: 5 }, ellis: { play: 30, rest: 5 } };
