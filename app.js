@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261120l";
-import * as Pix from "./pixel.js?v=20261120l";
+import { STR } from "./i18n.js?v=20261121b";
+import * as Pix from "./pixel.js?v=20261121b";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -789,8 +789,15 @@ function viewPerformance() {
       <div class="fbrow"><button class="btn primary" id="pfSave">${L.save}</button></div></div>
     <div class="section-h" style="margin-top:18px"><h3 style="font-size:16px">${L.history} <span class="meta">(${asses.length})</span></h3></div>
     ${asses.length ? asses.slice(0, 20).map(a => `<div class="fbitem neutral"><div class="meta">${fmtDate(a.date)}${a.author ? ` · ${esc(a.author.split("@")[0])}` : ""}<button class="x" data-delas="${a.id}" title="${t.del}">×</button></div><div class="pfchips">${dims.filter(d => a[d]).map(d => `<span class="chip">${L.dims[d]} ${"●".repeat(a[d])}${"○".repeat(5 - a[d])}</span>`).join("")}</div>${a.note ? `<div class="n">${esc(a.note)}</div>` : ""}</div>`).join("") : `<p class="meta">${L.none}</p>`}
+    <div class="coach" style="margin-top:18px"><h4>🤖 ${lang === "zh" ? "他问 Buddy 的问题" : "Questions he asked Buddy"}</h4>
+      <p class="meta">${lang === "zh" ? "AMC 应用里的学习助手。看看哪些词或概念让他卡住。" : "The helper next to his AMC lessons. Shows which words and ideas trip him up."}</p>
+      ${(() => { const asks = ((P && P.events) || []).filter(e => e.m === "ask").slice(-25).reverse(); return asks.length ? `<div class="pfask">${asks.map(e => `<div class="pfslow"><span class="meta">${esc(e.d || "")}</span> ${e.ai ? "🤖" : e.hit ? "📖" : "❓"} <b>${esc(e.q || "")}</b>${e.hit ? ` <span class="meta">→ ${esc(e.hit)}</span>` : e.ai ? ` <span class="meta">→ AI</span>` : ` <span class="meta">(${lang === "zh" ? "没找到" : "not found"})</span>`}</div>`).join("")}</div>` : `<p class="meta">${lang === "zh" ? "还没有问题。" : "No questions yet."}</p>`; })()}
+      <div id="pfTutor"></div></div>
   </div></div>`;
   const pick = {};
+  (async () => { try { const { data, error } = await sb.from("tutor_log").select("created_at,question,answer,model").eq("kid", pfKid).order("created_at", { ascending: false }).limit(15); const box = $("#pfTutor");
+    if (!box || error || !data || !data.length) return;
+    box.innerHTML = `<h4 style="margin-top:10px">${lang === "zh" ? "AI 回答（最近 15 条）" : "AI answers (latest 15)"}</h4>` + data.map(r => `<details class="pfslow"><summary><span class="meta">${esc((r.created_at || "").slice(0, 10))}</span> <b>${esc(r.question)}</b></summary><div style="white-space:pre-wrap">${esc(r.answer || "")}</div></details>`).join(""); } catch (e) {} })();
   $("#pfTabs").onclick = e => { const b = e.target.closest("[data-pk]"); if (b) { pfKid = b.dataset.pk; viewPerformance(); } };
   $("#view").querySelectorAll(".pfseg").forEach(g => g.onclick = e => { const b = e.target.closest("[data-n]"); if (!b) return; pick[g.dataset.dim] = +b.dataset.n; g.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); });
   $("#pfSave").onclick = async () => {
@@ -1023,6 +1030,14 @@ let kidTap = null;
 const APPS = { "fencing/": { id: "fencing", prefix: "ellis_", skip: ["ellis_pin", "ellis_coachNotes"], label: { en: "Play Fencing Brain Academy", zh: "进入击剑大脑学院" } },
   "amc/": { id: "amc", prefix: kid => `${kid}_amc_`, skip: [], perKid: true, label: { en: "Open my AMC 8 lessons", zh: "打开我的 AMC 8 课程" } },
   "space/": { id: "space", prefix: kid => `${kid}_space_`, skip: [], perKid: true, label: { en: "Play Space Quest", zh: "进入太空探险" } } };
+// 🤖 Ask Buddy bridge: the AMC app (same-origin iframe) calls window.parent.fhAsk(...) to reach the amc-tutor edge function.
+window.fhAsk = async body => {
+  try {
+    const { data, error } = await sb.functions.invoke("amc-tutor", { body });
+    if (error) { try { const j = await error.context.json(); return j; } catch (e) { return { error: "ai", message: "" }; } }
+    return data;
+  } catch (e) { return { error: "ai", message: "" }; }
+};
 const appLabel = url => (APPS[url]?.label || {})[lang] || T().openApp;
 let appOpen = null;
 async function openApp(url, kid) {
@@ -1049,7 +1064,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120l${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121b${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; };
   fs.querySelector(".appclose").onclick = () => appOpen();

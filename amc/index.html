@@ -147,11 +147,27 @@ button{font:inherit;cursor:pointer}
 .zh{font-size:15px;opacity:.7}
 .timer{font-variant-numeric:tabular-nums}
 @media (max-width:520px){.exams{grid-template-columns:1fr}.modes{grid-template-columns:1fr 1fr !important}.trow .tn{min-width:0;width:100%}.test .score{margin-left:0}.step{flex-direction:column;gap:2px}.word .wt{font-size:18px}body{font-size:17px}.top h1{font-size:20px !important}.six p{font-size:19px}.q{font-size:19px}}
+.bprog{display:flex;gap:6px;margin:6px 0 10px}.bprog i{flex:1;height:8px;border-radius:6px;background:#e5e7eb}.bprog i.done{background:#22c55e}.bprog i.on{background:#f59e0b}
+.bidea{font-size:20px;line-height:1.5;margin:10px 0}
+.blay{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+.bside{position:sticky;top:10px;max-height:calc(100vh - 20px);overflow:auto;background:#fffbeb;border:2px solid #fcd34d;border-radius:16px;padding:12px;font-size:16px;line-height:1.4}
+.bsh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:18px}.bsh .btn{display:none}
+.hbox{background:#fff;border-radius:12px;padding:9px 10px;margin:8px 0;border:1px solid #fde68a}.hbox ol{margin:6px 0 0 18px;padding:0}.hbox li{margin:4px 0}
+.hbox.tip{border-color:#86efac}.hbox.oops{border-color:#fca5a5}.hbox.sos{border-color:#93c5fd}.hh{font-weight:700;margin-bottom:4px;cursor:pointer}.hw{margin:3px 0}
+.btn.sm{padding:6px 10px;font-size:14px}.hfab{display:none}
+.bpic{background:#f8fafc;border:1px dashed #94a3b8;border-radius:12px;padding:10px 12px;font-size:16px;line-height:1.35;overflow-x:auto;white-space:pre;font-family:ui-monospace,Menlo,Consolas,monospace}
+.bwhy{background:#eef2ff;border-radius:10px;padding:8px 10px;margin:8px 0;font-size:17px}.bwords{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.bwords span{background:#fef3c7;border-radius:999px;padding:4px 10px;font-size:15px}
+.card.soft{background:#fff7ed}.bmenu{display:grid;gap:8px;margin:10px 0}.bmenu .btn{text-align:left}.bmenu .btn.lock{opacity:.5}
+@media (max-width:900px){.blay{grid-template-columns:1fr}.bside{position:fixed;left:0;right:0;bottom:0;top:auto;max-height:70vh;border-radius:18px 18px 0 0;transform:translateY(105%);transition:transform .25s;z-index:50;box-shadow:0 -8px 30px rgba(0,0,0,.2)}.bside.open{transform:none}.bsh .btn{display:inline-block}
+.hfab{display:block;position:fixed;right:14px;bottom:14px;z-index:40;background:#f59e0b;color:#fff;border:0;border-radius:999px;padding:12px 16px;font-size:17px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.25)}}
+
 </style>
 </head>
 <body>
 <div class="wrap" id="app"></div>
 <script src="lessons.js?v=20261120b"></script>
+<script src="scratch.js?v=20261121b"></script>
+<script src="buddy.js?v=20261121b"></script>
 <script src="gym.js?v=20261120b"></script>
 <script src="visuals.js?v=20261120b"></script>
 <script src="realtests.js?v=20261120b"></script>
@@ -165,7 +181,7 @@ const CFGS = {
     daily: { levels: ["easy", "easy", "medium", "medium", "hard"], mins: 10, label: "5 problems · 10 min" },
     weekly: { levels: [...Array(10).fill("easy"), ...Array(8).fill("medium"), ...Array(7).fill("hard")], mins: 40, label: "25 problems · 40 min · like the real AMC 8" },
     intro: "Every chapter of your book, explained super simply. Your plan: 5 sessions a week, a daily exam, and a weekly exam on Saturday. Aim for ⭐⭐⭐⭐ on each lesson before moving on." },
-  ellis: { name: "Ellis", chapters: [1, 2, 4, 5, 7, 9, 12, 13, 14],
+  ellis: { name: "Ellis", scratch: true, chapters: [1, 2, 4, 5, 7, 9, 12, 13, 14],
     weeks: [["2026-11-23", [1]], ["2026-11-30", [2]], ["2026-12-07", [4]], ["2026-12-14", [5]], ["2026-12-21", [7, 9]], ["2026-12-28", [13]], ["2027-01-04", [14, 12]], ["2027-01-11", []]],
     daily: { levels: ["easy", "easy", "medium"], mins: 6, label: "3 problems · 6 min" },
     weekly: { levels: [...Array(8).fill("easy"), ...Array(7).fill("medium")], mins: 25, label: "15 problems · 25 min · like AMC problems 1–15" },
@@ -190,6 +206,13 @@ const lessonOf = topic => LES.findIndex(l => l.id === topic);
 const topicName = t => { const l = LES[lessonOf(t)]; return l ? `${l.emoji} ${l.title}` : "🧩 Logic & puzzles"; };
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(P)); } catch (e) {} };
 const LES = window.AMC_LESSONS || [];
+const SCR = window.AMC_SCRATCH || {};
+P.scratch = P.scratch || {};
+// 🤖 Ask Buddy hooks (buddy.js): where he is right now, a tracker, and a way to jump to a lesson/basics block.
+const MYCH = LES.filter(l => CFG.chapters.includes(l.n)).map(l => l.id);
+const setCtx = o => { window.AMC_CTX = Object.assign({ kid: KID, chapters: MYCH, scratch: !!CFG.scratch, test: false }, o); };
+window.AMC_TRACK = o => { track(Object.assign({ ts: Date.now(), d: today }, o)); save(); };
+setCtx({ screen: "home" });
 const $ = s => document.querySelector(s), app = $("#app");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const TESTS = [2026, 2025, 2024, 2023, 2022, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013];
@@ -291,6 +314,7 @@ function wireToday() {
   const c = $("#calBtn"); if (c) c.onclick = calendar;
 }
 function calendar() {
+  setCtx({ screen: "calendar" });
   window.scrollTo(0, 0);
   const DN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], MN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const lab = d => { const x = new Date(d + "T12:00:00"); return `${DN[x.getDay()]} ${MN[x.getMonth()]} ${x.getDate()}`; };
@@ -306,6 +330,7 @@ function calendar() {
 }
 
 function home() {
+  setCtx({ screen: "home" });
   window.scrollTo(0, 0);
   const lastMix = P.mixed[P.mixed.length - 1];
   app.innerHTML = `<div class="top"><h1>🏆 AMC 8 Lessons</h1><span class="pill">⭐ ${total()} / ${LES.length * 5}</span></div>
@@ -363,10 +388,12 @@ function markRead(l, step, secs) {
 }
 
 function lesson(i, step, mode) {
+  setCtx({ screen: "lesson", lesson: LES[i] && LES[i].id, lessonTitle: LES[i] && LES[i].title });
+  if (CFG.scratch && !PARENT && SCR[LES[i].id] && !P.scratch[LES[i].id] && (step || 0) === 0) return basics(i);
   window.scrollTo(0, 0);
   if (!PARENT && step > readOf(LES[i].id) + 1) step = readOf(LES[i].id) + 1;
   const l = LES[i], names = ["1 · Like I'm 6", "2 · Key words", "3 · Power moves", "4 · Watch me solve", "5 · Your turn"];
-  const head = `<div class="top"><button class="btn" id="back">← Lessons</button><h1 style="font-size:24px">${l.emoji} ${esc(l.title)} <span class="zh">${esc(l.zh)}</span></h1></div>
+  const head = `<div class="top"><button class="btn" id="back">← Lessons</button><h1 style="font-size:24px">${l.emoji} ${esc(l.title)} <span class="zh">${esc(l.zh)}</span></h1>${SCR[l.id] ? `<button class="btn" id="basicsBtn" style="margin-left:auto">🌱 Basics</button>` : ""}</div>
     <div class="steps">${names.map((n, k) => { const lock = !PARENT && k > readOf(l.id) + 1 && k !== step; return `<button class="${k === step ? "on" : k <= readOf(l.id) ? "done" : lock ? "lock" : ""}" data-s="${k}"${lock ? ` data-lock="1" title="Finish the earlier sections first"` : ""}>${lock ? "🔒 " : ""}${n}</button>`; }).join("")}</div>`;
   const nav = (next, label) => `<div class="row"><span class="spacer"></span><button class="btn go" id="next">${label || "Next →"}</button></div>`;
   const needGate = k => !PARENT && readOf(l.id) < k;
@@ -380,6 +407,7 @@ function lesson(i, step, mode) {
     body = `<div class="modes">${[["basic", `⭐ Starter (5)`, starStr(starsOf(l.id))], ["challenge", "⬆️ Challenge (3)", rec.chBest != null ? `best ${rec.chBest}/3` : "harder, multi-step"], ["gym", "♾️ Practice gym", (rec.gym || {}).done ? `${rec.gym.done} done` : "endless, new numbers"], ...(PARENT ? [["real", "🏆 Real AMC", "past test problems"]] : [])].map(([m, t, sub]) => `<button class="${m === mode ? "on" : ""}" data-mode="${m}"><b>${t}</b><span>${sub}</span></button>`).join("")}</div><div id="pr"></div>`; }
   app.innerHTML = head + body;
   $("#back").onclick = home;
+  if ($("#basicsBtn")) $("#basicsBtn").onclick = () => basics(i);
   app.querySelectorAll("[data-s]").forEach(b => b.onclick = () => lesson(i, +b.dataset.s));
   app.querySelectorAll("[data-lock]").forEach(b => b.onclick = e => { e.stopPropagation(); b.animate([{ transform: "translateX(-4px)" }, { transform: "translateX(4px)" }, { transform: "none" }], 250); });
   if ($("#next")) {
@@ -399,6 +427,109 @@ function lesson(i, step, mode) {
     else practice((mode === "challenge" ? l.ch : l.pr).map(p => ({ ...p, from: l })), i, mode);
   }
 }
+
+// ---- 🌱 Start from zero: detailed building blocks before the lesson (Ellis is learning from scratch) ----
+// Each block: idea (+ key words, picture) → 2 worked examples revealed step by step → 2 quick checks.
+// A 💡 Hints panel sits on the side (a pull-up sheet on phones): key words, remember, watch out, peek at the example, and a 🆘 nudge per check.
+// Progress is saved per block (P.scratchAt) so he can stop and pick up where he left off.
+P.scratchAt = P.scratchAt || {};
+function basicsMenu(i) {
+  const l = LES[i], B = SCR[l.id] || [], at = P.scratchAt[l.id] || 0, all = !!P.scratch[l.id];
+  window.scrollTo(0, 0);
+  app.innerHTML = `<div class="top"><button class="btn" id="back">← Lessons</button><h1 style="font-size:22px">🌱 Basics: ${esc(l.emoji + " " + l.title)}</h1></div>
+    <div class="card"><div class="sub">${all ? "You finished all the basics. Pick any block to review." : `You're on block ${at + 1} of ${B.length}.`}</div>
+    <div class="bmenu">${B.map((x, k) => `<button class="btn ${all || k <= at ? "" : "lock"}" data-bk="${k}" ${all || k <= at || PARENT ? "" : "disabled"}>${all || k < at ? "✅" : k === at ? "▶️" : "🔒"} ${k + 1}. ${esc(x.t)}</button>`).join("")}</div>
+    <div class="row"><span class="spacer"></span>${all ? `<button class="btn go" id="toLesson">Go to the lesson →</button>` : `<button class="btn go" id="resume">Keep going →</button>`}</div></div>`;
+  $("#back").onclick = home;
+  app.querySelectorAll("[data-bk]").forEach(b => b.onclick = () => basics(i, +b.dataset.bk));
+  if ($("#toLesson")) $("#toLesson").onclick = () => lesson(i, 0);
+  if ($("#resume")) $("#resume").onclick = () => basics(i, at);
+}
+function basics(i, b0) {
+  const l = LES[i], B = SCR[l.id] || [];
+  if (b0 === undefined) { if (P.scratch[l.id] || (P.scratchAt[l.id] || 0) > 0) return basicsMenu(i); b0 = 0; }
+  let b = b0, ex = 0, shown = 0, ck = 0, res = [], hintsUsed = {}, sheet = false;
+  const exsOf = x => x.exs || (x.ex ? [x.ex] : []), chksOf = x => Array.isArray(x.chk) ? x.chk : [x.chk];
+  const finish = () => {
+    P.scratch[l.id] = true; P.scratchAt[l.id] = B.length - 1; save(); track({ ts: Date.now(), d: today, m: "scratch", t: l.id, done: 1 }); confetti();
+    app.innerHTML = `<div class="card done"><div class="big">🌱➡️🌳</div><div class="q">You've got all ${B.length} basics for ${esc(l.emoji + " " + l.title)}!</div>
+      <p class="sub">Now the lesson will make much more sense. Come back to any block with the 🌱 Basics button.</p>
+      <div class="row" style="justify-content:center"><button class="btn" id="rev">Review a block</button><button class="btn go" id="go">Start the lesson →</button></div></div>`;
+    $("#go").onclick = () => lesson(i, 0); $("#rev").onclick = () => basicsMenu(i);
+  };
+  const side = (x, E, C) => {
+    const curEx = E[Math.min(ex, E.length - 1)], peekN = ex >= E.length ? curEx.steps.length : shown;
+    return `<aside class="bside ${sheet ? "open" : ""}" id="bside"><div class="bsh"><b>💡 Hints</b><button class="btn alt sm" id="closeSide">✕</button></div>
+      ${x.words && x.words.length ? `<div class="hbox"><div class="hh">📖 Key words</div>${x.words.map(w => `<div class="hw"><b>${esc(w[0])}</b>: ${esc(w[1])}</div>`).join("")}</div>` : ""}
+      <div class="hbox"><div class="hh">📏 The big idea</div><div>${esc(x.idea[0])}</div></div>
+      ${x.tip ? `<div class="hbox tip"><div class="hh">🧠 Remember</div><div>${esc(x.tip)}</div></div>` : ""}
+      ${x.oops ? `<div class="hbox oops"><div class="hh">⚠️ Watch out</div><div>${esc(x.oops)}</div></div>` : ""}
+      ${peekN ? `<details class="hbox"><summary class="hh">👀 Peek at the example</summary><div class="sub">${esc(curEx.q)}</div><ol>${curEx.steps.slice(0, peekN).map(s => `<li>${esc(s)}</li>`).join("")}</ol></details>` : ""}
+      ${ex >= E.length ? C.slice(0, ck + 1).map((c, k) => k < C.length ? `<div class="hbox sos"><div class="hh">🆘 Hint for check ${k + 1}</div>${hintsUsed[k] ? `<div>${esc(c.h || "Look back at the worked example. Which step matches this question?")}</div>` : `<button class="btn alt sm" data-hint="${k}">Show a hint</button>`}</div>` : "").join("") : `<div class="hbox"><div class="hh">🆘 Question hints</div><div class="sub">They show up here when you reach the checks.</div></div>`}
+      ${b > 0 ? `<button class="btn alt sm" id="menuBtn" style="margin-top:8px">📋 All blocks</button>` : ""}
+    </aside><button class="hfab" id="hfab">💡 Hints</button>`;
+  };
+  const draw = (scrollTo) => {
+    if (b >= B.length) return finish();
+    P.scratchAt[l.id] = Math.max(P.scratchAt[l.id] || 0, b); save();
+    const x = B[b], E = exsOf(x), C = chksOf(x);
+    setCtx({ screen: "basics", lesson: l.id, lessonTitle: l.title, block: b, blockTitle: x.t });
+    const exCard = (e, k) => {
+      const done = k < ex, n = done ? e.steps.length : shown;
+      return `<div class="card"><div class="sub">👀 Watch me do one${E.length > 1 ? ` (${k + 1} of ${E.length})` : ""}</div><div class="q" style="font-size:19px">${esc(e.q)}</div>
+        ${e.steps.slice(0, n).map((st, j) => `<div class="step s${j % 6}"><span class="lb">Step ${j + 1}</span><div>${esc(st)}</div></div>`).join("")}
+        ${!done ? `<div class="row"><span class="spacer"></span><button class="btn alt" id="more">${n ? "Next step" : "Show me how"} (${n}/${e.steps.length})</button></div>` : ""}</div>`;
+    };
+    const ckCard = (c, k) => {
+      const r = res[k];
+      return `<div class="card" id="ck${k}"><div class="sub">✋ Your turn: check ${k + 1} of ${C.length}</div><div class="q" style="font-size:19px">${esc(c.q)}</div>
+        <div class="ch">${c.c.map((t, j) => `<button data-k="${k}" data-j="${j}" class="${r && r.picked.includes(j) ? (j === c.a ? "right" : "wrong") : ""} ${r && r.over && j === c.a ? "right" : ""}" ${r && (r.over || r.picked.includes(j)) ? "disabled" : ""}><span class="L">${LET[j]}</span><span>${esc(t)}</span></button>`).join("")}</div>
+        ${r ? (r.over ? `<div class="fb ${r.ok ? "ok" : "no"}">${r.ok ? (r.picked.length === 1 ? "⭐ Yes! " : "✅ That's it! ") : `The answer is <b>${LET[c.a]}</b>. `}${esc(c.why)}</div>` : `<div class="fb no">Not quite. Try once more. Tap <b>💡 Hints</b> for a nudge. 🙂</div>`) : ""}</div>`;
+    };
+    window.scrollTo(0, scrollTo || 0);
+    app.innerHTML = `<div class="top"><button class="btn" id="back">← Lessons</button><h1 style="font-size:22px">🌱 Start from zero: ${esc(l.emoji + " " + l.title)}</h1></div>
+      <div class="bprog">${B.map((_, k) => `<i class="${k < b ? "done" : k === b ? "on" : ""}" title="${esc(B[k].t)}"></i>`).join("")}</div>
+      <div class="blay"><div class="bmain">
+      <div class="card"><div class="sub">Building block ${b + 1} of ${B.length}</div><div class="q">${esc(x.t)}</div>
+        ${x.why ? `<div class="bwhy">🎯 ${esc(x.why)}</div>` : ""}
+        ${x.idea.map(p => `<p class="bidea">${esc(p)}</p>`).join("")}
+        ${x.pic ? `<pre class="bpic">${esc(x.pic)}</pre>` : ""}
+        ${x.words && x.words.length ? `<div class="bwords">${x.words.map(w => `<span><b>${esc(w[0])}</b> = ${esc(w[1])}</span>`).join("")}</div>` : ""}</div>
+      ${E.slice(0, ex + 1).map(exCard).join("")}
+      ${ex >= E.length ? `${x.oops || x.tip ? `<div class="card soft">${x.oops ? `<div>⚠️ <b>Watch out:</b> ${esc(x.oops)}</div>` : ""}${x.tip ? `<div style="margin-top:6px">🧠 <b>Remember:</b> ${esc(x.tip)}</div>` : ""}</div>` : ""}
+        ${C.slice(0, ck + 1).map((c, k) => k < C.length ? ckCard(c, k) : "").join("")}
+        ${ck >= C.length ? `<div class="row"><span class="spacer"></span><button class="btn go" id="bnext">${b < B.length - 1 ? "Next block →" : "Finish basics 🎉"}</button></div>` : ""}` : ""}
+      </div>${side(x, E, C)}</div>`;
+    $("#back").onclick = home;
+    $("#hfab").onclick = () => { sheet = true; $("#bside").classList.add("open"); };
+    $("#closeSide").onclick = () => { sheet = false; $("#bside").classList.remove("open"); };
+    if ($("#menuBtn")) $("#menuBtn").onclick = () => basicsMenu(i);
+    app.querySelectorAll("[data-hint]").forEach(h => h.onclick = () => { const k = +h.dataset.hint; hintsUsed[k] = true; track({ ts: Date.now(), d: today, m: "scratch", t: l.id, blk: b, hint: k }); draw(window.scrollY); });
+    const more = $("#more");
+    if (more) {
+      more.onclick = () => {
+        shown++;
+        if (shown > E[ex].steps.length - 1 && shown >= E[ex].steps.length) { ex++; shown = 0; }
+        draw(window.scrollY);
+        setTimeout(() => { const el = ex >= E.length ? app.querySelector("#ck0") : [...app.querySelectorAll(".bmain .step")].pop(); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60);
+      };
+      if (!PARENT) { const prev = shown ? E[ex].steps[shown - 1] : (ex === 0 ? x.idea.join(" ") + " " + E[0].q : E[ex].q); gate(more, Math.max(4, readSecs(prev))); }
+    }
+    app.querySelectorAll("[data-j]").forEach(btn => btn.onclick = () => {
+      const k = +btn.dataset.k, j = +btn.dataset.j, c = C[k], r = res[k] || (res[k] = { picked: [], over: false, ok: false });
+      if (r.over || r.picked.includes(j)) return;
+      r.picked.push(j);
+      if (j === c.a) { r.over = true; r.ok = true; } else if (r.picked.length >= 2) { r.over = true; }
+      if (r.over) { track({ ts: Date.now(), d: today, m: "scratch", t: l.id, blk: b, ck: k, ok: r.ok && r.picked.length === 1, tr: r.picked.length, h: !!hintsUsed[k] }); ck = k + 1; }
+      draw(window.scrollY);
+      if (r.over) setTimeout(() => { const el = app.querySelector(`#ck${k + 1}`) || $("#bnext"); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60);
+    });
+    if ($("#bnext")) $("#bnext").onclick = () => { b++; ex = 0; shown = 0; ck = 0; res = []; hintsUsed = {}; sheet = false; draw(); };
+  };
+  draw();
+}
+
+window.AMC_GO = src => { const i = LES.findIndex(l => l.id === src.lesson); if (i < 0) return; if (src.block != null && SCR[src.lesson]) basics(i, src.block); else lesson(i, src.step || 1); };
 
 function examples(l, i) {
   let e = 0, shown = 1;
@@ -420,13 +551,14 @@ function examples(l, i) {
 
 // shared practice runner: lesson practice (i >= 0) or mixed review (i = -1)
 function practice(list, i, mode) {
+  setCtx({ screen: "practice:" + (mode || ""), lesson: LES[i] && LES[i].id, lessonTitle: LES[i] && LES[i].title });
   mode = mode || (i < 0 ? "mixed" : "basic");
   let k = 0, right = 0, tries = 0, hinted = false; const t0 = Date.now(); let timerI = null;
   const box = $("#pr") || app;
   const draw = () => {
     const p = list[k]; tries = 0; hinted = false; let hints = 0; const shown = Date.now(); let firstSecs = null;
     const log = ok => track({ ts: Date.now(), d: today, m: mode, t: p.topic || p.from.id, lv: levelOf(p, mode), s: Math.round(firstSecs), total: Math.round((Date.now() - shown) / 1000), ok, tr: tries, h: hints, q: p.q.slice(0, 90) });
-    const solution = () => `<div class="sol"><div class="solh">📝 How to solve it</div>${p.steps.map((st, n) => `<div class="step s${n}"><span class="lb">${LABELS[n]}</span><div>${esc(st)}</div></div>`).join("")}<div class="trap">⚠️ <b>Trap:</b> ${esc(p.trap)}</div></div>`;
+    const solution = () => `<div class="sol"><div class="solh">📝 How to solve it</div>${p.steps.map((st, n) => `<div class="step s${n}"><span class="lb">${LABELS[n]}</span><div>${esc(st)}</div></div>`).join("")}<div class="trap">⚠️ <b>Trap:</b> ${esc(p.trap)}</div>${SCR[p.from.id] ? `<div class="row" style="margin-top:8px"><button class="btn alt" data-basics="${lessonOf(p.from.id)}">🌱 Explain the basics again</button></div>` : ""}</div>`;
     box.innerHTML = `<div class="card"><div class="row" style="margin-top:0"><span class="sub">${mode === "gym" ? `♾️ Gym problem ${k + 1}` : `Problem ${k + 1} of ${list.length}`}${p.lvl === "challenge" ? ` · <b style="color:#ff5a5a">⬆️ challenge</b>` : ""}${i < 0 ? ` · from <b>${esc(p.from.emoji + " " + p.from.title)}</b>` : ""}</span><span class="spacer"></span><span class="pill">⭐ ${right}</span>${i < 0 ? `<span class="pill timer" id="tm">0:00</span>` : ""}</div>
       ${mode === "gym" ? "" : `<div class="prog"><i style="width:${k / list.length * 100}%"></i></div>`}
       <p class="q" style="margin-top:14px">${esc(p.q)}</p>
@@ -434,9 +566,12 @@ function practice(list, i, mode) {
       <div id="fb"></div>
       <div class="row"><button class="btn" id="hint">💡 Hint</button><span class="spacer"></span>${mode === "gym" ? `<button class="btn" id="stop">🏁 Stop</button>` : ""}<button class="btn go" id="nx" style="display:none">${mode === "gym" ? "Next problem →" : k < list.length - 1 ? "Next →" : "Finish 🎉"}</button></div></div>`;
     if ($("#stop")) $("#stop").onclick = () => finish();
+    box.onclick = ev => { const t = ev.target.closest("[data-basics]"); if (t) basics(+t.dataset.basics); };
     $("#hint").onclick = () => { hinted = true; hints++;
       $("#fb").innerHTML = `<div class="fb hint"><div><b>👀 What to notice:</b> ${esc(p.steps[0])}</div>${hints > 1 ? `<div style="margin-top:6px"><b>🧠 The plan:</b> ${esc(p.steps[1])}</div>` : ""}</div>`;
-      $("#hint").textContent = hints > 1 ? "💡 No more hints. You've got this!" : "💡 Another hint"; if (hints > 1) $("#hint").disabled = true; };
+      const maxH = CFG.scratch ? 3 : 2;
+      if (hints > 2) $("#fb").innerHTML += `<div class="fb hint" style="margin-top:6px"><b>⚔️ The first move:</b> ${esc(p.steps[2])}</div>`;
+      $("#hint").textContent = hints >= maxH ? "💡 No more hints. You've got this!" : "💡 Another hint"; if (hints >= maxH) $("#hint").disabled = true; };
     box.querySelectorAll("[data-j]").forEach(b => b.onclick = () => {
       if (b.disabled) return; const j = +b.dataset.j; tries++; if (firstSecs === null) firstSecs = (Date.now() - shown) / 1000;
       if (j === p.a) {
@@ -503,6 +638,7 @@ function focusHtml() {
 // ---------- real test: 40-minute timer + bubble sheet, then self-grade with the official key ----------
 let rtTimer = null;
 function realTest(y) {
+  setCtx({ screen: "real test", test: true });
   window.scrollTo(0, 0); clearInterval(rtTimer);
   const ans = Array(25).fill(""); let left = 40 * 60, started = false;
   const draw = () => {
@@ -536,6 +672,7 @@ function grade(y, ans, secs) {
   draw();
 }
 function realResults(y) {
+  setCtx({ screen: "test results" });
   window.scrollTo(0, 0);
   const t = P.tests[y], tags = REAL[y] || [], by = {};
   tags.forEach((tp, q) => { by[tp] = by[tp] || { right: 0, total: 0, missed: [] }; by[tp].total++; if (t.marks[q]) by[tp].right++; else by[tp].missed.push(q + 1); });
@@ -588,6 +725,7 @@ function examsHtml() {
 }
 let exTimer = null;
 function exam(kind) {
+  setCtx({ screen: "exam", test: true });
   window.scrollTo(0, 0); clearInterval(exTimer);
   const items = buildExam(kind), ans = Array(items.length).fill(-1), mins = kind === "daily" ? CFG.daily.mins : CFG.weekly.mins;
   let k = 0, left = mins * 60; const t0 = Date.now(); const spent = Array(items.length).fill(0); let tIn = Date.now();
@@ -626,6 +764,7 @@ function exam(kind) {
   draw();
 }
 function examResults(r) {
+  setCtx({ screen: "exam results" });
   window.scrollTo(0, 0);
   const rows = Object.entries(r.topics).sort((a, b) => (a[1][0] / a[1][1]) - (b[1][0] / b[1][1]));
   const weak = rows.filter(([, v]) => v[0] < v[1]).slice(0, 3);
@@ -653,6 +792,7 @@ function parentHistory() {
 }
 
 function mixed() {
+  setCtx({ screen: "mixed practice" });
   window.scrollTo(0, 0);
   // interleaved: prefer lessons he's started; otherwise draw from this week's and earlier chapters
   const cov = coveredSoFar();

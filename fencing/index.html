@@ -396,6 +396,10 @@ body.duelfocus main{padding-top:6px}
 .diffrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;width:100%;margin-top:4px}
 .champnote{font-weight:900;font-size:14px;background:#7c2d12;color:#fff;display:inline-block;border-radius:10px;padding:3px 10px;margin:0 4px 4px 0}
 .brain{font-size:13px;margin-top:5px;background:#fde68a;border:2px solid var(--line);border-radius:10px;padding:3px 8px}.brain:empty{display:none}
+.brpanel{background:#fff3d6;border:3px solid var(--line);border-radius:14px;padding:8px 12px;margin-bottom:10px;text-align:left}
+.bchip{display:inline-block;border:2px solid var(--line);border-radius:999px;padding:1px 8px;margin:2px;font-size:12px;background:#fff}.bchip.g{background:#c9f7d9}.bchip.b{background:#ffd3cf}
+.brs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}.brs span{background:#eef2f7;border:2px solid var(--line);border-radius:10px;padding:2px 8px;font-size:15px;font-weight:700}
+.brclue{background:#efe6ff;border:3px solid var(--line);border-radius:12px;padding:8px 12px;margin:6px 0 10px;font-size:18px}
 </style>
 </head>
 <body>
@@ -564,7 +568,7 @@ body.duelfocus main{padding-top:6px}
 <section id="quiz">
   <div class="card">
     <div class="row"><h2 style="margin-right:auto">Brain Battles</h2><span id="qnum" class="small"></span></div>
-    <div class="row qlv"><button class="btn ghost sm" data-qb="rookie">🐣 Rookie</button><button class="btn ghost sm" data-qb="y12">🟠 Y12 · 20s timer</button><button class="btn ghost sm" data-qb="y14">🔴 Y14 · 14s timer</button></div>
+    <div class="row qlv"><button class="btn ghost sm" data-qb="ladder">🧠 Brain Ladder (adapts to you)</button><button class="btn ghost sm" data-qb="rookie">🐣 Rookie</button><button class="btn ghost sm" data-qb="y12">🟠 Y12 · 20s timer</button><button class="btn ghost sm" data-qb="y14">🔴 Y14 · 14s timer</button></div>
     <div class="row" style="margin:6px 0 14px"><div class="bar"><i id="qbar"></i></div></div>
     <div id="qbox"></div>
   </div>
@@ -863,7 +867,7 @@ function showQ(){
   if(B.timer){const t0=performance.now(),T=B.timer*1000;qT=setInterval(()=>{const l=1-(performance.now()-t0)/T;if($('qTbar'))$('qTbar').style.width=Math.max(0,l*100)+'%';if(l<=0){clearInterval(qT);answer(-1)}},80)}
 }
 startQuiz();
-document.querySelectorAll('[data-qb]').forEach(b=>b.onclick=()=>startQuiz(b.dataset.qb));
+document.querySelectorAll('[data-qb]').forEach(b=>b.onclick=()=>b.dataset.qb==='ladder'?startLadder():startQuiz(b.dataset.qb));
 
 // ---------- real or fake ----------
 const RF_ATK=[
@@ -2124,6 +2128,159 @@ document.addEventListener('keydown',ev=>{if(PD&&!PD.over&&$('duel').classList.co
   const keys=Object.keys(PD_ACTS).filter(unlocked);if(n>=1&&n<=keys.length){keys[n-1]==='lunge'?openAtk():pdChoose(keys[n-1])}});
 pdLevels();
 
+
+// ================= 🧠 BRAIN LADDER: endless scenarios that adapt to Ellis =================
+// Scenarios are generated from the SAME rules that judge Piste Duel (pdResolve), so every answer and
+// explanation matches the game. A chess-style rating picks questions just above his level, and about
+// a third of the questions target his weakest concept.
+if(state.brainR==null)state.brainR=900;state.brainC=state.brainC||{};state.brainN=state.brainN||0;state.brainBest=state.brainBest||900;
+const BR_LV=[[0,'🐣 Rookie'],[1000,'🥉 Bronze'],[1100,'🥈 Silver'],[1200,'🥇 Gold'],[1300,'🔷 Platinum'],[1400,'💎 Diamond'],[1500,'🔥 Master'],[1600,'👑 Grandmaster']];
+const brLv=r=>{let x=BR_LV[0];BR_LV.forEach(l=>{if(r>=l[0])x=l});return x};
+const CONCEPTS={distance:'📏 Distance',defend:'🛡️ Defending',attack:'⚔️ When to attack',prep:'🎭 Set-ups (fake/beat)',counter:'🔁 Counters & traps',read:'👀 Reading clues',family:'🧩 Clue families',priority:'🧑‍⚖️ Priority calls',target:'🎯 Where to hit',y12:'🟠 Y12 moves',y14:'🔴 Y14 moves'};
+const BR_BASE=['fwd','back','lunge','parry'],BR_T0=['fwd','back','lunge','parry','fake','beat','counter','lure','retreat','rhythm'],BR_T1=['line','compound'],BR_T2=['ctime','second','fleche'];
+const brTier=r=>r>=1400?2:r>=1150?1:0;
+const brPick=a=>a[Math.floor(Math.random()*a.length)];
+function brVal(r){return r.pt==='E'?10:r.pt==='O'?-10:r.grade*3+(r.nvO?2:0)-(r.nvE?2:0)}
+function brState(d,vE,vO,guard){return {me:5,op:5+d,vulE:vE,vulO:vO,vulEWhy:vE?'parried':'',vulOWhy:vO?'parried':'',pline:guard,pcirc:false,det:true,oR:3,lineE:false,lineO:false}}
+const OPENT={high:'flank',out:'belly',low:'chest'},GUARDN={high:'CHEST',out:'FLANK',low:'BELLY'};
+function brMoveLabel(m){if(typeof m==='string')return PD_ACTS[m].i+' '+PD_ACTS[m].n;return PD_ACTS.lunge.i+' Attack → '+TGT[m.t].n+(m.g?' (where he guards)':'')}
+// --- type 1: "what's your best move?" ---
+function genBest(R,focus){
+  const tier=brTier(R);let mine=BR_T0.slice();if(R<980)mine=BR_BASE.slice();if(tier>=1)mine=mine.concat(BR_T1);if(tier>=2)mine=mine.concat(BR_T2);
+  let theirs=mine.filter(k=>k!=='read');
+  for(let tries=0;tries<60;tries++){
+    const useFam=(focus==='family'||Math.random()<Math.max(0,(R-1050)/600))&&R>=1000;
+    let d=brPick([2,3,3,4,4,5,6]);if(focus==='distance')d=brPick([2,3,4,5]);
+    const vO=Math.random()<(focus==='attack'?.5:.18)&&d<=3,vE=!vO&&Math.random()<(R>1100?.15:0);
+    const guard=brPick(['high','out','low']);
+    let o=brPick(theirs);if(focus==='defend')o=brPick(['lunge','lunge','fleche','compound'].filter(k=>theirs.includes(k)));
+    if(focus==='prep')o=brPick(['parry','parry','line','counter'].filter(k=>theirs.includes(k)));
+    if(focus==='counter')o=brPick(['fwd','rhythm','counter','lunge'].filter(k=>theirs.includes(k)));
+    if(focus==='y12')o=brPick(BR_T1.filter(k=>theirs.includes(k)).concat(['parry']));if(focus==='y14')o=brPick(BR_T2.filter(k=>theirs.includes(k)).concat(['counter']));
+    if(!theirs.includes(o))continue;
+    const fam=famOf(o),pool=useFam?FAMILY[fam].filter(k=>theirs.includes(k)):[o];if(!pool.length)continue;
+    const S=brState(d,vE,vO,guard);
+    // candidate answers: moves, attacks to the open line and to the guarded line
+    const cands=mine.filter(k=>k!=='lunge').map(k=>({m:k})).concat([{m:{t:OPENT[guard]}},{m:{t:({high:'chest',out:'flank',low:'belly'})[guard],g:1}}]);
+    cands.forEach(c=>{let v=0;c.res={};pool.forEach(oo=>{const r=typeof c.m==='string'?pdResolve(c.m,oo,S):pdResolve('lunge',oo,Object.assign({},S,{atk:c.m.t}));c.res[oo]=r;v+=brVal(r)});c.v=v/pool.length});
+    cands.sort((a,b)=>b.v-a.v);const best=cands[0];
+    if(best.v<=0&&!(focus==='defend'))continue;               // need a clearly good answer
+    if(cands[1].v>best.v-3)continue;                          // and a unique one
+    const bad=cands.filter(c=>c.v<=best.v-4);if(bad.length<3)continue;
+    // prefer tempting distractors: moves that are reasonable in general
+    bad.sort((a,b)=>b.v-a.v);const distract=[bad[0],bad[1],brPick(bad.slice(2).length?bad.slice(2):bad)].filter((c,i,arr)=>arr.indexOf(c)===i);
+    while(distract.length<3){const c=brPick(bad);if(!distract.includes(c))distract.push(c)}
+    const opts=[best].concat(distract.slice(0,3));
+    const clue=useFam?FAMT[fam]:'👀 '+TELL[o];
+    const conc=[];const bm=typeof best.m==='string'?best.m:'lunge';
+    if(useFam)conc.push('family');else conc.push('read');
+    if(['parry','back','lure','retreat','second','ctime'].includes(bm)&&['lunge','fleche','compound'].includes(o))conc.push('defend');
+    if(bm==='lunge')conc.push(vO?'attack':'target');if(['fake','beat','compound'].includes(bm))conc.push('prep');if(['counter','ctime','lure','retreat'].includes(bm))conc.push('counter');
+    if(BR_T1.includes(bm)||BR_T1.includes(o))conc.push('y12');if(BR_T2.includes(bm)||BR_T2.includes(o))conc.push('y14');
+    if(['fwd','back'].includes(bm)||d===4)conc.push('distance');
+    let D=900+tier*140+(useFam?150:0)+(vE||vO?60:0)+(d===4?40:0)+Math.max(0,(8-(best.v-cands[1].v))*15)+(conc.includes('y14')?60:0);
+    const rb=best.res[o];
+    const q=`<div class="brs"><span>📏 Distance <b>${d}</b> ${d>=4?'(out of lunge range)':d>=2?'(lunge range)':'(very close)'}</span><span>🛡️ He guards his <b>${GUARDN[guard]}</b></span>${vO?'<span>😵 <b>He is off-balance</b></span>':''}${vE?'<span>😵 <b>You are off-balance</b> (can\'t parry)</span>':''}</div><div class="brclue">${clue}</div>What's your best move?`;
+    const whyBest=`${brMoveLabel(best.m)}: ${rb.why.replace(/<[^>]+>/g,'')}${useFam?` (The ${fam} clue could mean ${pool.map(k=>PD_ACTS[k].n).join(', ')}. Your move works against all of them. This time he really chose ${PD_ACTS[o].n}.)`:''}`;
+    return {kind:'best',t:conc.includes('defend')?'hit':conc.includes('prep')||conc.includes('counter')?'set':'see',q,o:opts.map(c=>brMoveLabel(c.m)),a:0,w:whyBest,
+      wrongWhy:opts.map(c=>`${brMoveLabel(c.m)}: ${(c.res[o]||{}).why?c.res[o].why.replace(/<[^>]+>/g,''):''}`),D,conc,html:true};
+  }
+  return null;
+}
+// --- type 2: "what does the referee call?" (foil priority) ---
+function genRef(R){
+  const tier=brTier(R);let mine=BR_T0.concat(tier>=1?BR_T1:[]).concat(tier>=2?BR_T2:[]);
+  for(let t=0;t<60;t++){
+    const d=brPick([2,3,3,4]),e=brPick(mine),o=brPick(mine);const vE=false,vO=false;
+    const S=brState(d,vE,vO,'high');if(e==='line'||o==='line'){S.lineE=e==='line'&&Math.random()<.5;S.lineO=o==='line'&&Math.random()<.5}
+    const r=pdResolve(e,o,Object.assign({},S,{atk:'flank'}));
+    if(!r.call&&!r.pt)continue;
+    const ans=r.pt==='E'?0:r.pt==='O'?1:2;
+    if(ans===2&&!/Simultaneous/.test(r.call||''))continue;
+    const est=(S.lineE?' (your line is ESTABLISHED: you held it before)':'')+(S.lineO?' (his line is ESTABLISHED: he held it before)':'');
+    const q=`🧑‍⚖️ <b>Referee time!</b> You (left) do <b>${brMoveLabel(e==='lunge'?{t:'flank'}:e)}</b>. He (right) does <b>${brMoveLabel(o)}</b>. Distance ${d}.${est}<br>What does the referee call?`;
+    const D=1000+tier*150+(BR_T1.includes(e)||BR_T1.includes(o)?60:0)+(BR_T2.includes(e)||BR_T2.includes(o)?80:0)+(ans===2?40:0);
+    return {kind:'ref',t:'hit',q,o:['Touch LEFT (you)','Touch RIGHT (him)','No touch'],a:ans,w:`${(r.call||'').replace(/<[^>]+>/g,'')} ${r.why.replace(/<[^>]+>/g,'')}`,D,conc:['priority'].concat(BR_T1.includes(e)||BR_T1.includes(o)?['y12']:[]).concat(BR_T2.includes(e)||BR_T2.includes(o)?['y14']:[]),html:true};
+  }
+  return null;
+}
+// --- type 3: "what could this clue mean?" ---
+function genFam(R){
+  const tier=brTier(R),fams=Object.keys(FAMILY),f=brPick(fams);
+  const moves=k=>FAMILY[k].filter(m=>PD_ACTS[m]&&((PD_ACTS[m].tier||0)<=tier)&&m!=='read'&&m!=='remise');
+  const right=moves(f);if(right.length<2)return null;
+  const others=fams.filter(x=>x!==f&&moves(x).length>=2).sort(()=>Math.random()-.5).slice(0,2);if(others.length<2)return null;
+  const opt=[right].concat(others.map(moves)).map(ms=>ms.map(m=>PD_ACTS[m].n).join(', '));
+  return {kind:'fam',t:'see',q:`${FAMT[f]}<br>Which moves could he be about to make?`,o:opt,a:0,w:`That clue is the ${f.toUpperCase()} family: ${opt[0]}. ${FAMHELP[f]}`,D:950+tier*120,conc:['family'],html:true};
+}
+// handwritten questions join the ladder with a fixed difficulty
+const BR_HAND=[].concat(Q.map(x=>Object.assign({D:880+Math.random()*140,conc:['read']},x)),QY12.map(x=>Object.assign({D:1220+Math.random()*120,conc:['priority']},x)),QY14.map(x=>Object.assign({D:1430+Math.random()*150,conc:['y14']},x)));
+function brWeakest(){const e=Object.entries(state.brainC).filter(([k,v])=>v.n>=3);if(!e.length)return null;e.sort((a,b)=>a[1].ok/a[1].n-b[1].ok/b[1].n);return e[0][1].ok/e[0][1].n<.75?e[0][0]:null}
+function brNext(seen){
+  const R=state.brainR,target=R+40+Math.random()*80-30,weak=Math.random()<.35?brWeakest():null;
+  let q=null;
+  for(let t=0;t<8&&!q;t++){
+    const roll=Math.random();
+    if(weak==='priority'||(!weak&&roll<.18&&R>=1000))q=genRef(R);
+    else if(weak==='family'&&Math.random()<.4||(!weak&&roll<.26&&R>=1000))q=genFam(R);
+    else if(!weak&&roll<.38){const near=BR_HAND.filter(x=>!seen.has(x.q)&&Math.abs(x.D-target)<150);if(near.length)q=Object.assign({},brPick(near))}
+    if(!q)q=genBest(R,weak&&!['priority','family'].includes(weak)?weak:null);
+    if(q&&Math.abs(q.D-target)>260&&t<6)q=null;              // keep it near his level
+  }
+  return q||genBest(R,null)||Object.assign({},brPick(BR_HAND));
+}
+function brTimer(R){return R<1000?0:R<1150?25:R<1300?20:R<1450?15:R<1550?11:8}
+function brUpdate(q,ok){
+  const R=state.brainR,E=1/(1+Math.pow(10,(q.D-R)/400)),K=state.brainN<20?40:24;
+  state.brainR=Math.round(Math.max(700,R+K*((ok?1:0)-E)));state.brainN++;state.brainBest=Math.max(state.brainBest,state.brainR);
+  (q.conc||[]).forEach(c=>{const m=state.brainC[c]=state.brainC[c]||{n:0,ok:0};m.n++;if(ok)m.ok++});
+  return state.brainR-R;
+}
+function brPanel(){
+  const R=state.brainR,L=brLv(R),nx=BR_LV.find(l=>l[0]>R);
+  const chips=Object.entries(state.brainC).filter(([k,v])=>v.n>=2).map(([k,v])=>{const p=Math.round(v.ok/v.n*100);return `<span class="bchip ${p>=80?'g':p<60?'b':''}">${CONCEPTS[k]||k} ${p}%</span>`}).join('');
+  return `<div class="brpanel"><div><b style="font-size:20px">${L[1]}</b> · Brain rating <b>${R}</b>${nx?` <span class="small">(${nx[0]-R} to ${nx[1]})</span>`:''}</div>
+    <div class="bar" style="height:10px;margin:4px 0"><i style="width:${nx?Math.min(100,(R-L[0])/(nx[0]-L[0])*100):100}%"></i></div>
+    <div class="small">Questions get harder as your rating climbs: Y12 moves at 1150, Y14 moves at 1400, family clues and faster timers on the way. Best: ${state.brainBest}.</div>
+    ${chips?`<div style="margin-top:6px">${chips}</div>`:''}</div>`;
+}
+let LQ=null;
+function startLadder(){
+  clearInterval(qT);LQ={k:0,n:10,score:0,seen:new Set(),streak:0,dR:0};qBank='ladder';
+  document.querySelectorAll('[data-qb]').forEach(b=>b.classList.toggle('on',b.dataset.qb==='ladder'));showL();
+}
+function showL(){
+  clearInterval(qT);
+  $('qbar').style.width=(LQ.k/LQ.n*100)+'%';
+  if(LQ.k>=LQ.n){
+    save();addXP(LQ.score*5,'Ladder round done!');practice(LQ.score>=8?10:5,'Brain Battles');perfLog({type:'quiz',bank:'ladder',score:LQ.score,total:LQ.n,rating:state.brainR,delta:LQ.dR});
+    if(LQ.score>=8)confetti(140);
+    $('qnum').textContent='';
+    $('qbox').innerHTML=`<div style="text-align:center"><div style="font-size:60px">${LQ.dR>0?'📈':'💪'}</div><div class="q">${LQ.score} / ${LQ.n} · rating ${LQ.dR>=0?'+':''}${LQ.dR}</div>${brPanel()}
+      <p class="lead">${LQ.dR>0?'You climbed! The next questions will be a bit harder.':'Tough round! The ladder will give you a few that build you back up.'}</p><button class="btn" id="lAgain">Next round ➜</button></div>`;
+    $('lAgain').onclick=startLadder;return;
+  }
+  const x=brNext(LQ.seen);LQ.seen.add(x.q);LQ.cur=x;
+  const opts=x.o.map((t,i)=>({t,i})).sort(()=>Math.random()-.5);
+  const T=brTimer(state.brainR);
+  $('qnum').innerHTML=`${brLv(state.brainR)[1]} · rating ${state.brainR} · Q${LQ.k+1}/${LQ.n}${LQ.streak>=2?` <span class="streak">🔥 x${LQ.streak}</span>`:''}`;
+  $('qbox').innerHTML=`${LQ.k===0?brPanel():''}<span class="tag ${TAG[x.t||'see'][1]}">${TAG[x.t||'see'][0]}</span> <span class="small">difficulty ${Math.round(x.D)}</span>${T?'<div class="bar" style="height:8px;margin:6px 0"><i id="qTbar" style="width:100%"></i></div>':''}
+    <div class="q">${x.html?x.q:esc2(x.q)}</div><div class="opts">${opts.map(o=>`<button data-i="${o.i}">${esc2(o.t)}</button>`).join('')}</div>
+    <div class="why" id="why"></div><div class="row" style="margin-top:12px"><button class="btn" id="next" style="display:none">Next ➜</button></div>`;
+  const answer=i=>{
+    if($('why').style.display==='block')return;clearInterval(qT);
+    const ok=i===x.a,btn=$('qbox').querySelector(`[data-i="${i}"]`);
+    if(btn)btn.classList.add(ok?'right':'wrong');$('qbox').querySelector(`[data-i="${x.a}"]`).classList.add('right');
+    const d=brUpdate(x,ok);LQ.dR+=d;if(ok){LQ.score++;LQ.streak++;beep(880,.12);if(LQ.streak>=3)confetti(25)}else{LQ.streak=0;beep(200,.2)}
+    const wrongTxt=!ok&&i>=0&&x.wrongWhy&&x.wrongWhy[i]?`<div class="small" style="margin-top:6px">❌ <b>Why not</b> ${esc2(x.wrongWhy[i])}</div>`:'';
+    $('why').innerHTML=`${i<0?'⏱️ <b>Time\'s up!</b> ':ok?'✅ <b>Yes!</b> ':'❌ <b>Not quite.</b> '}${esc2(x.w)}${wrongTxt}<div class="small" style="margin-top:6px">Rating ${d>=0?'+':''}${d} → <b>${state.brainR}</b></div>`;
+    $('why').style.display='block';$('next').style.display='inline-block';$('next').onclick=()=>{LQ.k++;showL()};save();
+  };
+  $('qbox').querySelectorAll('.opts button').forEach(b=>b.onclick=()=>answer(+b.dataset.i));
+  if(T){const t0=performance.now();qT=setInterval(()=>{const l=1-(performance.now()-t0)/(T*1000);if($('qTbar'))$('qTbar').style.width=Math.max(0,l*100)+'%';if(l<=0){clearInterval(qT);answer(-1)}},80)}
+}
+function esc2(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
 // ---------- performance tracking (saved on device; the Family Hub syncs it to the family database) ----------
 let PDB=null;
 let perfLocal=store.get('perfLog',[]),perfQ=store.get('perfQ',[]);
@@ -2215,6 +2372,7 @@ function renderPerf(){
    <div class="pbox" style="margin-top:10px"><h3>⚔️ Moves: how often and how well</h3><table class="mt"><tr><th>Move</th><th>Used</th><th>Worked</th><th>Touches</th></tr>${mvRows}</table></div>
    <div class="pbox" style="margin-top:10px"><h3>📜 Recent bouts</h3><ul>${duels.slice(-8).reverse().map(r=>`<li>${r.date} · ${r.tier} ${r.oppName}: <b>${r.score[0]}:${r.score[1]}</b> ${r.won?'🏆':r.finished?'':'(left early)'}</li>`).join('')||'<li>None yet</li>'}</ul></div>`;
 }
+document.querySelector('#nav [data-s=quiz]').addEventListener('click',()=>{if(qBank!=='ladder'&&!(LQ))startLadder()});
 document.querySelector('#nav [data-s=perf]').addEventListener('click',()=>renderPerf());
 
 // ---------- home navigation ----------
