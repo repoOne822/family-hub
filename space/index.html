@@ -3,8 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="robots" content="noindex,nofollow">
-<script>if(window.top===window){location.replace("../#space");}</script>
+<meta name="robots" content="noindex,nofollow"><script>if(window.top===window){location.replace("../#space");}</script>
 <title>Jonah's Space Quest</title>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
@@ -47,6 +46,9 @@ canvas#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
 /* modal */
 .modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
 .modal.on{display:flex}
+#mWhy{z-index:30}#mWhy .card{max-width:520px;text-align:center}#wBody{font-size:clamp(18px,3.2vw,23px);line-height:1.35;margin:8px 0 4px}#wBody .wp{background:#ffe3e8;border-radius:12px;padding:6px 10px;margin:6px 0}#wBody .wa{background:#d8f7e7;border-radius:12px;padding:6px 10px;margin:6px 0}#wBody .ww{color:#333;margin-top:6px}#wBody .wh{background:#fff3c4;border-radius:12px;padding:6px 10px;margin:6px 0;color:#6b4100}#wBody .wo{font-size:1.4em;vertical-align:middle}
+#wOk{min-width:200px;font-size:22px;transition:opacity .2s}#wOk:disabled,.btn:disabled{opacity:.45;filter:grayscale(.6);cursor:default}#wOk.ready,#mdNext.ready{animation:wpulse 1s ease-in-out infinite}@keyframes wpulse{50%{transform:scale(1.06)}}
+#wBar{height:8px;background:#eee;border-radius:6px;overflow:hidden;margin:10px auto 0;max-width:260px}#wBar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#80ed99,#4cc9f0);transition:width .2s linear}
 .card{background:#fff;color:#22223b;border-radius:28px;padding:22px;max-width:520px;width:100%;text-align:center;box-shadow:0 20px 50px #0008;animation:pop .35s ease}
 @keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
 .card h2{margin:0 0 4px;font-size:30px}
@@ -169,6 +171,7 @@ body.retro::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:
 
 <div class="modal" id="mPlanet"><div class="card"><h2 id="mpName"></h2><div class="note" id="mpSkill" style="font-size:17px"></div><div class="missions" id="mpMissions"></div><button class="btn" id="mpClose">Close</button></div></div>
 <div class="modal" id="mDone"><div class="card"><div style="font-size:64px" id="mdEmoji">🏆</div><h2 id="mdTitle">Mission complete!</h2><div class="bigstars" id="mdStars"></div><div style="font-size:24px;font-weight:800" id="mdCoins"></div><div id="mdChest"></div><div id="mdReview"></div><div id="mdUnlock" style="font-size:20px;color:#6a3cc9;font-weight:800;margin-top:6px"></div><div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap"><button class="btn gold" id="mdNext">Next ▶</button><button class="btn" id="mdMap">🗺️ Map</button></div></div></div>
+<div class="modal" id="mWhy"><div class="card"><div style="font-size:56px" id="wEmoji">🧠</div><h2 id="wTitle" style="margin:0">Let's learn from this</h2><div id="wBody"></div><div id="wBar"><i></i></div><div style="display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap"><button class="btn" id="wAgain">🔊 Hear again</button><button class="btn gold" id="wOk" disabled>👂 Listen…</button></div></div></div>
 <div class="modal" id="mBreak"><div class="card"><div style="font-size:70px;animation:kbob 1.6s ease-in-out infinite;display:inline-block" id="bkEmoji">🧑‍🚀</div><h2 id="bkTitle">Break time, astronaut!</h2><div id="bkClock" style="font-size:64px;font-weight:800;color:#3a0ca3;line-height:1">5:00</div><div style="height:12px;background:#eee;border-radius:7px;overflow:hidden;margin:8px 0"><div id="bkBar" style="height:100%;width:0;background:linear-gradient(90deg,#80ed99,#4cc9f0);transition:width 1s linear"></div></div><p style="font-size:22px;margin:8px 0"><b id="bkTask"></b></p><p class="note" id="bkNote">Rest your eyes and move your body. The rocket needs to refuel!</p><button class="btn gold" id="bkOk" disabled style="opacity:.4">⛽ Refueling…</button></div></div>
 <div id="toast"></div>
 
@@ -202,6 +205,32 @@ function tone(f,d,t=0,type="sine",v=.14,f2){const a=A();if(!a)return;try{const o
 function boom(){const a=A();if(!a)return;try{const n=a.sampleRate*.35,b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.2);const s=a.createBufferSource(),g=a.createGain(),f=a.createBiquadFilter();f.type="lowpass";f.frequency.value=900;s.buffer=b;g.gain.value=.35;s.connect(f);f.connect(g);g.connect(a.destination);s.start()}catch(e){}}
 const sfx0={laser:()=>tone(1200,.18,0,"square",.06,200),good:()=>{tone(660,.12,.05);tone(880,.12,.15);tone(1175,.22,.25)},bad:()=>tone(220,.25,0,"triangle",.15,150),coin:()=>{tone(988,.07,0,"square",.05);tone(1319,.12,.07,"square",.05)},win:()=>[523,659,784,1047,1319].forEach((f,i)=>tone(f,.2,i*.12,"triangle",.12)),whoosh:()=>tone(300,.5,0,"sawtooth",.04,1400)};
 const sfx=new Proxy({}, {get:(o,k)=>S.retro&&chip[{good:"good",bad:"bad",laser:"zap"}[k]]?chip[{good:"good",bad:"bad",laser:"zap"}[k]]:sfx0[k]});
+function estRead(t){return Math.max(2000,String(t).trim().split(/\s+/).length*300)}
+function speakDone(t){return new Promise(res=>{let done=false;const fin=()=>{if(!done){done=true;res()}};const est=estRead(t);
+  if(!+S.voice||!window.speechSynthesis){setTimeout(fin,est);return}
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);const zhT=/[\u4e00-\u9fff]/.test(t);u.rate=zhT?.8:.88;u.pitch=1.1;u.lang=zhT?"zh-CN":"en-US";u.onend=()=>setTimeout(fin,400);u.onerror=()=>setTimeout(fin,est);speechSynthesis.speak(u)}catch(e){setTimeout(fin,est)}
+  setTimeout(fin,est*2.2+3000)})}
+let gateTok=0;
+/* Gate card: shown after a mistake; the button only unlocks once the message has been read aloud (or reading time has passed). */
+function gate(o){return new Promise(res=>{const tok=++gateTok;if(G)G.gate=true;
+  $("wEmoji").textContent=o.emoji||"🧠";$("wTitle").textContent=o.title;$("wBody").innerHTML=o.html;const b=$("wOk"),bar=$("wBar").firstElementChild;
+  b.disabled=true;b.classList.remove("ready");b.textContent="👂 Listen…";bar.style.transition="none";bar.style.width="0";$("mWhy").classList.add("on");
+  const run=()=>{const ms=estRead(o.say);bar.style.transition="none";bar.style.width="0";void bar.offsetWidth;bar.style.transition=`width ${ms/1000}s linear`;bar.style.width="100%";
+    return Promise.all([speakDone(o.say),new Promise(r=>setTimeout(r,Math.min(ms,4500)))])};
+  run().then(()=>{if(gateTok!==tok)return;b.disabled=false;b.textContent=o.btn||"I got it 👍";b.classList.add("ready");bar.style.width="100%"});
+  $("wAgain").onclick=()=>{run()};
+  b.onclick=()=>{if(b.disabled||gateTok!==tok)return;gateTok++;$("mWhy").classList.remove("on");speechSynthesis&&speechSynthesis.cancel();if(G)G.gate=false;res(true)}})}
+function closeGate(){gateTok++;$("mWhy").classList.remove("on")}
+const optLabel=o=>o?(o.emoji?`<span class="wo">${o.label}</span> ${o.v}`:(/</.test(String(o.label))?String(o.v):String(o.label))):"";
+const optSay=o=>o?String(o.v):"";
+function wrongWhy(q,v){const a=+q.ans,p=+v;if(isNaN(a)||isNaN(p)||String(q.ans).trim()===""||String(v).trim()==="")return "";
+  const nums=(String(q.q).match(/\d+/g)||[]).map(Number);
+  if(nums.length>=2){const [x,y]=nums;if(/[+]|plus|more|altogether|in all/i.test(q.q)&&p===Math.abs(x-y))return "You took away, but this one is adding. Look for the + sign.";
+    if(/[−-]|minus|take away|left|fewer|less/i.test(q.q)&&p===x+y)return "You added, but this one is taking away. Look for the − sign.";
+    if(/[×x]|times|groups of|each/i.test(q.q)&&p===x+y)return "You added the numbers, but this one is times (groups of).";}
+  const d=p-a;if(Math.abs(d)===1)return "So close! You were just 1 away. Count again slowly.";
+  if(Math.abs(d)===10||Math.abs(d)===100)return "Check the place value: look at the tens and hundreds.";
+  return d>0?"Your answer is too big.":"Your answer is too small."}
 function speak(t){if(!+S.voice||!t)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);const zhT=/[\u4e00-\u9fff]/.test(t);u.rate=zhT?.8:.88;u.pitch=1.1;u.lang=zhT?"zh-CN":"en-US";speechSynthesis.speak(u)}catch(e){}}
 
 /* ================= question generators ================= */
@@ -677,14 +706,16 @@ function updShields(){if(!G)return;$("shields").textContent="🛡️".repeat(G.s
 function nextQ(){
   if(!G)return;
   G.isRedo=false;$("qtag").textContent="";
-  if(G.qi>=QPER){if(G.redo.length){G.isRedo=true;G.redo.shift();$("qtag").textContent="🔁 Try one like it! Learn from the mistake";speak("Let's try one like the one you missed!")}else{finishMission();return}}
-  const lv=G.lv;G.q=makeQ(G.g,lv);G.tries=0;G.lock=false;G.ex=null;
+  G.isReview=false;let rq=null;
+  if(G.qi>=QPER){if(G.redo.length){G.isRedo=true;rq=G.redo.shift();$("qtag").textContent="🔁 Again! The one you missed";}else{finishMission();return}}
+  else if(G.qi===0&&!G.warmDone&&!G.boss){G.warmDone=1;const it=(S.rv||[]).find(x=>x.g===G.g);if(it){G.isRedo=true;G.isReview=true;G.rvK=it.k;rq=it.q;$("qtag").textContent="🔁 Remember this one? You missed it last time";}}
+  const lv=G.lv;G.q=rq?{...rq,opts:shuffle(rq.opts.map(o=>({...o})))}:makeQ(G.g,lv);G.tries=0;G.lock=false;G.ex=null;
   $("qtext").textContent=G.q.q;$("qvis").innerHTML=G.q.vis;$("qhint").className="";$("qhint").textContent="";$("qcard").classList.remove("on");void $("qcard").offsetWidth;$("qcard").classList.add("on");$("fb").textContent="";
   G.waitT=0;G.nudged=0;G.rocks=G.q.opts.map((o,i)=>({...o,i,pod:G.rescue,alien:pick(["👽","👾","🐙","🦖","🐱","🐸"]),gem:pick(["#c77dff","#4cc9f0","#80ed99","#ffafcc","#ffd166"]),x:W+80+i*60,state:"in",rot:Math.random()*6,vr:(Math.random()-.5)*.8,hit:0,fade:1,shape:Array.from({length:11},()=>.82+Math.random()*.25),craters:[[.35,-.3,.16],[-.3,.25,.12],[.2,.4,.08]]}));
   layoutLanes();G.rocks.forEach((r,i)=>{if(VERT(G.kind)){r.x=W+80+i*60;r.y0=r.ty}else if(G.kind==="comet"){r.x=r.tx+60;r.y0=-r.r-i*70}else{r.x=r.tx;r.y0=H+r.r+i*30}r.y=r.y0});
   if(isRetro(G.kind)){G.rocks.forEach((r,i)=>{if(G.kind==="blockdrop"||G.kind==="invaders"||G.kind==="bricks"){r.x=r.tx;r.y0=-r.r-i*60}else if(G.kind==="hopper"){r.x=(i%2?-r.r*2:W+r.r*2);r.y0=r.ty}else if(G.kind==="jumper"){r.x=W+r.r*2+i*80;r.y0=r.ty}else{r.x=r.tx;r.y0=r.ty;r.state="wait"}r.y=r.y0});const hh=heroHome();if(!G.hero)G.hero={x:hh.x,y:hh.y,anim:null};else if(!G.hero.anim){G.hero.anim={type:"slide",fx:G.hero.x,fy:G.hero.y,tx:hh.x,ty:hh.y,t:0,d:.3,end:()=>{}}}}
   G.landed=0;G.readyAt=Date.now()+(FOCUS()?Math.min(3500,Math.max(1400,G.q.say.length*55)):0);G.shownAt=G.readyAt;
-  updProg();speak(G.isRedo?G.q.say:G.q.say);
+  updProg();speak(G.isReview?"Remember this one? You missed it last time. "+G.q.say:G.isRedo?"Let's try the one you missed again. "+G.q.say:G.q.say);
 }
 function updProg(){const f=G.qi/QPER*100;$("pf").style.width=f+"%";$("pr").style.left=f+"%"}
 function waitX(r){return Math.min(W*.66,W-r.r-20)}
@@ -725,7 +756,7 @@ function resolve(r){
     if(G.kind==="crystal")floaters.push({t:"💎 Mined!",x:r.x,y:r.y-r.r-34,c:"#e0aaff",size:30,life:1});
     if(G.kind==="comet")floaters.push({t:"🌠 Caught!",x:r.x,y:r.y+r.r+24,c:"#fff3b0",size:30,life:1});
     for(let i=0;i<Math.min(gain,8);i++)setTimeout(()=>{sfx.coin();setCoins()},150+i*60);
-    let p=pick(PRAISE);if(G.isRedo){p="You learned it! 🧠";G.learned++;S.st.learned=(S.st.learned||0)+1}else if(G.tries>1)p="Yes! You fixed it!";
+    let p=pick(PRAISE);if(G.isRedo&&first){p="You learned it! 🧠";G.learned++;S.st.learned=(S.st.learned||0)+1;if(G.isReview){S.rv=(S.rv||[]).filter(x=>x.k!==G.rvK);S.st.reviewed=(S.st.reviewed||0)+1;save()}}else if(G.isRedo)p="Yes! Now you know it!";else if(G.tries>1)p="Yes! You fixed it!";
     $("fb").textContent=(first&&!G.isRedo?"⭐ ":"")+p;speak(p.replace("🧠",""));
     if(G.ex&&G.tries>1){$("qhint").className="on why";$("qhint").textContent="✅ "+G.ex.why}
     G.rocks.forEach(o=>{if(o!==r&&o.state!=="dead"&&o.state!=="beam"&&o.state!=="pass")o.state="gone"});
@@ -741,15 +772,21 @@ function resolve(r){
     if(G.shields===0&&!G.shieldMsg){G.shieldMsg=1;floaters.push({t:"Shields down! Keep going, you can do it!",x:W/2,y:H*.4,c:"#ffafcc",size:Math.min(30,W*.045),life:1.6})}
     if(G.kind==="race"){ship.boost=0;G.lasers.push({x1:ship.x+ship.s,y1:r.y,x2:r.x,y2:r.y,life:.2,ok:false})}
     G.ex=G.ex||explain(G.q,G.g,G.lv);
-    if(G.tries===1&&!G.isRedo){if(G.redo.length<2)G.redo.push(G.q.skill);G.missed.push({q:G.q.q,ans:G.q.ans,why:G.ex.why})}
+    if(G.tries===1){const base={...G.q,opts:G.q.opts.map(o=>({...o}))};
+      if(!G.isRedo){G.missed.push({q:G.q.q,ans:G.q.ans,why:G.ex.why});if(G.redo.length<3)G.redo.push({...base,rc:1});
+        S.rv=S.rv||[];if(!S.rv.some(x=>x.q.q===G.q.q&&String(x.q.ans)===String(G.q.ans))){S.rv.push({k:Date.now()+"_"+rnd(0,999),g:G.g,lv:G.lv,q:base,n:1});if(S.rv.length>12)S.rv.shift()}save()}
+      else if(G.isReview){const it=(S.rv||[]).find(x=>x.k===G.rvK);if(it){it.n=(it.n||1)+1;save()}}
+      else if((G.q.rc||1)<2&&G.redo.length<4)G.redo.push({...base,rc:(G.q.rc||1)+1})}
+    const okO=G.q.opts.find(o=>String(o.v)===String(G.q.ans)),why2=wrongWhy(G.q,r.v),EX=G.ex,Q0=G.q;G.lock=true;
+    const unlock=()=>{if(!G)return;G.lock=false;G.readyAt=Date.now();G.waitT=0;if(G.hero)setTimeout(()=>{G&&heroReturn()},50);setTimeout(()=>{G&&layoutLanes()},50)};
     if(G.tries>=2){
-      const ok=G.rocks.find(o=>o.v===G.q.ans);ok.glow=true;
-      $("qhint").className="on why";$("qhint").textContent="🧠 "+G.ex.why;
-      $("fb").textContent="👉 Tap the glowing one";speak(G.ex.why+" Now tap the glowing one.");
-      G.tries=9;
-    }else{const fast=FOCUS()&&Date.now()-(G.shownAt||0)<1500;$("qhint").className="on";$("qhint").textContent="💡 Hint: "+G.ex.hint;$("fb").textContent=fast?"Slow down and think first 🤔":"Almost! Use the hint 💪";speak((fast?"Slow down and think. ":"Almost! ")+"Here's a hint. "+G.ex.hint)}
-    setTimeout(()=>{G&&layoutLanes()},350);
-    G.lock=false;
+      const ok=G.rocks.find(o=>o.v===G.q.ans);if(ok)ok.glow=true;G.tries=9;
+      gate({emoji:"🧠",title:"Let's learn from this",html:`<div class="wp">You picked ${optLabel(r)} ❌</div>${why2?`<div>${why2}</div>`:""}<div class="wa">The answer is ${optLabel(okO)||G.q.ans} ✅</div><div class="ww">${EX.why}</div>`,
+        say:`You picked ${optSay(r)}. ${why2} The answer is ${optSay(okO)||G.q.ans}. ${EX.why}`,btn:"I got it 👍"}).then(()=>{if(!G||G.q!==Q0)return;$("qhint").className="on why";$("qhint").textContent="🧠 "+EX.why;$("fb").textContent="👉 Tap the glowing one";speak("Now tap the glowing one.");unlock()});
+    }else{const fast=FOCUS()&&Date.now()-(G.shownAt||0)<1500;
+      gate({emoji:"🤔",title:fast?"Slow down and think":"Not quite!",html:`<div class="wp">You picked ${optLabel(r)} ❌</div>${why2?`<div>${why2}</div>`:""}<div class="wh">💡 Hint: ${EX.hint}</div>`,
+        say:`${fast?"Slow down and think first. ":""}You picked ${optSay(r)}. That's not it. ${why2} Here's a hint. ${EX.hint}`,btn:"Try again 💪"}).then(()=>{if(!G||G.q!==Q0)return;$("qhint").className="on";$("qhint").textContent="💡 Hint: "+EX.hint;$("fb").textContent="You can do it! 💪";speak(Q0.say);unlock()});
+    }
   }
 }
 function finishMission(){
@@ -777,7 +814,11 @@ function finishMission(){
     $("mdChest").innerHTML=stars===3?`<button class="chestbtn" id="chestBtn"><span class="ce">🎁</span>Tap to open your treasure chest!</button>`:"";
     if(stars===3)$("chestBtn").onclick=openChest;
     const rv=$("mdReview");if(g.missed.length){rv.className="on";rv.innerHTML=`<div style="font-weight:800;margin-bottom:4px">🧠 Let's remember (${g.mistakes} mistake${g.mistakes>1?"s":""}${g.learned?`, ${g.learned} fixed on the retry`:""}):</div>`+g.missed.slice(0,4).map(x=>`<div>• ${x.q.replace("?","<b>"+x.ans+"</b>")}<br><span style="color:#555">${x.why}</span></div>`).join("")}else{rv.className="";rv.innerHTML=""}
-    $("mDone").classList.add("on");setTimeout(checkAch,1600);speak(g.boss?"Boss defeated! Amazing!":stars===3?"Perfect mission! Open your treasure chest!":g.missed.length?"Mission complete! Let's remember what we learned.":"Mission complete!");
+    $("mDone").classList.add("on");setTimeout(checkAch,1600);
+    if(g.missed.length){const nb=$("mdNext"),mb=$("mdMap"),nt=nb.textContent;nb.disabled=mb.disabled=true;nb.textContent="👂 Listen…";
+      const txt=(g.boss?"Boss defeated! ":"Mission complete! ")+"Let's remember what we learned. "+g.missed.slice(0,4).map(x=>`${String(x.q).replace(/[?☐_]+/g," ")} The answer is ${x.ans}. ${x.why}`).join(" ");
+      Promise.all([speakDone(txt),new Promise(r=>setTimeout(r,3500))]).then(()=>{nb.disabled=mb.disabled=false;nb.textContent=nt;nb.classList.add("ready")})}
+    else speak(g.boss?"Boss defeated! Amazing!":stars===3?"Perfect mission! Open your treasure chest!":"Mission complete!");
   },1700);
 }
 const CHEST_ITEMS=["s_diamond","l_lightning","dragon","octo","m_rocketcar"];
@@ -788,7 +829,7 @@ function openChest(){const b=$("chestBtn");if(!b||b.dataset.open)return;b.datase
     save();setCoins();sfx.win();burst(W/2,H/2,["#ffd166","#fff","#80ffdb","#c77dff"],70,480);b.innerHTML=html},900)}
 function nextMission(){$("mDone").classList.remove("on");if(sessionOver()){breakTime();return}
   const g=G.g;let lv=G.lv,m=G.m+1;if(m>2){m=0;lv=Math.min(lv+1,S.lv[g])}startMission(g,lv,m)}
-function quitGame(){timerOff();$("qhint").className="";$("qtag").textContent="";G=null;mode="idle";$("hud").classList.remove("on");$("qcard").classList.remove("on");$("fb").textContent="";speechSynthesis&&speechSynthesis.cancel()}
+function quitGame(){timerOff();closeGate();$("qhint").className="";$("qtag").textContent="";G=null;mode="idle";$("hud").classList.remove("on");$("qcard").classList.remove("on");$("fb").textContent="";speechSynthesis&&speechSynthesis.cancel()}
 function record(first){const d=day();d.q++;if(first)d.c++;const k=G.q.skill;S.skillNames[k]=topicName(G.g,G.lv);S.skills[k]=S.skills[k]||{q:0,c:0};S.skills[k].q++;if(first)S.skills[k].c++;save()}
 
 /* ================= timer / breaks ================= */
@@ -825,7 +866,7 @@ function loop(now){
       const k=G.count-.6,lab=k>2?"3":k>1?"2":k>0?"1":"GO!",fr=k>0?k-Math.floor(k):(G.count/.6);cx.save();cx.globalAlpha=Math.min(1,fr*1.5);cx.font=`800 ${Math.min(W,H)*.22*(1.3-fr*.3)}px "Baloo 2",sans-serif`;cx.textAlign="center";cx.textBaseline="middle";cx.lineWidth=12;cx.strokeStyle="#3a0ca3";cx.strokeText(lab,W/2,H*.5);cx.fillStyle=lab==="GO!"?"#80ffdb":"#ffd166";cx.fillText(lab,W/2,H*.5);cx.restore();
       if(G.count<=0){G.count=0;nextQ()}}
     if(G.rocks.length&&!G.landed&&G.rocks.every(r=>r.state!=="in")){G.landed=1;if(FOCUS()){G.readyAt=Math.max(G.readyAt||0,Date.now()+800);G.shownAt=G.readyAt}}
-    if(!G.lock&&G.rocks.length&&G.rocks.every(r=>r.state!=="in")&&!G.ending){G.waitT+=dt;if(G.waitT>11&&!G.nudged){G.nudged=1;speak(G.q.say);$("fb").textContent="🔊 Listen again, then tap!"}}
+    if(!G.lock&&!G.gate&&G.rocks.length&&G.rocks.every(r=>r.state!=="in")&&!G.ending){G.waitT+=dt;if(G.waitT>11&&!G.nudged){G.nudged=1;speak(G.q.say);$("fb").textContent="🔊 Listen again, then tap!"}}
     G.flyIn=Math.min(1,G.flyIn+dt*1.2);const homeX=Math.max(70,W*.13);if(!G.ending&&!G.dash)ship.x=-80+(homeX+80)*(1-Math.pow(1-G.flyIn,3));
     if(G.dash){G.dash.t+=dt*1.9;const t=Math.min(1,G.dash.t);ship.x=homeX+(G.dash.tx-homeX)*Math.sin(Math.PI*t);ship.boost=1.2*(1-t)+.3;if(t>=1)G.dash=null}
     if(G.kind==="race"&&!G.ending&&!FOCUS()){ship.boost=Math.max(ship.boost,.4);G.bgT+=dt;for(let k=0;k<2;k++){const gx=W-((G.bgT*260+k*W*.55)%(W*1.1)),gy=H*(k?.82:.5);cx.save();cx.globalAlpha=.12;cx.strokeStyle="#80ffdb";cx.lineWidth=6;cx.beginPath();cx.ellipse(gx,gy,30,70,0,0,7);cx.stroke();cx.restore()}}
@@ -992,7 +1033,7 @@ $("mapHome").onclick=()=>show("title");
 $("say").onclick=()=>G&&speak(G.q.say);
 $("quit").onclick=()=>{quitGame();show("map")};
 $("mpClose").onclick=()=>$("mPlanet").classList.remove("on");
-$("mdNext").onclick=nextMission;
+$("mdNext").onclick=()=>{$("mdNext").classList.remove("ready");nextMission()};
 $("mdMap").onclick=()=>{$("mDone").classList.remove("on");quitGame();if(sessionOver())breakTime();else show("map")};
 $("bkOk").onclick=()=>{if(onBreak())return;$("mBreak").classList.remove("on");show("map")};$("pEndBreak").onclick=()=>{S.breakUntil=0;S.playSec=0;save();$("pMsg").textContent="Break ended. He can play again."};
 $("toParents").onclick=()=>show("parents");$("pBack").onclick=()=>show("title");

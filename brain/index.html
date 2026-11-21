@@ -106,6 +106,10 @@ html,body{margin:0;min-height:100%;font-family:"Baloo 2",system-ui,sans-serif;co
 table{width:100%;border-collapse:collapse;font-size:15px}td,th{text-align:left;padding:5px;border-bottom:1px solid #eee}
 .note{font-size:14px;color:#6c757d}
 .hidden{display:none}
+#mWhy{z-index:30}#mWhy .mcard{max-width:460px}#wBody{font-size:21px;line-height:1.35;margin:6px 0}#wBody .wp{background:#ffe3e8;border-radius:12px;padding:6px 10px;margin:6px 0}#wBody .wa{background:#d8f7e7;border-radius:12px;padding:6px 10px;margin:6px 0}#wBody .big{font-size:40px;vertical-align:middle}
+#wOk:disabled{opacity:.45;filter:grayscale(.6)}#wOk.ready{animation:wp 1s ease-in-out infinite}@keyframes wp{50%{transform:scale(1.06)}}
+#wBar{height:8px;background:#eee;border-radius:6px;overflow:hidden;margin:10px auto 0;max-width:240px}#wBar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#80ed99,#4cc9f0)}
+.tag{display:inline-block;background:#f1edff;color:#5a4fcf;border-radius:10px;padding:2px 10px;font-size:16px;font-weight:800}
 </style>
 </head>
 <body>
@@ -132,6 +136,7 @@ table{width:100%;border-collapse:collapse;font-size:15px}td,th{text-align:left;p
     </div>
   </section>
 </div>
+<div class="modal" id="mWhy"><div class="mcard"><div style="font-size:52px" id="wEmoji">🧠</div><h2 id="wTitle" style="margin:0">Let's learn from this</h2><div id="wBody"></div><div id="wBar"><i></i></div><div style="display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap"><button class="btn" id="wAgain">🔊 Hear again</button><button class="btn go" id="wOk" disabled>👂 Listen…</button></div></div></div>
 <div class="modal" id="mDone"><div class="mcard"><div style="font-size:56px" id="mdE">🎉</div><h2 id="mdT" style="margin:4px 0">Great job!</h2><div class="stars" id="mdS"></div><div id="mdC" style="font-size:22px;font-weight:800"></div><div id="mdL" style="color:#5a4fcf;font-weight:800;margin-top:4px"></div><div style="display:flex;gap:10px;justify-content:center;margin-top:14px"><button class="btn go" id="mdAgain">Play again</button><button class="btn" id="mdHome">🏠</button></div></div></div>
 
 <script>
@@ -148,6 +153,20 @@ let ac;function A(){try{ac=ac||new (window.AudioContext||window.webkitAudioConte
 function tone(f,d,t=0,type="sine",v=.15){const a=A();if(!a)return;try{const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,a.currentTime+t);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+t+d);o.connect(g);g.connect(a.destination);o.start(a.currentTime+t);o.stop(a.currentTime+t+d+.02)}catch(e){}}
 const sfx={good:()=>{tone(660,.12);tone(880,.18,.1)},bad:()=>tone(200,.22,0,"triangle"),win:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.2,i*.12,"triangle",.12)),tap:()=>tone(520,.06,0,"sine",.08)};
 function speak(t){if(!+S.voice||!t)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.88;u.pitch=1.1;u.lang="en-US";speechSynthesis.speak(u)}catch(e){}}
+function estRead(t){return Math.max(2000,String(t).trim().split(/\s+/).length*300)}
+function speakDone(t){return new Promise(res=>{let done=false;const fin=()=>{if(!done){done=true;res()}};const est=estRead(t);
+  if(!+S.voice||!window.speechSynthesis){setTimeout(fin,est);return}
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.88;u.pitch=1.1;u.lang="en-US";u.onend=()=>setTimeout(fin,400);u.onerror=()=>setTimeout(fin,est);speechSynthesis.speak(u)}catch(e){setTimeout(fin,est)}
+  setTimeout(fin,est*2.2+3000)})}
+let gateTok=0;
+/* After a mistake: explain why, read it aloud, and only unlock the button once it has been heard. */
+function gate(o){return new Promise(res=>{const tok=++gateTok;$("wEmoji").textContent=o.emoji||"🧠";$("wTitle").textContent=o.title||"Let's learn from this";$("wBody").innerHTML=o.html;
+  const b=$("wOk"),bar=$("wBar").firstElementChild;b.disabled=true;b.classList.remove("ready");b.textContent="👂 Listen…";$("mWhy").classList.add("on");
+  const run=()=>{const ms=estRead(o.say);bar.style.transition="none";bar.style.width="0";void bar.offsetWidth;bar.style.transition=`width ${ms/1000}s linear`;bar.style.width="100%";return Promise.all([speakDone(o.say),delay(Math.min(ms,4000))])};
+  run().then(()=>{if(gateTok!==tok)return;b.disabled=false;b.textContent=o.btn||"I got it 👍";b.classList.add("ready")});
+  $("wAgain").onclick=()=>run();
+  b.onclick=()=>{if(b.disabled||gateTok!==tok)return;gateTok++;$("mWhy").classList.remove("on");try{speechSynthesis.cancel()}catch(e){}res(true)}})}
+function closeGate(){gateTok++;$("mWhy").classList.remove("on")}
 const st=id=>S.st[id]||(S.st[id]={rounds:0,stars:0,m:[]});
 const lv=id=>S.lv[id]||1;
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
@@ -180,8 +199,8 @@ function finish(id,score,metric,extra){const g=GAMES.find(x=>x.id===id),s=st(id)
   $("mdE").textContent=stars===3?"🌟":stars===2?"🎉":"💪";$("mdT").textContent=stars===3?"Amazing!":stars===2?"Great job!":"Good try!";$("mdS").innerHTML=[0,1,2].map(i=>`<span class="${i<stars?"":"off"}">⭐</span>`).join("");
   $("mdC").innerHTML=`<span class="coin" style="vertical-align:middle"></span> +${c} coins${extra?`<div style="font-size:16px;color:#555">${extra}</div>`:""}`;$("mdL").textContent=lvMsg;$("mDone").classList.add("on");sfx.win();speak(stars===3?"Amazing!":stars===2?"Great job!":"Good try! Practice makes your brain stronger.")}
 $("mdAgain").onclick=()=>{$("mDone").classList.remove("on");openGame(curG.id)};
-$("mdHome").onclick=()=>{$("mDone").classList.remove("on");token++;show("home");renderHome()};
-$("back").onclick=()=>{token++;speechSynthesis&&speechSynthesis.cancel();show("home");renderHome()};
+$("mdHome").onclick=()=>{closeGate();$("mDone").classList.remove("on");token++;show("home");renderHome()};
+$("back").onclick=()=>{token++;closeGate();speechSynthesis&&speechSynthesis.cancel();show("home");renderHome()};
 $("gSay").onclick=()=>speak($("instr").textContent);
 
 /* ---------- 1. Pair Match ---------- */
@@ -202,18 +221,24 @@ async function playSimon(tk){const L=lv("simon"),start=Math.min(2+Math.floor((L-
   while(tk===token){$("instr").textContent="👀 Watch…";await delay(700);for(const i of seq){if(tk!==token)return;await flash(i,speed);await delay(150)}
     $("instr").textContent=`👆 Your turn! (${seq.length} lights)`;let pos=0,ok=true;
     await new Promise(res=>{pads.forEach(p=>p.onclick=async()=>{if(tk!==token)return;const i=+p.dataset.i;flash(i,250);if(i!==seq[pos]){ok=false;pads.forEach(x=>x.onclick=null);res()}else if(++pos===seq.length){pads.forEach(x=>x.onclick=null);res()}})});
-    if(!ok){sfx.bad();fb("Oops! Let's see how far you got.","bad");await delay(900);break}
+    if(!ok){sfx.bad();await gate({emoji:"💡",title:"Watch the order",html:`<div class="wa">The lights went: <span class="big">${seq.map(i=>PADS[i][2]).join(" ")}</span></div><div class="wp">Step ${pos+1} should be <span class="big">${PADS[seq[pos]][2]}</span></div>`,say:`The lights went ${seq.map(i=>({"🍓":"strawberry","🫐":"blueberry","🍏":"apple","🍋":"lemon"})[PADS[i][2]]).join(", ")}. Tip: say the fruits out loud while you watch.`,btn:"OK 👍"});break}
     best=seq.length;sfx.good();fb(`${seq.length} in a row! 🌟`,"good");if(seq.length>=target)break;seq.push(rnd(0,3));await delay(600)}
   if(tk===token)finish("simon",best/target,best,`Longest sequence: ${best}`)}
 /* ---------- 3. Odd One Out ---------- */
 const ODD=[["🍎","🍏"],["🐶","🐱"],["⭐","🌟"],["😀","😄"],["🔵","🟣"],["🌕","🌖"],["🚗","🚙"],["🐟","🐠"],["🍪","🥠"],["🌲","🌳"],["❤️","🧡"],["🐻","🐼"]];
-async function playOdd(tk){const L=lv("odd"),n=[3,4,4,5,5,6][L-1],trials=5;let right=0,tsum=0;
+async function playOdd(tk){const L=lv("odd"),n=[3,4,4,5,5,6][L-1],trials=5;let right=0,tsum=0,missed=[];
   const pairs=L<=2?ODD.filter((_,i)=>[0,1,4,6,10,11].includes(i)):ODD;
-  for(let t=0;t<trials&&tk===token;t++){const [a,b]=shuffle(pick(pairs)),k=rnd(0,n*n-1);$("instr").textContent=`Find the different one! (${t+1}/${trials})`;
+  const round=async(pr,label,scored)=>{const [a,b]=pr,k=rnd(0,n*n-1);$("instr").innerHTML=label;
     $("area").innerHTML=`<div class="ogrid" style="grid-template-columns:repeat(${n},1fr);max-width:${n*84}px">${Array.from({length:n*n},(_,i)=>`<button class="oc" data-i="${i}">${i===k?b:a}</button>`).join("")}</div>`;
-    const t0=Date.now();let first=true;
-    await new Promise(res=>document.querySelectorAll(".oc").forEach(c=>c.onclick=()=>{if(tk!==token)return;if(+c.dataset.i===k){c.classList.add("good");sfx.good();if(first){right++;tsum+=Date.now()-t0}fb("You spotted it!","good");setTimeout(res,600)}else{c.classList.add("bad");sfx.bad();first=false;fb("Look again, carefully…","bad")}}))}
-  if(tk===token)finish("odd",right/trials,right?Math.round(tsum/right):0,right?`Average find time: ${(tsum/right/1000).toFixed(1)} s`:"")}
+    const t0=Date.now();let first=true,busy=false;
+    await new Promise(res=>document.querySelectorAll(".oc").forEach(c=>c.onclick=async()=>{if(tk!==token||busy)return;
+      if(+c.dataset.i===k){c.classList.add("good");sfx.good();if(first&&scored){right++;tsum+=Date.now()-t0}fb(scored||first?"You spotted it!":"Now you've got it! 🧠","good");setTimeout(res,600)}
+      else{busy=true;c.classList.add("bad");sfx.bad();if(first&&scored)missed.push(pr);first=false;
+        await gate({emoji:"🔍",title:"Look closely",html:`<div class="wp">You tapped <span class="big">${a}</span> ❌</div><div>All of these are <span class="big">${a}</span>.</div><div class="wa">The different one is <span class="big">${b}</span> ✅</div>`,say:`You tapped one that is the same as the others. Look closely. They are all the same, except one. Find the different one.`,btn:"Find it 🔍"});
+        if(tk!==token)return;const g=document.querySelector(`.oc[data-i="${k}"]`);g.style.outline="5px solid #ffd166";busy=false;fb("Tap the different one","bad")}}))};
+  for(let t=0;t<trials&&tk===token;t++)await round(shuffle(pick(pairs)),`Find the different one! (${t+1}/${trials})`,true);
+  for(const pr of missed){if(tk!==token)return;fb("");await round(pr,`<span class="tag">🔁 Again</span> Find the different one!`,false)}
+  if(tk===token)finish("odd",right/trials,right?Math.round(tsum/right):0,(right?`Average find time: ${(tsum/right/1000).toFixed(1)} s`:"")+(missed.length?` · practiced ${missed.length} again`:""))}
 /* ---------- 4. Stop & Go (go/no-go) ---------- */
 async function playGoNo(tk){const L=lv("gonogo"),N=16,show=Math.max(650,1300-L*110);let hit=0,miss=0,impulse=0,okStop=0,rts=[];
   $("area").innerHTML=`<div class="gstage"><button class="gbtn" id="gb"></button></div><div class="note" style="text-align:center">🟢 Go = tap · 🛑 Stop = don't tap</div>`;
@@ -223,32 +248,51 @@ async function playGoNo(tk){const L=lv("gonogo"),N=16,show=Math.max(650,1300-L*1
     gb.onclick=()=>{if(tapped)return;tapped=true;if(go){hit++;rts.push(Date.now()-t0);sfx.good();fb("Zoom! 🚀","good")}else{impulse++;sfx.bad();fb("Oops — that was STOP. Wait for green!","bad")}gb.className="gbtn";gb.textContent=""};
     await delay(show);gb.onclick=null;if(!tapped){if(go){miss++;fb("Too slow — tap faster on green!","")}else{okStop++;fb("Great stopping! ✋","good")}}
     gb.className="gbtn";gb.textContent="";$("instr").textContent="";await delay(rnd(450,900))}
-  if(tk!==token)return;const score=(hit+okStop)/N,rt=rts.length?Math.round(rts.reduce((a,b)=>a+b,0)/rts.length):0;
+  if(tk!==token)return;
+  if(impulse||miss>=3){await gate({emoji:"🚦",title:"Remember",html:`${impulse?`<div class="wp">You tapped 🛑 STOP ${impulse} time${impulse>1?"s":""}</div><div class="wa">When you see 🛑, freeze your finger ✋ and wait for 🚀</div>`:""}${miss>=3?`<div class="wp">You missed 🚀 ${miss} times</div><div class="wa">Keep your finger ready and tap fast on green</div>`:""}`,
+    say:`${impulse?`You tapped the stop sign ${impulse} time${impulse>1?"s":""}. When you see red, freeze your finger and wait for the green rocket. `:""}${miss>=3?"Keep your finger ready and tap fast on green.":""}`,btn:"I'll remember 👍"});if(tk!==token)return}
+  const score=(hit+okStop)/N,rt=rts.length?Math.round(rts.reduce((a,b)=>a+b,0)/rts.length):0;
   finish("gonogo",score,{impulse,miss,rt},`Stopped correctly ${okStop}/${N-seq.filter(x=>x).length} · tapped green ${hit}/${seq.filter(x=>x).length}`)}
 /* ---------- 5. Rule Switch (card sort) ---------- */
 const SHP={star:'<polygon points="50,6 61,38 95,38 67,58 78,92 50,72 22,92 33,58 5,38 39,38"/>',circle:'<circle cx="50" cy="50" r="42"/>',square:'<rect x="10" y="10" width="80" height="80" rx="8"/>',heart:'<path d="M50 88 C10 60 5 35 25 20 C38 10 50 22 50 30 C50 22 62 10 75 20 C95 35 90 60 50 88Z"/>'};
 const COL={red:"#ef233c",blue:"#4361ee",green:"#38b000",yellow:"#ffb703"};
 const svgS=(s,c)=>`<svg viewBox="0 0 100 100"><g fill="${COL[c]}" stroke="#0003" stroke-width="3">${SHP[s]}</g></svg>`;
-async function playSwitch(tk){const L=lv("switch"),N=10;const [s1,s2]=shuffle(Object.keys(SHP)).slice(0,2),[c1,c2]=shuffle(Object.keys(COL)).slice(0,2);let right=0,swR=0,swN=0;
+async function playSwitch(tk){const L=lv("switch"),N=10;const [s1,s2]=shuffle(Object.keys(SHP)).slice(0,2),[c1,c2]=shuffle(Object.keys(COL)).slice(0,2);let right=0,swR=0,swN=0;const missed=[];
   let rule=L===2?"shape":"color";
   $("area").innerHTML=`<div style="text-align:center"><span class="rule" id="rule"></span></div><div class="cardc" id="cc"></div><div class="bins"><button class="bin" data-b="0">${svgS(s1,c1)}</button><button class="bin" data-b="1">${svgS(s2,c2)}</button></div>`;
+  const showRule=()=>{$("rule").textContent=rule==="color"?"🎨 Sort by COLOR":"🔷 Sort by SHAPE";$("rule").style.background=rule==="color"?"#ffe5ec":"#e0f2ff"};
+  const play=async(cs,cc,sw,scored,label)=>{showRule();$("cc").innerHTML=svgS(cs,cc);$("instr").innerHTML=label;
+    const ans=rule==="color"?(cc===c1?0:1):(cs===s1?0:1);let first=true;
+    while(tk===token){const pickB=await new Promise(res=>document.querySelectorAll(".bin").forEach(b=>b.onclick=()=>{if(tk!==token)return;document.querySelectorAll(".bin").forEach(x=>x.onclick=null);res(+b.dataset.b)}));
+      if(pickB===ans){sfx.good();fb(first?"Yes!":"Now you've got it! 🧠","good");if(scored&&first){right++}if(scored&&sw){swN++;if(first)swR++}await delay(650);return}
+      sfx.bad();if(first&&scored)missed.push({cs,cc,rule});first=false;
+      const tgt=ans===0?[s1,c1]:[s2,c2];
+      await gate({emoji:"🔀",title:"Check the rule",html:`<div>The rule is <b>${rule==="color"?"🎨 COLOR":"🔷 SHAPE"}</b>.</div><div class="wp">This card is <b>${rule==="color"?cc:cs}</b>.</div><div class="wa">So it goes with the <b>${rule==="color"?tgt[1]:tgt[0]}</b> one ✅</div>`,
+        say:`The rule is ${rule}. This card is ${rule==="color"?cc:"a "+cs}. So it goes with the ${rule==="color"?tgt[1]:tgt[0]} one. ${rule==="color"?"Don't look at the shape, only the color.":"Don't look at the color, only the shape."}`,btn:"Try again 💪"});
+      if(tk!==token)return;fb("")}};
   for(let i=0;i<N&&tk===token;i++){let sw=false;if(L===3&&i===5){rule=rule==="color"?"shape":"color";sw=true}if(L>=4&&i>0&&Math.random()<(L===4?.3:.45)){rule=rule==="color"?"shape":"color";sw=true}
-    $("rule").textContent=rule==="color"?"🎨 Sort by COLOR":"🔷 Sort by SHAPE";$("rule").style.background=rule==="color"?"#ffe5ec":"#e0f2ff";if(sw||i===0){speak(rule==="color"?"Sort by color!":"Sort by shape!");if(sw){fb("🔀 The rule changed!","");await delay(900)}}
-    const cs=Math.random()<.5?s1:s2,cc=cs===s1?c2:c1;$("cc").innerHTML=svgS(cs,cc);$("instr").textContent=`Card ${i+1} of ${N}`;
-    const ans=rule==="color"?(cc===c1?0:1):(cs===s1?0:1);
-    await new Promise(res=>document.querySelectorAll(".bin").forEach(b=>b.onclick=()=>{if(tk!==token)return;document.querySelectorAll(".bin").forEach(x=>x.onclick=null);const ok=+b.dataset.b===ans;if(ok){right++;sfx.good();fb("Yes!","good")}else{sfx.bad();fb(rule==="color"?"Look at the COLOR":"Look at the SHAPE","bad")}if(sw){swN++;if(ok)swR++}setTimeout(res,650)}))}
-  if(tk===token)finish("switch",right/N,{acc:right/N,sw:swN?swR/swN:null},swN?`Right after a rule change: ${swR}/${swN}`:"")}
+    showRule();if(sw||i===0){speak(rule==="color"?"Sort by color!":"Sort by shape!");if(sw){fb("🔀 The rule changed!","");await delay(900)}}
+    const cs=Math.random()<.5?s1:s2,cc=cs===s1?c2:c1;await play(cs,cc,sw,true,`Card ${i+1} of ${N}`)}
+  for(const m of missed){if(tk!==token)return;rule=m.rule;speak(`Let's try that card again. Sort by ${rule}.`);await play(m.cs,m.cc,false,false,`<span class="tag">🔁 Again</span> Sort by ${rule.toUpperCase()}`)}
+  if(tk===token)finish("switch",right/N,{acc:right/N,sw:swN?swR/swN:null},[swN?`Right after a rule change: ${swR}/${swN}`:"",missed.length?`practiced ${missed.length} again`:""].filter(Boolean).join(" · "))}
 /* ---------- 6. Pattern Train ---------- */
 const PE=[["🔴","🔵","🟢","🟡"],["🐶","🐱","🐰","🐸"],["⭐","🌙","☀️","☁️"],["🍎","🍌","🍇","🍓"]];
 function makePattern(L){const s=pick(PE);const [a,b,c]=shuffle(s);const T=L<=1?["AB"]:L===2?["AB","AAB"]:L===3?["AAB","ABB","ABC"]:L===4?["ABC","AABB","ABB"]:["AABB","ABBC","ABAC","NUM"];const t=pick(T);
-  if(t==="NUM"){const st=rnd(1,4),stp=rnd(1,3);const seq=[0,1,2,3].map(i=>String(st+i*stp));return {show:seq,ans:String(st+4*stp),opts:shuffle([String(st+4*stp),String(st+4*stp+1),String(st+3*stp)])}}
+  if(t==="NUM"){const st=rnd(1,4),stp=rnd(1,3);const seq=[0,1,2,3].map(i=>String(st+i*stp));return {show:seq,num:true,step:stp,unit:seq.slice(0,2),ans:String(st+4*stp),opts:shuffle([String(st+4*stp),String(st+4*stp+1),String(st+3*stp)])}}
   const map={A:a,B:b,C:c};const unit=t.split("").map(x=>map[x]);const full=[];while(full.length<unit.length*2+2)full.push(...unit);const k=Math.max(unit.length*2,5);
-  return {show:full.slice(0,k),ans:full[k],opts:shuffle([...new Set([full[k],a,b,c])]).slice(0,3).concat([]).filter((v,i,ar)=>ar.indexOf(v)===i)}}
-async function playPattern(tk){const L=lv("pattern"),N=5;let right=0;
-  for(let i=0;i<N&&tk===token;i++){const p=makePattern(L);if(!p.opts.includes(p.ans))p.opts[0]=p.ans;p.opts=shuffle(p.opts);$("instr").textContent=`What comes next? (${i+1}/${N})`;
-    $("area").innerHTML=`<div class="train">🚂${p.show.map(x=>`<div class="car">${x}</div>`).join("")}<div class="car q">?</div></div><div class="choices">${p.opts.map(o=>`<button class="ch">${o}</button>`).join("")}</div>`;let first=true;
-    await new Promise(res=>document.querySelectorAll(".ch").forEach(b=>b.onclick=()=>{if(tk!==token)return;if(b.textContent===p.ans){b.classList.add("good");sfx.good();if(first)right++;document.querySelector(".car.q").textContent=p.ans;document.querySelector(".car.q").classList.remove("q");fb("Choo choo! Right!","good");setTimeout(res,800)}else{b.classList.add("bad");sfx.bad();first=false;fb("Say the pattern out loud and try again","bad")}}))}
-  if(tk===token)finish("pattern",right/N,right/N)}
+  return {show:full.slice(0,k),unit,ans:full[k],opts:shuffle([...new Set([full[k],a,b,c])]).slice(0,3).concat([]).filter((v,i,ar)=>ar.indexOf(v)===i)}}
+async function playPattern(tk){const L=lv("pattern"),N=5;let right=0;const missed=[];
+  const ask=async(p,label,scored)=>{const opts=shuffle(p.opts);$("instr").innerHTML=label;
+    $("area").innerHTML=`<div class="train">🚂${p.show.map(x=>`<div class="car">${x}</div>`).join("")}<div class="car q">?</div></div><div class="choices">${opts.map(o=>`<button class="ch">${o}</button>`).join("")}</div>`;let first=true,busy=false;
+    await new Promise(res=>document.querySelectorAll(".ch").forEach(b=>b.onclick=async()=>{if(tk!==token||busy)return;
+      if(b.textContent===p.ans){b.classList.add("good");sfx.good();if(first&&scored)right++;const q=document.querySelector(".car.q");q.textContent=p.ans;q.classList.remove("q");fb(first?"Choo choo! Right!":"Now you've got it! 🧠","good");setTimeout(res,800)}
+      else{busy=true;b.classList.add("bad");sfx.bad();if(first&&scored)missed.push(p);first=false;const unit=p.unit||p.show.slice(0,2);
+        await gate({emoji:"🚂",title:"Say the pattern",html:`<div class="wp">You picked <span class="big">${b.textContent}</span> ❌</div><div>The pattern goes: <span class="big">${unit.join(" ")}</span>, then again <span class="big">${unit.join(" ")}</span>…</div><div class="wa">So next is <span class="big">${p.ans}</span> ✅</div>`,
+          say:p.num?`The numbers go up by ${p.step} each time. So next is ${p.ans}.`:`Say the pattern out loud. It repeats the same group again and again. So the next one is ${p.ans}.`,btn:"Try again 💪"});
+        if(tk!==token)return;busy=false;fb("Tap the one that comes next","")}}))};
+  for(let i=0;i<N&&tk===token;i++){const p=makePattern(L);if(!p.opts.includes(p.ans))p.opts[0]=p.ans;await ask(p,`What comes next? (${i+1}/${N})`,true)}
+  for(const p of missed){if(tk!==token)return;fb("");speak("Let's try that pattern again.");await ask(p,`<span class="tag">🔁 Again</span> What comes next?`,false)}
+  if(tk===token)finish("pattern",right/N,right/N,missed.length?`Practiced ${missed.length} again`:"")}
 /* ---------- 7. Shape Puzzle (drag) ---------- */
 const PZ={circle:'<circle cx="50" cy="50" r="44"/>',square:'<rect x="8" y="8" width="84" height="84" rx="6"/>',triangle:'<polygon points="50,6 94,92 6,92"/>',star:SHP.star,heart:SHP.heart,hexagon:'<polygon points="27,8 73,8 96,50 73,92 27,92 4,50"/>',moon:'<path d="M70 10 A42 42 0 1 0 70 90 A32 32 0 1 1 70 10Z"/>',diamond:'<polygon points="50,4 94,50 50,96 6,50"/>'};
 const PZC=["#ef476f","#06d6a0","#118ab2","#ffd166","#9d4edd","#ff9f1c","#4cc9f0","#80ed99"];
@@ -261,7 +305,8 @@ function playShapes(tk){const L=lv("shapes"),n=[3,4,5,6,7][L-1];const keys=shuff
     p.onpointerup=p.onpointercancel=e=>{if(!p.classList.contains("drag"))return;p.classList.remove("drag");const pr=p.getBoundingClientRect(),pc=[pr.left+pr.width/2,pr.top+pr.height/2];p.style.transform="";
       const hitSlot=slots.find(s=>{const r=s.getBoundingClientRect();return !s.dataset.done&&Math.hypot(r.left+42-pc[0],r.top+42-pc[1])<60});
       if(hitSlot&&hitSlot.dataset.k===k){hitSlot.dataset.done=1;board.appendChild(p);p.style.left=hitSlot.style.left;p.style.top=hitSlot.style.top;p.onpointerdown=null;sfx.good();placed++;fb(pick(["It fits!","Perfect!","Nice!"]),"good");if(placed===n)setTimeout(()=>finish("shapes",Math.max(0,1-wrong*.15),wrong,`${wrong} wrong tries`),700)}
-      else{if(hitSlot){wrong++;sfx.bad();fb("That outline is a different shape","bad")}}}})}
+      else if(hitSlot){wrong++;sfx.bad();const ok=slots.find(s=>s.dataset.k===k&&!s.dataset.done);
+        gate({emoji:"🔷",title:"Look at the shape",html:`<div class="wp">Your piece is a <b>${k}</b>.</div><div>That outline is a <b>${hitSlot.dataset.k}</b> ❌</div><div class="wa">Find the <b>${k}</b> outline ✅</div>`,say:`Your piece is a ${k}. That outline is a ${hitSlot.dataset.k}. Look at the edges and corners, and find the ${k} outline.`,btn:"Try again 💪"}).then(()=>{if(tk!==token||!ok)return;ok.style.outline="4px solid #ffd166";ok.style.borderRadius="12px";setTimeout(()=>{ok.style.outline=""},2500)})}}})}
 /* ---------- 8. Robot Coder ---------- */
 const DIRS={"⬆️":[0,-1],"⬇️":[0,1],"⬅️":[-1,0],"➡️":[1,0]};
 function robotLevel(L){const n=[4,4,5,5,6,6][L-1];for(let tries=0;tries<200;tries++){const rocks=new Set();const nr=[0,0,2,3,5,7][L-1];const s=[0,rnd(0,n-1)];let g;
@@ -277,9 +322,13 @@ function playRobot(tk){const L=lv("robot"),M=robotLevel(L);let prog=[],tries=0,r
   document.querySelectorAll(".ar").forEach(b=>b.onclick=()=>{if(running||prog.length>=12)return;prog.push(b.textContent);sfx.tap();drawProg()});
   $("undo").onclick=()=>{if(running)return;prog.pop();drawProg()};
   $("run").onclick=async()=>{if(running||!prog.length)return;running=true;tries++;let p=[...M.s],ok=true;
-    for(let i=0;i<prog.length;i++){if(tk!==token)return;drawProg(i);const [dx,dy]=DIRS[prog[i]],nx=p[0]+dx,ny=p[1]+dy;if(nx<0||ny<0||nx>=M.n||ny>=M.n||M.rocks.has(nx+","+ny)){sfx.bad();fb(M.rocks.has(nx+","+ny)?"Bonk! A rock is in the way. Fix your plan.":"Bonk! That's the edge. Fix your plan.","bad");ok=false;break}p=[nx,ny];draw(p);tone(400+i*40,.08,0,"square",.05);await delay(420)}
+    for(let i=0;i<prog.length;i++){if(tk!==token)return;drawProg(i);const [dx,dy]=DIRS[prog[i]],nx=p[0]+dx,ny=p[1]+dy;if(nx<0||ny<0||nx>=M.n||ny>=M.n||M.rocks.has(nx+","+ny)){sfx.bad();const rock=M.rocks.has(nx+","+ny);ok=false;
+        await gate({emoji:"🤖",title:"Bonk!",html:`<div class="wp">Step ${i+1} (<span class="big">${prog[i]}</span>) went into ${rock?"a rock 🪨":"the edge"} ❌</div><div class="wa">Change step ${i+1}, then press Go again ✅</div>`,say:`Bonk! Step ${i+1} made the robot hit ${rock?"a rock":"the edge"}. Change that arrow so the robot goes around, then press Go again.`,btn:"Fix my plan 🔧"});
+        if(tk!==token)return;prog=prog.slice(0,i);fb("Your plan is kept up to the bump. Add new arrows!","");break}p=[nx,ny];draw(p);tone(400+i*40,.08,0,"square",.05);await delay(420)}
     if(ok&&p[0]===M.g[0]&&p[1]===M.g[1]){sfx.good();fb("The robot reached the star! ⭐","good");await delay(700);finish("robot",tries===1?1:tries===2?.7:.5,tries,`Solved in ${tries} ${tries>1?"tries":"try"}`)}
-    else{if(ok){sfx.bad();fb("Close! The robot stopped before the star. Change your plan.","bad")}await delay(900);draw();drawProg();running=false}}}
+    else{if(ok){sfx.bad();const dx=M.g[0]-p[0],dy=M.g[1]-p[1],need=[dx?`${Math.abs(dx)} ${dx>0?"➡️":"⬅️"}`:"",dy?`${Math.abs(dy)} ${dy>0?"⬇️":"⬆️"}`:""].filter(Boolean).join(" and ");
+        await gate({emoji:"🤖",title:"Almost there!",html:`<div class="wp">The robot stopped before the star ❌</div><div class="wa">It still needs ${need} ✅</div>`,say:`The robot stopped before the star. It still needs ${[dx?`${Math.abs(dx)} ${dx>0?"right":"left"}`:"",dy?`${Math.abs(dy)} ${dy>0?"down":"up"}`:""].filter(Boolean).join(" and ")}. Add those arrows to your plan.`,btn:"Fix my plan 🔧"});if(tk!==token)return}
+      draw();drawProg();running=false}}}
 /* ---------- 9. Color Pad ---------- */
 const PCOL=["#2b2d42","#ef233c","#ff9f1c","#ffd166","#38b000","#4361ee","#9d4edd","#f15bb5","#8d5524","#ffffff"];
 const PROMPTS=["a rocket","your family","a happy sun","a monster friend","your favorite food","a big tree","a fish in the sea","a rainbow","your house","a robot"];
@@ -315,7 +364,8 @@ function playMusic(tk){const L=lv("music");
       await delay(times[n-1]+700);$("bt").textContent="";$("instr").textContent="🥁 Your turn! Tap the drum the same way";const taps=[];
       await new Promise(res=>{let to=null;$("dr").onpointerdown=()=>{tone(200,.15,0,"triangle",.3);taps.push(Date.now());$("bt").textContent+="🟢";clearTimeout(to);if(taps.length>=n){$("dr").onpointerdown=null;setTimeout(res,300)}else to=setTimeout(()=>{$("dr").onpointerdown=null;res()},2500)}});
       let ok=taps.length===n;if(ok){const tg=taps.slice(1).map((t,i)=>t-taps[i]);ok=tg.every((g,i)=>Math.abs(g-gaps[i])<Math.max(220,gaps[i]*.45))}
-      if(ok){good++;sfx.good();fb("Perfect rhythm! 🎵","good")}else{sfx.bad();fb(taps.length!==n?`Listen again: that beat had ${n} taps`:"Close! Try to match the slow and fast taps","bad")}await delay(1000)}
+      if(ok){good++;sfx.good();fb("Perfect rhythm! 🎵","good");await delay(1000)}else{sfx.bad();fb("");const pat=gaps.map(g=>g>500?"slow":"fast");
+        await gate({emoji:"🥁",title:"Listen to the beat",html:`<div class="wp">You tapped ${taps.length} time${taps.length===1?"":"s"}</div><div class="wa">The beat had ${n} taps: ${"🔵".repeat(n)}</div>${taps.length===n?`<div>Match the slow and fast gaps: ${pat.join(", ")}</div>`:""}`,say:taps.length!==n?`You tapped ${taps.length} times. The beat had ${n} taps. Count them while you listen.`:`You had the right number of taps. Now match the slow and fast gaps: ${pat.join(", ")}.`,btn:"Next beat 🥁"});if(tk!==token)return}}
     if(tk===token)finish("music",good/rounds,{beat:good/rounds},`${good}/${rounds} beats copied`)}}
 
 /* ---------- parents ---------- */
