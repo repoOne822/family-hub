@@ -23,12 +23,9 @@ window.QDATA = {
     mobs: [["🔥", "Ember Imp"], ["🪨", "Magma Brute"], ["⚙️", "Clockwork Drone"], ["🦎", "Salamander"]], elite: [["🐂", "Momentum Bull"]], boss: ["😈", "The Joule-Eater", "It hoards energy. Make it pay back every joule."] },
   { id: "a5", n: 5, name: "Tide Caverns", zh: "潮汐洞窟", subject: "Physics", lessons: ["waves"], gens: ["wave", "period"], bg: "#10263a",
     blurb: "Waves and oscillations. Unit 9.",
-    mobs: [["🦀", "Echo Crab"], ["🐙", "Abyss Squid"], ["🪼", "Pulse Jelly"], ["🦈", "Ripple Shark"]], elite: [["🐳", "Amplitude Whale"]], boss: ["🌊", "Leviathan of Frequencies", "It hums at every frequency at once."] },
-  { id: "m1", n: 1, name: "Number Catacombs", zh: "数字墓穴", subject: "Pre-Algebra", lessons: [], gens: ["int", "expr", "eq", "frac", "gcf", "exp", "pct", "prop", "angle"], bg: "#1c1c26", side: true,
-    blurb: "Ms. Jayapal's Pre-Algebra: integers to angles. Units 1–6.",
-    mobs: [["🦴", "Bone Counter"], ["🐸", "Fraction Toad"], ["🕸️", "Exponent Spinner"], ["🧟", "Negative Ghoul"]], elite: [["🦉", "Proportion Owl"]], boss: ["🧙", "The Variable Lich", "It hides as x. Solve it!"] }
+    mobs: [["🦀", "Echo Crab"], ["🐙", "Abyss Squid"], ["🪼", "Pulse Jelly"], ["🦈", "Ripple Shark"]], elite: [["🐳", "Amplitude Whale"]], boss: ["🌊", "Leviathan of Frequencies", "It hums at every frequency at once."] }
  ],
- sealed: [["🧪", "Alchemist's Spire", "Chemistry"], ["🧬", "Living Labyrinth", "Biology"], ["📜", "Scriptorium", "English"], ["🏛️", "Ruins of Subura", "Latin"]],
+ sealed: [],
  slots: { weapon: "Weapon", helm: "Helm", armor: "Armor", boots: "Boots", amulet: "Amulet", ring: "Ring" },
  slotIcon: { helm: "⛑️", armor: "🧥", boots: "🥾", amulet: "📿", ring: "💍" },
  bases: {

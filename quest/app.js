@@ -83,24 +83,38 @@ const itemHtml = (it, cmp) => { const eq = H().equip[it.slot]; const diff = cmp 
 const skillName = k => k.startsWith("g:") ? GEN[k.slice(2)].name : (LMAP[k] ? `${LMAP[k].title} (concepts)` : k);
 const actSkills = a => [...a.lessons, ...a.gens.map(g => "g:" + g)];
 const recentQ = [];
+// each physics skill has its own difficulty level (1–3): it starts from the Sage's Trial (the baseline) and adapts as he plays
+const skillLvl = k => (P.lvl && P.lvl[k]) || 1;
+function pickKey(act) {
+  // weaker skills come up more often (weight 4 − level), so play targets what he still needs
+  const keys = actSkills(act), w = keys.map(k => 4 - skillLvl(k)); let x = Math.random() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < keys.length; i++) if ((x -= w[i]) < 0) return keys[i]; return keys[0];
+}
 function makeQ(act, level, purpose) {
-  // purpose: normal | hard | boss | train:<key>
-  let key;
+  // purpose: normal | hard | boss | train:<key> | trial:<key>:<d>
+  let key, d0 = null;
   if (purpose.startsWith("train:")) key = purpose.slice(6);
-  else { const useMC = act.lessons.length && Math.random() < (purpose === "boss" ? .45 : .5); key = useMC ? pick(act.lessons) : "g:" + pick(act.gens); }
+  else if (purpose.startsWith("trial:")) { const [, k, dd] = purpose.split(":"); key = k.replace(/^g-/, "g:"); d0 = +dd; }
+  else key = pickKey(act);
+  const lv = d0 || skillLvl(key);
   if (!key.startsWith("g:")) {
-    const L = LMAP[key]; const bank = purpose === "boss" ? L.tq : purpose === "hard" ? [...L.ch, ...L.pr] : L.pr;
+    const L = LMAP[key]; const bank = purpose === "boss" ? L.tq : (purpose === "hard" || lv >= 3) ? [...L.ch, ...L.pr] : lv <= 1 && !d0 ? L.pr.slice(0, 4).concat(L.pr) : d0 === 3 ? L.ch : L.pr;
     let q; for (let i = 0; i < 8; i++) { q = pick(bank); if (!recentQ.includes(q.q)) break; }
     recentQ.push(q.q); if (recentQ.length > 12) recentQ.shift();
     const o = shuffle(q.c.map((c, j) => [c, j]));
     return { type: "mc", key, q: q.q, c: o.map(x => x[0]), a: o.findIndex(x => x[1] === q.a), hint: q.hint, why: q.why };
   }
-  const d = purpose === "boss" ? 3 : purpose === "hard" ? clamp(level + 1, 1, 3) : level;
+  const d = d0 || (purpose === "boss" ? 3 : purpose === "hard" ? clamp(lv + 1, 1, 3) : lv);
   const p = GEN[key.slice(2)].gen(d);
   return Object.assign({ type: "num", key, d }, p, { units: p.units ? shuffle(p.units) : null });
 }
 function record(q, ok, secs, ans) {
   const m = P.mastery[q.key] = P.mastery[q.key] || []; m.push(ok ? 1 : 0); if (m.length > 12) m.shift();
+  // adapt this skill's level: 4 of the last 5 right → harder; 3 of the last 4 wrong → easier
+  P.lvl = P.lvl || {}; const r = P.lvlRun = P.lvlRun || {}; const run = r[q.key] = (r[q.key] || []).concat(ok ? 1 : 0).slice(-5);
+  const lv = skillLvl(q.key);
+  if (run.length >= 5 && run.reduce((a, b) => a + b, 0) >= 4 && lv < 3) { P.lvl[q.key] = lv + 1; r[q.key] = []; P.lvlUps = (P.lvlUps || []).concat({ d: today(), k: q.key, to: lv + 1 }).slice(-60); }
+  else if (run.length >= 4 && run.slice(-4).reduce((a, b) => a + b, 0) <= 1 && lv > 1) { P.lvl[q.key] = lv - 1; r[q.key] = []; }
   P.stats.q++; if (ok) P.stats.ok++;
   P.log.push({ ts: Date.now(), d: today(), k: q.key, ok, secs, q: q.q.slice(0, 140), a: String(ans).slice(0, 40), r: q.type === "mc" ? q.c[q.a] : answerText(q) });
   if (P.log.length > 1500) P.log = P.log.slice(-1500);
@@ -108,25 +122,110 @@ function record(q, ok, secs, ans) {
 const mastery = k => { const m = P.mastery[k] || []; return { n: m.length, pct: m.length ? Math.round(m.reduce((a, b) => a + b, 0) / m.length * 100) : 0 }; };
 const mClass = k => { const { n, pct } = mastery(k); return n < 5 ? "m0" : pct >= 80 && n >= 8 ? "m3" : pct >= 60 ? "m2" : "m1"; };
 
+
+// ---------- the Sage's Trial: a physics placement test that sets the baseline ----------
+// Every physics skill gets a medium question; a right answer earns a harder one. "Haven't learned it yet" is always allowed.
+const TRIAL = [
+  ["inquiry", "Scientific inquiry"], ["measure", "Measurement & units"], ["g:conv", "Metric conversions"],
+  ["kinematics", "Motion concepts"], ["g:vdt", "Speed, distance, time"], ["g:accel", "Acceleration"], ["g:avgspeed", "Average speed"],
+  ["forces", "Forces & Newton's laws"], ["g:weight", "Weight = m × g"], ["g:netforce", "Net force"], ["g:fma", "F = m × a"],
+  ["energy", "Energy concepts"], ["g:work", "Work"], ["g:ke", "Kinetic energy"], ["g:pe", "Potential energy"],
+  ["waves", "Wave concepts"], ["g:wave", "Wave speed"], ["g:period", "Period & frequency"]
+];
+const TRIAL_AREAS = [["🔬 Inquiry & measurement", 0, 3], ["🏃 Motion", 3, 7], ["🧲 Forces", 7, 11], ["⚡ Energy", 11, 15], ["🌊 Waves", 15, 18]];
+const realKey = k => k === "g:vdt" ? pick(["g:speed", "g:dist", "g:time"]) : k;
+const fanOut = k => k === "g:vdt" ? ["g:speed", "g:dist", "g:time"] : [k];
+function trialIntro(retest) {
+  window.scrollTo(0, 0);
+  const T = P.trial;
+  app.innerHTML = `<div class="title"><div class="logo">📜 The Sage's Trial</div><div class="sub">试炼 · find out where your physics journey begins</div></div>
+   <div class="panel center"><div class="bossport" style="font-size:96px">🧙</div>
+   <p>“Welcome, ${esc(H().name)}. Before you enter the Realm, show me what you already know. This is <b>not</b> a test you pass or fail. It tells me where to start you, so the dungeons are not too easy and not too hard.”</p>
+   <ul style="text-align:left;max-width:560px;margin:10px auto"><li>About ${TRIAL.length}–${TRIAL.length * 2} questions on every physics topic: inquiry, units, motion, forces, energy and waves.</li>
+   <li>If you have <b>not learned something yet</b>, tap “I haven't learned this yet.” That's an honest, useful answer.</li>
+   <li>No timer and no hints. Calculator is OK. You can stop and come back; your place is saved.</li>
+   <li>Finishing the Trial earns XP, gold and a magic item, whatever your score.</li></ul>
+   ${retest ? `<p class="hint">This is a re-test. Your new results will be compared with your earlier baseline.</p>` : ""}
+   <div class="row c"><button class="btn go" id="go">${T && T.items.length ? `Continue (${T.idx} of ${TRIAL.length} topics done) →` : "Begin the Trial →"}</button></div></div>`;
+  $("#go").onclick = () => { if (!P.trial) P.trial = { started: today(), idx: 0, stage: 1, items: [], retest: !!retest }; save(); trialStep(); };
+}
+function trialStep() {
+  const T = P.trial;
+  if (T.idx >= TRIAL.length) return trialDone();
+  const [k, name] = TRIAL[T.idx], d = T.stage === 1 ? 2 : 3;
+  const q = makeQ(null, d, `trial:${realKey(k).replace(":", "-")}:${d}`); q.trialKey = k;
+  const area = TRIAL_AREAS.find(a => T.idx >= a[1] && T.idx < a[2]);
+  window.scrollTo(0, 0);
+  app.innerHTML = `<div class="hdr"><h1>📜 The Sage's Trial</h1><span class="sp"></span><span class="gold">${T.idx + 1} / ${TRIAL.length}</span></div>
+   <div class="panel"><div class="bar xp"><i style="width:${T.idx / TRIAL.length * 100}%"></i><span>${area[0]} · ${esc(name)}${T.stage === 2 ? " · ⬆️ harder one" : ""}</span></div>
+   <div class="qcard"><div class="qq">${esc(q.q)}</div>
+   ${q.type === "mc" ? `<div class="mc">${q.c.map((c, j) => `<button data-c="${j}"><b>${"ABCD"[j]}</b> ${esc(c)}</button>`).join("")}</div>`
+     : `<div class="numrow"><input id="ans" inputmode="decimal" autocomplete="off" placeholder="your answer">${q.units && q.units.length > 1 ? `<select id="unit"><option value="">unit…</option>${q.units.map(u => `<option>${esc(u)}</option>`).join("")}</select>` : q.unit ? `<span class="u">${esc(q.unit)}</span>` : ""}<button class="btn go" id="sub">Answer</button></div><div class="hint">Calculator OK. ${q.units && q.units.length > 1 ? "Pick the unit too." : ""}</div>`}
+   <div class="row"><button class="btn ghost sm" id="skip">🤷 I haven't learned this yet</button><span class="sp"></span><button class="btn ghost sm" id="pause">⏸ Stop for now</button></div></div></div>`;
+  const t0 = Date.now();
+  const done = (ok, ans, skipped) => {
+    const secs = Math.round((Date.now() - t0) / 1000);
+    T.items.push({ k, d, ok: !!ok, skipped: !!skipped, secs, q: q.q.slice(0, 140), a: String(ans || "").slice(0, 40), r: q.type === "mc" ? q.c[q.a] : answerText(q) });
+    if (!skipped) { const m = P.mastery[q.key] = P.mastery[q.key] || []; m.push(ok ? 1 : 0); if (m.length > 12) m.shift(); P.stats.q++; if (ok) P.stats.ok++; }
+    if (ok && T.stage === 1) T.stage = 2; else { T.idx++; T.stage = 1; }
+    save(); SFX[ok ? "loot" : "miss"](); trialStep();
+  };
+  if (q.type === "mc") app.querySelectorAll("[data-c]").forEach(b => b.onclick = () => done(+b.dataset.c === q.a, q.c[+b.dataset.c]));
+  else { const go = () => { const v = $("#ans").value, u = $("#unit") ? $("#unit").value : q.unit; if (!v.trim()) return $("#ans").focus(); done(check(q, v, u).ok, v + (u ? " " + u : "")); }; $("#sub").onclick = go; $("#ans").onkeydown = e => { if (e.key === "Enter") go(); }; setTimeout(() => $("#ans") && $("#ans").focus(), 50); }
+  $("#skip").onclick = () => done(false, "not learned yet", true);
+  $("#pause").onclick = () => { save(); app.innerHTML = `<div class="panel center"><h2>⏸ Trial paused</h2><p>Your place is saved. Come back any time to finish.</p><button class="btn go" id="r">Continue now</button></div>`; $("#r").onclick = trialStep; };
+}
+function trialDone() {
+  const T = P.trial, skills = {};
+  TRIAL.forEach(([k, name]) => {
+    const it = T.items.filter(i => i.k === k), first = it[0], second = it[1];
+    const level = !first || first.skipped || !first.ok ? 1 : second && second.ok ? 3 : 2;
+    skills[k] = { name, level, taught: !(first && first.skipped), first: first ? first.ok : false, second: second ? second.ok : null };
+  });
+  const answered = T.items.filter(i => !i.skipped), pct = answered.length ? Math.round(answered.filter(i => i.ok).length / answered.length * 100) : 0;
+  const score = Math.round(TRIAL.reduce((a, [k]) => a + (skills[k].level - 1), 0) / (TRIAL.length * 2) * 100);
+  const B = { date: today(), skills, items: T.items, pct, score, secs: T.items.reduce((a, i) => a + i.secs, 0) };
+  const prev = P.baseline;
+  P.baselines = (P.baselines || []).concat(B).slice(-10);
+  if (!prev || !T.retest) P.baseline = B; // the first trial stays the baseline; re-tests are kept as history to compare
+  P.lvl = P.lvl || {};
+  TRIAL.forEach(([k]) => fanOut(k).forEach(kk => { if (!T.retest || !P.lvl[kk]) P.lvl[kk] = skills[k].level; else P.lvl[kk] = Math.max(P.lvl[kk], skills[k].level); }));
+  P.trial = null; P.retest = false;
+  // reward effort, not score
+  const h = H(), it = makeItem(4, 1); h.bag.push(it); h.gold += 60; gainXp(80); save(); SFX.legend();
+  const areaRows = TRIAL_AREAS.map(([n, a, b]) => { const ks = TRIAL.slice(a, b), avg = ks.reduce((s, [k]) => s + skills[k].level, 0) / ks.length; return `<div class="mrow ${avg >= 2.6 ? "m3" : avg >= 1.8 ? "m2" : ks.some(([k]) => skills[k].taught) ? "m1" : "m0"}"><span class="mname">${n}</span><span class="mbar"><i style="width:${(avg - 1) / 2 * 100}%"></i></span><span class="mpct">Lv ${avg.toFixed(1)}</span><span></span></div>`; }).join("");
+  const strong = TRIAL.filter(([k]) => skills[k].level === 3).map(([, n]) => n), work = TRIAL.filter(([k]) => skills[k].taught && skills[k].level === 1).map(([, n]) => n), notYet = TRIAL.filter(([k]) => !skills[k].taught).map(([, n]) => n);
+  app.innerHTML = `<div class="title"><div class="logo">📜 Trial complete!</div></div><div class="panel center"><div class="bossport" style="font-size:80px">🧙</div>
+    <p>“Well done, ${esc(h.name)}. Now I know where your journey begins. Every topic has its own level from 1 to 3, and the dungeons will match it. Get better and the questions get harder with you.”</p>
+    <p><b>${pct}%</b> correct on the questions you answered · physics level score <b>${score}</b> / 100${prev && T.retest ? ` (first baseline: ${prev.score})` : ""}</p></div>
+    <div class="panel"><h2>Your starting levels</h2>${areaRows}
+    ${strong.length ? `<p>💪 <b>Strong:</b> ${strong.map(esc).join(", ")}</p>` : ""}${work.length ? `<p>🎯 <b>The Sage will train you on:</b> ${work.map(esc).join(", ")}</p>` : ""}${notYet.length ? `<p>🌱 <b>Not learned yet:</b> ${notYet.map(esc).join(", ")}. No problem; you'll learn them in the Realm.</p>` : ""}
+    <p class="hint">Reward for finishing: +80 XP, 🪙 60 and a magic item (in your bag).</p><div class="row c"><button class="btn go" id="go">Enter Haven →</button></div></div>`;
+  $("#go").onclick = town;
+}
+const baseLv = k => { const B = P.baseline; if (!B) return null; const s = B.skills[k] || (/^g:(speed|dist|time)$/.test(k) ? B.skills["g:vdt"] : null); return s ? s.level : null; };
+const needsTrial = () => H() && (!P.baseline || P.retest || P.trial);
+
 // ---------- screens ----------
 const top = (title, back) => `<div class="hdr">${back ? `<button class="btn ghost" id="back">← ${back}</button>` : ""}<h1>${title}</h1><span class="sp"></span>${H() ? `<span class="gold">🪙 ${H().gold}</span>` : ""}<button class="btn ghost sm" id="snd" title="Sound">${P.settings.sound ? "🔊" : "🔇"}</button></div>`;
 const wire = (back) => { const b = $("#back"); if (b) b.onclick = back || town; const s = $("#snd"); if (s) s.onclick = () => { P.settings.sound = !P.settings.sound; save(); s.textContent = P.settings.sound ? "🔊" : "🔇"; }; };
 const bar = (v, max, cls, label) => `<div class="bar ${cls}"><i style="width:${clamp(v / max * 100, 0, 100)}%"></i><span>${label || `${Math.max(0, Math.round(v))} / ${max}`}</span></div>`;
 
 function create() {
-  app.innerHTML = `<div class="title"><div class="logo">⚔️ Realm of Forces</div><div class="sub">力之境 · a turn-based dungeon crawl where knowledge is your weapon</div></div>
+  app.innerHTML = `<div class="title"><div class="logo">⚔️ Realm of Forces</div><div class="sub">力之境 · a physics dungeon crawl where knowledge is your weapon</div></div>
    <div class="panel"><h2>Choose your hero</h2><div class="classes">${Object.entries(D.classes).map(([id, c]) => `<button class="cls" data-c="${id}"><div class="big">${window.QA ? QA.sprite(id, 72) : c.icon}</div><b>${c.name}</b> <span class="zh">${c.zh}</span><p>${c.blurb}</p><p class="skl">${c.skill.icon} ${c.skill.name}: ${c.skill.desc}</p></button>`).join("")}</div>
    <label class="nm">Hero name <input id="hname" maxlength="16" value="${esc(KID.charAt(0).toUpperCase() + KID.slice(1))}"></label>
    <p class="hint">How it works: every Strike is a question. Right answers hit (fast right answers dodge the counterattack and hit harder). Wrong answers miss, and you see the explanation so you learn it. Bosses are mastery tests for each unit.</p></div>`;
   app.querySelectorAll("[data-c]").forEach(b => b.onclick = () => {
     P.hero = { cls: b.dataset.c, name: ($("#hname").value || "Hero").slice(0, 16), lvl: 1, xp: 0, gold: 40, sp: 0, skills: { might: 0, vit: 0, focus: 0, insight: 0, mastery: 0 }, equip: { weapon: null, helm: null, armor: null, boots: null, amulet: null, ring: null }, bag: [], potions: 3 };
-    P.hero.equip.weapon = makeItem(1, 0, "weapon"); save(); town();
+    P.hero.equip.weapon = makeItem(1, 0, "weapon"); save(); trialIntro();
   });
 }
 
 function town() {
   window.scrollTo(0, 0);
   if (!H()) return create();
+  if (needsTrial() && !PARENT) return trialIntro(P.retest);
   RUN = null;
   app.innerHTML = `<div id="world"></div>
    <div class="qbar"><button class="btn ghost sm" data-go="portal">🌀 Waypoints</button><button class="btn ghost sm" data-go="gear">🎒 Gear (${H().bag.length})</button><button class="btn ghost sm" data-go="skills">✨ Skills${H().sp ? ` <em>+${H().sp}</em>` : ""}</button><button class="btn ghost sm" data-go="shop">⚖️ Merchant</button><button class="btn ghost sm" data-go="codex">📖 Codex</button></div>
@@ -412,8 +511,8 @@ function shop() {
 function codex() {
   window.scrollTo(0, 0);
   app.innerHTML = top("📖 Codex of Mastery", "Haven") + `<div class="panel"><p>Every skill tracks your last 12 answers. <span class="m3 pill">⭐ Mastered</span> = 80%+ over 8 or more tries. <span class="m2 pill">Getting there</span> 60–79% · <span class="m1 pill">Needs work</span> under 60% · <span class="m0 pill">New</span> fewer than 5 tries.</p>
-    <p class="hint">Train any skill against the 🎯 Training Dummy: 10 questions, no danger, all XP.</p></div>
-    ${D.acts.map(a => `<div class="panel"><h2>${a.side ? "📐" : "Act " + a.n} · ${esc(a.name)}</h2>${actSkills(a).map(k => { const m = mastery(k); return `<div class="mrow ${mClass(k)}"><span class="mname">${esc(skillName(k))}</span><span class="mbar"><i style="width:${m.n ? m.pct : 0}%"></i></span><span class="mpct">${m.n ? m.pct + "%" : "–"} <small>(${m.n})</small></span><button class="btn ghost sm" data-tr="${k}" data-a="${a.id}">🎯 Train</button></div>`; }).join("")}</div>`).join("")}`;
+    <p class="hint">Each skill also has a difficulty level 1–3. It started from your Sage's Trial and rises as you get questions right (⬆️ = higher than your start). Train any skill against the 🎯 Training Dummy: 10 questions, no danger, all XP.</p></div>
+    ${D.acts.map(a => `<div class="panel"><h2>${a.side ? "📐" : "Act " + a.n} · ${esc(a.name)}</h2>${actSkills(a).map(k => { const m = mastery(k); return `<div class="mrow ${mClass(k)}"><span class="mname">${esc(skillName(k))}</span><span class="mbar"><i style="width:${m.n ? m.pct : 0}%"></i></span><span class="mpct">${m.n ? m.pct + "%" : "–"} <small>(${m.n})</small><br><small title="difficulty now (start)">Lv ${skillLvl(k)}${baseLv(k) != null ? ` (start ${baseLv(k)})` : ""}${baseLv(k) != null && skillLvl(k) > baseLv(k) ? " ⬆️" : ""}</small></span><button class="btn ghost sm" data-tr="${k}" data-a="${a.id}">🎯 Train</button></div>`; }).join("")}</div>`).join("")}`;
   wire();
   app.querySelectorAll("[data-tr]").forEach(b => b.onclick = () => { if (overLimit()) return rest(); const a = D.acts.find(x => x.id === b.dataset.a); const s = stats(); RUN = { act: a, floor: 1, step: 0, hp: s.hp, mp: s.mp, buff: 1, loot: [], gold: 0 }; fight("train", { key: b.dataset.tr }); });
 }
@@ -440,11 +539,13 @@ function parentHtml() {
    <label>Daily adventure limit: <select id="plim">${[0, 15, 20, 30, 45, 60].map(m => `<option value="${m}"${P.settings.limit === m ? " selected" : ""}>${m ? m + " min" : "no limit"}</option>`).join("")}</select></label>
    <p>Today: ${Math.floor(P.daily.secs / 60)} min · Last 7 days: <b>${L.length}</b> questions, <b>${acc}%</b> correct · Fights won: ${P.stats.kills} · Falls: ${P.stats.deaths}</p>
    <p><b>Bosses (mastery tests):</b> ${D.acts.map(a => { const st = actState(a.id); return `${a.boss[0]} ${st.cleared ? `best ${st.bossBest}%` : "not yet"}`; }).join(" · ")}</p>
-   <table class="ptab"><tr><th>Skill</th><th>Last 12</th><th>Tries</th></tr>${D.acts.flatMap(a => actSkills(a)).map(k => { const m = mastery(k); return `<tr class="${mClass(k)}"><td>${esc(skillName(k))}</td><td>${m.n ? m.pct + "%" : "–"}</td><td>${m.n}</td></tr>`; }).join("")}</table>
+   ${P.baseline ? `<p><b>Baseline (Sage's Trial, ${P.baseline.date}):</b> ${P.baseline.pct}% correct on answered questions · level score ${P.baseline.score}/100 · ${Math.round(P.baseline.secs / 60)} min.${(P.baselines || []).length > 1 ? ` Re-tests: ${P.baselines.slice(1).map(b => `${b.date} → ${b.score}/100`).join(" · ")}` : ""} Not learned yet: ${Object.values(P.baseline.skills).filter(x => !x.taught).map(x => esc(x.name)).join(", ") || "none"}.</p>` : `<p><b>Baseline:</b> not taken yet (he'll be asked to take the Sage's Trial when he opens the game).</p>`}
+   <p><button class="btn ghost sm" id="retest">${P.retest ? "✅ Re-test requested for his next visit" : "📜 Ask for a new Sage's Trial (re-test) on his next visit"}</button></p>
+   <table class="ptab"><tr><th>Skill</th><th>Last 12</th><th>Tries</th><th>Level now</th><th>Baseline</th></tr>${D.acts.flatMap(a => actSkills(a)).map(k => { const m = mastery(k); return `<tr class="${mClass(k)}"><td>${esc(skillName(k))}</td><td>${m.n ? m.pct + "%" : "–"}</td><td>${m.n}</td><td>${skillLvl(k)}</td><td>${baseLv(k) ?? "–"}</td></tr>`; }).join("")}</table>
    ${misses.length ? `<p><b>Recent misses:</b></p><ul class="pmiss">${misses.map(e => `<li>${esc(e.q)}<br><small>He said <b>${esc(e.a)}</b> · answer <b>${esc(e.r)}</b></small></li>`).join("")}</ul>` : ""}
    <p class="hint">Questions: multiple choice from the Physics 6 lessons (bosses use a held-back set) + fresh-number problems that need a typed answer and the right unit. Points: 2 per correct answer, 15 per boss, 5 per level (hub caps apps at 120/day).</p></div>`;
 }
-function wireParent() { const s = $("#plim"); if (s) s.onchange = () => { P.settings.limit = +s.value; save(); town(); }; }
+function wireParent() { const s = $("#plim"); if (s) s.onchange = () => { P.settings.limit = +s.value; save(); town(); }; const r = $("#retest"); if (r) r.onclick = () => { P.retest = !P.retest; save(); town(); }; }
 
 // ---------- fx ----------
 function shake(sel) { const el = $(sel); if (el) el.animate([{ transform: "translateX(-6px)" }, { transform: "translateX(6px)" }, { transform: "translateX(-3px)" }, { transform: "none" }], 260); }
