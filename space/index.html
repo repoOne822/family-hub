@@ -42,6 +42,7 @@ canvas#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
 .pl.cur::after{content:"";position:absolute;inset:-10px;border-radius:50%;border:4px dashed #ffd166;animation:spin 8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .you{position:absolute;font-size:44px;transform:translate(-50%,-120%);animation:bob 1.6s ease-in-out infinite;pointer-events:none}
+@keyframes kbob{50%{transform:translateY(-10px) scale(1.08)}}
 @keyframes bob{50%{transform:translate(-50%,-135%)}}
 /* modal */
 .modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
@@ -90,6 +91,8 @@ table{width:100%;border-collapse:collapse;font-size:15px}
 td,th{text-align:left;padding:5px 4px;border-bottom:1px solid #eee}
 .set{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0;font-size:16px}
 .set select{font-family:inherit;font-size:16px;padding:3px 6px;border-radius:8px}
+.tro{background:#ffffff10;border:2px solid #ffffff22;border-radius:20px;padding:12px;text-align:center;font-size:16px}.tro.ok{border-color:#ffd166;background:linear-gradient(#ffd16633,#ffd16611)}.tro .te{font-size:40px}.tro .td{font-size:13px;opacity:.85}.tro .tr{font-size:13px;color:#ffd166;margin-top:4px}.tbar{height:8px;background:#ffffff22;border-radius:5px;overflow:hidden;margin:6px 0 2px}.tbar i{display:block;height:100%;background:linear-gradient(90deg,#4cc9f0,#9b5de5)}
+#achPop{position:fixed;left:50%;top:-140px;transform:translateX(-50%);z-index:40;display:flex;gap:14px;align-items:center;background:linear-gradient(135deg,#3a0ca3,#7209b7);color:#fff;border:3px solid #ffd166;border-radius:22px;padding:12px 22px;box-shadow:0 12px 40px #0008;transition:top .45s cubic-bezier(.2,1.4,.4,1);min-width:min(92vw,360px)}#achPop.on{top:16px}
 #toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#22223b;color:#fff;padding:8px 16px;border-radius:12px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none;font-size:18px}
 #toast.on{opacity:1}
 </style>
@@ -101,13 +104,13 @@ td,th{text-align:left;padding:5px 4px;border-bottom:1px solid #eee}
 <section class="layer on" id="title"><div class="center">
   <h1>Space Quest</h1>
   <p id="hello">Ready to fly, Jonah?</p>
-  <div class="row"><button class="btn gold" id="play" style="font-size:30px;padding:14px 34px">🚀 Play</button><button class="btn" id="toHangar">🛠️ My rocket</button></div>
+  <div class="row"><button class="btn gold" id="play" style="font-size:30px;padding:14px 34px">🚀 Play</button><button class="btn" id="toHangar">🛠️ My rocket</button><button class="btn" id="toTrophies">🏆 Trophies</button></div>
   <div class="coins"><span class="coin"></span><span class="cc">0</span></div>
 </div><div class="plink"><button id="toParents">Parents</button></div></section>
 
 <!-- MAP -->
 <section class="layer" id="map">
-  <div class="topbar"><button class="btn round" id="mapHome">🏠</button><div class="sp"></div><button class="btn round" id="mapHangar">🛠️</button><div class="coins"><span class="coin"></span><span class="cc">0</span></div></div>
+  <div class="topbar"><button class="btn round" id="mapHome">🏠</button><div class="sp"></div><button class="btn round" id="mapTrophies">🏆</button><button class="btn round" id="mapHangar">🛠️</button><div class="coins"><span class="coin"></span><span class="cc">0</span></div></div>
   <div class="tabs" id="tabs"></div>
   <div id="path"></div>
 </section>
@@ -116,15 +119,25 @@ td,th{text-align:left;padding:5px 4px;border-bottom:1px solid #eee}
 <section class="layer" id="hangar">
   <div class="topbar"><button class="btn round" id="hgBack">⬅️</button><div class="sp"></div><div class="coins"><span class="coin"></span><span class="cc">0</span></div></div>
   <canvas id="hangarShip"></canvas>
+  <div class="htitle">🚀 Rockets</div><div class="hgrid" id="hModels"></div>
   <div class="htitle">🎨 Rocket color</div><div class="hgrid" id="hColors"></div>
+  <div class="htitle">✨ Skins</div><div class="hgrid" id="hSkins"></div>
+  <div class="htitle">⚡ Lasers</div><div class="hgrid" id="hLasers"></div>
   <div class="htitle">🔥 Rocket trail</div><div class="hgrid" id="hTrails"></div>
   <div class="htitle">🐾 Space buddy</div><div class="hgrid" id="hPets"></div>
 </section>
 
+<!-- TROPHIES -->
+<section class="layer" id="trophies">
+  <div class="topbar"><button class="btn round" id="trBack">⬅️</button><div class="sp"></div><div class="coins">🏆 <span id="trCount"></span></div></div>
+  <div class="htitle">🏆 My trophies</div><div class="hgrid" id="trGrid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))"></div>
+</section>
+<div id="achPop"></div>
+
 <!-- PARENTS -->
 <section class="layer" id="parents"><div class="card">
   <h2>Parent corner</h2>
-  <p class="note">Short daily sessions work best. After the session limit he finishes his current mission, then gets a movement break.</p>
+  <p class="note">Play in blocks: after the play time he finishes his current mission, then a break he can't skip (countdown + movement). Stepping away for the break length also counts as a break.</p><button class="btn" id="pEndBreak" style="font-size:15px">End current break now</button>
   <div class="pgrid">
     <div class="stat">Today<b id="pToday"></b><span class="note" id="pTodayQ"></span></div>
     <div class="stat">Last 7 days<b id="pWeek"></b><span class="note" id="pWeekD"></span></div>
@@ -133,12 +146,12 @@ td,th{text-align:left;padding:5px 4px;border-bottom:1px solid #eee}
   </div>
   <table><thead><tr><th>Skill</th><th>First-try</th><th>Qs</th></tr></thead><tbody id="pSkills"></tbody></table>
   <h3 style="margin:14px 0 4px">Settings</h3>
-  <div class="set">Session length <select id="sLen"><option value="8">8 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="20">20 min</option></select></div>
+  <div class="set">Play time before a break <select id="sBlock"><option value="15">15 min</option><option value="20">20 min</option><option value="25">25 min</option><option value="30">30 min</option></select> then break for <select id="sRest"><option value="3">3 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
   <div class="set">Read questions aloud <select id="sVoice"><option value="1">On</option><option value="0">Off</option></select></div>
   <div style="font-size:16px;margin-top:6px"><b>Unlock planets</b></div><div id="unlocks"></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
     <button class="btn" id="pCopy" style="font-size:17px">Copy summary</button>
-    <button class="btn" id="pTime" style="font-size:17px">Reset today's timer</button>
+    <button class="btn" id="pTime" style="font-size:17px">Reset play-block timer</button>
     <button class="btn gold" id="pBack" style="font-size:17px">Done</button>
   </div>
   <p class="note" id="pMsg"></p>
@@ -150,7 +163,7 @@ td,th{text-align:left;padding:5px 4px;border-bottom:1px solid #eee}
 
 <div class="modal" id="mPlanet"><div class="card"><h2 id="mpName"></h2><div class="note" id="mpSkill" style="font-size:17px"></div><div class="missions" id="mpMissions"></div><button class="btn" id="mpClose">Close</button></div></div>
 <div class="modal" id="mDone"><div class="card"><div style="font-size:64px" id="mdEmoji">🏆</div><h2 id="mdTitle">Mission complete!</h2><div class="bigstars" id="mdStars"></div><div style="font-size:24px;font-weight:800" id="mdCoins"></div><div id="mdUnlock" style="font-size:20px;color:#6a3cc9;font-weight:800;margin-top:6px"></div><div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap"><button class="btn gold" id="mdNext">Next ▶</button><button class="btn" id="mdMap">🗺️ Map</button></div></div></div>
-<div class="modal" id="mBreak"><div class="card"><div style="font-size:70px">🧑‍🚀</div><h2>Great flying, astronaut!</h2><p style="font-size:22px;margin:8px 0">Brain break! <b id="bkTask"></b></p><p class="note">You played <span id="bkMin"></span> minutes today. Come back later for more coins!</p><button class="btn gold" id="bkOk">OK!</button></div></div>
+<div class="modal" id="mBreak"><div class="card"><div style="font-size:70px;animation:kbob 1.6s ease-in-out infinite;display:inline-block" id="bkEmoji">🧑‍🚀</div><h2 id="bkTitle">Break time, astronaut!</h2><div id="bkClock" style="font-size:64px;font-weight:800;color:#3a0ca3;line-height:1">5:00</div><div style="height:12px;background:#eee;border-radius:7px;overflow:hidden;margin:8px 0"><div id="bkBar" style="height:100%;width:0;background:linear-gradient(90deg,#80ed99,#4cc9f0);transition:width 1s linear"></div></div><p style="font-size:22px;margin:8px 0"><b id="bkTask"></b></p><p class="note" id="bkNote">Rest your eyes and move your body. The rocket needs to refuel!</p><button class="btn gold" id="bkOk" disabled style="opacity:.4">⛽ Refueling…</button></div></div>
 <div id="toast"></div>
 
 <script>
@@ -165,8 +178,9 @@ const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const today=()=>new Date().toLocaleDateString("en-CA");
-let S={v:3,coins:0,stars:0,lv:{g1:6,g2:0,g3:0,words:2},prog:{g1:{},g2:{},g3:{},words:{}},skillNames:{},days:{},skills:{},len:10,voice:1,ship:{color:"red",trail:"flame",pet:"none"},owned:["red","flame","none"]};
+let S={v:3,coins:0,stars:0,lv:{g1:6,g2:0,g3:0,words:2},prog:{g1:{},g2:{},g3:{},words:{}},skillNames:{},days:{},skills:{},len:10,block:20,rest:5,playSec:0,breakUntil:0,lastPlay:0,voice:1,ship:{color:"red",trail:"flame",pet:"none",model:"m_classic",skin:"s_plain",laser:"l_blue"},owned:["red","flame","none","m_classic","s_plain","l_blue"],ach:{},st:{missions:0,bosses:0,perfect:0,correct:0,rescued:0,bestStreak:0}};
 try{const raw=localStorage.getItem(KEY);if(raw){const o=JSON.parse(raw);if(o.v===3)S=Object.assign(S,o);else{S.coins=o.v===2?(o.coins||0):(o.stars||0)*10;S.days=o.days||{};S.len=o.len||10;S.voice=o.voice??1;if(o.ship)S.ship=o.ship;if(o.owned)S.owned=o.owned;if(o.prog&&o.prog.words)S.prog.words=o.prog.words;if(o.lv&&o.lv.words)S.lv.words=Math.max(2,o.lv.words);S.skills={};Object.entries(o.skills||{}).forEach(([k,v])=>{if(k.startsWith("words"))S.skills[k]=v})}}}catch(e){}
+S.ship=Object.assign({model:"m_classic",skin:"s_plain",laser:"l_blue"},S.ship);["m_classic","s_plain","l_blue"].forEach(i=>{if(!S.owned.includes(i))S.owned.push(i)});S.ach=S.ach||{};S.st=Object.assign({missions:0,bosses:0,perfect:0,correct:0,rescued:0,bestStreak:0},S.st||{});
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function day(){return S.days[today()]||(S.days[today()]={sec:0,q:0,c:0})}
 function setCoins(){document.querySelectorAll(".cc").forEach(e=>e.textContent=S.coins)}
@@ -356,28 +370,101 @@ function drawPlanet(x,y,r,c1,c2,ring){
   cx.fillStyle="#0000001a";[[.3,-.2,.18],[-.25,.3,.12],[.1,.45,.09]].forEach(([a,b,c])=>{cx.beginPath();cx.arc(x+a*r,y+b*r,c*r,0,7);cx.fill()});
   if(ring){cx.save();cx.translate(x,y);cx.rotate(-.35);cx.strokeStyle="#ffffff77";cx.lineWidth=r*.12;cx.beginPath();cx.ellipse(0,0,r*1.6,r*.45,0,0,Math.PI);cx.stroke();cx.restore()}
 }
+/* ================= ships, skins, lasers ================= */
+const MODELS=[{id:"m_classic",n:"Classic Rocket",p:0},{id:"m_shuttle",n:"Space Shuttle",p:150},{id:"m_jet",n:"Star Jet",p:250},{id:"m_ufo",n:"Flying Saucer",a:"boss1"},{id:"m_cruiser",n:"Twin Cruiser",a:"boss5"},{id:"m_star",n:"Star Commander",a:"grade1"}];
+const SKINS=[{id:"s_plain",n:"Shiny White",p:0},{id:"s_stripes",n:"Racing Stripes",p:80},{id:"s_stars",n:"Starry",p:120},{id:"s_flames",n:"Hot Flames",p:150},{id:"s_camo",n:"Space Camo",p:150},{id:"s_galaxy",n:"Galaxy",a:"perfect5"},{id:"s_rainbow",n:"Rainbow",a:"combo10"},{id:"s_gold",n:"Gold Chrome",a:"perfect20"}];
+const LASERS=[{id:"l_blue",n:"Ice Blue",c:"#80ffdb",p:0},{id:"l_green",n:"Slime Green",c:"#9bff6b",p:60},{id:"l_pink",n:"Bubblegum",c:"#ff8fd1",p:60},{id:"l_double",n:"Double Blaster",c:"#ffd166",p:200},{id:"l_rainbow",n:"Rainbow Beam",c:"rainbow",a:"correct100"},{id:"l_star",n:"Star Shooter",c:"#fff3b0",a:"rescue50"},{id:"l_heart",n:"Heart Ray",c:"#ff4d8d",a:"days7"}];
+function shipPath(m,s){const p=new Path2D();
+  if(m==="m_shuttle"){p.moveTo(-s*.9,-s*.26);p.lineTo(s*.55,-s*.26);p.quadraticCurveTo(s*1.15,-s*.2,s*1.15,0);p.quadraticCurveTo(s*1.15,s*.2,s*.55,s*.26);p.lineTo(-s*.9,s*.26);p.closePath()}
+  else if(m==="m_jet"){p.moveTo(s*1.25,0);p.quadraticCurveTo(s*.6,-s*.24,-s*.4,-s*.2);p.lineTo(-s*.9,-s*.14);p.lineTo(-s*.9,s*.14);p.lineTo(-s*.4,s*.2);p.quadraticCurveTo(s*.6,s*.24,s*1.25,0);p.closePath()}
+  else if(m==="m_ufo"){p.ellipse(0,s*.08,s*1.05,s*.3,0,0,Math.PI*2)}
+  else if(m==="m_cruiser"){p.moveTo(s*1.15,0);p.lineTo(s*.5,-s*.3);p.lineTo(-s*.8,-s*.3);p.lineTo(-s*.95,0);p.lineTo(-s*.8,s*.3);p.lineTo(s*.5,s*.3);p.closePath()}
+  else if(m==="m_star"){p.moveTo(s*1.3,0);p.lineTo(-s*.55,-s*.6);p.lineTo(-s*.3,-s*.12);p.lineTo(-s*.9,-s*.12);p.lineTo(-s*.9,s*.12);p.lineTo(-s*.3,s*.12);p.lineTo(-s*.55,s*.6);p.closePath()}
+  else p.ellipse(0,0,s,s*.42,0,0,Math.PI*2);
+  return p}
+const FLAMES={m_classic:[[-.85,0,.22]],m_shuttle:[[-.9,-.12,.12],[-.9,.12,.12]],m_jet:[[-.9,0,.13]],m_ufo:[],m_cruiser:[[-.95,-.32,.13],[-.95,.32,.13],[-.95,0,.1]],m_star:[[-.9,0,.12],[-.62,-.5,.08],[-.62,.5,.08]]};
+function skinFill(c,sk,s,c1){const g=c.createLinearGradient(0,-s*.5,0,s*.5);
+  if(sk==="s_gold"){g.addColorStop(0,"#fff6c0");g.addColorStop(.45,"#ffd166");g.addColorStop(.55,"#e09f3e");g.addColorStop(1,"#a8741a");return g}
+  if(sk==="s_galaxy"){g.addColorStop(0,"#5a189a");g.addColorStop(1,"#10002b");return g}
+  if(sk==="s_rainbow"){["#ff595e","#ffca3a","#8ac926","#1982c4","#6a4c93"].forEach((col,i)=>g.addColorStop(i/4,col));return g}
+  if(sk==="s_camo"){g.addColorStop(0,"#b5c99a");g.addColorStop(1,"#718355");return g}
+  g.addColorStop(0,"#ffffff");g.addColorStop(1,"#c9cbe0");return g}
+function skinPattern(c,sk,s,c1,c2){
+  if(sk==="s_stripes"){c.fillStyle=c1;for(let i=-3;i<4;i++){c.beginPath();c.moveTo(i*s*.4,-s);c.lineTo(i*s*.4+s*.14,-s);c.lineTo(i*s*.4-s*.3,s);c.lineTo(i*s*.4-s*.44,s);c.fill()}}
+  else if(sk==="s_stars"||sk==="s_galaxy"){c.fillStyle=sk==="s_galaxy"?"#fff":c1;[[-.5,-.15],[-.1,.12],[.3,-.12],[.6,.1],[-.7,.1],[.05,-.22]].forEach(([a,b],i)=>{const r=s*(sk==="s_galaxy"?.04:.08);c.beginPath();for(let k=0;k<10;k++){const ang=-Math.PI/2+k*Math.PI/5,rr=k%2?r*.45:r;c.lineTo(a*s+Math.cos(ang)*rr,b*s+Math.sin(ang)*rr)}c.fill()})}
+  else if(sk==="s_flames"){[["#ff9f1c",.0],["#ef233c",.08]].forEach(([col,o])=>{c.fillStyle=col;c.beginPath();c.moveTo(-s,-s*.45);for(let k=0;k<5;k++){c.quadraticCurveTo(-s*(.55-o)+k*s*.05,-s*.45+k*s*.22,-s*(.25+o)+((k%2)?-.1:.1)*s,-s*.34+k*s*.18)}c.lineTo(-s,s*.45);c.fill()})}
+  else if(sk==="s_camo"){[["#5a6e3a",-.4,-.1,.18],["#8d6e4a",.1,.12,.16],["#3e4e2a",.45,-.12,.14],["#8d6e4a",-.75,.12,.12]].forEach(([col,a,b,r])=>{c.fillStyle=col;c.beginPath();c.ellipse(a*s,b*s,r*s*1.4,r*s,.4,0,7);c.fill()})}
+}
 function drawShip(c,x,y,s,tilt,boost,trail,pet,flameOn=true){
-  const [c1,c2]=COLORS[S.ship.color]||COLORS.red;
+  const [c1,c2]=COLORS[S.ship.color]||COLORS.red,m=S.ship.model||"m_classic",sk=S.ship.skin||"s_plain";
   c.save();c.translate(x,y);c.rotate(tilt);
-  if(flameOn){const fl=s*(.7+Math.random()*.3+boost*1.2);
-    const fg=c.createLinearGradient(-s,0,-s-fl,0);fg.addColorStop(0,"#fff6c0");fg.addColorStop(.4,"#ffb703");fg.addColorStop(1,"#fb850000");
-    c.fillStyle=fg;c.beginPath();c.moveTo(-s*.85,-s*.22);c.quadraticCurveTo(-s-fl,0,-s*.85,s*.22);c.fill()}
-  // fins
-  c.fillStyle=c2;c.beginPath();c.moveTo(-s*.5,-s*.3);c.lineTo(-s*.95,-s*.75);c.lineTo(-s*.75,-s*.25);c.fill();
-  c.beginPath();c.moveTo(-s*.5,s*.3);c.lineTo(-s*.95,s*.75);c.lineTo(-s*.75,s*.25);c.fill();
-  // body
-  const bg=c.createLinearGradient(0,-s*.45,0,s*.45);bg.addColorStop(0,"#ffffff");bg.addColorStop(1,"#c9cbe0");
-  c.fillStyle=bg;c.beginPath();c.ellipse(0,0,s,s*.42,0,0,7);c.fill();
-  // nose
-  c.fillStyle=c1;c.beginPath();c.moveTo(s*.55,-s*.36);c.quadraticCurveTo(s*1.25,0,s*.55,s*.36);c.quadraticCurveTo(s*.72,0,s*.55,-s*.36);c.fill();
-  c.fillStyle=c1;c.fillRect(-s*.7,-s*.06,s*.9,s*.12);
-  // window
-  c.fillStyle=c2;c.beginPath();c.arc(s*.18,0,s*.24,0,7);c.fill();
-  const wg=c.createRadialGradient(s*.12,-s*.07,1,s*.18,0,s*.19);wg.addColorStop(0,"#e0fbff");wg.addColorStop(1,"#4cc9f0");c.fillStyle=wg;c.beginPath();c.arc(s*.18,0,s*.18,0,7);c.fill();
-  c.font=`${s*.26}px serif`;c.textAlign="center";c.textBaseline="middle";c.fillText("🙂",s*.18,s*.01);
+  if(flameOn)(FLAMES[m]||[]).forEach(([fx,fy,fw])=>{const fl=s*(.6+Math.random()*.3+boost*1.2)*(fw/.2);const fg=c.createLinearGradient(fx*s,0,fx*s-fl,0);fg.addColorStop(0,"#fff6c0");fg.addColorStop(.4,"#ffb703");fg.addColorStop(1,"#fb850000");c.fillStyle=fg;c.beginPath();c.moveTo(fx*s,(fy-fw)*s);c.quadraticCurveTo(fx*s-fl,fy*s,fx*s,(fy+fw)*s);c.fill()});
+  // wings / fins behind body
+  c.fillStyle=c2;
+  if(m==="m_classic"){c.beginPath();c.moveTo(-s*.5,-s*.3);c.lineTo(-s*.95,-s*.75);c.lineTo(-s*.75,-s*.25);c.fill();c.beginPath();c.moveTo(-s*.5,s*.3);c.lineTo(-s*.95,s*.75);c.lineTo(-s*.75,s*.25);c.fill()}
+  else if(m==="m_shuttle"){c.beginPath();c.moveTo(s*.3,s*.2);c.lineTo(-s*.85,s*.8);c.lineTo(-s*.85,s*.2);c.fill();c.beginPath();c.moveTo(-s*.5,-s*.25);c.lineTo(-s*.9,-s*.7);c.lineTo(-s*.9,-s*.25);c.fill()}
+  else if(m==="m_jet"){c.beginPath();c.moveTo(s*.25,-s*.1);c.lineTo(-s*.45,-s*.85);c.lineTo(-s*.25,-s*.85);c.lineTo(s*.5,-s*.1);c.fill();c.beginPath();c.moveTo(s*.25,s*.1);c.lineTo(-s*.45,s*.85);c.lineTo(-s*.25,s*.85);c.lineTo(s*.5,s*.1);c.fill();c.beginPath();c.moveTo(-s*.6,-s*.12);c.lineTo(-s*.95,-s*.45);c.lineTo(-s*.85,-s*.12);c.fill()}
+  else if(m==="m_cruiser"){[-1,1].forEach(d=>{c.beginPath();c.roundRect?c.roundRect(-s*.95,d*s*.32-s*.12,s*.9,s*.24,s*.1):c.rect(-s*.95,d*s*.32-s*.12,s*.9,s*.24);c.fill()})}
+  else if(m==="m_ufo"){c.save();c.globalAlpha=.25+.25*boost;const bg=c.createLinearGradient(0,s*.3,0,s*1.2);bg.addColorStop(0,"#80ffdb");bg.addColorStop(1,"#80ffdb00");c.fillStyle=bg;c.beginPath();c.moveTo(-s*.3,s*.3);c.lineTo(s*.3,s*.3);c.lineTo(s*.6,s*1.2);c.lineTo(-s*.6,s*1.2);c.fill();c.restore()}
+  // body with skin
+  const P=shipPath(m,s);c.fillStyle=skinFill(c,sk,s,c1);c.fill(P);
+  c.save();c.clip(P);skinPattern(c,sk,s,c1,c2);
+  if(m==="m_classic"){c.fillStyle=c1;c.beginPath();c.moveTo(s*.55,-s*.4);c.quadraticCurveTo(s*1.3,0,s*.55,s*.4);c.quadraticCurveTo(s*.72,0,s*.55,-s*.4);c.fill();if(sk==="s_plain")c.fillRect(-s*.7,-s*.06,s*.9,s*.12)}
+  else if(m==="m_shuttle"){c.fillStyle="#22223b";c.beginPath();c.moveTo(s*.85,-s*.3);c.quadraticCurveTo(s*1.2,0,s*.85,s*.3);c.lineTo(s*1.3,s*.3);c.lineTo(s*1.3,-s*.3);c.fill();c.fillStyle=c1;c.fillRect(-s*.9,s*.12,s*1.5,s*.06)}
+  else if(m==="m_jet"){c.fillStyle=c1;c.fillRect(-s*.9,-s*.04,s*1.6,s*.08)}
+  else if(m==="m_cruiser"){c.fillStyle=c1;c.beginPath();c.moveTo(s*1.15,0);c.lineTo(s*.6,-s*.3);c.lineTo(s*.6,s*.3);c.fill()}
+  else if(m==="m_star"){c.fillStyle=c1;c.beginPath();c.moveTo(s*1.3,0);c.lineTo(s*.4,-s*.18);c.lineTo(s*.4,s*.18);c.fill()}
+  else if(m==="m_ufo"){c.fillStyle=c1;c.fillRect(-s*1.1,s*.04,s*2.2,s*.08)}
+  c.restore();
+  c.strokeStyle="#00000033";c.lineWidth=1.5;c.stroke(P);
+  // cockpit / dome
+  if(m==="m_ufo"){const dg=c.createRadialGradient(-s*.12,-s*.3,2,0,-s*.12,s*.45);dg.addColorStop(0,"#e0fbffee");dg.addColorStop(1,"#4cc9f0aa");c.fillStyle=dg;c.beginPath();c.arc(0,-s*.06,s*.45,Math.PI,0);c.fill();c.font=`${s*.34}px serif`;c.textAlign="center";c.textBaseline="middle";c.fillText("🙂",0,-s*.22);
+    for(let i=0;i<5;i++){c.fillStyle=Math.floor(tNow*4+i)%2?"#ffd166":"#ff4d6d";c.beginPath();c.arc(-s*.7+i*s*.35,s*.18,s*.06,0,7);c.fill()}}
+  else{const wx=m==="m_jet"?s*.45:m==="m_star"?s*.05:m==="m_shuttle"?s*.45:s*.18,wr=m==="m_jet"?s*.14:m==="m_star"?s*.16:s*.18;
+    c.fillStyle=c2;c.beginPath();c.arc(wx,0,wr+s*.06,0,7);c.fill();const wg=c.createRadialGradient(wx-wr*.3,-wr*.4,1,wx,0,wr);wg.addColorStop(0,"#e0fbff");wg.addColorStop(1,"#4cc9f0");c.fillStyle=wg;c.beginPath();c.arc(wx,0,wr,0,7);c.fill();
+    c.font=`${wr*1.35}px serif`;c.textAlign="center";c.textBaseline="middle";c.fillText("🙂",wx,s*.01)}
   c.restore();
   if(pet&&pet!=="none"){c.font=`${s*.7}px serif`;c.textAlign="center";c.textBaseline="middle";c.fillText(PETS.find(p=>p.id===pet).e,x-s*1.5,y-s*.9+Math.sin(tNow*3)*s*.12)}
 }
+function drawLaser(c,L,ok){const lz=LASERS.find(l=>l.id===(S.ship.laser||"l_blue"))||LASERS[0];
+  const col=!ok?"#ffafcc":lz.c==="rainbow"?`hsl(${(tNow*600)%360},95%,65%)`:lz.c;const offs=lz.id==="l_double"?[-7,7]:[0];
+  c.save();c.globalAlpha=Math.min(1,L.life*5);offs.forEach(o=>{c.strokeStyle=col;c.lineWidth=L.big?14:9;c.shadowColor=col;c.shadowBlur=20;c.beginPath();c.moveTo(L.x1,L.y1+o);c.lineTo(L.x2,L.y2+o);c.stroke();c.strokeStyle="#fff";c.lineWidth=L.big?5:3;c.stroke()});
+  if(ok&&!L.fx&&(lz.id==="l_star"||lz.id==="l_heart"||lz.id==="l_rainbow")){L.fx=1;for(let i=0;i<8;i++){const t=i/8;parts.push(lz.id==="l_heart"?{x:L.x1+(L.x2-L.x1)*t,y:L.y1+(L.y2-L.y1)*t,vx:0,vy:-40,life:.7,max:.7,e:"💖",r:16,k:"emoji"}:{x:L.x1+(L.x2-L.x1)*t,y:L.y1+(L.y2-L.y1)*t,vx:(Math.random()-.5)*60,vy:(Math.random()-.5)*60,life:.7,max:.7,c:lz.id==="l_star"?"#fff3b0":`hsl(${i*45},90%,65%)`,r:5,k:"star"})}}
+  c.restore()}
+/* ================= achievements ================= */
+const daysPlayed=()=>Object.values(S.days).filter(d=>d&&d.sec>0).length;
+const galDone=g=>!!((S.prog[g]||{})[galSize(g)]||[0,0,0])[2];
+const ACH=[
+ {id:"first",e:"🚀",n:"First Flight",d:"Finish your first mission",v:()=>S.st.missions,t:1,coins:20},
+ {id:"boss1",e:"👾",n:"Boss Buster",d:"Beat your first boss",v:()=>S.st.bosses,t:1,coins:50,item:"m_ufo"},
+ {id:"perfect1",e:"⭐",n:"Perfect!",d:"Get 3 stars on a mission",v:()=>S.st.perfect,t:1,coins:30},
+ {id:"combo5",e:"🔥",n:"On Fire",d:"5 right in a row",v:()=>S.st.bestStreak,t:5,coins:30},
+ {id:"days3",e:"📅",n:"Space Cadet",d:"Play on 3 different days",v:daysPlayed,t:3,coins:40},
+ {id:"perfect5",e:"🌌",n:"Star Collector",d:"5 perfect missions",v:()=>S.st.perfect,t:5,coins:60,item:"s_galaxy"},
+ {id:"boss5",e:"🛡️",n:"Boss Hunter",d:"Beat 5 bosses",v:()=>S.st.bosses,t:5,coins:80,item:"m_cruiser"},
+ {id:"combo10",e:"🌈",n:"Unstoppable",d:"10 right in a row",v:()=>S.st.bestStreak,t:10,coins:80,item:"s_rainbow"},
+ {id:"correct100",e:"💯",n:"Century",d:"100 right answers",v:()=>S.st.correct,t:100,coins:100,item:"l_rainbow"},
+ {id:"rescue50",e:"👽",n:"Alien Hero",d:"Rescue 50 aliens",v:()=>S.st.rescued,t:50,coins:100,item:"l_star"},
+ {id:"days7",e:"💖",n:"Super Astronaut",d:"Play on 7 different days",v:daysPlayed,t:7,coins:100,item:"l_heart"},
+ {id:"grade1",e:"1️⃣",n:"Grade 1 Champion",d:"Beat the last Grade 1 boss",v:()=>galDone("g1")?1:0,t:1,coins:200,item:"m_star"},
+ {id:"perfect20",e:"🏅",n:"Gold Pilot",d:"20 perfect missions",v:()=>S.st.perfect,t:20,coins:150,item:"s_gold"},
+ {id:"boss15",e:"🐉",n:"Monster Master",d:"Beat 15 bosses",v:()=>S.st.bosses,t:15,coins:150},
+ {id:"correct500",e:"🧠",n:"Math Brain",d:"500 right answers",v:()=>S.st.correct,t:500,coins:250},
+ {id:"collector",e:"🎒",n:"Collector",d:"Own 15 rocket items",v:()=>S.owned.length,t:15,coins:100},
+ {id:"grade2",e:"2️⃣",n:"Grade 2 Champion",d:"Beat the last Grade 2 boss",v:()=>galDone("g2")?1:0,t:1,coins:300},
+ {id:"grade3",e:"3️⃣",n:"Grade 3 Champion",d:"Beat the last Grade 3 boss",v:()=>galDone("g3")?1:0,t:1,coins:400},
+];
+const ITEMS=()=>[...MODELS,...SKINS,...LASERS];
+const itemName=id=>(ITEMS().find(i=>i.id===id)||{}).n||id;
+let achQueue=[],achShowing=false;
+function checkAch(){ACH.forEach(a=>{if(S.ach[a.id])return;if(a.v()>=a.t){S.ach[a.id]=today();S.coins+=a.coins;if(a.item&&!S.owned.includes(a.item))S.owned.push(a.item);achQueue.push(a)}});if(achQueue.length){save();setCoins();showAch()}}
+function showAch(){if(achShowing||!achQueue.length)return;achShowing=true;const a=achQueue.shift();const el=$("achPop");
+  el.innerHTML=`<div style="font-size:54px">${a.e}</div><div><div style="font-size:14px;opacity:.85">🏆 ACHIEVEMENT!</div><div style="font-size:24px;font-weight:800">${a.n}</div><div style="font-size:16px">+${a.coins} coins${a.item?` · 🎁 New: <b>${itemName(a.item)}</b>`:""}</div></div>`;
+  el.classList.add("on");sfx.win();burst(W/2,90,["#ffd166","#fff","#c77dff"],40,300);speak(`Achievement! ${a.n}!${a.item?" You got a new "+itemName(a.item)+"!":""}`);
+  setTimeout(()=>{el.classList.remove("on");setTimeout(()=>{achShowing=false;showAch()},400)},3200)}
+function renderTrophies(){const got=ACH.filter(a=>S.ach[a.id]).length;$("trCount").textContent=`${got} / ${ACH.length}`;
+  $("trGrid").innerHTML=ACH.map(a=>{const ok=!!S.ach[a.id],v=Math.min(a.v(),a.t);return `<div class="tro ${ok?"ok":""}"><div class="te">${ok?a.e:"🔒"}</div><b>${a.n}</b><div class="td">${a.d}</div>${ok?`<div class="td">✅ ${S.ach[a.id]}</div>`:`<div class="tbar"><i style="width:${v/a.t*100}%"></i></div><div class="td">${v} / ${a.t}</div>`}<div class="tr">+${a.coins} 🪙${a.item?` · 🎁 ${itemName(a.item)}`:""}</div></div>`}).join("")}
+
 function emitTrail(){
   const t=S.ship.trail,x=ship.x-ship.s*.95,y=ship.y+(Math.random()-.5)*ship.s*.2;
   if(t==="rainbow")parts.push({x,y,vx:-120-Math.random()*60,vy:(Math.random()-.5)*20,life:.7,max:.7,c:`hsl(${(tNow*240)%360},90%,65%)`,r:ship.s*.18,k:"dot"});
@@ -448,10 +535,10 @@ function resolve(r){
     record(first);
     if(!r.pod){r.state="dead";boom();shake=10;burst(r.x,r.y,["#ffd166","#ff6b6b","#fff","#4cc9f0","#c77dff"],38,380)}else{burst(r.x,r.y,["#bde0fe","#fff","#80ffdb"],20,200)}
     sfx.good();
-    G.streak=first?G.streak+1:0;const combo=G.streak>=3;
+    G.streak=first?G.streak+1:0;const combo=G.streak>=3;S.st.correct++;S.st.bestStreak=Math.max(S.st.bestStreak,G.streak);if(r.pod)S.st.rescued++;
     const gain=(first?10:5)*(combo?2:1);G.coinsWon+=gain;S.coins+=gain;save();
     floaters.push({t:`+${gain}`,x:r.x,y:r.y-r.r,c:"#ffd166",size:40,life:1.1});
-    if(combo){floaters.push({t:`🔥 COMBO x${G.streak}!`,x:W/2,y:H*.36,c:"#ff9f1c",size:Math.min(52,W*.065),life:1.2});tone(1568,.25,.3,"triangle",.1)}
+    if(G.streak===5||G.streak===10)setTimeout(checkAch,600);if(combo){floaters.push({t:`🔥 COMBO x${G.streak}!`,x:W/2,y:H*.36,c:"#ff9f1c",size:Math.min(52,W*.065),life:1.2});tone(1568,.25,.3,"triangle",.1)}
     if(r.pod){r.state="beam";r.bt=0;G.rescued++;floaters.push({t:"Rescued!",x:r.x,y:r.y-r.r-34,c:"#80ffdb",size:30,life:1})}
     for(let i=0;i<Math.min(gain,8);i++)setTimeout(()=>{sfx.coin();setCoins()},150+i*60);
     const p=pick(PRAISE);$("fb").textContent=(first?"⭐ ":"")+p;speak(p);
@@ -475,6 +562,7 @@ function finishMission(){
   const stars=first>=QPER?3:first>=4?2:1;
   const pg=S.prog[G.g][G.lv]||[0,0,0];const prev=pg[G.m];pg[G.m]=Math.max(prev,stars);S.prog[G.g][G.lv]=pg;
   S.stars=Object.values(S.prog).flatMap(o=>Object.values(o)).flat().reduce((a,b)=>a+b,0);
+  S.st.missions++;if(G.boss)S.st.bosses++;if(stars===3)S.st.perfect++;
   let unlock="";
   if(G.m===2&&G.lv===S.lv[G.g]){if(G.lv<galSize(G.g)){S.lv[G.g]=G.lv+1;unlock=`🔓 New planet unlocked: ${PLANETS[G.g][G.lv][0]}!`}else{const nx={g1:"g2",g2:"g3"}[G.g];if(nx&&!S.lv[nx]){S.lv[nx]=1;unlock=`🌌 NEW GALAXY unlocked: ${nx==="g2"?"Grade 2":"Grade 3"}!`}}}
   save();
@@ -487,7 +575,7 @@ function finishMission(){
     $("mdStars").innerHTML=[0,1,2].map(i=>`<span class="${i<stars?"":"off"}">⭐</span>`).join("");
     $("mdCoins").innerHTML=`<span class="coin" style="vertical-align:middle"></span> +${g.coinsWon} coins`;
     $("mdUnlock").textContent=unlock||(stars<2?"Fly it again to earn more stars!":"");
-    $("mDone").classList.add("on");speak(g.boss?"Boss defeated! Amazing!":stars===3?"Perfect mission!":"Mission complete!");
+    $("mDone").classList.add("on");setTimeout(checkAch,1600);speak(g.boss?"Boss defeated! Amazing!":stars===3?"Perfect mission!":"Mission complete!");
   },1700);
 }
 function nextMission(){$("mDone").classList.remove("on");if(sessionOver()){breakTime();return}
@@ -497,12 +585,21 @@ function record(first){const d=day();d.q++;if(first)d.c++;const k=G.q.skill;S.sk
 
 /* ================= timer / breaks ================= */
 let tick=null;
-function timerOn(){timerOff();tick=setInterval(()=>{if(document.hidden)return;const d=day();d.sec++;if(d.sec%15===0)save()},1000)}
+function timerOn(){timerOff();naturalBreak();tick=setInterval(()=>{if(document.hidden)return;const d=day();d.sec++;S.playSec=(S.playSec||0)+1;S.lastPlay=Date.now();if(d.sec%15===0)save()},1000)}
+function naturalBreak(){if(S.lastPlay&&Date.now()-S.lastPlay>=(+S.rest||5)*60000)S.playSec=0}
 function timerOff(){if(tick){clearInterval(tick);tick=null;save()}}
 const minutesToday=()=>Math.floor(day().sec/60);
-const sessionOver=()=>minutesToday()>=+S.len;
+const onBreak=()=>Date.now()<(S.breakUntil||0);
+const sessionOver=()=>{naturalBreak();return onBreak()||(S.playSec||0)>=(+S.block||20)*60};
+const BREAKS2=[["🚀","Do 10 rocket jumps"],["🛸","Fly around the room like a spaceship"],["⭐","Stretch up to the stars 10 times"],["🐸","Hop like a frog 10 times"],["💧","Get a drink of water"],["🧑‍🚀","Do 5 astronaut squats"],["👀","Look out the window at something far away"],["🌬️","Take 5 big rocket breaths"],["🦩","Stand on one foot like a flamingo"],["🐻","Walk like a bear across the room"]];
 const BREAKS=["Do 10 rocket jumps 🚀","Fly around the room like a spaceship 🛸","Stretch up to the stars 10 times ⭐","Hop like a frog 10 times 🐸","Get a drink of water 💧","Do 5 astronaut squats 🧑‍🚀"];
-function breakTime(){quitGame();$("bkTask").textContent=pick(BREAKS);$("bkMin").textContent=minutesToday();$("mBreak").classList.add("on");show("title");speak("Great flying, astronaut! Brain break time!")}
+let bkTick=null;
+function breakTime(){quitGame();if(!onBreak()){S.breakUntil=Date.now()+(+S.rest||5)*60000;S.playSec=0;save()}show("title");$("mBreak").classList.add("on");speak("Great flying, astronaut! Time for a break. Let's move our bodies!");runBreak()}
+function runBreak(){clearInterval(bkTick);const total=(+S.rest||5)*60000;let lastTask=-1;
+  const upd=()=>{const left=Math.max(0,(S.breakUntil||0)-Date.now()),sec=Math.ceil(left/1000);$("bkClock").textContent=`${Math.floor(sec/60)}:${String(sec%60).padStart(2,"0")}`;$("bkBar").style.width=(100-left/total*100)+"%";
+    const ti=Math.floor((total-left)/45000)%BREAKS2.length;if(ti!==lastTask&&left>0){lastTask=ti;const t=BREAKS2[(ti+new Date().getDate())%BREAKS2.length];$("bkEmoji").textContent=t[0];$("bkTask").textContent=t[1];if(ti>0)speak(t[1]);}
+    if(left<=0){clearInterval(bkTick);$("bkTitle").textContent="Refueled! Ready to fly!";$("bkClock").textContent="✅";$("bkTask").textContent="Great job taking a break!";$("bkOk").disabled=false;$("bkOk").style.opacity=1;$("bkOk").textContent="🚀 Let's fly!";sfx.win();speak("Refueled! Ready to fly!")}else{$("bkTitle").textContent="Break time, astronaut!";$("bkOk").disabled=true;$("bkOk").style.opacity=.4;$("bkOk").textContent="⛽ Refueling…"}};
+  upd();bkTick=setInterval(upd,1000)}
 
 /* ================= main loop ================= */
 let last=performance.now();
@@ -548,7 +645,7 @@ function loop(now){
     });
     // lasers
     for(let i=G.lasers.length-1;i>=0;i--){const L=G.lasers[i];L.life-=dt;if(L.life<=0){G.lasers.splice(i,1);continue}
-      cx.save();cx.globalAlpha=Math.min(1,L.life*5);cx.strokeStyle=L.ok?"#80ffdb":"#ffafcc";cx.lineWidth=L.big?14:9;cx.shadowColor=cx.strokeStyle;cx.shadowBlur=20;cx.beginPath();cx.moveTo(L.x1,L.y1);cx.lineTo(L.x2,L.y2);cx.stroke();cx.strokeStyle="#fff";cx.lineWidth=L.big?5:3;cx.stroke();cx.restore()}
+      drawLaser(cx,L,L.ok)}
     drawParts(dt);
     if(G.streak>=3){cx.save();cx.globalAlpha=.35+.15*Math.sin(tNow*10);const gg=cx.createRadialGradient(ship.x,sy,ship.s*.3,ship.x,sy,ship.s*1.8);gg.addColorStop(0,"#ff9f1c");gg.addColorStop(1,"#ff9f1c00");cx.fillStyle=gg;cx.beginPath();cx.arc(ship.x,sy,ship.s*1.8,0,7);cx.fill();cx.restore()}
     drawShip(cx,ship.x,sy,ship.s,ship.tilt,ship.boost,S.ship.trail,S.ship.pet);
@@ -586,7 +683,7 @@ cv.addEventListener("pointerdown",e=>{A();if(mode==="game")tapAt(e.clientX,e.cli
 
 /* ================= screens ================= */
 let curLayer="title",curGal="g1";
-function show(id){curLayer=id;document.querySelectorAll(".layer").forEach(l=>l.classList.toggle("on",l.id===id));if(id!=="game"){$("hud").classList.remove("on")}setCoins();if(id==="map")renderMap();if(id==="hangar")renderHangar();if(id==="parents")renderParents()}
+function show(id){curLayer=id;document.querySelectorAll(".layer").forEach(l=>l.classList.toggle("on",l.id===id));if(id!=="game"){$("hud").classList.remove("on")}setCoins();if(id==="map")renderMap();if(id==="hangar")renderHangar();if(id==="parents")renderParents();if(id==="trophies")renderTrophies()}
 function renderMap(){
   $("tabs").innerHTML=GALS.map(([g,l])=>`<button class="tab ${g===curGal?"on":""}" data-g="${g}">${(S.lv[g]||0)?"":"🔒 "}${l}</button>`).join("");$("tabs").querySelectorAll(".tab").forEach(t=>t.onclick=()=>{if(!(S.lv[t.dataset.g]||0)){toast("Finish the galaxy before to unlock it!");return}curGal=t.dataset.g;renderMap()});
   const P=PLANETS[curGal],box=$("path"),w=Math.min(box.clientWidth||680,680),n=P.length,step=140,HH=n*step+120;box.style.height=HH+"px";
@@ -614,20 +711,26 @@ const TRAILS=[{id:"flame",n:"Fire",e:"🔥",p:0},{id:"sparkle",n:"Sparkles",e:"�
 const PETS=[{id:"none",n:"No buddy",e:"➖",p:0},{id:"alien",n:"Alien",e:"👽",p:150},{id:"robot",n:"Robot",e:"🤖",p:150},{id:"cat",n:"Space cat",e:"🐱",p:150},{id:"dog",n:"Space pup",e:"🐶",p:150},{id:"dino",n:"Dino",e:"🦖",p:250},{id:"unicorn",n:"Unicorn",e:"🦄",p:300}];
 const hc=$("hangarShip"),hx=hc.getContext("2d");
 function renderHangar(){
-  const mk=(arr,slot,sw)=>arr.map(it=>{const own=S.owned.includes(it.id),on=S.ship[slot]===it.id;return `<button class="item ${on?"on":""}" data-slot="${slot}" data-id="${it.id}" data-p="${it.p}">${sw(it)}<div>${it.n}</div><div class="price">${on?"✅ Using":own?"Tap to use":`<span class="coin" style="width:16px;height:16px;vertical-align:middle"></span> ${it.p}`}</div></button>`}).join("");
+  const coin='<span class="coin" style="width:16px;height:16px;vertical-align:middle"></span>';
+  const mk=(arr,slot,sw)=>arr.map(it=>{const own=S.owned.includes(it.id),on=S.ship[slot]===it.id,ach=it.a&&ACH.find(a=>a.id===it.a);return `<button class="item ${on?"on":""}" data-slot="${slot}" data-id="${it.id}" data-p="${it.p||0}" data-a="${it.a||""}" style="${!own&&ach?"opacity:.75":""}">${sw(it)}<div>${it.n}</div><div class="price">${on?"✅ Using":own?"Tap to use":ach?`🏆 ${ach.n}`:`${coin} ${it.p}`}</div></button>`}).join("");
+  const mini=(id,slot)=>`<canvas class="mini" data-mslot="${slot}" data-mid="${id}" width="120" height="60" style="width:100px;height:50px;display:block;margin:2px auto"></canvas>`;
+  $("hModels").innerHTML=mk(MODELS,"model",it=>mini(it.id,"model"));
   $("hColors").innerHTML=mk(SHIPC,"color",it=>`<div class="sw" style="background:radial-gradient(circle at 35% 30%,${COLORS[it.id][0]},${COLORS[it.id][1]})"></div>`);
+  $("hSkins").innerHTML=mk(SKINS,"skin",it=>mini(it.id,"skin"));
+  $("hLasers").innerHTML=mk(LASERS,"laser",it=>`<div class="sw" style="width:90px;border-radius:12px;background:${it.c==="rainbow"?"linear-gradient(90deg,#ff595e,#ffca3a,#8ac926,#1982c4,#6a4c93)":it.c};box-shadow:0 0 14px ${it.c==="rainbow"?"#fff":it.c};height:14px;margin:24px auto">${it.id==="l_double"?"":""}</div>`);
   $("hTrails").innerHTML=mk(TRAILS,"trail",it=>`<div class="sw">${it.e}</div>`);
   $("hPets").innerHTML=mk(PETS,"pet",it=>`<div class="sw">${it.e}</div>`);
-  document.querySelectorAll(".item").forEach(b=>b.onclick=()=>{const id=b.dataset.id,slot=b.dataset.slot,p=+b.dataset.p;
-    if(!S.owned.includes(id)){if(S.coins<p){toast(`You need ${p-S.coins} more coins. Fly missions to earn more!`);sfx.bad();return}S.coins-=p;S.owned.push(id);sfx.win();toast("Unlocked! 🎉")}else sfx.coin();
+  document.querySelectorAll("canvas.mini").forEach(cv2=>{const c=cv2.getContext("2d"),keep={...S.ship};S.ship[cv2.dataset.mslot]=cv2.dataset.mid;c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,120,60);drawShip(c,58,30,24,0,0,"","none",false);S.ship=keep});
+  document.querySelectorAll(".item").forEach(b=>b.onclick=()=>{const id=b.dataset.id,slot=b.dataset.slot,p=+b.dataset.p,a=b.dataset.a;
+    if(!S.owned.includes(id)){if(a){const A2=ACH.find(x=>x.id===a);toast(`🏆 Earn "${A2.n}" to unlock: ${A2.d}`);sfx.bad();return}if(S.coins<p){toast(`You need ${p-S.coins} more coins. Fly missions to earn more!`);sfx.bad();return}S.coins-=p;S.owned.push(id);sfx.win();toast("Unlocked! 🎉");checkAch()}else sfx.coin();
     S.ship[slot]=id;save();renderHangar();setCoins()});
 }
-function hangarLoop(){if(curLayer==="hangar"){const w=hc.clientWidth,h=hc.clientHeight,d=Math.min(devicePixelRatio||1,2);if(hc.width!==w*d){hc.width=w*d;hc.height=h*d}hx.setTransform(d,0,0,d,0,0);hx.clearRect(0,0,w,h);drawShip(hx,w*.55,h*.5+Math.sin(tNow*2)*6,Math.min(70,h*.32),Math.sin(tNow*1.5)*.05,0,S.ship.trail,S.ship.pet)}requestAnimationFrame(hangarLoop)}
+function hangarLoop(){if(curLayer==="hangar"){const w=hc.clientWidth,h=hc.clientHeight,d=Math.min(devicePixelRatio||1,2);if(hc.width!==w*d){hc.width=w*d;hc.height=h*d}hx.setTransform(d,0,0,d,0,0);hx.clearRect(0,0,w,h);const hs=Math.min(60,h*.28),hy=h*.5+Math.sin(tNow*2)*6;if((tNow%2)<.35){const pv={x1:w*.38+hs,y1:hy,x2:w*.95,y2:hy,life:.35-(tNow%2),fx:1};hx.save();drawLaser(hx,pv,true);hx.restore()}drawShip(hx,w*.38,hy,hs,Math.sin(tNow*1.5)*.05,0,S.ship.trail,S.ship.pet)}requestAnimationFrame(hangarLoop)}
 
 /* parents */
 const acc=(q,c)=>q?Math.round(c/q*100)+"%":"–";
 function renderParents(){
-  const d=day();$("pToday").textContent=minutesToday()+" min";$("pTodayQ").textContent=`${d.q} questions · ${acc(d.q,d.c)} first-try`;
+  const d=day();$("pToday").textContent=minutesToday()+" min";$("pTodayQ").textContent=`${d.q} questions · ${acc(d.q,d.c)} first-try · this block ${Math.floor((S.playSec||0)/60)}/${S.block||20} min${onBreak()?" · on break":""}`;
   let ws=0,wd=0;for(let i=0;i<7;i++){const k=new Date(Date.now()-i*864e5).toLocaleDateString("en-CA");if(S.days[k]&&S.days[k].sec){ws+=S.days[k].sec;wd++}}
   $("pWeek").textContent=Math.round(ws/60)+" min";$("pWeekD").textContent=`${wd} of 7 days played`;
   const sum=p=>Object.entries(S.skills).filter(([k])=>k.startsWith(p)).reduce((a,[,v])=>({q:a.q+v.q,c:a.c+v.c}),{q:0,c:0});
@@ -637,12 +740,12 @@ function renderParents(){
   $("pWords").textContent=lab("words");$("pWordsAcc").textContent=`${w.q} questions · ${acc(w.q,w.c)} first-try`;
   const rows=[];GALS.forEach(([g])=>{for(let i=1;i<=galSize(g);i++){const k=g==="words"?"words"+i:`${g}_${i}`,v=S.skills[k];if(v)rows.push(`<tr><td>${g==="words"?"🔤":"G"+g[1]} ${topicName(g,i)}</td><td>${acc(v.q,v.c)}</td><td>${v.q}</td></tr>`)}});
   $("pSkills").innerHTML=rows.join("")||`<tr><td colspan="3" class="note">No missions flown yet.</td></tr>`;
-  $("sLen").value=S.len;$("sVoice").value=S.voice;
+  $("sBlock").value=S.block||20;$("sRest").value=S.rest||5;$("sVoice").value=S.voice;
   $("unlocks").innerHTML=GALS.map(([g,l])=>`<div class="set">${l}: <select data-ug="${g}">${g==="words"?"":`<option value="0">Locked</option>`}${Array.from({length:galSize(g)},(_,i)=>`<option value="${i+1}" ${S.lv[g]===i+1?"selected":""}>up to ${i+1} · ${topicName(g,i+1)}</option>`).join("")}</select></div>`).join("");
   $("unlocks").querySelectorAll("select").forEach(sel=>{if(!S.lv[sel.dataset.ug])sel.value="0";sel.onchange=()=>{S.lv[sel.dataset.ug]=+sel.value;save()}});
   $("pMsg").textContent="";
 }
-function summary(){const L=[`${NAME} — Space Quest progress (${today()})`,`Coins: ${S.coins} · Mission stars: ${S.stars}`];GALS.forEach(([g,l])=>L.push(`${l.replace(/^\S+ /,"")}: ${(S.lv[g]||0)?`planet ${S.lv[g]}/${galSize(g)} (${topicName(g,S.lv[g])})`:"locked"}`));L.push("","Last 7 days:");
+function summary(){const L=[`${NAME} — Space Quest progress (${today()})`,`Coins: ${S.coins} · Mission stars: ${S.stars}`];GALS.forEach(([g,l])=>L.push(`${l.replace(/^\S+ /,"")}: ${(S.lv[g]||0)?`planet ${S.lv[g]}/${galSize(g)} (${topicName(g,S.lv[g])})`:"locked"}`));L.push(`Trophies: ${ACH.filter(a=>S.ach[a.id]).map(a=>a.n).join(", ")||"none yet"}`);L.push("","Last 7 days:");
   for(let i=6;i>=0;i--){const k=new Date(Date.now()-i*864e5).toLocaleDateString("en-CA"),d=S.days[k];if(d&&d.sec)L.push(`${k}: ${Math.round(d.sec/60)} min, ${d.q} questions, ${acc(d.q,d.c)} first-try`)}
   L.push("","By skill:");GALS.forEach(([g])=>{for(let i=1;i<=galSize(g);i++){const k=g==="words"?"words"+i:`${g}_${i}`,v=S.skills[k];if(v)L.push(`${g==="words"?"Words":"Grade "+g[1]} · ${topicName(g,i)}: ${acc(v.q,v.c)} of ${v.q}`)}});return L.join("\n")}
 
@@ -651,7 +754,7 @@ $("hello").textContent=`Ready to fly, ${NAME}?`;
 if(!IS_PARENT)$("toParents").parentElement.style.display="none";
 $("play").onclick=()=>{A();if(sessionOver()){breakTime();return}show("map");speak("Pick a planet!")};
 $("toHangar").onclick=$("mapHangar").onclick=()=>{A();show("hangar")};
-$("hgBack").onclick=()=>show(G?"game":"map");
+$("hgBack").onclick=()=>show(G?"game":"map");$("toTrophies").onclick=$("mapTrophies").onclick=()=>show("trophies");$("trBack").onclick=()=>show("map");
 $("mapHome").onclick=()=>show("title");
 
 $("say").onclick=()=>G&&speak(G.q.say);
@@ -659,14 +762,14 @@ $("quit").onclick=()=>{quitGame();show("map")};
 $("mpClose").onclick=()=>$("mPlanet").classList.remove("on");
 $("mdNext").onclick=nextMission;
 $("mdMap").onclick=()=>{$("mDone").classList.remove("on");quitGame();if(sessionOver())breakTime();else show("map")};
-$("bkOk").onclick=()=>$("mBreak").classList.remove("on");
+$("bkOk").onclick=()=>{if(onBreak())return;$("mBreak").classList.remove("on");show("map")};$("pEndBreak").onclick=()=>{S.breakUntil=0;S.playSec=0;save();$("pMsg").textContent="Break ended. He can play again."};
 $("toParents").onclick=()=>show("parents");$("pBack").onclick=()=>show("title");
-$("sLen").onchange=e=>{S.len=+e.target.value;save()};$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};
+$("sBlock").onchange=e=>{S.block=+e.target.value;save()};$("sRest").onchange=e=>{S.rest=+e.target.value;save()};$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};
 
-$("pTime").onclick=()=>{day().sec=0;save();renderParents();$("pMsg").textContent="Today's timer reset."};
+$("pTime").onclick=()=>{S.playSec=0;save();renderParents();$("pMsg").textContent="Play-block timer reset."};
 $("pCopy").onclick=async()=>{try{await navigator.clipboard.writeText(summary());$("pMsg").textContent="Copied."}catch(e){$("pMsg").textContent=summary()}};
 document.querySelector("#game")||document.body.insertAdjacentHTML("beforeend",'<section class="layer" id="game" style="pointer-events:none"></section>');
-resize();setCoins();save();requestAnimationFrame(loop);requestAnimationFrame(hangarLoop);
+resize();setCoins();save();if(onBreak()){$("mBreak").classList.add("on");runBreak()}requestAnimationFrame(loop);requestAnimationFrame(hangarLoop);
 </script>
 </body>
 </html>
