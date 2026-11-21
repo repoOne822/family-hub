@@ -126,5 +126,40 @@ function waves(el) {
   });
 }
 
-window.SIMS = { kinematics, forces, energy, waves };
+
+/* 🔬 Inquiry: a fair test. Change ONE variable, time 10 swings, record it. Only length changes the period (T = 2π√(L/g)). */
+function inquiry(el) {
+  const S = setup(el, slider("len", "Independent variable: length L", .25, 2, .25, 1, "m") + slider("mas", "Mass m (try changing it!)", .1, 2, .1, .5, "kg") + slider("amp", "Release angle (keep small)", 5, 30, 5, 10, "°"),
+    `<div class="row2"><button class="simbtn" data-go>⏱️ Time 10 swings</button><button class="simbtn alt" data-clear>Clear table</button><span class="eq">Fair test: change one thing, keep the rest the same.</span></div><div class="tbl"></div>`);
+  let t = 0, timing = false, tT = 0, rows = [];
+  const tbl = S.el.querySelector(".tbl"), draw = () => { tbl.innerHTML = rows.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th align=left>Trial</th><th align=left>L (m)</th><th align=left>m (kg)</th><th align=left>angle</th><th align=left>10 swings (s)</th><th align=left>period T (s)</th></tr>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.L}</td><td>${r.m}</td><td>${r.a}°</td><td>${r.t10}</td><td><b>${r.T}</b></td></tr>`).join("")}</table>` : ""; };
+  S.el.querySelector("[data-go]").onclick = () => { timing = true; tT = 0; };
+  S.el.querySelector("[data-clear]").onclick = () => { rows = []; draw(); };
+  S.run((c, W, H, dt) => {
+    const L = S.val("len"), m = S.val("mas"), a0 = S.val("amp") * Math.PI / 180, T = 2 * Math.PI * Math.sqrt(L / G);
+    t += dt; if (timing) { tT += dt; if (tT >= 10 * T) { timing = false; rows.push({ L, m, a: S.val("amp"), t10: (10 * T + (Math.random() - .5) * .2).toFixed(2), T: (T + (Math.random() - .5) * .02).toFixed(2) }); draw(); } }
+    const th = a0 * Math.cos(2 * Math.PI * t / T), px = W * .3, sc = (H - 50) / 2, bx = px + Math.sin(th) * L * sc, by = 14 + Math.cos(th) * L * sc, r = 6 + m * 7;
+    c.clearRect(0, 0, W, H); c.fillStyle = "#ffffff22"; c.fillRect(px - 60, 10, 120, 4);
+    c.strokeStyle = "#ddd"; c.lineWidth = 2; c.beginPath(); c.moveTo(px, 14); c.lineTo(bx, by); c.stroke(); c.fillStyle = "#ff9a3d"; c.beginPath(); c.arc(bx, by, r, 0, 7); c.fill();
+    txt(c, timing ? `⏱️ ${tT.toFixed(1)} s  (swing ${Math.min(10, Math.floor(tT / T) + 1)} of 10)` : "Press the timer to measure 10 swings", W * .55, 40, "#ffd23d", 14);
+    txt(c, "Why 10 swings? One swing is too fast to time well.", W * .55, 64, "#ffffffaa", 12); txt(c, "Divide by 10 to get the period.", W * .55, 82, "#ffffffaa", 12);
+    S.rd.innerHTML = rows.length >= 2 ? `<b>Look at your table: which change made T different?</b>` : `<b>Independent: what you change</b><b>Dependent: the period T you measure</b><b>Controlled: everything else</b>`;
+  });
+}
+
+/* 📏 Measurement: the metric staircase. Each step = ×10. Bigger unit → smaller number. */
+function measure(el) {
+  const U = [["km", 1e3], ["hm", 1e2], ["dam", 10], ["m", 1], ["dm", .1], ["cm", .01], ["mm", .001]];
+  el.innerHTML = `<div class="sim"><canvas></canvas><div class="ctl"><label>Number <span></span><input id="mn" type="number" value="2.5" step="any"></label><label>From <span></span><select id="mf">${U.map(u => `<option ${u[0] === "m" ? "selected" : ""}>${u[0]}</option>`).join("")}</select></label><label>To <span></span><select id="mt">${U.map(u => `<option ${u[0] === "cm" ? "selected" : ""}>${u[0]}</option>`).join("")}</select></label></div><div class="rd"></div></div>`;
+  const cv = el.querySelector("canvas"), c = cv.getContext("2d"), rd = el.querySelector(".rd");
+  const draw = () => { if (!cv.isConnected) return; const r = cv.getBoundingClientRect(), d = devicePixelRatio || 1; cv.width = r.width * d; cv.height = r.height * d; c.setTransform(d, 0, 0, d, 0, 0); const W = r.width, H = r.height;
+    const n = +el.querySelector("#mn").value || 0, fi = U.findIndex(u => u[0] === el.querySelector("#mf").value), ti = U.findIndex(u => u[0] === el.querySelector("#mt").value), steps = ti - fi, out = n * U[fi][1] / U[ti][1];
+    c.clearRect(0, 0, W, H); const sw = (W - 40) / U.length, sh = (H - 60) / U.length;
+    U.forEach((u, i) => { const x = 20 + i * sw, y = 20 + i * sh; c.fillStyle = i === fi ? "#3d9bff" : i === ti ? "#3ec46d" : "#ffffff22"; c.fillRect(x, y, sw - 4, H - 40 - y); txt(c, u[0], x + 6, y + 18, "#fff", 15); });
+    if (steps) { const x1 = 20 + fi * sw + sw / 2, x2 = 20 + ti * sw + sw / 2, y1 = 20 + fi * sh - 6, y2 = 20 + ti * sh - 6; arrow(c, x1, y1, x2 - x1, y2 - y1, "#ffd23d", `${Math.abs(steps)} step${Math.abs(steps) > 1 ? "s" : ""} ${steps > 0 ? "down: ×" : "up: ÷"}${10 ** Math.abs(steps)}`); }
+    rd.innerHTML = `<b>${n} ${U[fi][0]} = ${+out.toPrecision(10)} ${U[ti][0]}</b><b>${steps > 0 ? "Smaller unit → bigger number. Move the decimal " + steps + " right." : steps < 0 ? "Bigger unit → smaller number. Move the decimal " + -steps + " left." : "Same unit."}</b>`; };
+  el.querySelectorAll("input,select").forEach(i => i.addEventListener("input", draw)); requestAnimationFrame(draw); addEventListener("resize", draw);
+}
+
+window.SIMS = { inquiry, measure, kinematics, forces, energy, waves };
 })();
