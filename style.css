@@ -813,3 +813,11 @@ body:not(.kidmode) .tabs button.on{background:var(--ink);color:var(--bg)}
   body.kidmode .topbar :is(.lang,.btn){padding:5px 9px;font-size:12px;white-space:nowrap;flex:0 0 auto}
   .kt-pixel .topbar :is(.lang,.btn){border-width:2px}
 }
+/* overnight polish: request badge + banner, focus rings */
+.pbadge{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#ff4d4d;color:#fff;font:800 11px/20px var(--body);text-align:center}
+.ptabs .tab{position:relative}.ptabs .tab .pbadge{position:absolute;top:2px;left:calc(50% + 8px);margin:0}
+.psheet-grid a{position:relative}
+.reqbanner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 16px;padding:14px 16px;border-radius:16px;background:#ffd23d;color:#111!important;text-decoration:none;box-shadow:var(--shadow,none)}
+.reqbanner span{flex:1 1 220px;font-size:13px;opacity:.8}.reqbanner em{font-style:normal;font-weight:800}
+:focus-visible{outline:3px solid #3d9bff;outline-offset:2px;border-radius:8px}
+button:focus:not(:focus-visible),a:focus:not(:focus-visible){outline:none}

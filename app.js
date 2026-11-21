@@ -213,6 +213,8 @@ function route() {
   document.querySelectorAll("[data-r]").forEach(a => a.classList.toggle("on", a.dataset.r === onR));
   const mb = $("#moreBtn"); if (mb) mb.classList.toggle("on", !TABS.includes(onR));
   if ($("#pgTitle")) $("#pgTitle").textContent = navLabel(onR); window.scrollTo(0, 0);
+  const waiting = (S.redemptions || []).filter(r => r.status === "requested").length; // badge: reward requests waiting for a parent
+  document.querySelectorAll('[data-r="rewards"]').forEach(a => { let b = a.querySelector(".pbadge"); if (!waiting) { b && b.remove(); return; } if (!b) { b = document.createElement("span"); b.className = "pbadge"; a.appendChild(b); } b.textContent = waiting; b.setAttribute("aria-label", waiting + " waiting"); });
   ({ today: viewToday, calendar: viewCalendar, rewards: viewRewards, dashboard: viewDash, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, roadmap: viewRoadmap, doc: () => viewDoc(doc) })[h]();
 }
 
@@ -223,12 +225,13 @@ function viewToday() {
       <button class="herobtn" style="background:var(--lime)" id="goKids">🧒 ${T().kidsTapIn}<small>${T().kidsTapInSub}</small></button>
       <button class="herobtn" style="background:var(--pink)" id="goQuick">⚡ ${T().parentCheckin}<small>${T().parentCheckinSub}</small></button>
     </div>
+    ${(() => { const w = (S.redemptions || []).filter(r => r.status === "requested"); return w.length ? `<a class="reqbanner" href="#rewards">🎁 <b>${lang === "zh" ? `${w.length} 个奖励兑换等你确认` : `${w.length} reward request${w.length > 1 ? "s" : ""} waiting for you`}</b><span>${w.slice(0, 3).map(r => `${esc(kidName(r.kid))}: ${esc(r.title)}`).join(" · ")}</span><em>→</em></a>` : ""; })()}
     <div class="section-h"><h3>${T().todayStatus} · ${fmtDate(d)}</h3><button class="btn sm" id="goLog">${T().logEntry}</button></div>
     <div class="todayrow">${S.kids.map((k, i) => { const c = S.checkins.find(c => c.kid === k.id && c.date === d) || {};
       const habits = S.metrics.filter(m => m.kid === k.id && m.type === "rate").map(m => { const r = S.readings.find(r => r.metric === m.id && r.date === d); return r && +r.value ? mKidLabel(m) : null; }).filter(Boolean);
       return `<div class="tcard" style="border-top:4px solid ${KC[i % 3]};display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center"><span style="width:52px;height:52px;border-radius:14px;background:#fff;display:grid;place-items:center">${avatarHtml(k.avatar, 46)}</span><div><b>${esc(kidName(k.id))}</b>
         <div class="meta">${c.kid_mood ? `${T().heSaid} ${FACES[c.kid_mood - 1]}` : T().notYet} · ${c.focus ? `${T().parentRated} ✓` : `${T().parentRated} —`}</div>
-        ${habits.length ? `<div class="meta">${esc(habits.join(" · "))}</div>` : ""}<button class="btn sm" style="margin-top:8px" data-pv="${esc(k.id)}">👀 ${T().viewHisPage}</button></div></div>`; }).join("")}</div>
+        ${habits.length ? `<div class="meta">${esc(habits.join(" · "))}</div>` : ""}${(() => { const q = ptsOf(k.id), td = (S.point_ledger || []).filter(r => r.kid === k.id && r.date === d && r.source !== "spend").reduce((a, r) => a + r.points, 0); return `<div class="meta">⭐ ${lang === "zh" ? `今天 +${td} · 可用 ${q.balance}` : `+${td} today · ${q.balance} to spend`}</div>`; })()}<button class="btn sm" style="margin-top:8px" data-pv="${esc(k.id)}">👀 ${T().viewHisPage}</button></div></div>`; }).join("")}</div>
     <div class="section-h" style="margin-top:22px"><h3>📅 ${CL().upcoming}</h3><a class="btn sm" href="#calendar">${CL().h} →</a></div><div class="tcard">${calUpcoming("all", 14, true)}</div>${marquee()}`;
   $("#goKids").onclick = openKidMode; $("#goQuick").onclick = openQuick; $("#goLog").onclick = () => openEntry();
 }
@@ -1101,7 +1104,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121w${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121x${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
   fs.querySelector(".appclose").onclick = () => appOpen();
