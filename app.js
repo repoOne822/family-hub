@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261120f";
-import * as Pix from "./pixel.js?v=20261120f";
+import { STR } from "./i18n.js?v=20261120g";
+import * as Pix from "./pixel.js?v=20261120g";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -1027,7 +1027,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120f${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120g${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; };
   fs.querySelector(".appclose").onclick = () => appOpen();
@@ -1047,7 +1047,7 @@ function openPreview(kidId) {
 }
 function exitPreview() {
   if (!preview) return; Object.assign(S, preview.full); preview = null; lastBadges = null;
-  document.body.classList.remove("kidmode"); renderShell(); route();
+  document.body.classList.remove("kidmode"); setKidTheme(null); renderShell(); route();
 }
 const previewBar = () => preview ? `<div class="pvbar"><span>👀 ${T().previewing(esc(kidName(preview.kid)))}</span><span class="pvkids">${preview.full.kids.map(k => `<button class="${k.id === preview.kid ? "on" : ""}" data-pv="${esc(k.id)}">${avatarHtml(k.avatar, 22)} ${esc(lang === "zh" && k.name_zh ? k.name_zh : k.name)}</button>`).join("")}</span><button class="pvexit" data-pvexit>${T().exitPreview}</button></div>` : "";
 document.addEventListener("click", e => { const a = e.target.closest("[data-pv]"); if (a) { e.stopPropagation(); return openPreview(a.dataset.pv); } if (e.target.closest("[data-pvexit]")) { e.stopPropagation(); exitPreview(); } }, true);
@@ -1081,9 +1081,19 @@ function confetti() {
   document.body.appendChild(box); setTimeout(() => box.remove(), 2800);
 }
 let lastBadges = null;
+const KTHEMES = { pop: { en: "Pop", zh: "波普", d: { en: "Bold & bright", zh: "大胆鲜艳" } }, voxel: { en: "Voxel", zh: "方块世界", d: { en: "Soft 3D blocks", zh: "柔和 3D 方块" } }, pixel: { en: "Pixel Quest", zh: "像素冒险", d: { en: "Retro 8-bit game", zh: "复古 8 位游戏" } } };
+const KT_IDS = Object.keys(KTHEMES);
+const setKidTheme = th => { document.body.classList.remove(...KT_IDS.map(x => "kt-" + x)); if (th) document.body.classList.add("kt-" + (KTHEMES[th] ? th : "pop")); };
+const themeSwatch = id => id === "pixel" ? `<span class="tsw tsw-pixel"><i></i><i></i><i></i><b>LV</b></span>` : id === "voxel" ? `<span class="tsw tsw-voxel"><i></i><i></i><i></i><i></i></span>` : `<span class="tsw tsw-pop"><i></i><i></i><i></i></span>`;
+// decorations drawn in CSS/SVG, shown only by the matching theme
+const VOXEL_DECO = (() => { const cube = (x, y, c) => `<g transform="translate(${x},${y})"><path d="M0 6 10 0 20 6 10 12Z" fill="${c}" style="filter:brightness(1.25)"/><path d="M0 6 10 12 10 24 0 18Z" fill="${c}" style="filter:brightness(.85)"/><path d="M20 6 10 12 10 24 20 18Z" fill="${c}"/></g>`;
+  const cols = ["#ff4d4d", "#ff9a3d", "#ffd23d", "#3ec46d", "#3d9bff", "#7a5cff"]; let g = "";
+  cols.forEach((c, i) => { for (let j = 0; j < 3; j++) g += cube(10 + i * 10 + j * 10, 70 - i * 6 + j * 6 - i * 6, c); });
+  return `<svg class="kt-deco kt-deco-voxel" viewBox="0 0 120 110" aria-hidden="true">${g}</svg>`; })();
+const PIXEL_DECO = `<div class="kt-deco kt-deco-pixel" aria-hidden="true"><span class="px-hearts">♥♥♥</span><span class="px-coin">●</span></div>`;
 function kidRender() {
   const t = T(), k = S.kids[0]; if (!k) return;
-  document.body.classList.add("kidmode");
+  document.body.classList.add("kidmode"); setKidTheme(k.theme || "pop");
   const d = today(), myMood = S.moods.find(m => m.date === d)?.kid_mood || null;
   const little = (+k.age || 99) < 7;
   const g = kidGame(), kc = "var(--k" + ({ eric: 0, ellis: 1, jonah: 2 }[k.id] ?? 0) + ")";
@@ -1107,9 +1117,10 @@ function kidRender() {
   const days = []; for (let i = 13; i >= 0; i--) { const dd = addDays(d, -i); days.push({ dd, m: S.moods.find(x => x.date === dd)?.kid_mood }); }
   const pct = g.nextAt > g.curAt ? Math.round(100 * (g.xp - g.curAt) / (g.nextAt - g.curAt)) : 100;
   $("#root").innerHTML = `${previewBar()}<div class="topbar"><div class="in"><div class="brand"><span class="dotlogo">✦</span>${esc(kidName(k.id))}</div>
-      <button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button><button class="btn sm ghost" id="soBtn">${preview ? t.exitPreview : t.signOut}</button></div></div>
+      <button class="lang" id="themeBtn" aria-expanded="false">🎨 ${lang === "zh" ? "主题" : "Theme"}</button><button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button><button class="btn sm ghost" id="soBtn">${preview ? t.exitPreview : t.signOut}</button></div></div>
     <div class="wrap"><div class="status" id="status"></div>
-      <div class="kw-hero" style="--kc:${kc}">
+      <div class="kw-themes" id="themePick" hidden><b>🎨 ${lang === "zh" ? "选一个你喜欢的样子" : "Pick your look"}</b><div class="kw-themerow">${KT_IDS.map(id => `<button class="kw-theme ${(k.theme || "pop") === id ? "on" : ""}" data-ktheme="${id}">${themeSwatch(id)}<span><b>${KTHEMES[id][lang] || KTHEMES[id].en}</b><small>${KTHEMES[id].d[lang] || KTHEMES[id].d.en}</small></span></button>`).join("")}</div></div>
+      <div class="kw-hero" style="--kc:${kc}">${VOXEL_DECO}${PIXEL_DECO}
         <div class="kw-avatar" id="avBtn" title="${t.pickAvatar}">${avatarHtml(k.avatar || "🦊", 92)}</div>
         <div><h1>${t.hi(esc(kidName(k.id)))}</h1>
           <div class="kw-level"><span class="kw-lvl">${t.levelWord} ${g.lvlNum}</span><span>${esc(g.levelName)}</span><span style="margin-left:auto">${g.xp} ${t.xp}</span></div>
@@ -1148,7 +1159,13 @@ function kidRender() {
     </div>
     <div class="modal-bg" id="avModal"><div class="modal" style="max-width:640px" id="avBody"></div></div>`;
   if (newly.length) { confetti(); setStatus(t.newBadge + " " + newly.map(b => BADGES.find(x => x[0] === b)[1]).join(" ")); }
-  $("#langBtn").onclick = toggleLang; $("#soBtn").onclick = () => { if (preview) return exitPreview(); document.body.classList.remove("kidmode"); sb.auth.signOut(); };
+  $("#langBtn").onclick = toggleLang; $("#soBtn").onclick = () => { if (preview) return exitPreview(); document.body.classList.remove("kidmode"); setKidTheme(null); sb.auth.signOut(); };
+  $("#themeBtn").onclick = () => { const p = $("#themePick"); p.hidden = !p.hidden; $("#themeBtn").setAttribute("aria-expanded", String(!p.hidden)); };
+  document.querySelectorAll("[data-ktheme]").forEach(b => b.onclick = async () => {
+    const th = b.dataset.ktheme; if (th === (k.theme || "pop")) return;
+    if (!preview) { const { error } = await sb.rpc("kid_set_theme", { p_theme: th }); if (error) return setStatus(error.message, true); }
+    k.theme = th; kidRender(); $("#themePick").hidden = false; if (!preview) confetti();
+  });
   const R = async fn => { if (preview) { $("#avModal")?.classList.remove("open"); return setStatus(t.previewNoSave); } try { await fn(); await loadAll(); kidRender(); } catch (err) { setStatus(err.message || "Save failed", true); } };
   $("#kTap").onclick = () => kidTapIn();
   const curPx = Pix.parse(k.avatar);
@@ -1235,7 +1252,7 @@ const CALS = {
     kinds: { school: "🏫 学校", fencing: "🤺 击剑", competition: "🏆 比赛", swim: "🏊 游泳", amc: "🧮 AMC / 数学", debate: "🎤 辩论", family: "🏡 家庭", appointment: "🩺 预约", other: "📌 其他" } } };
 const CL = () => CALS[lang] || CALS.en;
 const KCOL = { eric: "var(--k0)", ellis: "var(--k1)", jonah: "var(--k2)" };
-const calCol = kid => kid ? (KCOL[kid] || "var(--sky)") : "#e9e9e4";
+const calCol = kid => kid ? (KCOL[kid] || "var(--sky)") : "var(--famc,#e9e9e4)";
 const calSt = { month: null, kid: "all", day: null, kmonth: null };
 const monthStart = d => d.slice(0, 8) + "01";
 const addMonths = (m, n) => { const [y, mo] = m.split("-").map(Number); const d = new Date(y, mo - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`; };
