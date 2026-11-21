@@ -658,3 +658,37 @@ body.kidmode.kt-pixel{--bg:#5ec8f5;--card:#1f2b63;--card2:#283777;--ink:#ffffff;
 
 .kw-wc{font:600 12px var(--kfont);color:#888;margin:6px 0 4px}.kw-wc.ok{color:#2a9d55}
 .kw-wcbar{height:6px;background:rgba(0,0,0,.08);border-radius:3px;overflow:hidden;margin-bottom:10px}.kw-wcbar i{display:block;height:100%;width:0;background:#3ec46d;transition:width .2s}
+
+/* points + reward shop */
+.ptchip{position:fixed;right:18px;bottom:18px;z-index:9999;background:#ffd23d;color:#111;font:800 18px var(--body);padding:10px 16px;border-radius:999px;border:2px solid #111;box-shadow:3px 3px 0 #111;animation:ptup 2.2s ease forwards}
+@keyframes ptup{0%{transform:translateY(20px);opacity:0}15%{transform:none;opacity:1}80%{opacity:1}100%{transform:translateY(-30px);opacity:0}}
+.kbal{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.kbal>div{background:var(--card2);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.kbal>div:first-child{flex-direction:row;flex-wrap:wrap;align-items:center;column-gap:8px}
+.kbal>div:first-child small{flex-basis:100%}
+.kbal b{font:800 24px var(--kfont)}.kbal small{font-size:12px;color:var(--muted)}
+.kshop-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.kitem{background:var(--card2);border:2px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start;min-width:0}
+.kitem.can{border-color:var(--lime)}
+.kitem b{font:700 14px/1.3 var(--kfont)}.kcost{display:inline-flex;align-items:center;gap:4px;font:800 14px var(--kfont)}
+.kneed{width:100%;height:6px;background:rgba(127,127,127,.2);border-radius:3px;overflow:hidden}.kneed i{display:block;height:100%;background:var(--lime)}
+.kreqs{margin-top:14px}.kreq{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--line)}.kreq span:first-child{display:inline-flex;gap:4px;align-items:center;font-weight:700}
+.krecent{margin-top:12px}.krecent summary{cursor:pointer;padding:4px 0}
+.kpt{display:grid;grid-template-columns:56px 1fr auto;gap:8px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px}
+.kpt span{font:800 15px var(--kfont);color:#2a9d55}.kpt span.neg{color:#e5484d}.kpt small{color:var(--muted);font-size:12px}
+.krules{margin:6px 0 0;padding-left:18px;font-size:14px;line-height:1.55}
+.kt-pixel .kbal>div,.kt-pixel .kitem{background:#283777;border:3px solid #0d1433}.kt-pixel .kitem.can{border-color:#ffd23f}.kt-pixel .kbal b{font-family:var(--pxf);font-size:16px;color:#ffd23f}
+.kt-voxel .kbal>div{background:#f7f6f3}.kt-voxel .kitem{background:#fff;border:1px solid #ebe9e4;box-shadow:0 6px 0 rgba(0,0,0,.05)}.kt-voxel .kitem.can{border-color:#3ec46d}
+/* parent rewards page */
+.rwgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:16px}
+.rwk{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--kc);border-radius:var(--r);padding:12px 14px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.rwk>b{grid-column:1/-1;font-size:16px}.rwk span{font:700 20px var(--display)}.rwk small{display:block;font-size:11px;color:var(--muted)}
+.rwcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}.rwcard h4{margin:0 0 8px}.rwcard h5{margin:14px 0 4px}
+.rwcols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.rwreq{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}.rwreq>div{flex:1 1 220px}.rwnote{flex:1 1 160px}
+.rwrow{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)}.rwrow>span{flex:1;min-width:0}
+.rwitem.off{opacity:.45}
+.rwbonus,.rwadd{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.rwbonus input[name=pts]{width:80px}.rwbonus input[name=why]{flex:1 1 200px}.rwadd input[name=title]{flex:1 1 180px}
+@media (max-width:820px){.rwcols{grid-template-columns:1fr}.kbal{grid-template-columns:1fr 1fr}.kbal>div:first-child{grid-column:1/-1}}
+.rwadd input,.rwadd select,.rwbonus input,.rwrow input,.rwrow select,.rwreq input{width:auto}
+.rwadd input[name=title]{flex:2 1 200px}.rwadd input[name=title_zh]{flex:1 1 140px}.rwrow .x{opacity:.6}

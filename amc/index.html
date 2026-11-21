@@ -191,7 +191,18 @@ const LS = `${KID}_amc_progress`;
 const load = () => { try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch (e) { return {}; } };
 let P = load(); P.lessons = P.lessons || {}; P.mixed = P.mixed || []; P.tests = P.tests || {}; P.exams = P.exams || { daily: {}, weekly: {}, log: [] }; P.events = P.events || []; P.sessions = P.sessions || [];
 // ---- performance tracking: active time on the platform + every problem's time and result (synced for parents) ----
-const track = ev => { P.events.push(ev); if (P.events.length > 1500) P.events = P.events.slice(-1500); };
+// ⭐ Hub points: harder problems and first-try answers earn more (the hub caps points per day)
+const hubAward = (ref, pts, label, zh) => { try { if (window.parent !== window && window.parent.fhAward) window.parent.fhAward("amc", ref, pts, label, zh); } catch (e) {} };
+const LV_PTS = { easy: 2, medium: 3, hard: 5, challenge: 6 };
+const awardFor = ev => {
+  if (ev.ok && ev.lv != null && ev.m !== "scratch") {
+    const lv = typeof ev.lv === "number" ? ev.lv : String(ev.lv).toLowerCase(), base = typeof lv === "number" ? [2, 2, 3, 4, 5, 6][Math.min(5, Math.max(1, lv))] : (LV_PTS[lv] || 2);
+    const first = ev.tr === 1 && !ev.h, pts = first ? base : 1, name = typeof lv === "number" ? "L" + lv : lv;
+    hubAward(`${ev.m}:${ev.t}:${ev.ts}`, pts, `AMC ${name} problem ✓${first ? " first try" : ""}`, `AMC ${name} 题 ✓${first ? " 一次做对" : ""}`);
+  }
+  if (ev.m === "scratch" && ev.done) hubAward(`lesson:${ev.t}`, 10, "Finished an AMC basics lesson", "完成一节 AMC 基础课");
+};
+const track = ev => { P.events.push(ev); if (P.events.length > 1500) P.events = P.events.slice(-1500); awardFor(ev); };
 let lastInput = Date.now(); ["click", "keydown", "touchstart", "scroll", "pointermove"].forEach(e => addEventListener(e, () => { lastInput = Date.now(); }, { passive: true }));
 const SESS = { id: Date.now(), date: new Date().toLocaleDateString("en-CA"), start: new Date().toISOString(), active: 0 };
 P.sessions.push(SESS); P.sessions = P.sessions.filter(x => x === SESS || x.active >= 15).slice(-300);

@@ -751,7 +751,7 @@ function swish(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)
   o.type='sawtooth';o.frequency.setValueAtTime(1400,ac.currentTime);o.frequency.exponentialRampToValueAtTime(200,ac.currentTime+.15);
   g.gain.value=.06;o.connect(g);g.connect(ac.destination);o.start();g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+.16);o.stop(ac.currentTime+.17)}catch(e){}}
 function toast(t){const el=$('toast');el.textContent=t;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1600)}
-function addXP(n,msg){state.xp+=n;save();if(msg)toast(msg+'  +'+n+' XP')}
+function addXP(n,msg){state.xp+=n;save();if(msg)toast(msg+'  +'+n+' XP');try{if(n>0&&window.parent!==window&&window.parent.fhAward)window.parent.fhAward('fencing','xp:'+Date.now()+':'+n,Math.max(1,Math.round(n/3)),'Fencing Brain: '+(msg||'XP'),'击剑大脑：'+(msg||'经验'))}catch(e){}}
 
 // ---------- nav ----------
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{

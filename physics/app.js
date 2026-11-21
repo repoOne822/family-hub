@@ -13,7 +13,10 @@ P.lessons = P.lessons || {}; P.tests = P.tests || {}; P.quizzes = P.quizzes || [
 P.classNow = P.classNow || "kinematics";
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(P)); } catch (e) {} };
 const today = new Date().toLocaleDateString("en-CA");
-const track = ev => { P.events.push(Object.assign({ ts: Date.now(), d: today }, ev)); if (P.events.length > 1500) P.events = P.events.slice(-1500); save(); };
+// ⭐ Hub points for correct first-try answers (the hub caps points per day)
+const hubAward = (ref, pts, label, zh) => { try { if (window.parent !== window && window.parent.fhAward) window.parent.fhAward("physics", ref, pts, label, zh); } catch (e) {} };
+const track = ev => { const e = Object.assign({ ts: Date.now(), d: today }, ev); P.events.push(e); if (P.events.length > 1500) P.events = P.events.slice(-1500); save();
+  if (e.ok && e.m !== "read") { const test = e.m === "test" || e.m === "quiz" || e.m === "exam"; hubAward(`${e.m}:${e.t}:${e.ts}:${(e.q || "").length}`, test ? 4 : 3, `Physics ${test ? "test" : "practice"} ✓`, `物理${test ? "测验" : "练习"} ✓`); } };
 
 // active time on the app (only counts while he's actually interacting)
 let lastInput = Date.now();

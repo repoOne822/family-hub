@@ -567,6 +567,8 @@ function finishMission(){
   let unlock="";
   if(G.m===2&&G.lv===S.lv[G.g]){if(G.lv<galSize(G.g)){S.lv[G.g]=G.lv+1;unlock=`🔓 New planet unlocked: ${PLANETS[G.g][G.lv][0]}!`}else{const nx={g1:"g2",g2:"g3"}[G.g];if(nx&&!S.lv[nx]){S.lv[nx]=1;unlock=`🌌 NEW GALAXY unlocked: ${nx==="g2"?"Grade 2":"Grade 3"}!`}}}
   save();
+  try{if(window.parent!==window&&window.parent.fhAward){const gm={g1:1,g2:1.5,g3:2}[G.g]||1,pts=Math.round(([0,3,5,8][stars])*gm)+(G.boss?5:0);
+    window.parent.fhAward("space",`${G.g}:${G.lv}:${G.m}:${Date.now()}`,pts,`Space Quest ${G.boss?"boss":"mission"} ${"⭐".repeat(stars)}`,`太空探险${G.boss?"打败首领":"任务"} ${"⭐".repeat(stars)}`)}}catch(e){}
   $("qcard").classList.remove("on");$("fb").textContent="";
   sfx.whoosh();ship.boost=1.5;G.ending=.001;const g=G;
   setTimeout(()=>{

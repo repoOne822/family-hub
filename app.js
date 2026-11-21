@@ -67,13 +67,13 @@ async function loadMe() {
 const isKid = () => S.me?.role === "kid";
 async function loadAll() {
   if (isKid()) {
-    const tables = ["kids", "entries", "goals", "metrics", "readings", "docs", "journal", "subjects", "calendar_events", "fencing_results", "fencing_lessons"];
+    const tables = ["kids", "entries", "goals", "metrics", "readings", "docs", "journal", "subjects", "calendar_events", "fencing_results", "fencing_lessons", "point_ledger", "rewards", "redemptions"];
     const res = await Promise.all(tables.map(t => sb.from(t).select("*")));
     res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
     const m = await sb.rpc("kid_moods", { p_days: 400 }); S.moods = m.data || []; S.checkins = [];
     S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); S.subjects.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); return;
   }
-  const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects", "feedback", "insights", "assessments", "app_saves", "roadmap_items", "parent_checks", "fencing_lessons", "askfred_sync", "fencing_results", "calendar_events"];
+  const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects", "feedback", "insights", "assessments", "app_saves", "roadmap_items", "parent_checks", "fencing_lessons", "askfred_sync", "fencing_results", "calendar_events", "point_ledger", "rewards", "redemptions"];
   const res = await Promise.all(tables.map(t => sb.from(t).select("*")));
   res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
   S.kids.sort((a, b) => (a.sort ?? 9) - (b.sort ?? 9));
@@ -156,11 +156,11 @@ async function boot() {
 }
 
 /* ---------------- shell + routing ---------------- */
-const ROUTES = ["today", "calendar", "dashboard", "roadmap", "performance", "feedback", "subjects", "log", "plans", "reports", "family"];
+const ROUTES = ["today", "calendar", "rewards", "dashboard", "roadmap", "performance", "feedback", "subjects", "log", "plans", "reports", "family"];
 function renderShell() {
   $("#root").innerHTML = `<div class="topbar"><div class="in">
     <div class="brand"><span class="dotlogo">✦</span>${T().appTitle}</div>
-    <nav class="nav">${ROUTES.map(r => `<a href="#${r}" data-r="${r}">${T()["nav" + { today: "Today", calendar: "Cal", dashboard: "Dash", roadmap: "Roadmap", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" }[r]]}</a>`).join("")}</nav>
+    <nav class="nav">${ROUTES.map(r => `<a href="#${r}" data-r="${r}">${T()["nav" + { today: "Today", calendar: "Cal", rewards: "Rewards", dashboard: "Dash", roadmap: "Roadmap", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" }[r]]}</a>`).join("")}</nav>
     <button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button>
     <button class="btn sm" id="lockBtn">${T().kidsMode}</button>
     <button class="btn sm ghost" id="soBtn">${T().signOut}</button></div></div>
@@ -179,7 +179,7 @@ function route() {
   if (h.startsWith("doc-")) { doc = h.slice(4); h = "doc"; }
   if (!ROUTES.includes(h) && h !== "doc") h = "today";
   document.querySelectorAll(".nav a").forEach(a => a.classList.toggle("on", a.dataset.r === h || (h === "doc" && a.dataset.r === (S.docs.find(d => d.slug === doc)?.section === "report" ? "reports" : "plans"))));
-  ({ today: viewToday, calendar: viewCalendar, dashboard: viewDash, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, roadmap: viewRoadmap, doc: () => viewDoc(doc) })[h]();
+  ({ today: viewToday, calendar: viewCalendar, rewards: viewRewards, dashboard: viewDash, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, roadmap: viewRoadmap, doc: () => viewDoc(doc) })[h]();
 }
 
 /* ---------------- TODAY ---------------- */
@@ -969,7 +969,7 @@ function viewSubjects() {
   const goalForm = sid => `<details style="margin-top:8px"><summary class="qmore" style="list-style:none;cursor:pointer">${t.addGoal2}</summary>
       <form class="gform" data-sid="${sid}" style="margin-top:8px">
         <div class="grid2"><div class="field"><label>${t.goalName}</label><input name="name" required maxlength="60"></div><div class="field"><label>${t.goalNameZh}</label><input name="name_zh" maxlength="30"></div></div>
-        <div class="field"><label>${t.goalType}</label><select name="type"><option value="rate">${t.typeRate}</option><option value="level">${t.typeLevel}</option></select></div>
+        <div class="grid2"><div class="field"><label>${t.goalType}</label><select name="type"><option value="rate">${t.typeRate}</option><option value="level">${t.typeLevel}</option></select></div><div class="field"><label>${lang === "zh" ? "难度（得分倍数）" : "Difficulty (points ×)"}</label>${diffSelect("difficulty", "medium")}</div></div>
         <div class="grid2 g-rate"><div class="field"><label>${t.perWeek}</label><input name="per_week" type="number" min="1" max="21" value="3"></div><div class="field"><label>${t.kidMax}</label><input name="kid_max" type="number" min="1" max="5" value="1"></div></div>
         <div class="field g-rate"><label>${t.kidLabel}</label><input name="kid_label" maxlength="40" placeholder="🏆 AMC practice"></div>
         <div class="grid2 g-level" style="display:none"><div class="field"><label>${t.startVal}</label><input name="baseline" type="number" step="any"></div><div class="field"><label>${t.targetVal}</label><input name="target" type="number" step="any"></div>
@@ -992,7 +992,7 @@ function viewSubjects() {
   $("#view").querySelectorAll(".gform").forEach(f => f.onsubmit = async ev => {
     ev.preventDefault(); const v = Object.fromEntries(new FormData(f)), type = v.type;
     const id = `${subjKid}-${(v.name || "goal").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24)}-${Math.random().toString(36).slice(2, 6)}`;
-    const row = { id, kid: subjKid, subject_id: f.dataset.sid, type, name: v.name.trim(), name_zh: v.name_zh?.trim() || null, sort: 100 + S.metrics.length };
+    const row = { id, kid: subjKid, subject_id: f.dataset.sid, type, name: v.name.trim(), name_zh: v.name_zh?.trim() || null, difficulty: v.difficulty || "medium", sort: 100 + S.metrics.length };
     if (type === "rate") Object.assign(row, { per_week: +v.per_week || 1, kid_max: +v.kid_max || 1, kid_label: v.kid_label?.trim() || "✅ " + v.name.trim(), unit: null });
     else { if (v.baseline === "" || v.target === "") return setStatus(t.startVal + " / " + t.targetVal + "?", true); Object.assign(row, { baseline: +v.baseline, target: +v.target, start: today(), deadline: v.deadline || null, unit: v.unit || null }); }
     const { error } = await sb.from("metrics").insert(row); if (error) return setStatus(error.message, true); await refresh();
@@ -1065,9 +1065,9 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121e${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121f${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
-  appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; };
+  appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
   fs.querySelector(".appclose").onclick = () => appOpen();
 }
 document.addEventListener("click", e => { const a = e.target.closest("[data-app]"); if (a) { e.preventDefault(); e.stopPropagation(); openApp(a.dataset.app, a.dataset.appkid); } }, true);
@@ -1075,12 +1075,13 @@ document.addEventListener("click", e => { const a = e.target.closest("[data-app]
 /* ---- parent preview: see a boy's page exactly as he does; nothing saves ---- */
 let preview = null;
 function openPreview(kidId) {
-  const full = preview ? preview.full : { kids: S.kids, entries: S.entries, goals: S.goals, metrics: S.metrics, readings: S.readings, docs: S.docs, journal: S.journal, subjects: S.subjects, checkins: S.checkins, moods: S.moods };
+  const full = preview ? preview.full : { kids: S.kids, entries: S.entries, goals: S.goals, metrics: S.metrics, readings: S.readings, docs: S.docs, journal: S.journal, subjects: S.subjects, checkins: S.checkins, moods: S.moods, point_ledger: S.point_ledger, rewards: S.rewards, redemptions: S.redemptions };
   const f = a => (a || []).filter(x => x.kid === kidId);
   preview = { kid: kidId, full };
   Object.assign(S, { kids: full.kids.filter(k => k.id === kidId), entries: f(full.entries), goals: f(full.goals), metrics: f(full.metrics), readings: f(full.readings),
     docs: full.docs.filter(d => d.kid === kidId && d.kid_visible), journal: f(full.journal), subjects: f(full.subjects).filter(x => x.active !== false),
-    moods: f(full.checkins).filter(c => c.kid_mood).map(c => ({ date: c.date, kid_mood: c.kid_mood })), checkins: [] });
+    moods: f(full.checkins).filter(c => c.kid_mood).map(c => ({ date: c.date, kid_mood: c.kid_mood })), checkins: [],
+    point_ledger: f(full.point_ledger), redemptions: f(full.redemptions), rewards: (full.rewards || []).filter(r => r.active && (!r.kid || r.kid === kidId)) });
   lastBadges = null; window.scrollTo(0, 0); kidRender();
 }
 function exitPreview() {
@@ -1100,13 +1101,14 @@ const BADGES = [["first","👣"],["s3","🔥"],["s7","⚡"],["s14","🌟"],["her
 // Journal points need 500+ words. Chinese counts each character as a word; entries saved before the rule (2026-11-21 04:00 UTC) keep their points.
 const JOURNAL_MIN_WORDS = 500, JOURNAL_RULE_FROM = "2026-11-21T04:00:00Z";
 const wordCount = str => { const s = String(str || ""); const cjk = (s.match(/[\u3400-\u9fff\uf900-\ufaff]/g) || []).length; const rest = s.replace(/[\u3400-\u9fff\uf900-\ufaff]/g, " ").match(/[A-Za-z0-9\u00C0-\u024F]+(?:['’-][A-Za-z0-9]+)*/g) || []; return cjk + rest.length; };
-const journalCounts = j => (j.created_at && j.created_at < JOURNAL_RULE_FROM) || wordCount(j.body) >= JOURNAL_MIN_WORDS;
+const journalCounts = j => (S.point_ledger || []).some(r => r.ref === "journal:" + j.id);
+const jMin = () => S.kids[0]?.journal_min_words ?? JOURNAL_MIN_WORDS;
 function kidGame() {
   const d = today(), moodDays = new Set(S.moods.map(m => m.date));
   const rateIds = new Set(S.metrics.filter(m => m.type === "rate").map(m => m.id));
   const taps = S.readings.filter(r => rateIds.has(r.metric)).reduce((s, r) => s + (+r.value || 0), 0);
-  const myWins = S.entries.filter(e => e.by_kid).length, jn = S.journal.filter(journalCounts).length, ideas = S.goals.filter(g => g.proposed_by_kid).length;
-  const xp = moodDays.size * 10 + taps * 5 + myWins * 8 + jn * 12 + ideas * 5;
+  const myWins = S.entries.filter(e => e.by_kid).length, jn = S.journal.filter(j => journalCounts(j) || (j.created_at && j.created_at < JOURNAL_RULE_FROM)).length, ideas = S.goals.filter(g => g.proposed_by_kid).length;
+  const xp = ptsOf(S.kids[0]?.id).life; // lifetime points from the ledger (spending never lowers the level)
   let lvl = 0; LEVEL_AT.forEach((v, i) => { if (xp >= v) lvl = i; });
   const extra = Math.max(0, Math.floor((xp - 800) / 400)); const lvlNum = lvl + 1 + extra;
   const curAt = lvl < 5 ? LEVEL_AT[lvl] : 800 + extra * 400, nextAt = lvl < 5 ? LEVEL_AT[lvl + 1] : 800 + (extra + 1) * 400;
@@ -1247,6 +1249,7 @@ function kidRender() {
       </div>
       ${S.subjects.filter(x => x.active && x.app_url === "space/").map(x => `<button class="kw-spacegame" data-app="space/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#fff;font:inherit;background:radial-gradient(circle at 85% 30%,#9b5de5 0,transparent 45%),linear-gradient(135deg,#1b1f4b,#3a2f7a);box-shadow:0 8px 0 #0003,0 10px 30px #3a2f7a66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.4s ease-in-out infinite">🚀</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "太空探险" : "Space Quest"}</b><span style="opacity:.9;font-size:17px">${lang === "zh" ? "一至三年级数学和单词：打陨石、救外星人、打败大怪兽！" : "Grade 1–3 math + words: blast asteroids, rescue aliens, beat bosses!"}</span></span><span style="background:linear-gradient(#ffd166,#f4a300);color:#3b2400;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0004">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
       ${kidCalendarHtml(k.id)}
+      ${kidShopHtml(k)}
       ${worlds.length || loose.length || goals.length || mine.length ? `${kwH("globe", "worlds", t.myWorlds)}
       <div class="kw-worlds">${worlds.map((w, i) => `<div class="kw-world" style="background:${worldColors[i % worldColors.length]}"><div class="wi">${KI(w.x.icon, 48)}</div><span class="kw-arrow">→</span><h3>${esc(sName(w.x))}</h3>${sDesc(w.x) ? `<div class="wd">${esc(sDesc(w.x))}</div>` : ""}${w.x.app_url ? `<button class="kw-play" data-app="${esc(w.x.app_url)}" data-appkid="${esc(w.x.kid)}">${KI("play", 16)} ${esc(appLabel(w.x.app_url))}</button>` : ""}${w.ms.map(goalHtml).join("")}${w.docs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">${KI("book", 16)} ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}</div>`).join("")}
         ${loose.length || goals.length || mine.length || looseDocs.length ? `<div class="kw-world" style="background:#e9e9e4"><div class="wi">${KI("target", 48)}</div><h3>${t.myGoals}</h3>${loose.map(goalHtml).join("")}
@@ -1267,12 +1270,11 @@ function kidRender() {
       ${little ? "" : `${kwH("book", "note", t.secretNotebook, `<span class="tagc">${KI("lock", 14)}</span>`)}
       <div class="kw-notebook"><div style="font:600 12px var(--kfont);color:#888;line-height:20px">${t.journalPrivate}</div>
         <form id="jForm"><textarea id="jIn" maxlength="30000" placeholder="${t.journalPh}" required></textarea>
-          <div class="kw-wc" id="jWc">${lang === "zh" ? `0 / ${JOURNAL_MIN_WORDS} 字 · 写满 ${JOURNAL_MIN_WORDS} 字才能得 +12 分` : `0 / ${JOURNAL_MIN_WORDS} words · write ${JOURNAL_MIN_WORDS} to earn +12 points`}</div><div class="kw-wcbar"><i id="jWcBar"></i></div>
+          <div class="kw-wc" id="jWc">${jMin() ? (lang === "zh" ? `0 / ${jMin()} 字 · 写满 ${jMin()} 字才能得 +12 分` : `0 / ${jMin()} words · write ${jMin()} to earn +12 points`) : (lang === "zh" ? "写完保存就能得 +12 分" : "Save an entry to earn +12 points")}</div><div class="kw-wcbar"><i id="jWcBar"></i></div>
           <button class="btn sm primary">${t.saveEntry}</button></form>
         ${journal.map(j => `<div class="entry"><small>${fmtDate(j.date)} · ${wordCount(j.body)} ${lang === "zh" ? "字" : "words"}${journalCounts(j) ? " ⭐+12" : ""} <button class="x" style="opacity:.5;color:#888" data-delj="${j.id}">✕</button></small>${esc(j.body)}</div>`).join("")}</div>`}
       ${kwH("medal", "stick", t.stickerBook, `<span class="tagc">${Object.values(g.got).filter(Boolean).length}/${BADGES.length}</span>`)}
       <div class="kw-stickers">${BADGES.map(([id, em]) => `<div class="kw-sticker ${g.got[id] ? "" : "lock"} ${newly.includes(id) ? "got" : ""}"><span class="se">${g.got[id] ? KI(em, 44) : KI("question", 40)}</span><b>${esc(t.badges[id][0])}</b><small>${g.got[id] ? esc(t.badges[id][1]) : t.locked}</small></div>`).join("")}</div>
-      <div class="kw-card" style="margin-top:22px"><b style="font-family:var(--kfont)">${KI("sparkle", 18)} ${t.howEarn}</b><div class="kw-earn">${t.earnList.map(x => `<span>${esc(x)}</span>`).join("")}</div></div>
       ${marquee()}
     </div>
     <div class="modal-bg" id="avModal"><div class="modal" style="max-width:640px" id="avBody"></div></div>`;
@@ -1324,12 +1326,12 @@ function kidRender() {
   };
   if ($("#propBtn")) $("#propBtn").onclick = () => { const v = $("#propIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("goals").insert({ kid: k.id, text: v, status: "proposed", proposed_by_kid: true }); if (error) throw error; }); };
   if ($("#winForm")) $("#winForm").onsubmit = e => { e.preventDefault(); const v = $("#winIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("entries").insert({ kid: k.id, date: today(), cat: "other", tone: "positive", title: v, by_kid: true }); if (error) throw error; }); };
-  if ($("#jIn")) $("#jIn").oninput = () => { const n = wordCount($("#jIn").value), ok = n >= JOURNAL_MIN_WORDS;
+  if ($("#jIn")) $("#jIn").oninput = () => { const JOURNAL_MIN_WORDS = jMin() || 1, n = wordCount($("#jIn").value), ok = n >= JOURNAL_MIN_WORDS;
     $("#jWc").textContent = ok ? (lang === "zh" ? `${n} 字 · 太棒了！保存就能得 +12 分 ⭐` : `${n} words · awesome! Save it to earn +12 points ⭐`) : (lang === "zh" ? `${n} / ${JOURNAL_MIN_WORDS} 字 · 再写 ${JOURNAL_MIN_WORDS - n} 字就能得 +12 分` : `${n} / ${JOURNAL_MIN_WORDS} words · ${JOURNAL_MIN_WORDS - n} more to earn +12 points`);
     $("#jWc").classList.toggle("ok", ok); $("#jWcBar").style.width = Math.min(100, Math.round(100 * n / JOURNAL_MIN_WORDS)) + "%"; };
   if ($("#jForm")) $("#jForm").onsubmit = e => { e.preventDefault(); const v = $("#jIn").value.trim(); if (!v) return; const n = wordCount(v);
     R(async () => { const { error } = await sb.from("journal").insert({ kid: k.id, date: today(), body: v }); if (error) throw error; })
-      .then(() => { if (!preview && n < JOURNAL_MIN_WORDS) setStatus(lang === "zh" ? `已保存（${n} 字）。写满 ${JOURNAL_MIN_WORDS} 字的日记才能得分哦。` : `Saved (${n} words). Entries with ${JOURNAL_MIN_WORDS}+ words earn points.`); }); };
+      .then(() => { const JOURNAL_MIN_WORDS = jMin(); if (!preview && n < JOURNAL_MIN_WORDS) setStatus(lang === "zh" ? `已保存（${n} 字）。写满 ${JOURNAL_MIN_WORDS} 字的日记才能得分哦。` : `Saved (${n} words). Entries with ${JOURNAL_MIN_WORDS}+ words earn points.`); }); };
   $("#root").onclick = e => {
     const x = e.target.closest("[data-unprop],[data-delwin],[data-delj],[data-kdoc],[data-lwin]"); if (!x) return;
     if (x.dataset.lwin) R(async () => { const { error } = await sb.from("entries").insert({ kid: k.id, date: today(), cat: "other", tone: "positive", title: T().littleWins[+x.dataset.lwin], by_kid: true }); if (error) throw error; });
@@ -1476,4 +1478,118 @@ document.addEventListener("submit", async e => {
     visibility: f.visibility, repeat: f.repeat, repeat_until: f.repeat === "weekly" ? v(f.repeat_until) : null, source: "manual", created_by: S.user?.email || null };
   try { const { error } = await sb.from("calendar_events").insert(row); if (error) throw error; $("#calModal").classList.remove("open"); calSt.day = row.date; calSt.month = monthStart(row.date); setStatus(CL().saved); refresh(); }
   catch (err) { setStatus(err.message, true); }
+});
+
+/* ---------------- POINTS: ledger, reward shop, parent Rewards page ---------------- */
+const DIFFS = ["easy", "medium", "hard", "boss"];
+const DIFF_L = { en: { easy: "Easy ×1", medium: "Medium ×1.5", hard: "Hard ×2", boss: "Boss ×3" }, zh: { easy: "简单 ×1", medium: "中等 ×1.5", hard: "困难 ×2", boss: "首领 ×3" } };
+const diffLabel = d => (DIFF_L[lang] || DIFF_L.en)[d] || d;
+const diffSelect = (name, val, attrs = "") => `<select name="${name}" ${attrs}>${DIFFS.map(d => `<option value="${d}" ${d === (val || "medium") ? "selected" : ""}>${diffLabel(d)}</option>`).join("")}</select>`;
+const ptsOf = kid => { const L = (S.point_ledger || []).filter(r => r.kid === kid), pend = (S.redemptions || []).filter(r => r.kid === kid && r.status === "requested").reduce((s, r) => s + r.cost, 0);
+  const life = L.filter(r => r.source !== "spend").reduce((s, r) => s + r.points, 0), all = L.reduce((s, r) => s + r.points, 0), w = addDays(today(), -6);
+  return { life, balance: all - pend, pending: pend, week: L.filter(r => r.source !== "spend" && r.date >= w).reduce((s, r) => s + r.points, 0), rows: L.slice().sort((a, b) => b.created_at.localeCompare(a.created_at)) }; };
+const PL = {
+  en: { shop: "Reward shop", bal: "Points to spend", life: "Earned all time", week: "This week", get: "Get it", need: n => `${n} more`, asked: "Asked a parent ✓", my: "My requests", recent: "Recent points",
+    st: { requested: "⏳ waiting for a parent", approved: "✅ yes!", declined: "✕ not this time", cancelled: "cancelled" }, cancel: "Cancel", noItems: "No rewards yet — ask Mom or Dad to add some!",
+    sent: "Sent to Mom and Dad! ⏳", notEnough: "Not enough points yet — keep going!", tooMany: "You already have 3 requests waiting.", how: "How points work",
+    rules: ["✅ Daily check-in: +10 (streak bonus: 3 days +5, 7 days +10, 14 days +15, 30 days +20)", "💪 Each habit: 5 × difficulty (Easy ×1, Medium ×1.5, Hard ×2, Boss ×3)", "📅 Hit a weekly habit goal: bonus 5 × weekly target × difficulty",
+      "📈 New best score on a goal: 10 × difficulty · reach the target: 50 × difficulty", "🎯 Finish a goal: 20 × difficulty · 💡 suggest one: +5 (+10 if approved)", "⭐ Log a win: +8 (3 a day) · 👀 a parent notices something great: +10",
+      "📓 Journal: +12 (long entries +20, one a day)", "🎮 Learning apps: harder levels and first-try answers earn more (up to 120 a day per app)", "🎁 Spend points in the reward shop — your level keeps all the points you ever earned"],
+    journalRule: n => n > 0 ? `📓 Journal: +12 for ${n}+ words, +20 for ${n * 2}+ (one a day)` : "📓 Journal: +12 for any entry (one a day)" },
+  zh: { shop: "奖励商店", bal: "可用积分", life: "累计获得", week: "本周", get: "兑换", need: n => `还差 ${n}`, asked: "已发给爸妈 ✓", my: "我的兑换", recent: "最近积分",
+    st: { requested: "⏳ 等爸妈确认", approved: "✅ 同意啦！", declined: "✕ 这次不行", cancelled: "已取消" }, cancel: "取消", noItems: "还没有奖励——请爸爸妈妈添加！",
+    sent: "已发给爸爸妈妈！⏳", notEnough: "积分还不够——继续加油！", tooMany: "你已经有 3 个兑换在等待。", how: "积分怎么得",
+    rules: ["✅ 每日打卡：+10（连续 3 天 +5，7 天 +10，14 天 +15，30 天 +20）", "💪 每个习惯：5 × 难度（简单 ×1，中等 ×1.5，困难 ×2，首领 ×3）", "📅 完成每周习惯目标：额外 5 × 每周次数 × 难度",
+      "📈 目标创新纪录：10 × 难度 · 达成目标：50 × 难度", "🎯 完成目标：20 × 难度 · 💡 提出目标：+5（通过再 +10）", "⭐ 记录进步：+8（每天 3 次）· 👀 爸妈看到你的好表现：+10",
+      "📓 写日记：+12（长篇 +20，每天一篇）", "🎮 学习应用：难度越高、一次做对，分越多（每个应用每天最多 120）", "🎁 积分可以在奖励商店兑换——等级会保留你得到过的全部积分"],
+    journalRule: n => n > 0 ? `📓 写日记：${n} 字以上 +12，${n * 2} 字以上 +20（每天一篇）` : "📓 写日记：每篇 +12（每天一篇）" } };
+const PLL = () => PL[lang] || PL.en;
+const ledgerLabel = r => lang === "zh" && r.label_zh ? r.label_zh : (r.label || r.source);
+// apps call window.parent.fhAward(app, ref, points, label, label_zh) — only a signed-in boy earns; the database caps it
+let awardQ = Promise.resolve();
+window.fhAward = (app, ref, points, label, label_zh) => {
+  if (!isKid() || preview) return;
+  awardQ = awardQ.then(async () => {
+    try { const { data } = await sb.rpc("award_app_points", { p_app: app, p_ref: String(ref), p_points: Math.round(points), p_label: label, p_label_zh: label_zh || null });
+      if (data > 0) { const chip = document.createElement("div"); chip.className = "ptchip"; chip.textContent = `+${data} ⭐`; document.body.appendChild(chip); setTimeout(() => chip.remove(), 2200); awardsDirty = true; } } catch (e) {}
+  });
+};
+let awardsDirty = false;
+function kidShopHtml(k) {
+  const L = PLL(), p = ptsOf(k.id), items = (S.rewards || []).filter(r => r.active && (!r.kid || r.kid === k.id)).sort((a, b) => a.cost - b.cost || a.sort - b.sort);
+  const reqs = (S.redemptions || []).filter(r => r.kid === k.id).sort((a, b) => b.requested_at.localeCompare(a.requested_at)).slice(0, 6);
+  const eb = { voxel: ["Treat yourself", "犒劳自己"], pixel: ["Item shop", "道具商店"] }[kiTheme()];
+  return `<div class="kw-h">${eb ? `<span class="kw-eyebrow">${lang === "zh" ? eb[1] : eb[0]}</span>` : ""}<span class="kw-ht">${KI("coin", 28)} ${L.shop}</span></div>
+    <div class="kw-card kshop"><div class="kbal"><div>${KI("coin", 34)}<b>${p.balance}</b><small>${L.bal}</small></div><div><b>${p.life}</b><small>${L.life}</small></div><div><b>+${p.week}</b><small>${L.week}</small></div></div>
+      <div class="kshop-items">${items.length ? items.map(r => { const can = p.balance >= r.cost, waiting = reqs.some(x => x.reward_id === r.id && x.status === "requested");
+        return `<div class="kitem ${can ? "can" : ""}"><span class="kic">${KI(r.icon || "🎁", 40)}</span><b>${esc(lang === "zh" && r.title_zh ? r.title_zh : r.title)}</b><span class="kcost">${KI("coin", 16)} ${r.cost}</span>
+          ${waiting ? `<span class="meta">${L.asked}</span>` : can ? `<button class="btn sm primary" data-redeem="${r.id}">${L.get}</button>` : `<span class="meta">${L.need(r.cost - p.balance)}</span><div class="kneed"><i style="width:${Math.max(4, Math.min(100, Math.round(100 * Math.max(0, p.balance) / r.cost)))}%"></i></div>`}</div>`; }).join("") : `<div class="meta">${L.noItems}</div>`}</div>
+      ${reqs.length ? `<div class="kreqs"><b>${L.my}</b>${reqs.map(r => `<div class="kreq"><span>${esc(r.title)} · ${KI("coin", 14)} ${r.cost}</span><span class="meta">${L.st[r.status] || r.status}${r.note ? " — " + esc(r.note) : ""}</span>${r.status === "requested" ? `<button class="x" style="opacity:.7" data-unredeem="${r.id}" title="${L.cancel}">✕</button>` : ""}</div>`).join("")}</div>` : ""}
+      ${p.rows.length ? `<details class="krecent"><summary><b>${L.recent}</b></summary>${p.rows.slice(0, 15).map(r => `<div class="kpt"><span class="${r.points < 0 ? "neg" : ""}">${r.points > 0 ? "+" : ""}${r.points}</span>${esc(ledgerLabel(r))}<small>${fmtDate(r.date)}</small></div>`).join("")}</details>` : ""}
+      <details class="krecent"><summary><b>${L.how}</b></summary><ul class="krules">${L.rules.map((x, i) => `<li>${esc(i === 6 ? L.journalRule(k.journal_min_words ?? 500) : x)}</li>`).join("")}</ul></details></div>`;
+}
+document.addEventListener("click", async e => {
+  if (!document.body.classList.contains("kidmode")) return;
+  const a = e.target.closest("[data-redeem]"), c = e.target.closest("[data-unredeem]"); if (!a && !c) return;
+  const L = PLL(); if (preview) return setStatus(T().previewNoSave);
+  try {
+    if (a) { a.disabled = true; const { error } = await sb.rpc("kid_redeem", { p_reward: a.dataset.redeem }); if (error) throw new Error(/not_enough/.test(error.message) ? L.notEnough : /too_many/.test(error.message) ? L.tooMany : error.message); setStatus(L.sent); confetti(); }
+    else { const { error } = await sb.rpc("kid_cancel_redeem", { p_id: c.dataset.unredeem }); if (error) throw error; }
+    await loadAll(); kidRender();
+  } catch (err) { setStatus(err.message, true); if (a) a.disabled = false; }
+});
+
+/* parents: 🎁 Rewards page */
+let rwKid = null;
+function viewRewards() {
+  const t = T(), L = PLL(), zh = lang === "zh"; rwKid ||= S.kids[0]?.id;
+  const pend = (S.redemptions || []).filter(r => r.status === "requested").sort((a, b) => a.requested_at.localeCompare(b.requested_at));
+  const p = ptsOf(rwKid), k = S.kids.find(x => x.id === rwKid) || {};
+  const habits = S.metrics.filter(m => m.kid === rwKid), goals = S.goals.filter(g => g.kid === rwKid && g.status !== "proposed" && !g.done);
+  $("#view").innerHTML = `<div class="section-h"><h3>🎁 ${zh ? "积分与奖励" : "Points & rewards"}</h3></div>
+    <div class="rwgrid">${S.kids.map(x => { const q = ptsOf(x.id); return `<div class="rwk" style="--kc:${calCol(x.id)}"><b>${esc(kidName(x.id))}</b><div><span>${q.balance}</span><small>${L.bal}</small></div><div><span>${q.life}</span><small>${L.life}</small></div><div><span>+${q.week}</span><small>${L.week}</small></div></div>`; }).join("")}</div>
+    <div class="card rwcard"><h4>⏳ ${zh ? "等待确认的兑换" : "Requests waiting for you"} (${pend.length})</h4>${pend.length ? pend.map(r => `<div class="rwreq"><div><b>${esc(kidName(r.kid))}</b> · ${esc(r.title)} · ${r.cost} ${zh ? "分" : "pts"}<div class="meta">${new Date(r.requested_at).toLocaleString()}</div></div>
+      <input class="rwnote" data-note="${r.id}" maxlength="200" placeholder="${zh ? "备注（可选）" : "Note (optional)"}"><button class="btn sm primary" data-decide="${r.id}" data-ok="1">${zh ? "同意" : "Approve"}</button><button class="btn sm" data-decide="${r.id}" data-ok="0">${zh ? "不同意" : "Decline"}</button></div>`).join("") : `<div class="meta">${zh ? "没有等待中的兑换。" : "Nothing waiting."}</div>`}</div>
+    <div class="tabs" style="margin:18px 0 12px;width:max-content;max-width:100%">${S.kids.map(x => `<button class="${x.id === rwKid ? "on" : ""}" data-rwk="${esc(x.id)}">${esc(kidName(x.id))}</button>`).join("")}</div>
+    <div class="rwcols">
+      <div class="card rwcard"><h4>🎚️ ${zh ? "难度（决定得分）" : "Difficulty (sets the points)"}</h4><p class="meta">${zh ? "习惯每次 5 × 难度；每周目标、新纪录、达成目标和完成目标也按难度加倍。" : "Each habit tap is 5 × difficulty; weekly bonuses, new bests, reaching a target and finishing a goal scale the same way."}</p>
+        ${habits.map(m => `<div class="rwrow"><span>${esc(zh && m.name_zh ? m.name_zh : m.name)} <span class="meta">${m.type === "rate" ? (zh ? `每周 ${m.per_week} 次` : `${m.per_week}×/week`) : (zh ? "分数目标" : "score goal")}</span></span>${diffSelect("d", m.difficulty, `data-mdiff="${esc(m.id)}"`)}</div>`).join("") || `<div class="meta">—</div>`}
+        ${goals.length ? `<h5>${zh ? "目标" : "Goals"}</h5>` + goals.map(g => `<div class="rwrow"><span>${esc(g.text)}</span>${diffSelect("d", g.difficulty, `data-gdiff="${g.id}"`)}</div>`).join("") : ""}
+        <div class="rwrow" style="margin-top:12px"><span>📓 ${zh ? "日记最少字数（0 = 不限）" : "Journal minimum words (0 = no minimum)"}</span><input type="number" min="0" max="5000" step="50" value="${k.journal_min_words ?? 500}" data-jmin="${esc(rwKid)}" style="width:100px"></div></div>
+      <div class="card rwcard"><h4>🌟 ${zh ? "额外奖励" : "Give bonus points"}</h4><p class="meta">${zh ? "表扬努力、勇气、善良——说清楚为什么。" : "Reward effort, courage or kindness — say what for."}</p>
+        <form id="bonusForm" class="rwbonus"><input name="pts" type="number" min="1" max="500" value="20" required><input name="why" maxlength="120" required placeholder="${zh ? "为什么？例如：主动帮弟弟" : "What for? e.g. helped Jonah without being asked"}"><button class="btn sm primary">${zh ? "奖励" : "Give"} ${esc(kidName(rwKid))}</button></form>
+        <h4 style="margin-top:18px">🧾 ${esc(kidName(rwKid))} · ${L.recent}</h4>${p.rows.slice(0, 25).map(r => `<div class="kpt"><span class="${r.points < 0 ? "neg" : ""}">${r.points > 0 ? "+" : ""}${r.points}</span>${esc(ledgerLabel(r))}<small>${fmtDate(r.date)}</small></div>`).join("") || `<div class="meta">—</div>`}</div></div>
+    <div class="card rwcard" style="margin-top:16px"><h4>🛒 ${zh ? "奖励清单" : "Reward shop items"}</h4><p class="meta">${zh ? "大约：每天认真做 ≈ 60–100 分。" : "Rough guide: a solid day ≈ 60–100 points."}</p>
+      ${(S.rewards || []).slice().sort((a, b) => a.cost - b.cost).map(r => `<div class="rwrow rwitem ${r.active ? "" : "off"}"><span>${esc(r.icon || "🎁")} ${esc(r.title)}${r.title_zh ? ` <span class="meta">${esc(r.title_zh)}</span>` : ""}${r.kid ? ` <span class="chip">${esc(kidName(r.kid))}</span>` : ""}</span>
+        <input type="number" min="10" max="100000" value="${r.cost}" data-rcost="${r.id}" style="width:90px"><button class="btn sm" data-ract="${r.id}">${r.active ? (zh ? "下架" : "Hide") : (zh ? "上架" : "Show")}</button><button class="x" data-rdel="${r.id}">✕</button></div>`).join("")}
+      <form id="rewardForm" class="rwadd"><input name="icon" maxlength="4" value="🎁" style="width:56px"><input name="title" required maxlength="80" placeholder="${zh ? "奖励（英文）" : "Reward"}"><input name="title_zh" maxlength="60" placeholder="中文（可选）"><input name="cost" type="number" min="10" max="100000" value="300" required style="width:90px">
+        <select name="kid"><option value="">${zh ? "所有孩子" : "All boys"}</option>${S.kids.map(x => `<option value="${esc(x.id)}">${esc(kidName(x.id))}</option>`).join("")}</select><button class="btn sm primary">${zh ? "添加" : "Add"}</button></form></div>`;
+}
+document.addEventListener("click", async e => {
+  if (document.body.classList.contains("kidmode")) return;
+  const tab = e.target.closest("[data-rwk]"); if (tab) { rwKid = tab.dataset.rwk; return viewRewards(); }
+  const dec = e.target.closest("[data-decide]");
+  try {
+    if (dec) { const note = document.querySelector(`[data-note="${dec.dataset.decide}"]`)?.value || null; const { error } = await sb.rpc("parent_decide_redemption", { p_id: dec.dataset.decide, p_approve: dec.dataset.ok === "1", p_note: note }); if (error) throw error; setStatus("✓"); return refresh(); }
+    const act = e.target.closest("[data-ract]"); if (act) { const r = S.rewards.find(x => x.id === act.dataset.ract); const { error } = await sb.from("rewards").update({ active: !r.active }).eq("id", r.id); if (error) throw error; return refresh(); }
+    const rd = e.target.closest("[data-rdel]"); if (rd) { if (!rd.dataset.armed) { rd.dataset.armed = 1; rd.textContent = "?"; return; } const { error } = await sb.from("rewards").delete().eq("id", rd.dataset.rdel); if (error) throw error; return refresh(); }
+  } catch (err) { setStatus(err.message, true); }
+});
+document.addEventListener("change", async e => {
+  const el = e.target; if (document.body.classList.contains("kidmode")) return;
+  try {
+    if (el.dataset.mdiff) { const { error } = await sb.from("metrics").update({ difficulty: el.value }).eq("id", el.dataset.mdiff); if (error) throw error; setStatus("✓ " + diffLabel(el.value)); return refresh(); }
+    if (el.dataset.gdiff) { const { error } = await sb.from("goals").update({ difficulty: el.value }).eq("id", el.dataset.gdiff); if (error) throw error; setStatus("✓ " + diffLabel(el.value)); return refresh(); }
+    if (el.dataset.jmin) { const { error } = await sb.from("kids").update({ journal_min_words: Math.max(0, Math.min(5000, +el.value || 0)) }).eq("id", el.dataset.jmin); if (error) throw error; setStatus("✓"); return refresh(); }
+    if (el.dataset.rcost) { const { error } = await sb.from("rewards").update({ cost: Math.max(10, +el.value || 10) }).eq("id", el.dataset.rcost); if (error) throw error; setStatus("✓"); return refresh(); }
+  } catch (err) { setStatus(err.message, true); }
+});
+document.addEventListener("submit", async e => {
+  const f = e.target; if (f.id !== "bonusForm" && f.id !== "rewardForm") return; e.preventDefault();
+  const v = Object.fromEntries(new FormData(f));
+  try {
+    if (f.id === "bonusForm") { const { error } = await sb.rpc("parent_bonus", { p_kid: rwKid, p_points: +v.pts, p_reason: v.why.trim() }); if (error) throw error; setStatus(`+${v.pts} → ${kidName(rwKid)} 🌟`); }
+    else { const { error } = await sb.from("rewards").insert({ icon: v.icon || "🎁", title: v.title.trim(), title_zh: v.title_zh?.trim() || null, cost: +v.cost, kid: v.kid || null, sort: (S.rewards || []).length + 1 }); if (error) throw error; }
+    refresh();
+  } catch (err) { setStatus(err.message, true); }
 });
