@@ -400,6 +400,10 @@ body.duelfocus main{padding-top:6px}
 .bchip{display:inline-block;border:2px solid var(--line);border-radius:999px;padding:1px 8px;margin:2px;font-size:12px;background:#fff}.bchip.g{background:#c9f7d9}.bchip.b{background:#ffd3cf}
 .brs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}.brs span{background:#eef2f7;border:2px solid var(--line);border-radius:10px;padding:2px 8px;font-size:15px;font-weight:700}
 .brclue{background:#efe6ff;border:3px solid var(--line);border-radius:12px;padding:8px 12px;margin:6px 0 10px;font-size:18px}
+.rivalcard{background:linear-gradient(135deg,#ede9fe,#e0f2fe)!important;border:3px solid #16161d}
+.rvgrid{display:grid;grid-template-columns:1fr 150px;gap:12px;align-items:start}.rvgrid ul{margin:4px 0 6px;padding-left:20px}.rvside{text-align:center}
+.rvbars{display:flex;align-items:flex-end;gap:3px;height:48px;justify-content:center;margin-top:4px}.rvbars i{display:block;width:8px;background:#7c3aed;border-radius:3px 3px 0 0;min-height:4px}
+@media (max-width:640px){.rvgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1617,6 +1621,103 @@ const reachMax=()=>hasPerk('reach')?4:3;
 const inRange=d=>d>=2&&d<=reachMax();
 const oppRange=d=>d>=2&&d<=3;
 
+// ---------- 🥷 SHADOW: Ellis's rival. Once a day it studies his own Piste Duel decisions and evolves. ----------
+// • Level: goes up when Ellis beats it, eases off when he's struggling (keeps bouts close = best learning).
+// • Exploits his habits: it starts every bout already knowing his long-term tendencies.
+// • Teaches: it deliberately creates the situations he handles worst (and Coach's latest lesson focus),
+//   and the daily scouting report tells him the better answers, worked out with the same rules that judge every touch.
+state.evo=state.evo||{lvl:1,day:'',hist:[]};
+const evoToday=()=>new Date().toLocaleDateString('en-CA');
+const EVO_BANDS={far:'far away (5+)',edge:'at distance 4',mid:'in attack range (2–3)',close:'very close (1)'};
+const EVO_D={far:5,edge:4,mid:3,close:1};
+// Coach's lesson words → the opponent actions that make Ellis practise them
+const EVO_COACH=[
+ [/distance|距离/i,['fwd','back'],'distance'],
+ [/retreat|step back|后退|退/i,['lunge','rhythm','fwd'],'stepping back fast'],
+ [/counter|riposte|反击/i,['lunge','fwd'],'counter-attacks'],
+ [/blade|控制|剑|beat|parry|格挡/i,['line','lunge','beat'],'controlling his blade'],
+ [/initiative|主动|attack|进攻/i,['parry','back','retreat'],'taking the initiative'],
+ [/disturb|干扰|fake|feint|假/i,['parry','counter'],'disturbing the opponent']];
+function evoCoach(){
+  const raw=store.get('coachNotes',null),list=Array.isArray(raw)?raw:[];const last=list[0];if(!last)return null;
+  const txt=[last.focus,...(last.points||[]),...(last.homework||[]),last.raw_notes].filter(Boolean).join(' ');
+  const acts=[],labels=[];EVO_COACH.forEach(([re,a,lab])=>{if(re.test(txt)){a.forEach(x=>{if(!acts.includes(x))acts.push(x)});labels.push(lab)}});
+  return acts.length?{acts,labels,date:last.date}:null;
+}
+function evoBest(o,band,avoid){ // which of Ellis's moves work best when the opponent does o at this distance
+  const d=EVO_D[band]||3,val=r=>r.pt==='E'?10:r.pt==='O'?-10:r.grade*3,out=[];
+  Object.keys(PD_ACTS).filter(k=>k!=='read'&&k!=='remise'&&unlocked(k)).forEach(e=>{
+    const S={lineE:false,lineO:false,oR:3,me:5,op:5+d,vulE:false,vulO:false,pline:'high',pcirc:false,det:true};
+    let v;try{v=e==='lunge'?Math.max(...Object.keys(TGT).map(t=>val(pdResolve('lunge',o,Object.assign({},S,{atk:t}))))):val(pdResolve(e,o,S))}catch(err){return}
+    out.push({e,v})});
+  out.sort((a,b)=>b.v-a.v);const bad=out.find(x=>x.e===avoid),floor=bad?Math.max(0,bad.v+.01):0;
+  return out.filter(x=>x.e!==avoid&&x.v>=floor&&x.v>=0).slice(0,2).map(x=>x.e);
+}
+function evoAnalyze(){
+  const since=Date.now()-14*864e5,duels=perfLocal.filter(r=>r.type==='duel'&&r.ts>=since);
+  const steps=duels.flatMap(r=>r.steps||[]).filter(s=>s&&s.o&&PD_ACTS[s.o]);
+  const sit={};steps.forEach(s=>{const k=pdBand(s.d)+'|'+s.o,x=sit[k]=sit[k]||{k,n:0,g:0,opT:0,meT:0,e:{}};x.n++;x.g+=s.g||0;if(s.pt==='O')x.opT++;if(s.pt==='E')x.meT++;x.e[s.e]=(x.e[s.e]||0)+1});
+  const L=Object.values(sit).map(x=>{const[band,o]=x.k.split('|');const top=Object.keys(x.e).filter(e=>e!=='freeze').sort((a,b)=>x.e[b]-x.e[a])[0];
+    return Object.assign(x,{band,o,top,topP:top?x.e[top]/x.n:0,score:(x.opT/x.n*2-x.g/x.n)*Math.sqrt(x.n),good:(x.meT/x.n*2+x.g/x.n)*Math.sqrt(x.n)})});
+  const weak=L.filter(x=>x.n>=5&&x.score>.4).sort((a,b)=>b.score-a.score).slice(0,3).map(x=>({o:x.o,band:x.band,n:x.n,top:x.top,lost:Math.round(x.opT/x.n*100),best:evoBest(x.o,x.band,x.top)}));
+  const habits=L.filter(x=>x.n>=4&&x.top&&x.topP>=.6&&x.g/x.n<1).sort((a,b)=>b.topP-a.topP).slice(0,3).map(x=>({o:x.o,band:x.band,e:x.top,p:Math.round(x.topP*100)}));
+  const strong=L.filter(x=>x.n>=4&&x.good>1).sort((a,b)=>b.good-a.good).slice(0,2).map(x=>({o:x.o,band:x.band,e:x.top}));
+  const timed=steps.filter(s=>s.e!=='freeze'&&s.ms>0);
+  return {n:steps.length,bouts:duels.length,weak,habits,strong,frz:steps.length?Math.round(steps.filter(s=>s.e==='freeze').length/steps.length*100):0,
+    secs:timed.length?+(timed.reduce((a,s)=>a+s.ms,0)/timed.length/1000).toFixed(1):null};
+}
+function evolveDaily(force){
+  const prev=state.evo||{lvl:1,hist:[]},today=evoToday();
+  if(prev.day===today&&!force&&!(prev.steps===0&&perfLocal.some(r=>r.type==='duel'&&(r.steps||[]).length)))return false;
+  const A=evoAnalyze(),rb=perfLocal.filter(r=>r.type==='duel'&&r.opp==='rival'&&r.finished&&r.ts>(prev.at||0));
+  const w=rb.filter(r=>r.won).length,n=rb.length;let lvl=prev.lvl||1,why;
+  if(n){const wr=w/n;
+    if(wr>=.67){lvl+=n>=3&&wr===1?2:1;why=`You beat Shadow ${w} of ${n} time${n>1?'s':''}, so it trained harder overnight.`}
+    else if(wr<=.25&&n>=2){lvl=Math.max(1,lvl-1);why=`Shadow won ${n-w} of ${n}. It eased off a little so you can practise the right answers.`}
+    else why=`Close fights (${w}–${n-w})! Shadow stays at this level, but it studied your moves again.`}
+  else why=prev.day?'No Shadow bouts since last time. It still studied your other duels.':(A.n?'Shadow has been watching your duels and is ready.':'Shadow is brand new. Fence any Piste Duel and it starts learning.');
+  lvl=Math.min(lvl,tierOpen(2)?30:tierOpen(1)?20:10);
+  const tier=lvl<=10?0:lvl<=20?1:2,ok=k=>PD_ACTS[k]&&k!=='read'&&k!=='remise'&&(PD_ACTS[k].tier||0)<=tier;
+  const coach=evoCoach(),focus=[];
+  A.weak.forEach(x=>{if(ok(x.o)&&!focus.includes(x.o))focus.push(x.o)});
+  if(coach)coach.acts.filter(ok).slice(0,2).forEach(k=>{if(!focus.includes(k))focus.push(k)});
+  state.evo={lvl,tier,day:today,at:Date.now(),why,focus:focus.slice(0,4),weak:A.weak,habits:A.habits,strong:A.strong,coach:coach?coach.labels:[],
+    frz:A.frz,secs:A.secs,steps:A.n,bouts:A.bouts,rec:{w,n},
+    hist:(prev.hist||[]).filter(h=>h.d!==today).concat([{d:today,lvl,w,n,f:focus[0]||null}]).slice(-60)};
+  save();perfLog({type:'evolve',lvl,from:prev.lvl||1,w,n,focus:state.evo.focus,weak:A.weak.map(x=>x.band+'|'+x.o),habits:A.habits.map(x=>x.band+'|'+x.o+'>'+x.e)});
+  return true;
+}
+const evoN=k=>PD_ACTS[k]?PD_ACTS[k].i+' '+PD_ACTS[k].n:k;
+function evoTips(){
+  const v=state.evo,t=[];
+  (v.habits||[]).slice(0,2).forEach(h=>t.push(`I noticed: when I ${evoN(h.o)} ${EVO_BANDS[h.band]}, you ${evoN(h.e)} ${h.p}% of the time. I'll be ready for it. Surprise me!`));
+  (v.weak||[]).slice(0,2).forEach(x=>t.push(`Today I'll keep using ${evoN(x.o)} ${EVO_BANDS[x.band]}.${x.best.length?` Best answers: ${x.best.map(evoN).join(' or ')}.`:''}`));
+  if(v.coach&&v.coach.length)t.push(`Coach's lesson is about ${v.coach.slice(0,2).join(' and ')}, so I'll make you practise it.`);
+  if(!t.length)t.push('I learn from every decision you make. Fence me, and tomorrow I\'ll be different!');
+  return t;
+}
+function rivalOpp(){
+  const v=state.evo,l=v.lvl||1,tier=v.tier!=null?v.tier:(l<=10?0:l<=20?1:2);
+  return {id:'rival',e:'🥷',n:`Shadow v${l}`,style:'mixed',tier,idx:0,win:l<4?5:l<12?10:15,t:Math.max(4.5,+(14-l*.35).toFixed(1)),tell:1,
+    learn:Math.min(2,.3+l*.06),wheel:Math.min(1.6,l*.05),champ:l>=8?{ant:Math.min(.7,.15+l*.02),react:Math.min(.3,l*.01),poker:0,reach:l>=14?4:3}:null,
+    final:false,moves:'all',edge:l>=6?1:0,rival:true,focus:v.focus||[],type:'Your rival: it learns from YOUR decisions every day',tips:evoTips(),hint:''};
+}
+ALLOPP.rival=rivalOpp();
+function rivalCard(){
+  const v=state.evo,o=ALLOPP.rival=rivalOpp(),h=(v.hist||[]).slice(-14),mx=Math.max(3,...h.map(x=>x.lvl));
+  return `<div class="tier rivalcard"><div class="tierh"><b>🥷 ${o.n}: your rival</b> <span class="small">Evolves every day from YOUR decisions · first to ${o.win} · ⏱️ ${o.t}s</span></div>
+   <div class="rvgrid"><div>
+    <div class="small">📅 Today's scouting report</div>
+    <p style="margin:4px 0">📈 ${esc2(v.why||'')}</p>
+    ${(v.habits||[]).length?`<div><b>🔍 Shadow noticed your habits</b><ul>${v.habits.map(x=>`<li>When it does ${evoN(x.o)} ${EVO_BANDS[x.band]}, you ${evoN(x.e)} <b>${x.p}%</b> of the time.</li>`).join('')}</ul></div>`:''}
+    ${(v.weak||[]).length?`<div><b>🎯 Today it will test you on</b><ul>${v.weak.map(x=>`<li>${evoN(x.o)} ${EVO_BANDS[x.band]} <span class="small">(you lost the touch ${x.lost}% of the time${x.top?`, usually with ${evoN(x.top)}`:''})</span>${x.best.length?`<br>✅ Try: <b>${x.best.map(evoN).join(' or ')}</b>`:''}</li>`).join('')}</ul></div>`:''}
+    ${(v.strong||[]).length?`<div><b>💪 You're strong at</b> ${v.strong.map(x=>`${evoN(x.e)} vs ${evoN(x.o)}`).join(', ')}</div>`:''}
+    ${v.coach&&v.coach.length?`<div>🦉 Coach's focus it will practise with you: <b>${v.coach.slice(0,3).join(', ')}</b></div>`:''}
+    ${v.secs?`<div class="small" style="margin-top:4px">⏱️ You decide in ${v.secs}s on average${v.frz>=10?` · ❄️ froze ${v.frz}% of the time: pick something, even a step back!`:''}</div>`:''}
+    ${!v.steps?'<div class="small">Shadow hasn\'t seen you fence yet. Any Piste Duel teaches it about you.</div>':''}
+   </div><div class="rvside"><div style="font-size:54px">🥷</div><button class="btn" id="rvGo">⚔️ Fight Shadow</button>
+    <div class="small" style="margin-top:6px">Level history</div><div class="rvbars">${h.map(x=>`<i title="${x.d}: v${x.lvl}${x.n?` · you won ${x.w}/${x.n}`:''}" style="height:${Math.round(x.lvl/mx*100)}%"></i>`).join('')||'<span class="small">starts today</span>'}</div></div></div></div>`;
+}
 // ---------- menu ----------
 function pdLevels(){
   const lv=pdLv(),x=state.pdx.xp,nx=PD_LVL[lv]||null;
@@ -1632,7 +1733,8 @@ function pdLevels(){
   if($('pdPerkBtn'))$('pdPerkBtn').onclick=pickPerk;
   document.querySelectorAll('[data-df]').forEach(b=>b.onclick=()=>{state.pdDiff=b.dataset.df;save();pdLevels();toast(DIFF[state.pdDiff].n+' mode')});
   $('skip12').onclick=()=>pdSkip(1);$('skip14').onclick=()=>pdSkip(2);
-  $('pdLevels').innerHTML=PTIERS.map((T,ti)=>{const tOpen=lv>=T.req&&(ti===0||state.pdWins[PTIERS[ti-1].opps.slice(-1)[0].id]);
+  try{evolveDaily()}catch(e){console.error(e)}
+  $('pdLevels').innerHTML=rivalCard()+PTIERS.map((T,ti)=>{const tOpen=lv>=T.req&&(ti===0||state.pdWins[PTIERS[ti-1].opps.slice(-1)[0].id]);
     const champ=state.pdWins[T.opps.slice(-1)[0].id];
     return `<div class="tier" style="background:${T.col}"><div class="tierh"><b>${T.n}</b> <span class="small">${T.sub}</span>${champ?' 🏆 Champion!':''}${tOpen?'':` <span class="tagd close">🔒 Fencer Lv ${T.req}${ti?' + beat the '+PTIERS[ti-1].n+' champion':''}</span>`}</div>
     <div class="bosses">${T.opps.map((o,i)=>{const open=tOpen&&(i===0||state.pdWins[T.opps[i-1].id]),won=state.pdWins[o.id];
@@ -1640,6 +1742,7 @@ function pdLevels(){
         <div class="small"><b>${o.final?'🏆 DE FINAL':'POOL BOUT '+(i+1)}</b></div><div class="e">${open||won?o.e:'🔒'}</div><b>${open||won?o.n:'???'}</b>
         <div class="small">${open||won?`${o.type}<br>First to ${o.win} · ⏱️ ${o.t}s`:''}<br>${won?'✅ Won':''}</div></button>`}).join('')}</div></div>`}).join('');
   $('pdLevels').querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{if(!b.disabled)pdScout(b.dataset.o)});
+  if($('rvGo'))$('rvGo').onclick=()=>{ALLOPP.rival=rivalOpp();pdScout('rival')};
 }
 function pdSkip(t){
   const lvl=t===1?11:14,ids=PTIERS.slice(0,t).flatMap(T=>T.opps.map(o=>o.id));
@@ -1678,17 +1781,19 @@ function pickPerk(){
 function pdScout(id){
   const o=ALLOPP[id],T=PTIERS[o.tier];
   $('pdModal').innerHTML=`<div class="modalBox" style="width:min(480px,92vw);text-align:left"><div style="text-align:center"><div style="font-size:56px">${o.e}</div>
-    <h2 style="margin:0">${o.n}</h2><div class="small">${T.n} · ${o.final?'Direct elimination':'Pool bout'} · first to ${o.win} touches</div></div>
-    <h3 style="margin:12px 0 4px">📋 Scouting report</h3><div><b>Type:</b> ${o.type}</div>
+    <h2 style="margin:0">${o.n}</h2><div class="small">${o.rival?'Your rival · it learns from you every day':T.n+' · '+(o.final?'Direct elimination':'Pool bout')} · first to ${o.win} touches</div></div>
+    <h3 style="margin:12px 0 4px">📋 ${o.rival?'Shadow says…':'Scouting report'}</h3><div><b>Type:</b> ${o.type}</div>
     <ul style="margin:6px 0 0;padding-left:20px">${o.tips.map(t=>`<li>${t}</li>`).join('')}</ul>
     <div class="row" style="justify-content:center;margin-top:14px"><button class="btn" id="scGo">⚔️ En garde!</button><button class="btn ghost" id="scNo">Back</button></div></div>`;
   $('pdModal').classList.add('on');$('scGo').onclick=()=>{$('pdModal').classList.remove('on');pdStart(id)};$('scNo').onclick=()=>$('pdModal').classList.remove('on');
 }
 function pdStart(id){
+  if(id==='rival')ALLOPP.rival=rivalOpp();
   const L=ALLOPP[id];PD={M:{},raw:[],t0:Date.now(),id,L,tgtHist:[],guard:null,steps:[],paused:false,score:[0,0],hist:[],step:0,over:false,combo:0,gained:0,streakE:0,style:L.style,spun:0};
   $('pdPick').style.display='none';$('pdGame').style.display='block';$('pdOver').style.display='none';document.body.classList.add('duelfocus');window.scrollTo(0,0);
   $('pdName').textContent=`${PTIERS[L.tier].n} · ${L.e} ${L.n}`;$('pdHoot').innerHTML='📋 <b>Scouting:</b> '+L.tips.join(' ');$('pdSteps').innerHTML='';$('pdPauseOv').style.display='none';$('pdPauseBtn').textContent='⏸️ Pause';
   $('fOp').textContent=L.e;
+  if(L.rival)Object.entries(PDG).forEach(([k,g])=>{PD.M[k]={};Object.entries(g).forEach(([e,c])=>PD.M[k][e]=c*.4)}); // Shadow already knows his habits
   pdReset();
 }
 function pdReset(){
@@ -1715,6 +1820,7 @@ function pdAI(){
     blade:{beat:3.5,fake:1.5,compound:2,line:1.5},hawk:{counter:4,parry:1.5,fwd:.6},second:{fake:2.5,lure:2.2,retreat:1.8,parry:2,counter:1.5,second:3.5,ctime:1.5},
     grizzly:{fwd:3,rhythm:3,lunge:2.5,beat:1.5,back:.2,fleche:3},cobra:{parry:3.5,back:1.5,retreat:2,lure:1.5,fwd:.4,line:3,ctime:2},wheel:{},mixed:{}}[st]||{};
   Object.keys(MUL).forEach(k=>w[k]*=MUL[k]);
+  if(L.focus&&L.focus.length)L.focus.forEach(k=>{if(w[k]>0)w[k]+=2.5}); // Shadow: practise today's weak spots
   // strip awareness: corner him at the end; don't back off your own end
   const meEdge=PD.me<=1,opEdge=PD.op>=STRIP-2;
   if(L.edge&&meEdge){w.fwd+=3;w.lunge+=2;w.counter+=1}
@@ -1836,7 +1942,7 @@ function pdThink(H){
   const cands=[];
   allow.forEach(o=>{(honestOnly?[o]:tells).forEach(t=>{
     const P=pdPredict(pdKey(d,t,PD.vulE,PD.vulO),eActs);let ev=0;eActs.forEach(e=>ev+=P[e]*pay[o][e]);
-    ev+=1.2*((W[o]||0)/wmax);cands.push({o,t,ev})})});
+    ev+=1.2*((W[o]||0)/wmax);if(L.focus&&L.focus.includes(o))ev+=.8;cands.push({o,t,ev})})});
   const tau=Math.max(.35,2.4-2*pdAdapt());const mx=Math.max(...cands.map(c=>c.ev));
   let tot=0;cands.forEach(c=>{c.p=Math.exp((c.ev-mx)/tau);tot+=c.p});let r=Math.random()*tot;
   for(const c of cands){r-=c.p;if(r<=0)return c}return cands[0];
@@ -2099,7 +2205,7 @@ function pdPoint(w){
   if(PD.score[0]>=PD.L.win||PD.score[1]>=PD.L.win)return pdLater(pdEnd,1800);
   pdLater(pdReset,3200);
 }
-function pdNextOpp(id){const o=ALLOPP[id],T=PTIERS[o.tier];
+function pdNextOpp(id){const o=ALLOPP[id],T=PTIERS[o.tier];if(o.rival)return null;
   if(o.idx<T.opps.length-1)return T.opps[o.idx+1];const N=PTIERS[o.tier+1];return N&&pdLv()>=N.req?N.opps[0]:null}
 function pdEnd(){
   perfDuel(true);store.set('pdModel',PDG);
@@ -2157,6 +2263,7 @@ function genBest(R,focus){
     if(focus==='prep')o=brPick(['parry','parry','line','counter'].filter(k=>theirs.includes(k)));
     if(focus==='counter')o=brPick(['fwd','rhythm','counter','lunge'].filter(k=>theirs.includes(k)));
     if(focus==='y12')o=brPick(BR_T1.filter(k=>theirs.includes(k)).concat(['parry']));if(focus==='y14')o=brPick(BR_T2.filter(k=>theirs.includes(k)).concat(['counter']));
+    if(!focus&&state.evo&&(state.evo.focus||[]).length&&Math.random()<.3){const f=state.evo.focus.filter(k=>theirs.includes(k));if(f.length)o=brPick(f)}
     if(!theirs.includes(o))continue;
     const fam=famOf(o),pool=useFam?FAMILY[fam].filter(k=>theirs.includes(k)):[o];if(!pool.length)continue;
     const S=brState(d,vE,vO,guard);
@@ -2396,6 +2503,7 @@ function goTo(s){const b=document.querySelector(`#nav [data-s="${s}"]`);if(b)b.c
   const hw = (last.homework || [])[0], lab = document.getElementById('j4L');
   if (hw && lab) lab.textContent = '🏠 Coach\'s homework: ' + hw;
 })();
+setTimeout(()=>{try{if(evolveDaily()){ALLOPP.rival=rivalOpp();if(!PD||PD.over)pdLevels()}}catch(e){console.error(e)}},0); // 🥷 Shadow studies yesterday's duels once a day
 document.querySelectorAll('[data-go]').forEach(t=>t.onclick=()=>goTo(t.dataset.go));
 $('homeBtn').onclick=()=>goTo('home');
 document.querySelectorAll('#nav button').forEach(b=>b.addEventListener('click',()=>{
