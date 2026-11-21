@@ -583,3 +583,73 @@ body.kidmode.kt-pixel{--bg:#5ec8f5;--card:#1f2b63;--card2:#283777;--ink:#ffffff;
 .kt-pixel .meta{color:#c8d1f5}
 .kt-pixel .calhead b,.kt-pixel .calrow b,.kt-pixel .kw-card b{font-family:var(--kfont)}
 .kt-pixel .kw-h{background:#0d1433;display:inline-flex;padding:8px 12px;box-shadow:4px 4px 0 rgba(13,20,51,.35)}
+
+/* ============ THEME ICONS + per-theme layouts ============ */
+.ki{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;line-height:1;flex:0 0 auto}
+.ki svg{width:100%;height:100%;display:block;overflow:visible}
+.ki-pixel svg{image-rendering:pixelated}
+.ki-voxel svg{filter:drop-shadow(0 2px 2px rgba(0,0,0,.12))}
+.kw-h .kw-ht{display:inline-flex;align-items:center;gap:10px}
+.kw-eyebrow,.kw-stats,.kw-arrow{display:none}
+.kw-stars .ki{margin-right:2px}.kw-stars .off .ki,.kw-stars span.off{filter:grayscale(1);opacity:.3}
+.kw-sticker .se{display:flex;justify-content:center;min-height:48px;align-items:center}
+.kw-tap .big,.kw-streak .fire{display:inline-flex}
+.kw-mood .f{display:flex;justify-content:center;min-height:34px;align-items:center}
+.kw-rocket span .ki{display:inline-flex}.kw-rocket em .ki{display:inline-flex}
+
+/* Voxel layout: marketplace feel — eyebrow labels, stats row, category tiles */
+.kt-voxel .kw-hero{grid-template-columns:auto 1fr;row-gap:18px}
+.kt-voxel .kw-stats{display:grid;grid-column:1/-1;grid-template-columns:repeat(4,1fr);border-top:1px solid #efeee9;padding-top:16px}
+.kt-voxel .kw-stats>div{display:grid;grid-template-columns:auto 1fr;column-gap:8px;align-items:center;padding:0 14px;border-left:1px solid #efeee9}
+.kt-voxel .kw-stats>div:first-child{border-left:0;padding-left:0}
+.kt-voxel .kw-stats .ki{grid-row:1/3}
+.kt-voxel .kw-stats b{font:800 22px var(--kfont);letter-spacing:-.02em}
+.kt-voxel .kw-stats small{font:700 10.5px var(--kfont);letter-spacing:.14em;text-transform:uppercase;color:#8f8d86}
+.kt-voxel .kw-h{flex-direction:column;align-items:flex-start;gap:2px;font-size:30px;margin-top:44px}
+.kt-voxel .kw-eyebrow{display:block;font:700 11px var(--kfont);letter-spacing:.2em;text-transform:uppercase;color:#8f8d86}
+.kt-voxel .kw-h .tagc{background:#111;color:#fff;margin-top:6px}
+.kt-voxel .kw-world{padding:0 0 16px;overflow:hidden;position:relative}
+.kt-voxel .kw-world .wi{display:flex;justify-content:center;align-items:center;height:118px;margin:0 0 4px}
+.kt-voxel .kw-world .wi .ki{width:76px!important;height:76px!important}
+.kt-voxel .kw-world>h3,.kt-voxel .kw-world>.wd,.kt-voxel .kw-world>.kw-goal,.kt-voxel .kw-world>.kw-play,.kt-voxel .kw-world>.kw-doc,.kt-voxel .kw-world>.addgoal{margin-left:16px;margin-right:16px}
+.kt-voxel .kw-world>.kw-doc{display:inline-flex;gap:6px;align-items:center}
+.kt-voxel .kw-world>.kw-play{width:calc(100% - 32px);display:flex;align-items:center;justify-content:center;gap:8px}
+.kt-voxel .kw-arrow{display:grid;place-items:center;position:absolute;right:14px;top:14px;width:30px;height:30px;border-radius:50%;border:1.5px solid #111;font:700 14px var(--body);background:rgba(255,255,255,.6)}
+.kt-voxel .kw-stickers{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+.kt-voxel .kw-sticker{padding:18px 10px 14px}
+.kt-voxel .kw-sticker .se .ki{width:52px!important;height:52px!important}
+.kt-voxel .kw-tap .big .ki,.kt-voxel .kw-streak .fire .ki{width:52px!important;height:52px!important}
+.kt-voxel .kw-earn span{background:#fff;border-color:#e6e4df}
+@media (max-width:640px){.kt-voxel .kw-stats{grid-template-columns:repeat(2,1fr);row-gap:12px}.kt-voxel .kw-stats>div:nth-child(3){border-left:0;padding-left:0}.kt-voxel .kw-hero{text-align:left;justify-items:stretch}}
+
+/* Pixel Quest layout: game HUD, quest-log tabs, inventory slots, footer banner */
+.kt-pixel .kw-hero{padding-top:58px}
+.kt-pixel .kw-stats{display:flex;position:absolute;left:0;right:0;top:0;height:40px;align-items:center;gap:16px;padding:0 14px;background:#0d1433;border-bottom:3px solid #4f6bd8;overflow:hidden}
+.kt-pixel .kw-stats>div{display:flex;align-items:center;gap:6px}
+.kt-pixel .kw-stats b{font:12px var(--pxf);color:#ffd23f}
+.kt-pixel .kw-stats small{font:700 11px var(--kfont);color:#aab6e8;text-transform:uppercase}
+.kt-pixel .kt-deco-pixel{display:none}
+.kt-pixel .kw-h{flex-direction:column;align-items:flex-start;gap:0;background:none;box-shadow:none;padding:0;margin-top:40px;font-size:15px}
+.kt-pixel .kw-eyebrow{display:inline-block;background:#ffd23f;color:#0d1433;font:10px var(--pxf);padding:6px 10px;border:3px solid #0d1433;border-bottom:0;text-transform:uppercase;letter-spacing:0;text-shadow:none}
+.kt-pixel .kw-ht{background:#0d1433;padding:10px 14px;box-shadow:4px 4px 0 rgba(13,20,51,.35)}
+.kt-pixel .kw-h .tagc{background:#ff7eb6;color:#0d1433;font:10px var(--pxf);margin-top:6px;padding:4px 8px}
+.kt-pixel .kw-world .wi{display:inline-flex;background:#0d1433;padding:8px;border:3px solid #4f6bd8}
+.kt-pixel .kw-world .wi .ki{width:44px!important;height:44px!important}
+.kt-pixel .kw-play{display:flex;align-items:center;justify-content:center;gap:8px}
+.kt-pixel .kw-stickers{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
+.kt-pixel .kw-sticker{padding:10px 6px;background:#1f2b63}
+.kt-pixel .kw-sticker .se{background:#0d1433;border:3px solid #4f6bd8;width:68px;height:68px;margin:0 auto 6px;min-height:0}
+.kt-pixel .kw-sticker:not(.lock) .se{border-color:#ffd23f;box-shadow:inset 0 0 0 2px #0d1433,0 0 0 2px #ffd23f}
+.kt-pixel .kw-sticker b{font-size:13px}
+.kt-pixel .kw-sticker.lock .se .ki{opacity:.45}
+.kt-pixel .kw-card:last-of-type{background:#0d1433}
+.kt-pixel .kw-tap .big .ki,.kt-pixel .kw-streak .fire .ki{width:48px!important;height:48px!important}
+.kt-pixel .kw-streak .fire{animation:none}
+.kt-pixel .kw-mood .f .ki{width:28px!important;height:28px!important}
+@media (max-width:640px){.kt-pixel .kw-stats small{display:none}.kt-pixel .kw-stats{gap:14px;justify-content:space-around}}
+.kt-voxel .kw-level span:last-child,.kt-pixel .kw-level span:last-child{display:none}
+.kt-voxel .kw-hero h1{padding-right:120px}
+.kt-voxel .kt-deco-voxel{width:120px;top:-14px;right:-10px}
+.kt-voxel .kw-stats .ki{width:30px!important;height:30px!important}
+@media (max-width:640px){.kt-voxel .kt-deco-voxel{width:84px}.kt-voxel .kw-hero h1{padding-right:60px}}
+.kt-voxel .kw-sticker.lock .se{filter:grayscale(1);opacity:.55}

@@ -1,8 +1,8 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261120h";
-import * as Pix from "./pixel.js?v=20261120h";
+import { STR } from "./i18n.js?v=20261120i";
+import * as Pix from "./pixel.js?v=20261120i";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
@@ -1050,7 +1050,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key)) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120h${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261120i${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   appOpen = async () => { window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; };
   fs.querySelector(".appclose").onclick = () => appOpen();
@@ -1104,6 +1104,78 @@ function confetti() {
   document.body.appendChild(box); setTimeout(() => box.remove(), 2800);
 }
 let lastBadges = null;
+
+/* ---------- THEME ICONS: one pixel grid per icon, drawn flat (Pixel Quest) or as 3D cubes (Voxel); Pop uses emoji ---------- */
+// k = outline (Pixel Quest only), K = dark detail (both), others = colours
+const KI_PAL = { k: "#1b1b2f", K: "#1b1b2f", w: "#ffffff", s: "#b8b8c8", r: "#ff4d4d", o: "#ff9a3d", y: "#ffd23d", g: "#3ec46d", G: "#2a9d55", b: "#3d9bff", B: "#2a5bd7", c: "#7fd6fb", p: "#ff7eb6", P: "#7a5cff", n: "#a0632d" };
+const KI_FACE = m => ["...kkkkk...", "..kyyyyyk..", ".kyyyyyyyk.", "kyyKyyyKyyk", "kyyKyyyKyyk", "kyyyyyyyyyk", ...m, ".kyyyyyyyk.", "..kyyyyyk..", "...kkkkk..."];
+const KI_ART = {
+  heart: ["..kk...kk..", ".krrk.krrk.", "krwrrkrrrrk", "krwrrrrrrrk", "krrrrrrrrrk", ".krrrrrrrk.", "..krrrrrk..", "...krrrk...", "....krk....", ".....k....."],
+  star: [".....k.....", "....kyk....", "....kyk....", "kkkkyyykkkk", "kyywyyyyyyk", ".kyyyyyyyk.", "..kyyyyyk..", "..kyyyyyk..", ".kyyykyyyk.", ".kyyk.kyyk.", "kyk.....kyk", "kk.......kk"],
+  fire: [".....k.....", "....kok....", "....kook...", "...kooook..", "..koooyook.", "..kooyyyok.", ".koooyyyook", ".kooyywyyok", ".koyyywyyok", "..koyyyyok.", "...kooook..", "....kkkk..."],
+  bolt: ["......kkkk", ".....kyyk.", "....kyyk..", "...kyyk...", "..kyyykkkk", ".kyyyyyyyk", "..kkkkyyk.", ".....kyk..", "....kyk...", "...kyk....", "..kk......"],
+  calendar: ["..K.....K..", "kkKkkkkkKkk", "krrrrrrrrrk", "krrrrrrrrrk", "kkkkkkkkkkk", "kwwwwwwwwwk", "kwswswswswk", "kwwwwwwwwwk", "kwswswrrswk", "kwwwwwrrwwk", "kwswswswswk", "kkkkkkkkkkk"],
+  globe: ["...kkkkk...", "..kbbgbbk..", ".kbgggbbbk.", "kbwggbbggbk", "kbbbgbbgggk", "kbbbbbbbggk", "kbggbbbbgbk", "kbgggbbbbbk", ".kbggbbgbk.", "..kbbbbbk..", "...kkkkk..."],
+  target: ["...kkkkk...", "..krrrrrk..", ".krwwwwwrk.", "krwrrrrrwrk", "krwrwwwrwrk", "krwrwrwrwrk", "krwrwwwrwrk", "krwrrrrrwrk", ".krwwwwwrk.", "..krrrrrk..", "...kkkkk..."],
+  book: [".kkkk.kkkk.", "kwwwwkwwwwk", "kwsswkwsswk", "kwwwwkwwwwk", "kwsswkwsswk", "kwwwwkwwwwk", "kwsswkwsswk", "kwwwwkwwwwk", "kBBBBkBBBBk", ".kkkkkkkkk."],
+  books: ["..kkkkkkkk.", "..krrrrrrk.", "..kkkkkkkk.", ".kkkkkkkk..", ".kggggggk..", ".kkkkkkkk..", "..kkkkkkkk.", "..kbbbbbbk.", "..kkkkkkkk.", "kkkkkkkkk..", "kyyyyyyyk..", "kkkkkkkkk.."],
+  pencil: ["........kk.", ".......kppk", "......kyykk", ".....kyyk..", "....kyyk...", "...kyyk....", "..kyyk.....", ".knyk......", ".knk.......", "kk........."],
+  bulb: ["...kkkkk...", "..kyyyyyk..", ".kyywyyyyk.", ".kywyyyyyk.", ".kyyyyyyyk.", ".kyyyyyyyk.", "..kyyyyyk..", "...kyyyk...", "...ksssk...", "...kkkkk...", "...ksssk...", "....kkk...."],
+  compass: ["...kkkkk...", "..kwwwwwk..", ".kwwwwwrwk.", "kwwwwwrrwwk", "kwwwwrrrwwk", "kwwwwKwwwwk", "kwwbbbwwwwk", "kwwbbwwwwwk", ".kwbwwwwwk.", "..kwwwwwk..", "...kkkkk..."],
+  trophy: [".kkkkkkkkk.", "kkyyyyyyykk", "kykyywyykyk", "kykyyyyykyk", ".kkyyyyykk.", "...kyyyk...", "....kyk....", "....kyk....", "...kkkkk...", "..knnnnnk..", "..kkkkkkk.."],
+  medal: [".kk.....kk.", ".kbk...kbk.", "..kbk.kbk..", "...kbkbk...", "....kkk....", "...kyyyk...", "..kyywyyk..", "..kyyyyyk..", "..kyyyyyk..", "...kyyyk...", "....kkk...."],
+  check: ["kkkkkkkkkkk", "kgggggggggk", "kgggggggwgk", "kggggggwwgk", "kgggggwwggk", "kgwggwwgggk", "kgwwwwggggk", "kggwwgggggk", "kgggggggggk", "kkkkkkkkkkk"],
+  box: ["kkkkkkkkkkk", "kwwwwwwwwwk", "kwwwwwwwwwk", "kwwwwwwwwwk", "kwwwwwwwwwk", "kwwwwwwwwwk", "kwwwwwwwwwk", "kwwwwwwwwwk", "kwwwwwwwwwk", "kkkkkkkkkkk"],
+  play: ["kk.........", "kwkk.......", "kwwwkk.....", "kwwwwwkk...", "kwwwwwwwkk.", "kwwwwwwwwwk", "kwwwwwwwkk.", "kwwwwwkk...", "kwwwkk.....", "kwkk.......", "kk........."],
+  lock: ["...kkkkk...", "..kssssskk.", "..ks...sk..", "..ks...sk..", "kkkkkkkkkkk", "kyyyyyyyyyk", "kyyyyKyyyyk", "kyyyyKyyyyk", "kyyyyyyyyyk", "kkkkkkkkkkk"],
+  question: ["...kkkkk...", "..kpppppk..", ".kppkkkppk.", ".kkk...kpk.", "......kppk.", ".....kppk..", "....kppk...", "....kkkk...", "...........", "....kkkk...", "....kppk...", "....kkkk..."],
+  shield: ["kkkkkkkkkkk", "kbbbbbbbbbk", "kbbbbybbbbk", "kbbbyyybbbk", "kbyyyyyyybk", "kbbyyyyybbk", ".kbyybyybk.", ".kbbbbbbbk.", "..kbbbbbk..", "...kbbbk...", "....kkk...."],
+  sparkle: [".....k.....", "....kyk....", "....kyk....", "...kyyyk...", "kkkyywyykkk", "kyyywwwyyyk", "kkkyywyykkk", "...kyyyk...", "....kyk....", "....kyk....", ".....k....."],
+  flag: ["kk.........", "kkkkkkkkkk.", "kkwKwKwKwk.", "kkKwKwKwKk.", "kkwKwKwKwk.", "kkKwKwKwKk.", "kkkkkkkkkk.", "kk.........", "kk.........", "kk.........", "kk........."],
+  sword: ["..........k", ".........kw", "........kwk", ".......kwk.", "......kwk..", ".....kwk...", "..k.kwk....", "...kwk.....", "..kykk.....", ".kyk.k.....", "kyk........", "kk........."],
+  calc: [".kkkkkkkkk.", ".kPPPPPPPk.", ".kPwwwwwPk.", ".kPPPPPPPk.", ".kPsPsPsPk.", ".kPPPPPPPk.", ".kPsPsPrPk.", ".kPPPPPPPk.", ".kPsPsPrPk.", ".kPPPPPPPk.", ".kkkkkkkkk."],
+  hand: ["..k.k.k....", ".kykykyk...", ".kykykyk.k.", ".kykykykkyk", ".kyyyyyykyk", ".kyyyyyyyk.", "kkyyyyyyyk.", "kyyyyyyyk..", ".kyyyyyyk..", "..kyyyyk...", "...kkkk...."],
+  coin: ["...kkkkk...", "..kyyyyyk..", ".kyywyyyyk.", "kyywyKyyyyk", "kyyyyKyyyyk", "kyyyyKyyyyk", "kyyyyKyyyyk", "kyyyyyyyyyk", ".kyyyyyyyk.", "..kyyyyyk..", "...kkkkk..."],
+  face1: KI_FACE(["kyyKKKKKyyk", "kyKyyyyyKyk"]), face2: KI_FACE(["kyyyKKKyyyk", "kyyKyyyKyyk"]), face3: KI_FACE(["kyyyyyyyyyk", "kyyKKKKKyyk"]),
+  face4: KI_FACE(["kyyKyyyKyyk", "kyyyKKKyyyk"]), face5: KI_FACE(["kyKyyyyyKyk", "kyyKKKKKyyk"]),
+};
+const KI_EMOJI = { "🤺": "sword", "📚": "books", "📖": "book", "🧮": "calc", "🧩": "calc", "🏆": "trophy", "🎯": "target", "⭐": "star", "🔥": "fire", "⚡": "bolt", "🌟": "sparkle", "🦸": "shield", "🏅": "medal", "✏️": "pencil", "💡": "bulb", "🧭": "compass", "👣": "flag", "📅": "calendar", "🗺️": "globe", "📓": "book", "✨": "sparkle", "👋": "hand", "❔": "question", "✅": "check", "⬜": "box", "▶": "play", "🔒": "lock", "🎉": "sparkle", "🏁": "flag", "🚀": "bolt", "🌈": "face4", "❤️": "heart", "🪙": "coin" };
+const kiShade = (hex, f) => { const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.max(0, Math.min(255, Math.round(f > 1 ? v + (255 - v) * (f - 1) : v * f)))); return "#" + c.map(v => v.toString(16).padStart(2, "0")).join(""); };
+const kiCache = {};
+function kiSvg(name, mode) {
+  const key = name + ":" + mode; if (kiCache[key]) return kiCache[key];
+  const art = KI_ART[name]; if (!art) return null;
+  const H = art.length, W = Math.max(...art.map(r => r.length)), at = (x, y) => (art[y] || "")[x] || ".";
+  let body = "", vb;
+  if (mode === "pixel") {
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const ch = at(x, y); if (ch !== "." && KI_PAL[ch]) body += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${KI_PAL[ch]}"/>`; }
+    vb = `0 0 ${W} ${H}`;
+  } else { // voxel: every coloured pixel becomes a little cube; outlines are dropped
+    const d = 0.42, solid = (x, y) => { const ch = at(x, y); return ch !== "." && ch !== "k" && KI_PAL[ch]; };
+    let sides = "", tops = "", fronts = "";
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!solid(x, y)) continue; const c = KI_PAL[at(x, y)], X = x, Y = y + d;
+      if (!solid(x + 1, y)) sides += `<path d="M${X + 1} ${Y}l${d} ${-d}v1l${-d} ${d}z" fill="${kiShade(c, .72)}"/>`;
+      if (!solid(x, y - 1)) tops += `<path d="M${X} ${Y}l${d} ${-d}h1l${-d} ${d}z" fill="${kiShade(c, 1.35)}"/>`;
+      fronts += `<rect x="${X}" y="${Y}" width="1.01" height="1.01" fill="${c}"/>`;
+    }
+    body = sides + tops + fronts; vb = `0 0 ${W + d} ${H + d}`;
+  }
+  return (kiCache[key] = `<svg viewBox="${vb}" shape-rendering="${mode === "pixel" ? "crispEdges" : "geometricPrecision"}" aria-hidden="true">${body}</svg>`);
+}
+const kiTheme = () => document.body.classList.contains("kt-pixel") ? "pixel" : document.body.classList.contains("kt-voxel") ? "voxel" : "pop";
+// KI("star", 22) or KI("🤺", 40): emoji in Pop, themed sprite otherwise (falls back to the emoji if there's no sprite)
+function KI(nameOrEmoji, size = 22, cls = "") {
+  const th = kiTheme(), name = KI_ART[nameOrEmoji] ? nameOrEmoji : KI_EMOJI[nameOrEmoji];
+  const emoji = KI_ART[nameOrEmoji] ? (Object.keys(KI_EMOJI).find(e => KI_EMOJI[e] === nameOrEmoji) || "⭐") : nameOrEmoji;
+  if (th === "pop" || !name) return `<span class="ki ki-emoji ${cls}" style="font-size:${Math.round(size * .9)}px">${emoji}</span>`;
+  return `<span class="ki ki-${th} ${cls}" style="width:${size}px;height:${size}px">${kiSvg(name, th)}</span>`;
+}
+const kiFace = (n, size = 30) => kiTheme() === "pop" ? `<span class="ki ki-emoji" style="font-size:${Math.round(size * .9)}px">${FACES[n - 1]}</span>` : KI("face" + n, size);
+const KI_EYEBROW = {
+  voxel: { cal: ["Plan ahead", "提前计划"], worlds: ["Explore", "去探索"], jar: ["Collect wins", "收集胜利"], feel: ["Check in", "心情记录"], note: ["Just for you", "只属于你"], stick: ["Achievements", "成就"] },
+  pixel: { cal: ["Quest log", "任务日志"], worlds: ["World map", "世界地图"], jar: ["Loot", "战利品"], feel: ["Status", "状态"], note: ["Save file", "存档"], stick: ["Inventory", "背包"] } };
+const kwH = (icon, key, title, tag = "") => { const th = kiTheme(), eb = KI_EYEBROW[th]?.[key]; return `<div class="kw-h">${eb ? `<span class="kw-eyebrow">${lang === "zh" ? eb[1] : eb[0]}</span>` : ""}<span class="kw-ht">${KI(icon, 28)} ${title}</span>${tag}</div>`; };
 const KTHEMES = { pop: { en: "Pop", zh: "波普", d: { en: "Bold & bright", zh: "大胆鲜艳" } }, voxel: { en: "Voxel", zh: "方块世界", d: { en: "Soft 3D blocks", zh: "柔和 3D 方块" } }, pixel: { en: "Pixel Quest", zh: "像素冒险", d: { en: "Retro 8-bit game", zh: "复古 8 位游戏" } } };
 const KT_IDS = Object.keys(KTHEMES);
 const setKidTheme = th => { document.body.classList.remove(...KT_IDS.map(x => "kt-" + x)); if (th) document.body.classList.add("kt-" + (KTHEMES[th] ? th : "pop")); };
@@ -1113,7 +1185,7 @@ const VOXEL_DECO = (() => { const cube = (x, y, c) => `<g transform="translate($
   const cols = ["#ff4d4d", "#ff9a3d", "#ffd23d", "#3ec46d", "#3d9bff", "#7a5cff"]; let g = "";
   cols.forEach((c, i) => { for (let j = 0; j < 3; j++) g += cube(10 + i * 10 + j * 10, 70 - i * 6 + j * 6 - i * 6, c); });
   return `<svg class="kt-deco kt-deco-voxel" viewBox="0 0 120 110" aria-hidden="true">${g}</svg>`; })();
-const PIXEL_DECO = `<div class="kt-deco kt-deco-pixel" aria-hidden="true"><span class="px-hearts">♥♥♥</span><span class="px-coin">●</span></div>`;
+const PIXEL_DECO = `<div class="kt-deco kt-deco-pixel" aria-hidden="true"><span class="px-hearts">${[1, 2, 3].map(() => `<span class="ki" style="width:14px;height:14px">${kiSvg("heart", "pixel")}</span>`).join("")}</span><span class="ki" style="width:14px;height:14px">${kiSvg("coin", "pixel")}</span></div>`;
 function kidRender() {
   const t = T(), k = S.kids[0]; if (!k) return;
   document.body.classList.add("kidmode"); setKidTheme(k.theme || "pop");
@@ -1127,9 +1199,9 @@ function kidRender() {
   const curLevel = m => { const rs = S.readings.filter(r => r.metric === m.id).sort((a, b) => a.date.localeCompare(b.date)); return rs.length ? +rs[rs.length - 1].value : +m.baseline; };
   const worldColors = ["var(--lime)", "var(--sky)", "#ffe066", "#b9a6ff", "var(--pink)", "var(--orange)"];
   const goalHtml = m => {
-    if (m.type === "rate") { const c = cnt(m), n = Math.max(1, Math.min(10, m.per_week || 1)); return `<div class="kw-goal"><div class="gn">${esc(mKidLabel(m))}</div><div class="kw-stars">${Array.from({ length: n }, (_, i) => `<span class="${i < c ? "" : "off"}">⭐</span>`).join("")}</div><div class="kw-sub">${t.ofTarget(c, m.per_week)}${c >= m.per_week ? " 🎉" : ""}</div></div>`; }
+    if (m.type === "rate") { const c = cnt(m), n = Math.max(1, Math.min(10, m.per_week || 1)); return `<div class="kw-goal"><div class="gn">${esc(mKidLabel(m))}</div><div class="kw-stars">${Array.from({ length: n }, (_, i) => `<span class="${i < c ? "" : "off"}">${KI("star", 22)}</span>`).join("")}</div><div class="kw-sub">${t.ofTarget(c, m.per_week)}${c >= m.per_week ? " " + KI("sparkle", 16) : ""}</div></div>`; }
     const cur = curLevel(m), span = (+m.target) - (+m.baseline), p = span ? clamp01((cur - (+m.baseline)) / span) : 1;
-    return `<div class="kw-goal"><div class="gn">${esc(mName(m))}</div><div class="kw-rocket"><i style="width:${Math.round(p * 100)}%"></i><span style="left:${Math.max(6, Math.min(88, p * 100))}%">🚀</span><em>🏁</em></div><div class="kw-sub">${t.nowAt} ${cur}${esc(m.unit || "")} → ${+m.target}${esc(m.unit || "")}</div></div>`;
+    return `<div class="kw-goal"><div class="gn">${esc(mName(m))}</div><div class="kw-rocket"><i style="width:${Math.round(p * 100)}%"></i><span style="left:${Math.max(6, Math.min(88, p * 100))}%">${KI("🚀", 24)}</span><em>${KI("flag", 18)}</em></div><div class="kw-sub">${t.nowAt} ${cur}${esc(m.unit || "")} → ${+m.target}${esc(m.unit || "")}</div></div>`;
   };
   const worlds = S.subjects.filter(x => x.active).map(x => ({ x, ms: S.metrics.filter(m => m.subject_id === x.id), docs: S.docs.filter(dc => dc.subject_id === x.id) })).filter(w => w.ms.length || w.docs.length);
   const loose = S.metrics.filter(m => !S.subjects.some(x => x.active && x.id === m.subject_id));
@@ -1148,36 +1220,37 @@ function kidRender() {
         <div><h1>${t.hi(esc(kidName(k.id)))}</h1>
           <div class="kw-level"><span class="kw-lvl">${t.levelWord} ${g.lvlNum}</span><span>${esc(g.levelName)}</span><span style="margin-left:auto">${g.xp} ${t.xp}</span></div>
           <div class="kw-xpbar"><i style="width:${pct}%"></i></div><div class="kw-sub">${t.toNext(Math.max(0, g.nextAt - g.xp))}</div></div>
+        <div class="kw-stats">${[["coin", g.xp, lang === "zh" ? "积分" : "Points"], ["star", g.lvlNum, lang === "zh" ? "等级" : "Level"], ["fire", g.streak, lang === "zh" ? "连续天数" : "Day streak"], ["medal", `${Object.values(g.got).filter(Boolean).length}/${BADGES.length}`, lang === "zh" ? "贴纸" : "Stickers"]].map(([ic, v, l]) => `<div>${KI(ic, 22)}<b>${v}</b><small>${l}</small></div>`).join("")}</div>
       </div>
       <div class="kw-row">
-        <button class="kw-tap ${myMood ? "done" : "todo"}" id="kTap"><span class="big">${myMood ? FACES[myMood - 1] : "👋"}</span>${myMood ? t.checkedIn : t.tapToStart}</button>
-        <div class="kw-streak ${g.streak ? "" : "rest"}"><span class="fire">🔥</span><div>${g.streak ? t.streak(g.streak) : t.streakRest}<div class="kw-sub" style="opacity:.7">${g.best ? "🏆 " + g.best : ""}</div></div></div>
+        <button class="kw-tap ${myMood ? "done" : "todo"}" id="kTap"><span class="big">${myMood ? kiFace(myMood, 44) : KI("hand", 44)}</span>${myMood ? t.checkedIn : t.tapToStart}</button>
+        <div class="kw-streak ${g.streak ? "" : "rest"}"><span class="fire">${KI("fire", 44)}</span><div>${g.streak ? t.streak(g.streak) : t.streakRest}<div class="kw-sub" style="opacity:.7">${g.best ? KI("trophy", 16) + " " + g.best : ""}</div></div></div>
       </div>
       ${kidCalendarHtml(k.id)}
-      ${worlds.length || loose.length || goals.length || mine.length ? `<div class="kw-h">🗺️ ${t.myWorlds}</div>
-      <div class="kw-worlds">${worlds.map((w, i) => `<div class="kw-world" style="background:${worldColors[i % worldColors.length]}"><div class="wi">${w.x.icon}</div><h3>${esc(sName(w.x))}</h3>${sDesc(w.x) ? `<div class="wd">${esc(sDesc(w.x))}</div>` : ""}${w.x.app_url ? `<button class="kw-play" data-app="${esc(w.x.app_url)}" data-appkid="${esc(w.x.kid)}">▶ ${esc(appLabel(w.x.app_url))}</button>` : ""}${w.ms.map(goalHtml).join("")}${w.docs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">📖 ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}</div>`).join("")}
-        ${loose.length || goals.length || mine.length || looseDocs.length ? `<div class="kw-world" style="background:#e9e9e4"><div class="wi">🎯</div><h3>${t.myGoals}</h3>${loose.map(goalHtml).join("")}
-          ${goals.map(x => `<div class="kw-goal"><span class="gn">${x.done ? "✅" : "⬜"} ${esc(x.text)}</span></div>`).join("")}
-          ${mine.map(x => `<div class="kw-goal"><span class="gn">💡 ${esc(x.text)}</span><div class="kw-sub">${t.pending} <button class="x" style="opacity:1" data-unprop="${x.id}">✕</button></div></div>`).join("")}
-          ${looseDocs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">📖 ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}
+      ${worlds.length || loose.length || goals.length || mine.length ? `${kwH("globe", "worlds", t.myWorlds)}
+      <div class="kw-worlds">${worlds.map((w, i) => `<div class="kw-world" style="background:${worldColors[i % worldColors.length]}"><div class="wi">${KI(w.x.icon, 48)}</div><span class="kw-arrow">→</span><h3>${esc(sName(w.x))}</h3>${sDesc(w.x) ? `<div class="wd">${esc(sDesc(w.x))}</div>` : ""}${w.x.app_url ? `<button class="kw-play" data-app="${esc(w.x.app_url)}" data-appkid="${esc(w.x.kid)}">${KI("play", 16)} ${esc(appLabel(w.x.app_url))}</button>` : ""}${w.ms.map(goalHtml).join("")}${w.docs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">${KI("book", 16)} ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}</div>`).join("")}
+        ${loose.length || goals.length || mine.length || looseDocs.length ? `<div class="kw-world" style="background:#e9e9e4"><div class="wi">${KI("target", 48)}</div><h3>${t.myGoals}</h3>${loose.map(goalHtml).join("")}
+          ${goals.map(x => `<div class="kw-goal"><span class="gn">${KI(x.done ? "check" : "box", 18)} ${esc(x.text)}</span></div>`).join("")}
+          ${mine.map(x => `<div class="kw-goal"><span class="gn">${KI("bulb", 18)} ${esc(x.text)}</span><div class="kw-sub">${t.pending} <button class="x" style="opacity:1" data-unprop="${x.id}">✕</button></div></div>`).join("")}
+          ${looseDocs.map(dc => `<a href="#" class="kw-doc" data-kdoc="${esc(dc.slug)}">${KI("book", 16)} ${esc(lang === "zh" && dc.title_zh ? dc.title_zh : dc.title)}</a>`).join(" ")}
           <div class="addgoal" style="margin-top:12px"><input id="propIn" maxlength="120" placeholder="💡 ${t.suggestPh}" style="background:#fff;color:#111;border:2px solid #000"><button class="btn sm primary" id="propBtn" style="background:#000;color:#fff;border-color:#000">${t.suggest}</button></div></div>` : ""}
       </div>` : ""}
       <div id="kDocView" style="margin-top:14px"></div>
-      <div class="kw-h">⭐ ${t.starJar}</div>
+      ${kwH("star", "jar", t.starJar)}
       <div class="kw-card">
-        ${little ? `<div class="kw-sub" style="margin:0 0 10px;opacity:1">${t.tapAWin}</div><div class="kw-littlewins">${t.littleWins.map((w, i) => `<button data-lwin="${i}">⭐ ${esc(w)}</button>`).join("")}</div>`
+        ${little ? `<div class="kw-sub" style="margin:0 0 10px;opacity:1">${t.tapAWin}</div><div class="kw-littlewins">${t.littleWins.map((w, i) => `<button data-lwin="${i}">${KI("star", 20)} ${esc(w)}</button>`).join("")}</div>`
                  : `<form id="winForm" class="addgoal" style="margin:0"><input id="winIn" maxlength="140" placeholder="⭐ ${t.winPh}" required><button class="btn sm primary">${t.addWin}</button></form>`}
-        <div class="kw-jar" style="margin-top:14px">${wins.length ? wins.map(w => `<div class="kw-win">⭐ ${esc(w.title)}${w.by_kid ? `<button class="x" style="opacity:.5" data-delwin="${w.id}">✕</button>` : ""}</div>`).join("") : `<div class="meta">${t.noWinsYet}</div>`}</div>
+        <div class="kw-jar" style="margin-top:14px">${wins.length ? wins.map(w => `<div class="kw-win">${KI("star", 18)} ${esc(w.title)}${w.by_kid ? `<button class="x" style="opacity:.5" data-delwin="${w.id}">✕</button>` : ""}</div>`).join("") : `<div class="meta">${t.noWinsYet}</div>`}</div>
       </div>
-      <div class="kw-h">🌈 ${t.feelings}</div>
-      <div class="kw-card"><div class="kw-mood">${days.map(x => `<div><div class="f ${x.m ? "" : "none"}">${x.m ? FACES[x.m - 1] : "○"}</div><small>${fmtDate(x.dd)}</small></div>`).join("")}</div></div>
-      ${little ? "" : `<div class="kw-h">📓 ${t.secretNotebook} <span class="tagc">🔒</span></div>
+      ${kwH("face4", "feel", t.feelings)}
+      <div class="kw-card"><div class="kw-mood">${days.map(x => `<div><div class="f ${x.m ? "" : "none"}">${x.m ? kiFace(x.m, 30) : "○"}</div><small>${fmtDate(x.dd)}</small></div>`).join("")}</div></div>
+      ${little ? "" : `${kwH("book", "note", t.secretNotebook, `<span class="tagc">${KI("lock", 14)}</span>`)}
       <div class="kw-notebook"><div style="font:600 12px var(--kfont);color:#888;line-height:20px">${t.journalPrivate}</div>
         <form id="jForm"><textarea id="jIn" maxlength="4000" placeholder="${t.journalPh}" required></textarea><button class="btn sm primary">${t.saveEntry}</button></form>
         ${journal.map(j => `<div class="entry"><small>${fmtDate(j.date)} <button class="x" style="opacity:.5;color:#888" data-delj="${j.id}">✕</button></small>${esc(j.body)}</div>`).join("")}</div>`}
-      <div class="kw-h">🏅 ${t.stickerBook} <span class="tagc">${Object.values(g.got).filter(Boolean).length}/${BADGES.length}</span></div>
-      <div class="kw-stickers">${BADGES.map(([id, em]) => `<div class="kw-sticker ${g.got[id] ? "" : "lock"} ${newly.includes(id) ? "got" : ""}"><span class="se">${g.got[id] ? em : "❔"}</span><b>${esc(t.badges[id][0])}</b><small>${g.got[id] ? esc(t.badges[id][1]) : t.locked}</small></div>`).join("")}</div>
-      <div class="kw-card" style="margin-top:22px"><b style="font-family:var(--kfont)">✨ ${t.howEarn}</b><div class="kw-earn">${t.earnList.map(x => `<span>${esc(x)}</span>`).join("")}</div></div>
+      ${kwH("medal", "stick", t.stickerBook, `<span class="tagc">${Object.values(g.got).filter(Boolean).length}/${BADGES.length}</span>`)}
+      <div class="kw-stickers">${BADGES.map(([id, em]) => `<div class="kw-sticker ${g.got[id] ? "" : "lock"} ${newly.includes(id) ? "got" : ""}"><span class="se">${g.got[id] ? KI(em, 44) : KI("question", 40)}</span><b>${esc(t.badges[id][0])}</b><small>${g.got[id] ? esc(t.badges[id][1]) : t.locked}</small></div>`).join("")}</div>
+      <div class="kw-card" style="margin-top:22px"><b style="font-family:var(--kfont)">${KI("sparkle", 18)} ${t.howEarn}</b><div class="kw-earn">${t.earnList.map(x => `<span>${esc(x)}</span>`).join("")}</div></div>
       ${marquee()}
     </div>
     <div class="modal-bg" id="avModal"><div class="modal" style="max-width:640px" id="avBody"></div></div>`;
@@ -1349,7 +1422,7 @@ function viewCalendar() {
 function kidCalendarHtml(kid) {
   const L = CL(); calSt.kmonth ||= monthStart(today());
   const sel = calSt.day, dayList = sel ? calItems(sel, sel, kid) : [];
-  return `<div class="kw-h">📅 ${L.myCal}</div><div class="kw-card kcal">${calGrid(calSt.kmonth, kid, sel, true)}
+  return `${kwH("calendar", "cal", L.myCal)}<div class="kw-card kcal">${calGrid(calSt.kmonth, kid, sel, true)}
     ${sel ? `<div class="calsel"><b style="font-family:var(--kfont)">${fmtDate(sel)}</b>${dayList.length ? dayList.map(x => calRow(x, false)).join("") : `<div class="meta">${L.noneDay}</div>`}</div>` : ""}
     <div style="margin-top:14px"><b style="font-family:var(--kfont)">${L.upcoming}</b>${calUpcoming(kid, 30, false)}</div></div>`;
 }
