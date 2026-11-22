@@ -13,6 +13,9 @@ P.lessons = P.lessons || {}; P.tests = P.tests || {}; P.quizzes = P.quizzes || [
 P.classNow = P.classNow || "kinematics";
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(P)); } catch (e) {} };
 const today = new Date().toLocaleDateString("en-CA");
+// 🎯 Adaptive ♾️ Endless mode (2026-11-21): unit level 1–5 (shared/adapt.js), generated problems (gen.js) + the unit's own questions.
+const AD = window.ADAPT ? ADAPT.create(`${KID}_physics_adapt`, { start: id => { try { const t = JSON.parse(localStorage.getItem(`fh_tune_${KID}_physics`) || "{}")[id]; return t && t.d ? [2, 3, 4][Math.min(3, Math.max(1, t.d)) - 1] : 2; } catch (e) { return 2; } } }) : null;
+const LVN = ["", "Warm-up", "Building", "Solid", "Strong", "Challenge"];
 // ⭐ Hub points for correct first-try answers (the hub caps points per day)
 const hubAward = (ref, pts, label, zh) => { try { if (window.parent !== window && window.parent.fhAward) window.parent.fhAward("physics", ref, pts, label, zh); } catch (e) {} };
 const track = ev => { const e = Object.assign({ ts: Date.now(), d: today }, ev); P.events.push(e); if (P.events.length > 1500) P.events = P.events.slice(-1500); save();
@@ -132,10 +135,11 @@ function lesson(i, step, mode) {
   if (step === 4) {
     mode = mode || "practice"; const r = P.lessons[l.id] || {}, t = P.tests[l.id];
     const chOpen = PARENT || (r.pBest || 0) >= 4;
-    body = `<div class="modes" style="grid-template-columns:repeat(3,1fr)!important">
+    body = `<div class="modes" style="grid-template-columns:repeat(${AD && window.PHY_GEN ? 4 : 3},1fr)!important">
       <button data-m="practice" class="${mode === "practice" ? "on" : ""}">⭐ Practice (6)<span>${r.pBest != null ? `best ${r.pBest}/6` : "hints allowed"}</span></button>
       <button data-m="challenge" class="${mode === "challenge" ? "on" : ""}"${chOpen ? "" : " disabled"}>⬆️ Challenge (3)<span>${chOpen ? (r.chBest != null ? `best ${r.chBest}/3` : "multi-step") : "🔒 get 4/6 in Practice"}</span></button>
-      <button data-m="test" class="${mode === "test" ? "on" : ""}">📝 Unit test (10)<span>${t ? `best ${t.best}/${t.of}` : "15 min, no hints"}</span></button></div><div id="play"></div>`;
+      <button data-m="test" class="${mode === "test" ? "on" : ""}">📝 Unit test (10)<span>${t ? `best ${t.best}/${t.of}` : "15 min, no hints"}</span></button>
+      ${AD && window.PHY_GEN ? `<button data-m="endless" class="${mode === "endless" ? "on" : ""}">♾️ Endless<span>Level ${AD.level(l.id)}/5 · ${LVN[AD.level(l.id)]}</span></button>` : ""}</div><div id="play"></div>`;
   }
   app.innerHTML = head + body;
   if (step === 0 && window.SIMS && SIMS[l.id] && document.getElementById("sim")) { try { SIMS[l.id](document.getElementById("sim")); } catch (e) { console.warn("sim", e); } }
@@ -155,8 +159,41 @@ function lesson(i, step, mode) {
     app.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { if (!b.disabled) lesson(i, 4, b.dataset.m); });
     if (mode === "test") testRun({ title: `📝 Unit ${l.unit} test: ${l.title}`, qs: shuffle([...l.pr, ...l.ch, ...l.tq]).slice(0, 10).map(q => mix(Object.assign({ t: l.id }, q))), secs: 15 * 60, box: $("#play"), done: res => {
       const t = P.tests[l.id] = P.tests[l.id] || { best: 0, of: res.of, log: [] }; t.last = res.score; t.of = res.of; t.date = today; t.best = Math.max(t.best, res.score); t.log.push({ date: today, score: res.score, secs: res.secs }); save(); } });
+    else if (mode === "endless") endless(i);
     else practice(i, mode);
   }
+}
+
+// ---- ♾️ Endless: one problem after another at his level; level moves up/down, misses come back, no recent repeats ----
+function endless(i) {
+  const l = LES[i], box = $("#play"); let n = 0, stars = 0;
+  const own = [...l.pr.map(q => ({ ...q, lv: 2 })), ...l.ch.map(q => ({ ...q, lv: 5 })), ...(l.tq || []).map(q => ({ ...q, lv: 3 }))];
+  const nextQ = () => { const lv = AD.level(l.id);
+    if (own.length && Math.random() < 0.25) { const q = AD.pick(l.id, own, x => x.q, x => x.lv); if (q) return mix(q); }
+    return AD.next(l.id, (lvl, item) => PHY_GEN.make(l.id, lvl, item), q => q.q) || mix(own[Math.floor(Math.random() * own.length)]); };
+  const draw = () => {
+    const q = nextQ(); let tries = 0; const t0 = Date.now(); n++;
+    box.innerHTML = `<div class="card"><div class="sub">♾️ Problem ${n} · <b>Level ${AD.level(l.id)}/5 ${LVN[AD.level(l.id)]}</b> · ⭐ ${stars}${q._review ? " · 🔁 one you missed earlier" : ""}</div><div class="q" style="margin-top:6px">${esc(q.q)}</div>
+      <div class="ch">${q.c.map((c, j) => `<button data-c="${j}"><span class="L">${LET[j]}</span><span>${esc(c)}</span></button>`).join("")}</div><div id="fb"></div>
+      <div class="row"><button class="btn" id="stopE">🏁 Stop</button></div></div>`;
+    $("#stopE").onclick = () => lesson(i, 4, "endless");
+    box.querySelectorAll("[data-c]").forEach(b => b.onclick = () => {
+      const j = +b.dataset.c, fb = $("#fb"); tries++; const secs = Math.round((Date.now() - t0) / 1000);
+      const done = (ok, first) => { track({ t: l.id, m: "endless", ok: first, first, secs, q: q.q });
+        const mv = AD.record(l.id, ok, { firstTry: first, slow: secs > 180, key: q.q, mkey: q.tid || null, item: q.tid ? { tid: q.tid } : null }); return mv; };
+      if (j === q.a) {
+        const first = tries === 1; if (first) stars++; const mv = done(true, first);
+        b.classList.add("right"); box.querySelectorAll("[data-c]").forEach(x => x.disabled = true);
+        fb.innerHTML = `<div class="fb ok">${first ? "✅ Yes!" : "✅ Got it on the second try."} ${esc(q.why || "")}</div>${mv.moved > 0 ? `<div class="fb ok">⬆️ <b>Level up!</b> Now Level ${mv.lv}/5 (${LVN[mv.lv]}). Harder problems are coming.</div>` : ""}<div class="row"><span class="spacer"></span><button class="btn go" id="nq">Next →</button></div>`;
+        $("#nq").onclick = draw;
+      } else if (tries === 1) { b.classList.add("wrong"); b.disabled = true; fb.innerHTML = `<div class="fb hint">💡 Hint: ${esc(q.hint || "Read the question again slowly.")}</div>`; }
+      else { const mv = done(false, false);
+        b.classList.add("wrong"); box.querySelectorAll("[data-c]").forEach(x => { x.disabled = true; if (+x.dataset.c === q.a) x.classList.add("right"); });
+        fb.innerHTML = `<div class="fb no">The answer is ${LET[q.a]}. ${esc(q.why || "")} A fresh version will come back soon.</div>${mv.moved < 0 ? `<div class="fb hint">⬇️ Let's build it up: back to Level ${mv.lv}/5 for a bit.</div>` : ""}<div class="row"><span class="spacer"></span><button class="btn go" id="nq">Next →</button></div>`;
+        $("#nq").onclick = draw; }
+    });
+  };
+  draw();
 }
 
 function examples(i, k) {
@@ -260,4 +297,5 @@ function quiz() {
 }
 
 home();
+try { window.__phy = { lesson, AD, LES }; } catch (e) {} // test/debug handle
 })();
