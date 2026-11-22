@@ -1553,7 +1553,7 @@ const jMin = () => S.kids[0]?.journal_min_words ?? JOURNAL_MIN_WORDS;
    Too many mistakes (1+ per 50 words: 250 words → 4 allowed, 5 pauses) doesn't lock; it ⏸️ pauses ALL other points (server-side,
    private.journal_frozen) until that entry is fixed, even on later days. The spell + grammar check runs on the device (shared/jcheck.js).
    Parents can turn it off or skip one day. Jonah is exempt. ---- */
-const JV = "20261121jg1";
+const JV = "20261121jg3";
 let jcheckP = null;
 const jLoad = () => jcheckP || (jcheckP = import(`./shared/jcheck.js?v=${JV}`).then(() => window.JCHECK).catch(e => { jcheckP = null; throw e; }));
 const jRule = k => k && k.journal_required ? { min: k.journal_min_words || 250, per: k.journal_err_per || 50, open: k.journal_unlock_date === today() } : null;
@@ -1606,11 +1606,24 @@ function jApplyLock(st) {
   bar.innerHTML = `<div class="jl-ic">🔒</div><div><b>${zh ? "今天的日记还没完成" : "Today's journal isn't done yet"}</b><div>${jLockMsg(st, zh)}</div></div><button type="button" class="btn primary" id="jLockGo">✏️ ${zh ? "写日记" : "Write it"}</button>`;
   bar.querySelector("#jLockGo").onclick = jGoWrite;
 }
-function jChkHtml(r, v, zh) {
+const jOpen = { fix: false, coach: true };
+function jExtraHtml(r, zh, text, age) {
+  const J = window.JCHECK; if (!J || !J.coach || !text || r.words < 60) return "";
+  const segs = J.corrected(text, r.issues), c = J.coach(text, r.issues, age);
+  const fixHtml = segs.some(x => x.fix != null) ? segs.map(x => x.fix == null ? esc(x.t) : `${x.wrong ? `<del>${esc(x.wrong)}</del>` : ""}${x.fix ? `<ins${x.unsure ? ` title="${zh ? "最可能的拼法" : "best guess"}"` : ""}>${esc(x.fix)}${x.unsure ? "?" : ""}</ins>` : ""}`).join("") : "";
+  const stars = n => "★".repeat(n) + "☆".repeat(4 - n);
+  return `${fixHtml ? `<details class="jbox" data-jopen="fix" ${jOpen.fix ? "open" : ""}><summary>✅ ${zh ? "改正后的样子（自己动手改哦）" : "Corrected version (make the changes yourself)"}</summary>
+      <div class="jfix">${fixHtml}</div><div class="kw-sub" style="opacity:.75">${zh ? "红色划掉的是错的，绿色是改正。带 ? 的是最可能的拼法。" : "Red = mistake, green = correction. A ? means it's the most likely spelling."}</div></details>` : ""}
+    <details class="jbox" data-jopen="coach" ${jOpen.coach ? "open" : ""}><summary>✍️ ${zh ? "写作教练" : "Writing coach"} · ${c.total}/${c.max} ⭐</summary>
+      ${c.focus ? `<div class="jfocus"><b>${zh ? "先试试这个：" : "Try this first:"}</b> ${esc(c.focus)}</div>` : `<div class="jfocus">🌟 ${zh ? "写得很好！" : "Great writing! Keep it up."}</div>`}
+      <div class="jtraits">${c.traits.map(x => `<div class="jtrait"><div class="jt-h"><b>${esc(x.name)}</b><span class="jt-s">${stars(x.stars)}</span></div>${x.tips.length ? `<ul>${x.tips.map(tp => `<li>${esc(tp)}</li>`).join("")}</ul>` : `<div class="jt-ok">✓ ${zh ? "很好" : "Nice work"}</div>`}</div>`).join("")}</div>
+      <div class="kw-sub" style="opacity:.7">${c.stats.paragraphs} ${zh ? "段" : "paragraphs"} · ${c.stats.sentences} ${zh ? "句" : "sentences"} · ${zh ? "平均每句" : "about"} ${Math.round(c.stats.avg)} ${zh ? "字" : "words per sentence"} · ${zh ? `按 ${age} 岁的标准` : `goals for age ${age}`}</div></details>`;
+}
+function jChkHtml(r, v, zh, text, age) {
   if (!r) return "";
   const head = v.tooMany ? (zh ? `✏️ 错误：<b>${r.mistakes}</b>（最多 ${v.allowed} 个）· 再改 ${r.mistakes - v.allowed} 个，不然所有积分都会暂停` : `✏️ Mistakes: <b>${r.mistakes}</b> (${v.allowed} allowed) · fix ${r.mistakes - v.allowed} more, or all your points stay paused`)
     : (zh ? `✏️ 错误：<b>${r.mistakes}</b> · 可以（最多 ${v.allowed} 个）` : `✏️ Mistakes: <b>${r.mistakes}</b> · OK (${v.allowed} allowed)`);
-  return `<div class="jchk-head ${v.tooMany ? "bad" : "good"}">${head}</div>${r.issues.length ? `<div class="jchk-list">${r.issues.slice(0, 60).map((x, i) => `<button type="button" class="jchip k-${x.kind}" data-ji="${i}">${esc(x.msg)}${x.kind === "spell" && x.fix ? ` · ${lang === "zh" ? "可能是" : "maybe"} <b>${esc(x.fix)}</b>?` : ""}</button>`).join("")}</div><div class="kw-sub" style="opacity:.75">${zh ? "点一个错误，就会在日记里选中它。" : "Tap a mistake to jump to it in your journal."}</div>` : ""}`;
+  return `<div class="jchk-head ${v.tooMany ? "bad" : "good"}">${head}</div>${r.issues.length ? `<div class="jchk-list">${r.issues.slice(0, 60).map((x, i) => `<button type="button" class="jchip k-${x.kind}" data-ji="${i}">${esc(x.msg)}${x.kind === "spell" && x.fix ? ` · ${lang === "zh" ? "可能是" : "maybe"} <b>${esc(x.fix)}</b>?` : ""}</button>`).join("")}</div><div class="kw-sub" style="opacity:.75">${zh ? "点一个错误，就会在日记里选中它。" : "Tap a mistake to jump to it in your journal."}</div>` : ""}${jExtraHtml(r, zh, text, age)}`;
 }
 function kidGame() {
   const d = today(), moodDays = new Set(S.moods.map(m => m.date));
@@ -1915,7 +1928,8 @@ function kidRender() {
     $("#jWc").textContent = jr ? (ok ? (zhJ ? `${n} 字 · 字数够了 ✓` : `${n} words · long enough ✓`) : (zhJ ? `${n} / ${min} 字 · 还差 ${min - n} 字` : `${n} / ${min} words · ${min - n} more to go`))
       : (ok ? (zhJ ? `${n} 字 · 太棒了！保存就能得 +12 分 ⭐` : `${n} words · awesome! Save it to earn +12 points ⭐`) : (zhJ ? `${n} / ${min} 字 · 再写 ${min - n} 字就能得 +12 分` : `${n} / ${min} words · ${min - n} more to earn +12 points`));
     $("#jWc").classList.toggle("ok", ok); $("#jWcBar").style.width = Math.min(100, Math.round(100 * n / min)) + "%";
-    if (jr && r && $("#jChk")) { const J = window.JCHECK; $("#jChk").innerHTML = jChkHtml(r, J.verdict(r, jr.min, jr.per), zhJ); } };
+    if (jr && r && $("#jChk")) { const J = window.JCHECK; $("#jChk").innerHTML = jChkHtml(r, J.verdict(r, jr.min, jr.per), zhJ, $("#jIn").value, +k.age || 10);
+      $("#jChk").querySelectorAll("details[data-jopen]").forEach(d => d.addEventListener("toggle", () => { jOpen[d.dataset.jopen] = d.open; })); } };
   const jRun = async () => { if (!jr || !$("#jIn")) return; try { const J = await jLoad(), v = $("#jIn").value; const r = await J.check(v); if ($("#jIn") && $("#jIn").value === v) { jLast = r; jShow(r.words, r); } } catch (e) {} };
   if ($("#jIn")) {
     $("#jIn").oninput = () => { const v = $("#jIn").value; jShow(window.JCHECK ? window.JCHECK.countWords(v) : wordCount(v), null); if (jr) { clearTimeout(jTimer); jTimer = setTimeout(jRun, 700); } };

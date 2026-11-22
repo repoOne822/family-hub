@@ -891,3 +891,15 @@ button:focus:not(:focus-visible),a:focus:not(:focus-visible){outline:none}
 .jchip.k-spell{background:#ffe9e9}.jchip:hover{transform:translateY(-1px)}
 @media (max-width:640px){.jlockbar{flex-wrap:wrap}.jlockbar .btn{margin-left:0;width:100%}}
 .jlockbar.jpause{background:#e8f0ff;color:#0b2a5b}
+/* ✅ corrected version + ✍️ writing coach (2026-11-21) */
+.jbox{margin:10px 0;border:2px solid #16161d;border-radius:14px;background:#fff;color:#16161d;overflow:hidden}
+.jbox summary{cursor:pointer;padding:9px 12px;font:700 15px var(--kfont,inherit);background:#f3f0ff;list-style-position:inside}
+.jfix{padding:10px 12px;white-space:pre-wrap;font:500 15px/1.6 var(--kfont,inherit)}
+.jfix del{color:#b91c1c;text-decoration:line-through;background:#ffe4e4;border-radius:4px;padding:0 2px}
+.jfix ins{color:#166534;text-decoration:none;background:#dcfce7;border-radius:4px;padding:0 3px;font-weight:700;margin-left:2px}
+.jbox>.kw-sub{padding:0 12px 10px}
+.jfocus{margin:10px 12px;padding:9px 12px;border-radius:12px;background:#fff7d6;border:2px dashed #e0b400;font:600 14px/1.4 var(--kfont,inherit)}
+.jtraits{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;padding:0 12px 10px}
+.jtrait{border:1.5px solid #d4d4dc;border-radius:12px;padding:8px 10px;font:500 13.5px/1.4 var(--kfont,inherit)}
+.jtrait ul{margin:6px 0 0;padding-left:18px}.jtrait li{margin:3px 0}
+.jt-h{display:flex;justify-content:space-between;align-items:center;gap:6px}.jt-s{color:#e0a800;letter-spacing:1px;white-space:nowrap}.jt-ok{color:#166534;margin-top:4px}

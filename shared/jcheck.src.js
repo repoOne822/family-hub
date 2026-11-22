@@ -105,4 +105,94 @@ function verdict(r, min = 350, per = 50) {
   return { longEnough: r.words >= min, allowed: lockAt - 1, lockAt, tooMany: r.mistakes >= lockAt, pass: r.words >= min && r.mistakes < lockAt };
 }
 
-window.JCHECK = { load, check, countWords, verdict };
+
+// ---- ✅ Corrected version: his text with each fixable mistake shown as wrong → fix (he still makes the edits himself) ----
+function corrected(text, issues) {
+  const segs = []; let pos = 0;
+  for (const x of issues) {
+    if (x.start < pos) continue;
+    let fix = x.fix;
+    if (x.kind === "dup") fix = "";                         // drop the repeated word
+    if (fix == null && x.kind !== "end") continue;          // runon / unknown spelling: no automatic fix
+    let start = x.start, end = x.end;
+    if (x.kind === "cap") { const m = text.slice(x.start).match(/^[A-Za-z']+/); if (m) { end = x.start + m[0].length; fix = m[0][0].toUpperCase() + m[0].slice(1); } }
+    if (x.kind === "end") { if (x.end > pos) segs.push({ t: text.slice(pos, x.end) }); segs.push({ wrong: "", fix: "." }); pos = x.end; continue; }
+    if (x.kind === "dup") { while (start > pos && /\s/.test(text[start - 1])) start--; }
+    if (start > pos) segs.push({ t: text.slice(pos, start) });
+    segs.push({ wrong: text.slice(start, end), fix, unsure: x.kind === "spell" });
+    pos = end;
+  }
+  if (pos < text.length) segs.push({ t: text.slice(pos) });
+  return segs;
+}
+
+// ---- ✍️ Writing coach: 5 traits (6+1 traits model), tuned by age; tips quote his own words ----
+const WEAK = { good: "great, helpful, exciting, tasty, kind", bad: "awful, frustrating, disappointing, tough", fun: "exciting, thrilling, enjoyable, hilarious",
+  nice: "friendly, pleasant, thoughtful, beautiful", very: "(cut it, or use a stronger word: very tired → exhausted)", really: "(cut it, or use a stronger word: really happy → thrilled)",
+  thing: "(name the actual thing)", things: "(name the actual things)", stuff: "(name what it was)", got: "received, earned, became, bought", cool: "amazing, clever, impressive",
+  awesome: "incredible, outstanding, epic", lot: "many, plenty of, tons of", big: "huge, enormous, giant", happy: "proud, thrilled, relieved, cheerful", sad: "disappointed, upset, gloomy", went: "rushed, walked, drove, headed" };
+const TRANS = /\b(first|firstly|then|next|after that|afterwards|later|finally|in the end|meanwhile|because|however|but|so|also|although|when|while|before|after|since|suddenly|at first|eventually|luckily|unfortunately|for example|instead)\b/gi;
+const FEEL = /\b(happy|sad|proud|nervous|excited|worried|angry|mad|scared|calm|frustrated|annoyed|relieved|bored|tired|disappointed|surprised|confident|embarrassed|grateful|thankful|upset|glad|lonely|jealous|curious|felt|feel|feeling)\b/gi;
+const REFLECT = /\b(learned|learnt|realized|realised|next time|i will|i'll|i should|i want to|i hope|my goal|tomorrow i|because|i think|i wonder|lesson)\b/gi;
+const SENSE = /\b(saw|see|heard|hear|smelled|smell|tasted|taste|touched|loud|quiet|bright|dark|cold|hot|warm|soft|hard|sweet|sour|bitter|crunchy|shiny|noisy)\b/gi;
+const STOP = new Set("the a an and or but so to of in on at for with it is was were be been am are i me my we our you your he she they them his her their this that there then than as if not no do did does have has had will would can could just from by up out about into over after before when what who which how all some one two very really".split(" "));
+
+function coach(text, issues, age) {
+  const t = String(text || ""); age = +age || 10;
+  const sents = sentences(t).map(s => s.t.trim()).filter(x => /[A-Za-z]/.test(x));
+  const words = (t.match(/[A-Za-z']+/g) || []).map(w => w.toLowerCase());
+  const nW = words.length || 1, nS = sents.length || 1, avg = nW / nS;
+  const paras = t.split(/\n\s*\n|\n/).map(p => p.trim()).filter(p => (p.match(/[A-Za-z]+/g) || []).length >= 8);
+  const target = age >= 11 ? { lo: 11, hi: 20, paras: 3 } : { lo: 9, hi: 17, paras: 3 };
+  const cnt = re => (t.match(re) || []).length;
+  const traits = [];
+  // Ideas & details
+  { const feel = cnt(FEEL), refl = cnt(REFLECT), sense = cnt(SENSE), nums = cnt(/\b\d+\b/g), tips = [];
+    let st = 1 + (feel > 0) + (refl > 0) + ((sense + nums) >= 2);
+    const sk = {}; sents.forEach(x => { const k = x.toLowerCase().replace(/[^a-z ]/g, "").trim(); if (k.split(" ").length >= 4) sk[k] = (sk[k] || 0) + 1; });
+    const dupN = Object.values(sk).filter(n => n > 1).reduce((a, n) => a + n - 1, 0);
+    if (dupN) { st = Math.max(1, st - 1); tips.unshift(`You repeated the same sentence ${dupN} time${dupN > 1 ? "s" : ""}. Repeats don't count toward your words, and every sentence should tell something new.`); }
+    if (!feel) tips.push("Tell how you felt and why. Example: \"I felt nervous before my bout because my coach was watching.\"");
+    if (!refl) tips.push("End with what you learned or what you'll do next time. Example: \"Next time, I'll start my homework right after school.\"");
+    if (sense + nums < 2) tips.push("Add details someone can picture: a number, a name, a sound, a color. \"We won 15–12\" beats \"we won.\"");
+    traits.push({ key: "ideas", name: "Ideas & details", stars: Math.min(4, st), tips }); }
+  // Organization
+  { const tr = cnt(TRANS), tips = []; let st = 1;
+    if (paras.length >= target.paras) st++; else tips.push(`Split your journal into ${target.paras} paragraphs: 1) what happened, 2) the most important part with details, 3) how you feel and what you learned. Press Enter twice between them.`);
+    if (tr >= Math.max(3, Math.round(nS / 4))) st++; else tips.push("Use linking words so the story flows: First, Then, After that, Because, However, Finally.");
+    const open = (sents[0] || "").toLowerCase();
+    if (/^(today|yesterday|this morning|tonight)\s+(i|we)\b/.test(open)) tips.push(`Try a stronger first sentence than "${(sents[0] || "").split(/\s+/).slice(0, 4).join(" ")}…". Start with the most surprising moment, a question, or what someone said.`); else st++;
+    traits.push({ key: "org", name: "Organization", stars: Math.min(4, st), tips }); }
+  // Word choice
+  { const tips = [], freq = {}; words.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+    const weak = Object.keys(WEAK).filter(w => (freq[w] || 0) >= 3).sort((a, b) => freq[b] - freq[a]);
+    weak.slice(0, 3).forEach(w => tips.push(`You used "${w}" ${freq[w]} times. Try: ${WEAK[w]}.`));
+    const rep = Object.keys(freq).filter(w => w.length > 3 && !STOP.has(w) && !WEAK[w] && freq[w] >= Math.max(5, nW / 40)).sort((a, b) => freq[b] - freq[a]).slice(0, 2);
+    rep.forEach(w => tips.push(`"${w}" appears ${freq[w]} times. Use a different word or a pronoun for some of them.`));
+    const st = Math.max(1, 4 - weak.length - (rep.length ? 1 : 0));
+    traits.push({ key: "words", name: "Word choice", stars: st, tips }); }
+  // Sentence fluency
+  { const tips = []; let st = 4;
+    if (avg < target.lo) { st--; tips.push(`Your sentences are short (about ${Math.round(avg)} words each). Join some with because, when, but, or so. "I was tired. I kept going." → "I was tired, but I kept going."`); }
+    if (avg > target.hi) { st--; tips.push(`Your sentences are long (about ${Math.round(avg)} words each). Split them so each sentence has one main idea.`); }
+    const starts = sents.map(s => (s.match(/[A-Za-z']+/) || [""])[0].toLowerCase());
+    const top = Object.entries(starts.reduce((m, w) => (m[w] = (m[w] || 0) + 1, m), {})).sort((a, b) => b[1] - a[1])[0];
+    if (top && nS >= 6 && top[1] / nS > 0.35) { st--; tips.push(`${top[1]} of your ${nS} sentences start with "${top[0].replace(/^i$/, "I")}". Start some with a time ("After dinner,"), a feeling ("Proudly,"), or an action ("Racing down the hall,").`); }
+    let run = 1; for (let i = 1; i < starts.length; i++) { run = starts[i] === starts[i - 1] ? run + 1 : 1; if (run === 3) { st--; const w = starts[i].replace(/^i$/, "I"); tips.push(`3 sentences in a row start with "${w[0].toUpperCase() + w.slice(1)}". Change one: "${w === "then" ? "After that," : "Later,"}" or join two of them with "and".`); break; } }
+    traits.push({ key: "flow", name: "Sentence flow", stars: Math.max(1, st), tips }); }
+  // Conventions
+  { const per100 = (issues.length / Math.max(nW, 1)) * 100, tips = [];
+    const st = per100 < 0.5 ? 4 : per100 < 1.5 ? 3 : per100 < 3 ? 2 : 1;
+    const kinds = issues.reduce((m, x) => (m[x.kind] = (m[x.kind] || 0) + 1, m), {});
+    if (kinds.spell) tips.push(`${kinds.spell} spelling mistake${kinds.spell > 1 ? "s" : ""}. Say the word slowly and spell each sound; check the corrected version below.`);
+    if (kinds.i || kinds.cap) tips.push("Capitals: every sentence starts with one, and \"I\" is always a capital.");
+    if (kinds.apos) tips.push("Apostrophes in short forms: don't, didn't, I'm, that's (the apostrophe replaces the missing letter).");
+    if (kinds.end) tips.push("Finish every sentence with . ! or ?");
+    if (kinds.runon) tips.push("A very long sentence with no commas is hard to read. Split it into two or three.");
+    traits.push({ key: "conv", name: "Spelling & grammar", stars: st, tips }); }
+  const total = traits.reduce((a, x) => a + x.stars, 0);
+  const next = traits.filter(x => x.tips.length).sort((a, b) => a.stars - b.stars)[0];
+  return { traits, total, max: traits.length * 4, focus: next ? next.tips[0] : null, stats: { words: nW, sentences: nS, avg: Math.round(avg * 10) / 10, paragraphs: paras.length } };
+}
+
+window.JCHECK = { load, check, countWords, verdict, corrected, coach };
