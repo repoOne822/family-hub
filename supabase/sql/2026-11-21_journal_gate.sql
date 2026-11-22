@@ -1,0 +1,7 @@
+-- Applied 2026-11-21 via migrations journal_quality_gate + journal_points_pause (project iiplawparuxicjyflhzu). Kept here for reference.
+-- journal: + words int, + mistakes int (computed on the device by shared/jcheck.js)
+-- kids: + journal_required bool, + journal_err_per int (50), + journal_unlock_date date; eric/ellis: required, min 250
+-- private.journal_frozen(kid): an entry (since 2026-11-21) with mistakes >= max(1, floor(max(words, min)/per)) pauses points
+-- private.award + public.award_app_points: no new points while frozen (journal points and parent bonuses still work)
+-- private.journal_min_check (before insert/update/delete): a boy can't save under his minimum or delete an entry that's still over the mistake limit
+-- private.pts_journal: an entry over the mistake limit earns 0 until fixed

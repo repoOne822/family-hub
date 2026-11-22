@@ -1322,6 +1322,7 @@ async function amcGateOk(cfg, kid) {
 window.fhOpenApp = async (url, kid) => { if (appOpen) await appOpen(); openApp(url, kid); };
 async function openApp(url, kid) {
   const cfg = APPS[url]; if (!cfg) return;
+  if (!(await journalGateOk(kid))) return;
   if (!(await amcGateOk(cfg, kid))) return;
   if (!gameMixGate(cfg, kid)) return;
   const t = T(), mark = `fh_save_${kid}_${cfg.id}`, pre = typeof cfg.prefix === "function" ? cfg.prefix(kid) : cfg.prefix;
@@ -1485,6 +1486,69 @@ const JOURNAL_MIN_WORDS = 500, JOURNAL_RULE_FROM = "2026-11-21T04:00:00Z";
 const wordCount = str => { const s = String(str || ""); const cjk = (s.match(/[\u3400-\u9fff\uf900-\ufaff]/g) || []).length; const rest = s.replace(/[\u3400-\u9fff\uf900-\ufaff]/g, " ").match(/[A-Za-z0-9\u00C0-\u024F]+(?:['’-][A-Za-z0-9]+)*/g) || []; return cjk + rest.length; };
 const journalCounts = j => (S.point_ledger || []).some(r => r.ref === "journal:" + j.id);
 const jMin = () => S.kids[0]?.journal_min_words ?? JOURNAL_MIN_WORDS;
+/* ---- 📓 Journal gate (Bobby 2026-11-21): Eric & Ellis write a 250+ word journal every day before anything else opens.
+   Too many mistakes (1+ per 50 words: 250 words → 4 allowed, 5 pauses) doesn't lock; it ⏸️ pauses ALL other points (server-side,
+   private.journal_frozen) until that entry is fixed, even on later days. The spell + grammar check runs on the device (shared/jcheck.js).
+   Parents can turn it off or skip one day. Jonah is exempt. ---- */
+const JV = "20261121jg1";
+let jcheckP = null;
+const jLoad = () => jcheckP || (jcheckP = import(`./shared/jcheck.js?v=${JV}`).then(() => window.JCHECK).catch(e => { jcheckP = null; throw e; }));
+const jRule = k => k && k.journal_required ? { min: k.journal_min_words || 250, per: k.journal_err_per || 50, open: k.journal_unlock_date === today() } : null;
+const jToday = kid => (S.journal || []).filter(j => j.kid === kid && j.date === today()).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0] || null;
+const jLockAt = (k, words) => Math.max(1, Math.floor(Math.max(words || 0, k.journal_min_words || 250) / Math.max(k.journal_err_per || 50, 10)));
+const jBad = k => k && k.journal_required ? (S.journal || []).filter(j => j.kid === k.id && j.mistakes != null && j.date >= "2026-11-21" && j.mistakes >= jLockAt(k, j.words)).sort((a, b) => b.date.localeCompare(a.date))[0] || null : null;
+const jEditing = k => jBad(k) || jToday(k.id);
+const JST = {};
+async function jState(k) {
+  const rule = jRule(k); if (!rule) return { ok: true };
+  if (rule.open) return { ok: true, open: true, rule };
+  const e = jToday(k.id); if (!e) return { ok: false, why: "none", rule };
+  let J; try { J = await jLoad(); } catch (err) { return { ok: true, rule, err: true }; } // checker failed to load: never lock him out by accident
+  const c = JST[k.id], r = c && c.body === e.body ? c.r : await J.check(e.body); JST[k.id] = { body: e.body, r };
+  const v = J.verdict(r, rule.min, rule.per);
+  return { ok: v.longEnough, why: !v.longEnough ? "short" : "", r, v, rule, entry: e };
+}
+function jLockMsg(st, zh) {
+  if (st.why === "none") return zh ? `先写今天的日记（至少 ${st.rule.min} 字），其他功能才会打开。` : `Write today's journal first (at least ${st.rule.min} words). Everything else opens after that.`;
+  if (st.why === "short") return zh ? `今天的日记只有 ${st.r.words} 字，需要 ${st.rule.min} 字。` : `Today's journal has ${st.r.words} words. It needs ${st.rule.min}.`;
+  return "";
+}
+function jGoWrite() { const n = document.getElementById("ks-note"), i = document.getElementById("jIn"); if (n) n.scrollIntoView({ behavior: "smooth", block: "start" }); if (i) setTimeout(() => i.focus(), 400); }
+async function journalGateOk(kid) {
+  if (!isKid() || preview) return true;
+  const k = S.kids.find(x => x.id === kid); const st = await jState(k); if (st.ok) return true;
+  const zh = lang === "zh", ov = document.createElement("div"); ov.className = "amcgate";
+  ov.innerHTML = `<div class="amcgate-box"><div style="font-size:58px">📓</div><h2>${zh ? "先写日记！" : "Journal first!"}</h2><p style="font-size:18px">${jLockMsg(st, zh)}</p>
+    <div class="amcgate-row"><button class="btn primary" data-w="1">✏️ ${zh ? "去写日记" : "Write my journal"}</button><button class="btn" data-x="1">${zh ? "返回" : "Back"}</button></div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector("[data-x]").onclick = () => ov.remove(); ov.querySelector("[data-w]").onclick = () => { ov.remove(); jGoWrite(); };
+  return false;
+}
+function jApplyPause(k) {
+  const root = document.querySelector(".kw-layout")?.parentElement; if (!root) return;
+  const b = jBad(k), zh = lang === "zh"; let bar = document.getElementById("jPauseBar");
+  if (!b) { if (bar) bar.remove(); return; }
+  if (!bar) { bar = document.createElement("div"); bar.id = "jPauseBar"; bar.className = "jlockbar jpause"; root.querySelector(".kw-layout").before(bar); }
+  const allowed = jLockAt(k, b.words) - 1, day = b.date === today() ? (zh ? "今天" : "today") : fmtDate(b.date);
+  bar.innerHTML = `<div class="jl-ic">⏸️</div><div><b>${zh ? "积分暂停了" : "Points are paused"}</b><div>${zh ? `${day}的日记有 ${b.mistakes} 个错误（最多 ${allowed} 个）。改好之前，做任何事都不会得分。` : `Your journal from ${day} has ${b.mistakes} mistakes (${allowed} allowed). Until you fix them, nothing earns points.`}</div></div><button type="button" class="btn primary" id="jPauseGo">✏️ ${zh ? "去改" : "Fix it"}</button>`;
+  bar.querySelector("#jPauseGo").onclick = jGoWrite;
+}
+function jApplyLock(st) {
+  const root = document.querySelector(".kw-layout")?.parentElement; if (!root) return;
+  root.classList.toggle("jlocked", !st.ok);
+  let bar = document.getElementById("jLockBar");
+  if (st.ok) { if (bar) bar.remove(); return; }
+  const zh = lang === "zh";
+  if (!bar) { bar = document.createElement("div"); bar.id = "jLockBar"; bar.className = "jlockbar"; root.querySelector(".kw-layout").before(bar); }
+  bar.innerHTML = `<div class="jl-ic">🔒</div><div><b>${zh ? "今天的日记还没完成" : "Today's journal isn't done yet"}</b><div>${jLockMsg(st, zh)}</div></div><button type="button" class="btn primary" id="jLockGo">✏️ ${zh ? "写日记" : "Write it"}</button>`;
+  bar.querySelector("#jLockGo").onclick = jGoWrite;
+}
+function jChkHtml(r, v, zh) {
+  if (!r) return "";
+  const head = v.tooMany ? (zh ? `✏️ 错误：<b>${r.mistakes}</b>（最多 ${v.allowed} 个）· 再改 ${r.mistakes - v.allowed} 个，不然所有积分都会暂停` : `✏️ Mistakes: <b>${r.mistakes}</b> (${v.allowed} allowed) · fix ${r.mistakes - v.allowed} more, or all your points stay paused`)
+    : (zh ? `✏️ 错误：<b>${r.mistakes}</b> · 可以（最多 ${v.allowed} 个）` : `✏️ Mistakes: <b>${r.mistakes}</b> · OK (${v.allowed} allowed)`);
+  return `<div class="jchk-head ${v.tooMany ? "bad" : "good"}">${head}</div>${r.issues.length ? `<div class="jchk-list">${r.issues.slice(0, 60).map((x, i) => `<button type="button" class="jchip k-${x.kind}" data-ji="${i}">${esc(x.msg)}${x.kind === "spell" && x.fix ? ` · ${lang === "zh" ? "可能是" : "maybe"} <b>${esc(x.fix)}</b>?` : ""}</button>`).join("")}</div><div class="kw-sub" style="opacity:.75">${zh ? "点一个错误，就会在日记里选中它。" : "Tap a mistake to jump to it in your journal."}</div>` : ""}`;
+}
 function kidGame() {
   const d = today(), moodDays = new Set(S.moods.map(m => m.date));
   const rateIds = new Set(S.metrics.filter(m => m.type === "rate").map(m => m.id));
@@ -1706,9 +1770,11 @@ function kidRender() {
       </section><section id="ks-note" class="kw-sec">
       ${little ? "" : `${kwH("book", "note", t.secretNotebook, `<span class="tagc">${KI("lock", 14)}</span>`)}
       <div class="kw-notebook"><div style="font:600 12px var(--kfont);color:#888;line-height:20px">${t.journalPrivate}</div>
-        <form id="jForm"><textarea id="jIn" maxlength="30000" placeholder="${t.journalPh}" required></textarea>
+        <form id="jForm"><textarea id="jIn" maxlength="30000" placeholder="${t.journalPh}" required>${jRule(k) && jEditing(k) ? esc(jEditing(k).body) : ""}</textarea>
           <div class="kw-wc" id="jWc">${jMin() ? (lang === "zh" ? `0 / ${jMin()} 字 · 写满 ${jMin()} 字才能得 +12 分` : `0 / ${jMin()} words · write ${jMin()} to earn +12 points`) : (lang === "zh" ? "写完保存就能得 +12 分" : "Save an entry to earn +12 points")}</div><div class="kw-wcbar"><i id="jWcBar"></i></div>
-          <button class="btn sm primary">${t.saveEntry}</button></form>
+          ${jRule(k) ? `<div id="jChk" class="jchk"></div>` : ""}
+          ${jRule(k) && jBad(k) && jBad(k).date !== today() ? `<div class="kw-sub" style="opacity:1;font-weight:700">${lang === "zh" ? `正在改 ${fmtDate(jBad(k).date)} 的日记。改好后再写今天的。` : `You're fixing your journal from ${fmtDate(jBad(k).date)}. After that, write today's.`}</div>` : ""}
+          <button class="btn sm primary">${jRule(k) && jEditing(k) ? (lang === "zh" ? "更新这篇日记" : "Update this entry") : t.saveEntry}</button></form>
         ${journal.map(j => `<div class="entry"><small>${fmtDate(j.date)} · ${wordCount(j.body)} ${lang === "zh" ? "字" : "words"}${journalCounts(j) ? " ⭐+12" : ""} <button class="x" style="opacity:.5;color:#888" data-delj="${j.id}">✕</button></small>${esc(j.body)}</div>`).join("")}</div>`}
       </section></div><aside class="kw-side">
       <section id="ks-cal" class="kw-sec">
@@ -1731,6 +1797,7 @@ function kidRender() {
     </div>
     <div class="modal-bg" id="avModal"><div class="modal" style="max-width:640px" id="avBody"></div></div>`;
   if (newly.length) { confetti(); setStatus(t.newBadge + " " + newly.map(b => BADGES.find(x => x[0] === b)[1]).join(" ")); }
+  if (jRule(k)) { if (!jRule(k).open && !jToday(k.id)) jApplyLock({ ok: false, why: "none", rule: jRule(k) }); jState(k).then(st => { if (document.getElementById("jIn")) jApplyLock(st); }).catch(() => {}); jApplyPause(k); }
   $("#langBtn").onclick = toggleLang; $("#soBtn").onclick = () => { if (preview) return exitPreview(); document.body.classList.remove("kidmode"); setKidTheme(null); sb.auth.signOut(); };
   $("#themeBtn").onclick = () => { const p = $("#themePick"); p.hidden = !p.hidden; $("#themeBtn").setAttribute("aria-expanded", String(!p.hidden)); };
   document.querySelectorAll("[data-ktheme]").forEach(b => b.onclick = async () => {
@@ -1778,12 +1845,37 @@ function kidRender() {
   };
   if ($("#propBtn")) $("#propBtn").onclick = () => { const v = $("#propIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("goals").insert({ kid: k.id, text: v, status: "proposed", proposed_by_kid: true }); if (error) throw error; }); };
   if ($("#winForm")) $("#winForm").onsubmit = e => { e.preventDefault(); const v = $("#winIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("entries").insert({ kid: k.id, date: today(), cat: "other", tone: "positive", title: v, by_kid: true }); if (error) throw error; }); };
-  if ($("#jIn")) $("#jIn").oninput = () => { const JOURNAL_MIN_WORDS = jMin() || 1, n = wordCount($("#jIn").value), ok = n >= JOURNAL_MIN_WORDS;
-    $("#jWc").textContent = ok ? (lang === "zh" ? `${n} 字 · 太棒了！保存就能得 +12 分 ⭐` : `${n} words · awesome! Save it to earn +12 points ⭐`) : (lang === "zh" ? `${n} / ${JOURNAL_MIN_WORDS} 字 · 再写 ${JOURNAL_MIN_WORDS - n} 字就能得 +12 分` : `${n} / ${JOURNAL_MIN_WORDS} words · ${JOURNAL_MIN_WORDS - n} more to earn +12 points`);
-    $("#jWc").classList.toggle("ok", ok); $("#jWcBar").style.width = Math.min(100, Math.round(100 * n / JOURNAL_MIN_WORDS)) + "%"; };
-  if ($("#jForm")) $("#jForm").onsubmit = e => { e.preventDefault(); const v = $("#jIn").value.trim(); if (!v) return; const n = wordCount(v);
-    R(async () => { const { error } = await sb.from("journal").insert({ kid: k.id, date: today(), body: v }); if (error) throw error; })
-      .then(() => { const JOURNAL_MIN_WORDS = jMin(); if (!preview && n < JOURNAL_MIN_WORDS) setStatus(lang === "zh" ? `已保存（${n} 字）。写满 ${JOURNAL_MIN_WORDS} 字的日记才能得分哦。` : `Saved (${n} words). Entries with ${JOURNAL_MIN_WORDS}+ words earn points.`); }); };
+  const jr = jRule(k), zhJ = lang === "zh";
+  let jLast = null, jTimer = null;
+  const jShow = (n, r) => { const min = (jr ? jr.min : jMin()) || 1, ok = n >= min;
+    $("#jWc").textContent = jr ? (ok ? (zhJ ? `${n} 字 · 字数够了 ✓` : `${n} words · long enough ✓`) : (zhJ ? `${n} / ${min} 字 · 还差 ${min - n} 字` : `${n} / ${min} words · ${min - n} more to go`))
+      : (ok ? (zhJ ? `${n} 字 · 太棒了！保存就能得 +12 分 ⭐` : `${n} words · awesome! Save it to earn +12 points ⭐`) : (zhJ ? `${n} / ${min} 字 · 再写 ${min - n} 字就能得 +12 分` : `${n} / ${min} words · ${min - n} more to earn +12 points`));
+    $("#jWc").classList.toggle("ok", ok); $("#jWcBar").style.width = Math.min(100, Math.round(100 * n / min)) + "%";
+    if (jr && r && $("#jChk")) { const J = window.JCHECK; $("#jChk").innerHTML = jChkHtml(r, J.verdict(r, jr.min, jr.per), zhJ); } };
+  const jRun = async () => { if (!jr || !$("#jIn")) return; try { const J = await jLoad(), v = $("#jIn").value; const r = await J.check(v); if ($("#jIn") && $("#jIn").value === v) { jLast = r; jShow(r.words, r); } } catch (e) {} };
+  if ($("#jIn")) {
+    $("#jIn").oninput = () => { const v = $("#jIn").value; jShow(window.JCHECK ? window.JCHECK.countWords(v) : wordCount(v), null); if (jr) { clearTimeout(jTimer); jTimer = setTimeout(jRun, 700); } };
+    if (jr) {
+      const noPaste = e => { e.preventDefault(); setStatus(zhJ ? "日记要自己打字哦，不能粘贴。" : "Type your journal yourself. Pasting is turned off.", true); };
+      $("#jIn").addEventListener("paste", noPaste); $("#jIn").addEventListener("drop", noPaste);
+      if ($("#jIn").value) { jShow(wordCount($("#jIn").value), null); jRun(); }
+    }
+  }
+  if ($("#jChk")) $("#jChk").onclick = e => { const b = e.target.closest("[data-ji]"); if (!b || !jLast) return; const x = jLast.issues[+b.dataset.ji], ta = $("#jIn"); if (!x || !ta) return;
+    ta.focus(); ta.setSelectionRange(x.start, x.end); const lh = parseFloat(getComputedStyle(ta).lineHeight) || 20; const before = ta.value.slice(0, x.start).split("\n").length; ta.scrollTop = Math.max(0, before * lh - ta.clientHeight / 2); };
+  if ($("#jForm")) $("#jForm").onsubmit = async e => { e.preventDefault(); const v = $("#jIn").value.trim(); if (!v) return;
+    if (!jr) { const n = wordCount(v);
+      return R(async () => { const { error } = await sb.from("journal").insert({ kid: k.id, date: today(), body: v }); if (error) throw error; })
+        .then(() => { const JOURNAL_MIN_WORDS = jMin(); if (!preview && n < JOURNAL_MIN_WORDS) setStatus(zhJ ? `已保存（${n} 字）。写满 ${JOURNAL_MIN_WORDS} 字的日记才能得分哦。` : `Saved (${n} words). Entries with ${JOURNAL_MIN_WORDS}+ words earn points.`); }); }
+    let r; try { const J = await jLoad(); r = await J.check(v); } catch (err) { r = { words: wordCount(v), mistakes: null, issues: [] }; }
+    if (r.words < jr.min || wordCount(v) < jr.min) return setStatus(zhJ ? `还差 ${jr.min - Math.min(r.words, wordCount(v))} 字才能保存（至少 ${jr.min} 字）。` : `${jr.min - Math.min(r.words, wordCount(v))} more words before you can save (at least ${jr.min}).`, true);
+    const ex = jEditing(k), row = { body: v, words: r.words, mistakes: r.mistakes };
+    await R(async () => { const { error } = ex ? await sb.from("journal").update(row).eq("id", ex.id) : await sb.from("journal").insert({ kid: k.id, date: today(), ...row }); if (error) throw error; });
+    if (preview || r.mistakes == null) return;
+    const vd = window.JCHECK.verdict(r, jr.min, jr.per);
+    if (vd.pass) { setStatus(zhJ ? "✅ 日记完成！所有功能都打开了，积分照常。" : "✅ Journal done! Everything is open and points are on."); try { confetti(); } catch (e2) {} }
+    else setStatus(zhJ ? `已保存，但有 ${r.mistakes} 个错误（最多 ${vd.allowed} 个）。改好之前，所有积分都暂停。` : `Saved, but it has ${r.mistakes} mistakes (${vd.allowed} allowed). All your points are paused until you fix them.`, true);
+  };
   $("#root").onclick = e => {
     const x = e.target.closest("[data-unprop],[data-delwin],[data-delj],[data-kdoc],[data-lwin]"); if (!x) return;
     if (x.dataset.lwin) R(async () => { const { error } = await sb.from("entries").insert({ kid: k.id, date: today(), cat: "other", tone: "positive", title: T().littleWins[+x.dataset.lwin], by_kid: true }); if (error) throw error; });
@@ -2012,7 +2104,11 @@ function viewRewards() {
       <div class="card rwcard"><h4>🎚️ ${zh ? "难度（决定得分）" : "Difficulty (sets the points)"}</h4><p class="meta">${zh ? "习惯每次 5 × 难度；每周目标、新纪录、达成目标和完成目标也按难度加倍。" : "Each habit tap is 5 × difficulty; weekly bonuses, new bests, reaching a target and finishing a goal scale the same way."}</p>
         ${habits.map(m => `<div class="rwrow"><span>${esc(zh && m.name_zh ? m.name_zh : m.name)} <span class="meta">${m.type === "rate" ? (zh ? `每周 ${m.per_week} 次` : `${m.per_week}×/week`) : (zh ? "分数目标" : "score goal")}</span></span>${diffSelect("d", m.difficulty, `data-mdiff="${esc(m.id)}"`)}</div>`).join("") || `<div class="meta">—</div>`}
         ${goals.length ? `<h5>${zh ? "目标" : "Goals"}</h5>` + goals.map(g => `<div class="rwrow"><span>${esc(g.text)}</span>${diffSelect("d", g.difficulty, `data-gdiff="${g.id}"`)}</div>`).join("") : ""}
-        <div class="rwrow" style="margin-top:12px"><span>📓 ${zh ? "日记最少字数（0 = 不限）" : "Journal minimum words (0 = no minimum)"}</span><input type="number" min="0" max="5000" step="50" value="${k.journal_min_words ?? 500}" data-jmin="${esc(rwKid)}" style="width:100px"></div></div>
+        <div class="rwrow" style="margin-top:12px"><span>📓 ${zh ? "日记最少字数（0 = 不限）" : "Journal minimum words (0 = no minimum)"}</span><input type="number" min="0" max="5000" step="50" value="${k.journal_min_words ?? 500}" data-jmin="${esc(rwKid)}" style="width:100px"></div>
+        <div class="rwrow"><span>🔒 ${zh ? "每天先写日记才能用其他功能；错误太多会暂停所有积分" : "Journal required every day before apps open; too many mistakes pauses all points"}</span><input type="checkbox" data-jreq="${esc(rwKid)}" ${k.journal_required ? "checked" : ""}></div>
+        ${k.journal_required ? `<div class="rwrow"><span>🗝️ ${zh ? "今天免写（只限今天）" : "Unlock today only (skip the journal today)"}</span><input type="checkbox" data-junlock="${esc(rwKid)}" ${k.journal_unlock_date === today() ? "checked" : ""}></div>
+        <div class="meta" style="margin-top:4px">${(() => { const e = jToday(rwKid); if (!e) return zh ? "今天：还没写" : "Today: not written yet"; const w = e.words ?? wordCount(e.body), m = e.mistakes, lk = jLockAt(k, w);
+          return m == null ? (zh ? `今天：${w} 字` : `Today: ${w} words`) : (m >= lk ? (zh ? `今天：${w} 字 · ${m} 个错误（最多 ${lk - 1} 个）` : `Today: ${w} words · ${m} mistakes (${lk - 1} allowed)`) : (zh ? `今天：${w} 字 · ${m} 个错误 · ✅` : `Today: ${w} words · ${m} mistakes · ✅`)); })()}${jBad(k) ? ` · <b>⏸️ ${zh ? `积分暂停中（${fmtDate(jBad(k).date)} 的日记有 ${jBad(k).mistakes} 个错误）` : `points paused (journal from ${fmtDate(jBad(k).date)} has ${jBad(k).mistakes} mistakes)`}</b>` : ""}</div>` : ""}</div>
       <div class="card rwcard"><h4>🌟 ${zh ? "额外奖励" : "Give bonus points"}</h4><p class="meta">${zh ? "表扬努力、勇气、善良——说清楚为什么。" : "Reward effort, courage or kindness — say what for."}</p>
         <form id="bonusForm" class="rwbonus"><input name="pts" type="number" min="1" max="500" value="20" required><input name="why" maxlength="120" required placeholder="${zh ? "为什么？例如：主动帮弟弟" : "What for? e.g. helped Jonah without being asked"}"><button class="btn sm primary">${zh ? "奖励" : "Give"} ${esc(kidName(rwKid))}</button></form>
         <h4 style="margin-top:18px">🧾 ${esc(kidName(rwKid))} · ${L.recent}</h4>${p.rows.slice(0, 25).map(r => `<div class="kpt"><span class="${r.points < 0 ? "neg" : ""}">${r.points > 0 ? "+" : ""}${r.points}</span>${esc(ledgerLabel(r))}<small>${fmtDate(r.date)}</small></div>`).join("") || `<div class="meta">—</div>`}</div></div>
@@ -2037,6 +2133,8 @@ document.addEventListener("change", async e => {
   try {
     if (el.dataset.mdiff) { const { error } = await sb.from("metrics").update({ difficulty: el.value }).eq("id", el.dataset.mdiff); if (error) throw error; setStatus("✓ " + diffLabel(el.value)); return refresh(); }
     if (el.dataset.gdiff) { const { error } = await sb.from("goals").update({ difficulty: el.value }).eq("id", el.dataset.gdiff); if (error) throw error; setStatus("✓ " + diffLabel(el.value)); return refresh(); }
+    if (el.dataset.jreq) { const { error } = await sb.from("kids").update({ journal_required: el.checked }).eq("id", el.dataset.jreq); if (error) throw error; setStatus("✓"); return refresh(); }
+    if (el.dataset.junlock) { const { error } = await sb.from("kids").update({ journal_unlock_date: el.checked ? today() : null }).eq("id", el.dataset.junlock); if (error) throw error; setStatus("✓"); return refresh(); }
     if (el.dataset.jmin) { const { error } = await sb.from("kids").update({ journal_min_words: Math.max(0, Math.min(5000, +el.value || 0)) }).eq("id", el.dataset.jmin); if (error) throw error; setStatus("✓"); return refresh(); }
     if (el.dataset.rcost) { const { error } = await sb.from("rewards").update({ cost: Math.max(10, +el.value || 10) }).eq("id", el.dataset.rcost); if (error) throw error; setStatus("✓"); return refresh(); }
   } catch (err) { setStatus(err.message, true); }

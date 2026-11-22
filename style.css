@@ -877,3 +877,17 @@ button:focus:not(:focus-visible),a:focus:not(:focus-visible){outline:none}
 .lntr{gap:2px}.lntr>div{min-width:0;flex:1}.lntr .pfcol{width:100%!important;max-width:12px}
 .pfdays.lnd>div{min-width:0;flex:1}.pfdays.lnd small{font-size:10px}
 .lnt td:first-child{min-width:190px}.lnt td:nth-child(3){min-width:90px}
+
+/* 📓 Journal gate (2026-11-21): when today's journal isn't done, only the journal shows */
+.jlocked .kw-row,.jlocked #ks-home,.jlocked #ks-worlds,.jlocked #ks-jar,.jlocked .kw-side,.jlocked .kw-jump,.jlocked .kw-marquee{display:none!important}
+.jlocked .kw-layout{grid-template-columns:1fr!important}
+.jlockbar{display:flex;align-items:center;gap:14px;margin:14px 0;padding:16px 18px;background:#fff4d6;color:#3b2400;border:3px solid #16161d;border-radius:20px;box-shadow:5px 5px 0 #16161d;font:600 16px/1.35 var(--kfont,inherit)}
+.jlockbar .jl-ic{font-size:40px}.jlockbar b{font-size:19px}.jlockbar .btn{margin-left:auto;white-space:nowrap}
+.jchk{margin:10px 0}
+.jchk-head{font:700 15px var(--kfont,inherit);padding:8px 12px;border-radius:12px;border:2px solid #16161d}
+.jchk-head.bad{background:#ffe1e1;color:#7a0d0d}.jchk-head.good{background:#dcfce7;color:#14532d}
+.jchk-list{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;max-height:220px;overflow:auto}
+.jchip{font:600 13px var(--kfont,inherit);text-align:left;padding:5px 9px;border-radius:10px;border:2px solid #16161d;background:#fff;color:#16161d;cursor:pointer}
+.jchip.k-spell{background:#ffe9e9}.jchip:hover{transform:translateY(-1px)}
+@media (max-width:640px){.jlockbar{flex-wrap:wrap}.jlockbar .btn{margin-left:0;width:100%}}
+.jlockbar.jpause{background:#e8f0ff;color:#0b2a5b}
