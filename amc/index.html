@@ -172,6 +172,8 @@ button{font:inherit;cursor:pointer}
 <script src="scratch.js?v=20261121b"></script>
 <script src="buddy.js?v=20261121b"></script>
 <script src="gym.js?v=20261120b"></script>
+<script src="gym2.js?v=20261121ad1"></script>
+<script src="../shared/adapt.js?v=20261121ad1"></script>
 <script src="visuals.js?v=20261120b"></script>
 <script src="realtests.js?v=20261120b"></script>
 <script>
@@ -246,8 +248,19 @@ const coachBadge = id => { const t = TUNE[id]; if (!t || !t.s) return "";
   if (t.s === "mastered") return `<span class="wk" style="background:#2fbf71;right:auto;left:10px">⬆️ ${t.d >= 3 ? "Hard" : "Ready for harder"}</span>`;
   if (t.s === "review") return `<span class="wk" style="background:#7c5cff;right:auto;left:10px">🔁 Review</span>`;
   return ""; };
+// 🎯 Adaptive practice (2026-11-21): each chapter has a level 1–5 that moves while he practices (shared/adapt.js).
+// Up after 3 first-try correct in a row, down after 2 misses in the last 4; no recent repeats; missed problems come back.
+const AKID = new URLSearchParams(location.search).get("k") || "amc";
+const AD = window.ADAPT ? ADAPT.create(`${AKID}_amc_adapt`, { start: id => { const t = TUNE[id]; return t && t.d ? [2, 3, 4][Math.min(3, Math.max(1, t.d)) - 1] : 2; } }) : null;
+const LVNAME = ["", "Warm-up", "Building", "Solid", "Strong", "Challenge"];
+const adRecord = (p, correct, firstTry, secs) => { if (!AD || !p) return null; const id = p.topic || (p.from && p.from.id); if (!id) return null;
+  return AD.record(id, correct, { firstTry, slow: secs > 240, key: p.q, mkey: p.tid || null, item: p.tid ? { tid: p.tid } : null }); };
+const gymNextAdaptive = l => { const lv = AD.level(l.id);
+  if (lv >= 5 && l.ch && l.ch.length && Math.random() < 0.3) { const fresh = l.ch.filter(x => !AD.state().seen.includes(x.q)); const c = (fresh.length ? fresh : l.ch)[Math.floor(Math.random() * (fresh.length || l.ch.length))]; return { ...c, lvl: "challenge", glv: 5 }; }
+  if (lv <= 1 && l.pr && l.pr.length && Math.random() < 0.3) { const fresh = l.pr.filter(x => !AD.state().seen.includes(x.q)); if (fresh.length) return { ...fresh[Math.floor(Math.random() * fresh.length)], glv: 1 }; }
+  return AD.next(l.id, (lvl, item) => GYM.makeAt ? GYM.makeAt(l.id, lvl, item) : GYM.make(l.id), p => p.q); };
 // gym: an easier chapter mixes in starter problems, a harder one mixes in challenge problems
-const gymNext = l => { const t = TUNE[l.id], d = t && t.d; if (d >= 3 && l.ch && l.ch.length && Math.random() < 0.4) return { ...l.ch[Math.floor(Math.random() * l.ch.length)], lvl: "challenge" };
+const gymNext = l => { if (AD) return gymNextAdaptive(l); const t = TUNE[l.id], d = t && t.d; if (d >= 3 && l.ch && l.ch.length && Math.random() < 0.4) return { ...l.ch[Math.floor(Math.random() * l.ch.length)], lvl: "challenge" };
   if (d === 1 && t && COACH_FOCUS.includes(t.s) && l.pr && l.pr.length && Math.random() < 0.4) return l.pr[Math.floor(Math.random() * l.pr.length)]; return GYM.make(l.id); };
 const probURL = (y, n) => `https://artofproblemsolving.com/wiki/index.php/${y}_AMC_8_Problems/Problem_${n}`;
 const lessonOf = topic => LES.findIndex(l => l.id === topic);
@@ -609,7 +622,7 @@ function practice(list, i, mode) {
     const p = list[k]; tries = 0; hinted = false; let hints = 0; const shown = Date.now(); let firstSecs = null;
     const log = ok => track({ ts: Date.now(), d: today, m: mode, t: p.topic || p.from.id, lv: levelOf(p, mode), s: Math.round(firstSecs), total: Math.round((Date.now() - shown) / 1000), ok, tr: tries, h: hints, q: p.q.slice(0, 90) });
     const solution = () => `<div class="sol"><div class="solh">📝 How to solve it</div>${p.steps.map((st, n) => `<div class="step s${n}"><span class="lb">${LABELS[n]}</span><div>${esc(st)}</div></div>`).join("")}<div class="trap">⚠️ <b>Trap:</b> ${esc(p.trap)}</div>${SCR[p.from.id] ? `<div class="row" style="margin-top:8px"><button class="btn alt" data-basics="${lessonOf(p.from.id)}">🌱 Explain the basics again</button></div>` : ""}</div>`;
-    box.innerHTML = `<div class="card"><div class="row" style="margin-top:0"><span class="sub">${mode === "gym" ? `♾️ Gym problem ${k + 1}` : `Problem ${k + 1} of ${list.length}`}${p.lvl === "challenge" ? ` · <b style="color:#ff5a5a">⬆️ challenge</b>` : ""}${i < 0 ? ` · from <b>${esc(p.from.emoji + " " + p.from.title)}</b>` : ""}</span><span class="spacer"></span><span class="pill">⭐ ${right}</span>${i < 0 ? `<span class="pill timer" id="tm">0:00</span>` : ""}</div>
+    box.innerHTML = `<div class="card"><div class="row" style="margin-top:0"><span class="sub">${mode === "gym" ? `♾️ Gym problem ${k + 1}${AD ? ` · <b>Level ${AD.level(p.from.id)}/5 ${LVNAME[AD.level(p.from.id)]}</b>${p._review ? " · 🔁 one you missed earlier" : ""}` : ""}` : `Problem ${k + 1} of ${list.length}`}${p.lvl === "challenge" ? ` · <b style="color:#ff5a5a">⬆️ challenge</b>` : ""}${i < 0 ? ` · from <b>${esc(p.from.emoji + " " + p.from.title)}</b>` : ""}</span><span class="spacer"></span><span class="pill">⭐ ${right}</span>${i < 0 ? `<span class="pill timer" id="tm">0:00</span>` : ""}</div>
       ${mode === "gym" ? "" : `<div class="prog"><i style="width:${k / list.length * 100}%"></i></div>`}
       <p class="q" style="margin-top:14px">${esc(p.q)}</p>
       <div class="ch">${p.c.map((c, j) => `<button data-j="${j}"><span class="L">${LET[j]}</span><span>${esc(c)}</span></button>`).join("")}</div>
@@ -626,14 +639,14 @@ function practice(list, i, mode) {
       if (b.disabled) return; const j = +b.dataset.j; tries++; if (firstSecs === null) firstSecs = (Date.now() - shown) / 1000;
       if (j === p.a) {
         b.classList.add("right"); box.querySelectorAll("[data-j]").forEach(x => x.disabled = true);
-        const star = tries === 1; if (star) right++; log(star);
-        $("#fb").innerHTML = `<div class="fb ok">${star ? "⭐ First try! " : "✅ Got it! "}${esc(p.why)}</div>${solution()}`;
+        const star = tries === 1; if (star) right++; log(star); const mv = adRecord(p, true, star, firstSecs);
+        $("#fb").innerHTML = `<div class="fb ok">${star ? "⭐ First try! " : "✅ Got it! "}${esc(p.why)}</div>${mv && mv.moved > 0 ? `<div class="fb ok" style="margin-top:6px">⬆️ <b>Level up!</b> ${esc(p.from.title)} is now Level ${mv.lv}/5 (${LVNAME[mv.lv]}). Harder problems are coming.</div>` : ""}${solution()}`;
         $("#nx").style.display = ""; $("#hint").style.display = "none";
       } else {
         b.classList.add("wrong"); b.disabled = true;
-        if (tries >= 2) { log(false);
+        if (tries >= 2) { log(false); const mv = adRecord(p, false, false, firstSecs);
           box.querySelectorAll("[data-j]").forEach(x => x.disabled = true); box.querySelector(`[data-j="${p.a}"]`).classList.add("right");
-          $("#fb").innerHTML = `<div class="fb no">The answer is <b>${LET[p.a]}</b>. Read the steps below, then write this one in your error log. 📒</div>${solution()}`;
+          $("#fb").innerHTML = `<div class="fb no">The answer is <b>${LET[p.a]}</b>. Read the steps below, then write this one in your error log. 📒${AD ? " A fresh version of this one will come back soon." : ""}</div>${mv && mv.moved < 0 ? `<div class="fb hint" style="margin-top:6px">⬇️ Let's build it up: ${esc(p.from.title)} goes to Level ${mv.lv}/5 for a bit.</div>` : ""}${solution()}`;
           $("#nx").style.display = ""; $("#hint").style.display = "none";
         } else $("#fb").innerHTML = `<div class="fb no">Not quite. Try again! ${hints ? "" : "Tap 💡 for a hint."}</div>${hints ? `<div class="fb hint"><b>👀 What to notice:</b> ${esc(p.steps[0])}${hints > 1 ? `<div style="margin-top:6px"><b>🧠 The plan:</b> ${esc(p.steps[1])}</div>` : ""}</div>` : ""}`;
       }
@@ -751,7 +764,7 @@ function examItem(id, level, used) {
   let p = null;
   if (level === "hard") p = fresh(l.ch)[0];
   if (!p && level === "easy" && Math.random() < 0.5) p = fresh(l.pr)[0];
-  if (!p) { for (let t = 0; t < 8 && (!p || used.has(p.q)); t++) p = GYM.make(id); }
+  if (!p) { for (let t = 0; t < 8 && (!p || used.has(p.q)); t++) p = GYM.makeAt ? GYM.makeAt(id, { easy: 2, medium: 3, hard: 4 }[level] || 3) : GYM.make(id); }
   used.add(p.q);
   return { ...p, from: l, topic: id, level };
 }
@@ -859,6 +872,7 @@ function mixed() {
 }
 
 home();
+try { window.__amc = { AD, gymNext, LES, adRecord, lesson, GYM, practice }; } catch (e) {} // test/debug handle
 })();
 </script>
 </body>
