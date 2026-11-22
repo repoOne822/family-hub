@@ -286,6 +286,38 @@ function kidStage(step) {
   }
 }
 
+/* ---------------- BEHAVIOR TRACKER (Eric first) ----------------
+   Parent taps 4 target behaviors in the daily quick check-in (✅ 2 · 〰 1 · ✗ 0), saved in checkins.traits.
+   The dashboard panel adds what the apps measure on their own (pace vs accuracy) and his habit taps — no extra typing. */
+const TRAITS = { eric: [
+  ["mem", "🎒 Remembered his things & chores", "🎒 记得自己的东西和家务"],
+  ["finish", "✅ Finished what he started (didn't drop it for a new thing)", "✅ 做完手头的事（没被新事打断就忘）"],
+  ["pause", "⏸️ Paused before acting or asking", "⏸️ 行动或提问前先停一下"],
+  ["conseq", "🔮 Thought about consequences first", "🔮 先想后果再做"] ] };
+const TRAIT_HABITS = { eric: ["eric-planner", "eric-chunk", "eric-launchpad", "eric-lookback"] };
+function behaviorPanel(kid) {
+  const tr = TRAITS[kid]; if (!tr) return "";
+  const zh = lang === "zh", days = []; for (let i = 13; i >= 0; i--) days.push(daysAgo(i));
+  const ck = d => (S.checkins.find(c => c.kid === kid && c.date === d) || {}).traits || {};
+  const pct = (key, from, to) => { const v = days.slice(from, to).map(d => ck(d)[key]).filter(x => x === 0 || x === 1 || x === 2); return v.length ? { p: Math.round(50 * v.reduce((a, b) => a + b, 0) / v.length), n: v.length } : null; };
+  const dot = v => `<span title="${v ?? "—"}" style="display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:2px;background:${v === 2 ? "var(--pos)" : v === 1 ? "#e8b84a" : v === 0 ? "var(--neg)" : "var(--line)"}"></span>`;
+  const rows = tr.map(([key, en, z]) => { const now = pct(key, 7, 14), was = pct(key, 0, 7), arrow = now && was ? (now.p > was.p + 5 ? " ↑" : now.p < was.p - 5 ? " ↓" : " →") : "";
+    return `<div style="display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;margin:6px 0"><span style="font-size:13.5px">${zh ? z : en}</span><b style="font-size:13px">${now ? now.p + "%" + arrow : "—"}</b><span>${days.map(d => dot(ck(d)[key])).join("")}</span><span></span></div>`; }).join("");
+  // pace vs accuracy from the apps (learn_days), last 7 days
+  const ld = (S.learn_days || []).filter(x => x.kid === kid && x.date >= daysAgo(6) && x.attempts >= 5), apps = {};
+  ld.forEach(x => { const a = apps[x.app] = apps[x.app] || { n: 0, ok: 0, med: [] }; a.n += x.attempts; a.ok += x.correct; if (x.median_secs) a.med.push(+x.median_secs); });
+  const AN = { amc: "AMC 8", quest: "Realm of Forces", physics: "Physics", review: "Look Back", fencing: "Fencing", space: "Space Quest", brain: "Brain Park" };
+  const pace = Object.entries(apps).map(([k, a]) => { const m = a.med.length ? a.med.reduce((x, y) => x + y, 0) / a.med.length : null, acc = Math.round(100 * a.ok / a.n), rush = m != null && m < 12 && acc < 70;
+    return `<span class="chip" style="${rush ? "background:#fde8d6" : ""}">${AN[k] || k}: <b>${m == null ? "?" : Math.round(m) + "s"}</b> · ${acc}%${rush ? (zh ? " ⚡太快" : " ⚡rushing") : ""}</span>`; }).join("");
+  const w1 = mondayISO(), hab = (TRAIT_HABITS[kid] || []).map(id => S.metrics.find(m => m.id === id)).filter(Boolean).map(m => { const c = S.readings.filter(r => r.metric === m.id && r.date >= w1).reduce((s, r) => s + (+r.value || 0), 0); return `<span class="chip">${esc(mKidLabel(m))} <b>${c}/${m.per_week || 1}</b></span>`; }).join("");
+  const mm = S.metrics.find(m => m.id === `${kid}-missing`), mr = mm ? S.readings.filter(r => r.metric === mm.id).sort((a, b) => b.date.localeCompare(a.date))[0] : null;
+  const rated = days.filter(d => Object.keys(ck(d)).length).length;
+  return `<div class="goals"><h4>🧭 ${zh ? "行为追踪 · 14天" : "Behavior tracker · 14 days"}</h4>
+    <div class="meta" style="margin:-4px 0 4px">${zh ? `你在每日快速打卡里点（✅ 是 · 〰 有时 · ✗ 没有）。已记录 ${rated}/14 天。百分比 = 最近7天。` : `You tap these in the daily Quick check-in (✅ yes · 〰 sometimes · ✗ not today). Rated ${rated}/14 days. % = last 7 days.`}</div>${rows}
+    <div class="cats" style="margin-top:8px">${pace || `<span class="meta">${zh ? "应用里还没有足够的答题数据" : "Not enough app answers yet"}</span>`}</div>
+    <div class="cats" style="margin-top:6px">${hab}${mm ? `<span class="chip">📋 ${zh ? "缺交作业" : "Missing work"} <b>${mr ? +mr.value : "—"}</b>${mr ? ` <span class="meta">${fmtDate(mr.date)}</span>` : ""}</span>` : ""}</div></div>`;
+}
+
 /* ---------------- PARENT QUICK CHECK-IN ---------------- */
 const qSt = {};
 function openQuick() { if (isLocked()) return; $("#qDate").value = today(); $("#qErr").textContent = ""; Object.keys(qSt).forEach(k => delete qSt[k]); quickRender(); $("#quickMode").classList.add("open"); }
@@ -295,7 +327,7 @@ function quickRender() {
     const ex = S.checkins.find(c => c.kid === k.id && c.date === d) || {};
     const lastPlan = S.checkins.filter(c => c.kid === k.id && c.date < d && c.planned != null).sort((a, b) => b.date.localeCompare(a.date))[0]?.planned;
     const same = ex.focus && ex.focus === ex.behavior && ex.behavior === ex.effort;
-    const st = qSt[k.id] = qSt[k.id] && qSt[k.id].date === d ? qSt[k.id] : { date: d, planned: ex.planned ?? lastPlan ?? 2, done: ex.done ?? null, day: same ? ex.focus : null, focus: ex.focus ?? null, behavior: ex.behavior ?? null, effort: ex.effort ?? null, more: !!(ex.focus && !same), note: ex.note || "" };
+    const st = qSt[k.id] = qSt[k.id] && qSt[k.id].date === d ? qSt[k.id] : { date: d, planned: ex.planned ?? lastPlan ?? 2, done: ex.done ?? null, day: same ? ex.focus : null, focus: ex.focus ?? null, behavior: ex.behavior ?? null, effort: ex.effort ?? null, more: !!(ex.focus && !same), note: ex.note || "", traits: Object.assign({}, ex.traits || {}) };
     const habits = S.metrics.filter(m => m.kid === k.id && m.type === "rate").map(m => { const r = S.readings.find(r => r.metric === m.id && r.date === d); return r && +r.value ? mKidLabel(m) + (+r.value > 1 ? ` ×${r.value}` : "") : null; }).filter(Boolean);
     const said = ex.kid_mood ? `${T().heSaid} ${FACES[ex.kid_mood - 1]}${habits.length ? ` · ${T().did}: ${esc(habits.join(", "))}` : ""}` : `<span style="color:#b07a1c">${T().hasntTapped}</span>`;
     const r5 = (key, val) => `<div class="rate" style="max-width:300px">${[1, 2, 3, 4, 5].map(n => `<button type="button" class="${val === n ? "on" : ""}" data-q="${k.id}" data-key="${key}" data-n="${n}">${n}</button>`).join("")}</div>`;
@@ -304,6 +336,7 @@ function quickRender() {
         <div class="stepper"><button type="button" data-q="${k.id}" data-step="-1">−</button><span class="v">${st.done == null ? "?" : st.done} / ${st.planned}</span><button type="button" data-q="${k.id}" data-step="1">+</button><button type="button" class="btn sm ghost" data-q="${k.id}" data-all="1">${T().allDone}</button><button type="button" class="btn sm ghost" data-q="${k.id}" data-plan="1">${T().planPm}</button></div>
         ${st.more ? `<label>${T().focus}</label>${r5("focus", st.focus)}<label>${T().behavior}</label>${r5("behavior", st.behavior)}<label>${T().effort}</label>${r5("effort", st.effort)}` : `<label>${T().dayOverall}</label>${r5("day", st.day)}`}
       </div>
+      ${TRAITS[k.id] ? `<div class="qtraits" style="margin-top:10px"><label style="font-weight:600">🧭 ${lang === "zh" ? "今天的行为" : "Today's behaviors"}</label>${TRAITS[k.id].map(([key, en, z]) => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:5px 0;flex-wrap:wrap"><span style="font-size:14px">${lang === "zh" ? z : en}</span><span class="rate" style="max-width:170px">${[[2, "✅"], [1, "〰"], [0, "✗"]].map(([n, ic]) => `<button type="button" class="${st.traits[key] === n ? "on" : ""}" data-q="${k.id}" data-trait="${key}" data-n="${n}">${ic}</button>`).join("")}</span></div>`).join("")}</div>` : ""}
       <button type="button" class="qmore" data-q="${k.id}" data-more="1">${st.more ? T().useOverall : T().rateSeparately}</button>
       <input style="margin-top:10px" placeholder="${T().noteOpt}" maxlength="200" data-q="${k.id}" data-note="1" value="${esc(st.note)}"></div>`;
   }).join("");
@@ -314,6 +347,7 @@ $("#quickRows").addEventListener("click", e => {
   else if (b.dataset.all) st.done = st.planned;
   else if (b.dataset.plan) { st.planned = st.planned >= 4 ? 0 : st.planned + 1; if (st.done != null) st.done = Math.min(st.done, st.planned); }
   else if (b.dataset.more) { st.more = !st.more; if (st.more && st.day) st.focus = st.behavior = st.effort = st.day; }
+  else if (b.dataset.trait) { const n = +b.dataset.n, t = st.traits; if (t[b.dataset.trait] === n) delete t[b.dataset.trait]; else t[b.dataset.trait] = n; }
   else if (b.dataset.key) { const n = +b.dataset.n; st[b.dataset.key] = st[b.dataset.key] === n ? null : n; }
   quickRender();
 });
@@ -325,9 +359,11 @@ $("#quickSave").onclick = async () => {
     for (const k of S.kids) {
       const st = qSt[k.id]; if (!st) continue;
       const rated = st.more ? (st.focus || st.behavior || st.effort) : st.day;
-      if (st.done == null && !rated && !st.note) continue;
+      const hasTraits = st.traits && Object.keys(st.traits).length;
+      if (st.done == null && !rated && !st.note && !hasTraits) continue;
       const f = st.more ? { focus: st.focus, behavior: st.behavior, effort: st.effort } : { focus: st.day, behavior: st.day, effort: st.day };
-      await upsert("checkins", { kid: k.id, date: d, planned: st.planned, done: st.done ?? 0, ...f, note: st.note.trim(), updated_at: new Date().toISOString() }, "kid,date");
+      const core = (st.done == null && !rated && !st.note) ? {} : { planned: st.planned, done: st.done ?? 0, ...f }; // behaviors only → don't touch study/ratings
+      await upsert("checkins", { kid: k.id, date: d, ...core, ...(TRAITS[k.id] ? { traits: hasTraits ? st.traits : null } : {}), ...(core.planned != null || st.note ? { note: st.note.trim() } : {}), updated_at: new Date().toISOString() }, "kid,date");
     }
     $("#quickMode").classList.remove("open"); await refresh(); setStatus(T().saved); setTimeout(() => setStatus(""), 2500);
   } catch (err) { $("#qErr").textContent = err.message || "Save failed"; }
@@ -641,6 +677,7 @@ function viewDash() {
           <span class="chip">${t.hisMood} <b>${avg == null ? "—" : FACES[Math.round(avg) - 1] + " " + avg.toFixed(1)}</b></span>
           <span class="chip">${t.hisWins} <b>${wn}</b></span><span class="chip">${t.hisJournal} <b>${jn}</b></span>
           <span class="chip">${t.hisTaps} <b>${tp}</b></span>${gp ? `<a class="chip" href="#family" style="text-decoration:none;background:var(--pos-bg)">${t.hisIdeas} <b>${gp}</b></a>` : ""}</div></div>`; })()}
+      ${behaviorPanel(k.id)}
       <div class="goals"><h4>${t.goals}</h4>${kg.length ? kg.map(g => `<div class="goal ${g.done ? "done" : ""}"><input type="checkbox" ${g.done ? "checked" : ""} data-goal="${g.id}"><span>${esc(g.text)}</span><button class="x" data-delgoal="${g.id}">✕</button></div>`).join("") : `<div class="meta empty">${t.noGoals}</div>`}
         <div class="addgoal"><input placeholder="${t.addGoal}" maxlength="120" data-goalin="${esc(k.id)}"><button class="btn sm" data-addgoal="${esc(k.id)}">${t.add}</button></div></div>
       <div class="latest"><h4>${t.latest}</h4>${last ? `<span class="tag ${last.tone}">${{ positive: t.toneWin, concern: t.toneConcern, neutral: t.toneNote }[last.tone]}</span>${esc(last.title)} <span class="meta">· ${fmtDate(last.date)}</span>` : `<span class="meta empty">${t.nothingYet}</span>`}</div></div>`;
@@ -1350,7 +1387,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121u1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121u2${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
