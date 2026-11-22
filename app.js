@@ -1270,12 +1270,13 @@ $("#sArchive").onclick = async () => { if (!editingSubj) return; const { error }
 /* ---------------- KID APP: his own page ---------------- */
 let kidTap = null;
 /* ---- kid apps (e.g. Ellis's Fencing Brain Academy): full-screen, progress synced to app_saves ---- */
-const APPS = { "fencing/": { id: "fencing", prefix: "ellis_", skip: ["ellis_pin", "ellis_coachNotes"], skipPre: ["ellis_amc_", "ellis_space_", "ellis_brain_", "ellis_physics_", "ellis_quest_"], label: { en: "Play Fencing Brain Academy", zh: "进入击剑大脑学院" } },
+const APPS = { "fencing/": { id: "fencing", prefix: "ellis_", skip: ["ellis_pin", "ellis_coachNotes"], skipPre: ["ellis_amc_", "ellis_space_", "ellis_brain_", "ellis_physics_", "ellis_quest_", "ellis_review_"], label: { en: "Play Fencing Brain Academy", zh: "进入击剑大脑学院" } },
   "amc/": { id: "amc", prefix: kid => `${kid}_amc_`, skip: [], perKid: true, label: { en: "Open my AMC 8 lessons", zh: "打开我的 AMC 8 课程" } },
   "space/": { id: "space", prefix: kid => `${kid}_space_`, skip: [], perKid: true, label: { en: "Play Space Quest", zh: "进入太空探险" } },
   "brain/": { id: "brain", prefix: kid => `${kid}_brain_`, skip: [], perKid: true, label: { en: "Play Brain Park", zh: "进入大脑乐园" } },
   "physics/": { id: "physics", prefix: kid => `${kid}_physics_`, skip: [], perKid: true, label: { en: "Open my Physics lessons", zh: "打开我的物理课程" } },
   "robot/": { id: "robot", prefix: kid => `${kid}_robot_`, skip: [], perKid: true, label: { en: "Open Robot Lab", zh: "进入机器人实验室" } },
+  "review/": { id: "review", prefix: kid => `${kid}_review_`, skip: [], perKid: true, label: { en: "Start today's Look Back", zh: "开始今日回顾" } },
   "quest/": { id: "quest", prefix: kid => `${kid}_quest_`, skip: [], perKid: true, label: { en: "Play Realm of Forces", zh: "进入力之境" } } };
 // 🤖 Ask Buddy bridge: the AMC app (same-origin iframe) calls window.parent.fhAsk(...) to reach the amc-tutor edge function.
 window.fhAsk = async body => {
@@ -1348,7 +1349,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121ln1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121u1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
@@ -2097,7 +2098,7 @@ function kidChallengeHtml(k) {
 /* ----- the exam screen ----- */
 let EXS = null; // {id, attempt, qs, prog, i, kid, wk}
 const loadScript = src => new Promise((res, rej) => { if (document.querySelector(`script[data-src="${src}"]`)) return res(); const s = document.createElement("script"); s.src = src; s.dataset.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
-async function examBanks() { const v = "?v=20261121ex"; await Promise.all(["physics/lessons.js", "quest/gen.js", "amc/lessons.js", "exam/banks.js"].map(s => loadScript(s + v))); await loadScript("exam/exam.js" + v); }
+async function examBanks() { const v = "?v=20261121u1"; await Promise.all(["physics/lessons.js", "quest/gen.js", "amc/lessons.js", "exam/banks.js"].map(s => loadScript(s + v))); await loadScript("exam/exam.js" + v); }
 const speak = txt => { try { if (!window.speechSynthesis || !txt) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(txt); u.rate = .9; u.lang = "en-US"; speechSynthesis.speak(u); } catch (e) {} };
 async function startExam(attempt) {
   const k = S.kids[0], L = CHL(); if (preview) return setStatus(T().previewNoSave);

@@ -84,10 +84,12 @@ const skillName = k => k.startsWith("g:") ? GEN[k.slice(2)].name : (LMAP[k] ? `$
 const actSkills = a => [...a.lessons, ...a.gens.map(g => "g:" + g)];
 const recentQ = [];
 // each physics skill has its own difficulty level (1–3): it starts from the Sage's Trial (the baseline) and adapts as he plays
+const FOCUS = ["g:weight", "g:netforce", "g:fma", "forces"];
 const skillLvl = k => (P.lvl && P.lvl[k]) || 1;
 function pickKey(act) {
   // weaker skills come up more often (weight 4 − level), so play targets what he still needs
-  const keys = actSkills(act), w = keys.map(k => 4 - skillLvl(k)); let x = Math.random() * w.reduce((a, b) => a + b, 0);
+  // FOCUS: skills he missed on his last real class test count double until he's at level 3 in them (Unit 3 Forces exam, 11/2026)
+  const keys = actSkills(act), w = keys.map(k => (4 - skillLvl(k)) * (FOCUS.includes(k) && skillLvl(k) < 3 ? 2 : 1)); let x = Math.random() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < keys.length; i++) if ((x -= w[i]) < 0) return keys[i]; return keys[0];
 }
 function makeQ(act, level, purpose) {
