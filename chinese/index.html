@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="robots" content="noindex,nofollow"><script>if(window.top===window){location.replace("../#chinese");}</script>
+<title>Panda Chinese 熊猫中文</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;min-height:100%;font-family:"Baloo 2",system-ui,sans-serif;color:#2b2d42;background:linear-gradient(180deg,#e9f5ff 0%,#f6efff 100%);touch-action:manipulation}
+.wrap{max-width:900px;margin:0 auto;padding:12px 14px 40px}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.top h1{font-size:28px;margin:0;flex:1}
+.coins{display:inline-flex;align-items:center;gap:6px;background:#fff;border-radius:999px;padding:4px 14px 4px 8px;font-weight:800;font-size:20px;box-shadow:0 3px 0 #0001}
+.coin{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff6b0,#ffc300 50%,#c98a00);display:inline-block;box-shadow:inset 0 0 0 2px #a86f00}
+.btn{border:none;border-radius:16px;font-family:inherit;font-weight:800;font-size:20px;padding:10px 18px;cursor:pointer;background:#fff;color:#2b2d42;box-shadow:0 4px 0 #0002}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 #0002}
+.btn.go{background:linear-gradient(#80ed99,#38b000);color:#fff}
+.btn.round{width:52px;height:52px;padding:0;border-radius:50%;font-size:24px}
+.sec{margin:14px 0 6px;font-size:20px;font-weight:800;color:#5a4fcf}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.tile{border:none;border-radius:22px;padding:14px 8px;background:#fff;cursor:pointer;font-family:inherit;text-align:center;box-shadow:0 5px 0 #0001;color:#2b2d42}
+.tile .ic{font-size:46px;display:block}
+.tile b{display:block;font-size:18px}
+.tile small{font-size:14px;color:#6c757d}
+.screen{display:none}.screen.on{display:block}
+.card{background:#fff;border-radius:24px;padding:16px;box-shadow:0 6px 18px #0001}
+.instr{font-size:20px;text-align:center;margin:4px 0 10px;min-height:28px}
+.area{position:relative;min-height:380px}
+.lvl{font-size:16px;color:#6c757d}
+/* match */
+.mgrid{display:grid;gap:10px;margin:0 auto;max-width:560px}
+.mc{aspect-ratio:1;perspective:600px;cursor:pointer}
+.mc .in{position:relative;width:100%;height:100%;transition:transform .35s;transform-style:preserve-3d}
+.mc.f .in{transform:rotateY(180deg)}
+.mc .fa,.mc .ba{position:absolute;inset:0;border-radius:16px;display:flex;align-items:center;justify-content:center;backface-visibility:hidden;font-size:min(10vw,52px)}
+.mc .fa{background:linear-gradient(135deg,#a0c4ff,#bdb2ff)}.mc .fa::after{content:"?";color:#fff;font-weight:800;font-size:.8em}
+.mc .ba{background:#fff;border:3px solid #bdb2ff;transform:rotateY(180deg)}
+.mc.done .ba{border-color:#80ed99;background:#e3f9e8}
+/* simon */
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:380px;margin:0 auto}
+.pad{aspect-ratio:1;border-radius:28px;border:none;cursor:pointer;opacity:.45;transition:opacity .12s,transform .12s;font-size:44px}
+.pad.lit{opacity:1;transform:scale(1.05);box-shadow:0 0 30px currentColor}
+/* odd / pattern / switch */
+.ogrid{display:grid;gap:8px;max-width:560px;margin:0 auto}
+.oc{border:none;background:#fff;border-radius:14px;aspect-ratio:1;font-size:min(8vw,40px);cursor:pointer;box-shadow:0 3px 0 #0001}
+.oc.bad{background:#ffe3e8}.oc.good{background:#d8f7e7}
+.train{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0 18px}
+.car{width:64px;height:64px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:36px;box-shadow:0 4px 0 #0001;border:3px solid #bdb2ff}
+.car.q{border-style:dashed;color:#bdb2ff;font-weight:800}
+.choices{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.ch{width:84px;height:84px;border-radius:18px;border:none;background:#fff;font-size:44px;cursor:pointer;box-shadow:0 5px 0 #0002}
+.ch.bad{background:#ffe3e8;opacity:.5}.ch.good{background:#d8f7e7}
+.bins{display:flex;gap:16px;justify-content:center;margin-top:16px}
+.bin{flex:1;max-width:220px;border:4px dashed #bdb2ff;border-radius:22px;background:#fff;padding:12px;text-align:center;cursor:pointer;font-family:inherit}
+.bin svg{width:80px;height:80px}
+.rule{font-size:26px;font-weight:800;text-align:center;padding:6px 12px;border-radius:14px;display:inline-block}
+.cardc{margin:10px auto;width:120px;height:120px;background:#fff;border-radius:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 0 #0002}
+.cardc svg{width:90px;height:90px}
+/* gonogo */
+.gstage{height:300px;display:flex;align-items:center;justify-content:center}
+.gbtn{width:220px;height:220px;border-radius:50%;border:none;font-size:90px;cursor:pointer;transition:transform .08s;background:#eef1f6;box-shadow:0 8px 0 #0002}
+.gbtn.go{background:radial-gradient(circle at 35% 30%,#b9fbc0,#38b000)}
+.gbtn.no{background:radial-gradient(circle at 35% 30%,#ffb3c1,#d00000)}
+.gbtn:active{transform:scale(.96)}
+/* shapes */
+.board{position:relative;height:260px;background:#f8f9fa;border-radius:20px;border:3px dashed #ced4da}
+.tray{position:relative;height:140px;margin-top:12px;background:#fff;border-radius:20px}
+.piece,.slot{position:absolute;width:84px;height:84px}
+.piece{cursor:grab;touch-action:none;transition:transform .15s;z-index:2}
+.piece.drag{z-index:9;transition:none}
+.slot svg path,.slot svg circle,.slot svg polygon,.slot svg rect,.slot svg ellipse{fill:#e9ecef;stroke:#adb5bd;stroke-width:3;stroke-dasharray:6 5}
+/* robot */
+.rgrid{display:grid;gap:4px;margin:0 auto;max-width:420px;background:#dfe7fd;padding:6px;border-radius:16px}
+.rc{aspect-ratio:1;background:#f8f9ff;box-shadow:inset 0 0 0 2px #c7d2fe;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:min(7vw,34px);position:relative}
+.prog{display:flex;gap:6px;flex-wrap:wrap;min-height:58px;background:#f1edff;border-radius:16px;padding:8px;margin:10px auto;max-width:520px;align-items:center}
+.cmd{width:44px;height:44px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 3px 0 #0002}
+.cmd.run{background:#ffd166}
+.arrows{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.arrows .btn{font-size:28px;min-width:64px}
+/* draw */
+#pad{width:100%;height:420px;background:#fff;border-radius:20px;touch-action:none;display:block;box-shadow:inset 0 0 0 3px #e9ecef}
+.pal{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+.sw{width:42px;height:42px;border-radius:50%;border:4px solid #fff;box-shadow:0 2px 6px #0003;cursor:pointer}
+.sw.on{border-color:#2b2d42}
+.tool{border:none;background:#fff;border-radius:12px;font-size:26px;width:48px;height:48px;cursor:pointer;box-shadow:0 2px 6px #0002}
+.tool.on{background:#ffd166}
+/* music */
+.xylo{display:flex;gap:6px;justify-content:center;align-items:flex-end;height:240px;margin:10px 0}
+.bar{flex:1;max-width:80px;border:none;border-radius:14px;cursor:pointer;font-family:inherit;font-weight:800;font-size:20px;color:#fff;transition:transform .08s,filter .1s;box-shadow:0 5px 0 #0002}
+.bar.hl{outline:5px solid #2b2d42;animation:pulse .8s infinite}
+@keyframes pulse{50%{transform:translateY(-6px)}}
+.bar.hit{filter:brightness(1.3);transform:translateY(4px)}
+.drum{width:180px;height:180px;border-radius:50%;border:none;background:radial-gradient(circle at 35% 30%,#ffe8a3,#e09f3e);font-size:80px;cursor:pointer;box-shadow:0 8px 0 #0002;display:block;margin:10px auto}
+.drum.hit{transform:scale(.95)}
+.beats{display:flex;gap:8px;justify-content:center;min-height:30px;font-size:24px}
+/* modal */
+.modal{position:fixed;inset:0;background:#0006;display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+.modal.on{display:flex}
+.mcard{background:#fff;border-radius:26px;padding:22px;max-width:420px;width:100%;text-align:center;animation:pop .3s ease}
+@keyframes pop{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
+.stars{font-size:54px;letter-spacing:6px}.stars .off{filter:grayscale(1);opacity:.25}
+.fb{text-align:center;font-size:22px;font-weight:800;min-height:32px;margin-top:8px}
+.fb.good{color:#2d6a4f}.fb.bad{color:#c9184a}
+table{width:100%;border-collapse:collapse;font-size:15px}td,th{text-align:left;padding:5px;border-bottom:1px solid #eee}
+.note{font-size:14px;color:#6c757d}
+.hidden{display:none}
+#mWhy{z-index:30}#mWhy .mcard{max-width:460px}#wBody{font-size:21px;line-height:1.35;margin:6px 0}#wBody .wp{background:#ffe3e8;border-radius:12px;padding:6px 10px;margin:6px 0}#wBody .wa{background:#d8f7e7;border-radius:12px;padding:6px 10px;margin:6px 0}#wBody .big{font-size:40px;vertical-align:middle}
+#wOk:disabled{opacity:.45;filter:grayscale(.6)}#wOk.ready{animation:wp 1s ease-in-out infinite}@keyframes wp{50%{transform:scale(1.06)}}
+#wBar{height:8px;background:#eee;border-radius:6px;overflow:hidden;margin:10px auto 0;max-width:240px}#wBar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#80ed99,#4cc9f0)}
+.tile{position:relative}.tile.lk{opacity:.5;filter:grayscale(.7)}.tile.bst{box-shadow:0 0 0 4px #ffd166,0 5px 0 #0001}
+.lkb{position:absolute;top:6px;right:6px;background:#2b2d42;color:#fff;font-size:12px;border-radius:999px;padding:1px 8px}.lkb.b{background:#ffb703;color:#2b2d42}
+.mixbar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:4px 0 6px}.mixbar .mx{background:#fff;border-radius:999px;padding:3px 12px;font-weight:800;box-shadow:0 2px 0 #0001}.mixbar .mx.rest{opacity:.55}
+.tag{display:inline-block;background:#f1edff;color:#5a4fcf;border-radius:10px;padding:2px 10px;font-size:16px;font-weight:800}
+
+.hz{font-size:120px;line-height:1.1;font-family:"Kaiti SC","STKaiti","KaiTi","Songti SC",serif;color:#2b2d42}.hz.sm{font-size:40px;vertical-align:middle}.hz.md{font-size:42px;line-height:1.3}
+.qbox{text-align:center;margin:4px 0 12px}.ch small{color:#6c757d}
+.choices .ch{width:auto;min-width:96px;height:auto;min-height:90px;padding:8px 12px;font-size:20px}
+.sbox{min-height:56px;margin:10px auto;max-width:520px;background:#f1edff;border-radius:16px;font-size:34px;text-align:center;padding:6px;font-family:"Kaiti SC","STKaiti","KaiTi",serif}
+.ch.wd{font-size:30px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;min-height:64px}
+.poem{text-align:center;font-family:"Kaiti SC","STKaiti","KaiTi","Songti SC",serif}.poem .pt{font-size:34px;font-weight:800}.poem .pa{color:#6c757d;margin-bottom:8px}
+.poem .pl{font-size:34px;padding:4px 10px;border-radius:12px;margin:2px auto;max-width:420px;transition:background .3s}.poem .pl.on{background:#fff3c4}.poem .py{font-size:15px;color:#5a4fcf;font-family:system-ui,sans-serif}
+.blank{display:inline-block;min-width:1em;border-bottom:3px solid #5a4fcf;color:#5a4fcf}</style>
+<script src="hanzi-writer.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <section class="screen on" id="home">
+    <div class="top"><h1>🐼 熊猫中文 <span style="font-size:20px">Panda Chinese</span></h1><div class="coins"><span class="coin"></span><span class="cc">0</span></div></div>
+    <div id="tiles"></div>
+    <p style="text-align:center;margin-top:18px"><button class="btn" id="toParents" style="font-size:15px">Parents</button></p>
+  </section>
+  <section class="screen" id="game">
+    <div class="top"><button class="btn round" id="back">🏠</button><h1 id="gTitle" style="font-size:22px"></h1><span class="lvl" id="gLvl"></span><button class="btn round" id="gSay">🔊</button></div>
+    <div class="card"><div class="instr" id="instr"></div><div class="area" id="area"></div><div class="fb" id="fb"></div></div>
+  </section>
+  <section class="screen" id="parents">
+    <div class="top"><button class="btn round" id="pBack">⬅️</button><h1 style="font-size:24px">Parent corner</h1></div>
+    <div class="card">
+      <p class="note">Six ways to learn the same Grade 1 characters (12 sets × 10 = 120 字), Pinyin tones, sentences and 6 Tang poems. Each mode adapts: 3 stars → next level, 1 star → easier; 2 perfect rounds in a row → a ⚡ challenge level. A character counts as mastered after 3 more first-try rights than misses across listening, reading and writing.</p>
+      <table><thead><tr><th>Mode</th><th>Level</th><th>Rounds</th><th>Avg stars</th><th>Measure</th></tr></thead><tbody id="pTable"></tbody></table>
+      <h3 style="margin:10px 0 4px">Characters <span class="note">green = mastered · yellow = learning · pink = tricky · grey = not seen</span></h3><div id="pChars"></div>
+      <p class="note" style="margin-top:10px">Read aloud: <select id="sVoice"><option value="1">On</option><option value="0">Off</option></select> · Mix it up (each mode rests after 3 rounds in a row, max 5 a day): <select id="sMix"><option value="1">On</option><option value="0">Off</option></select> <button class="btn" id="mixReset" style="font-size:14px;padding:4px 10px">Unlock all today</button> · ⚡ Challenge levels: <select id="sChal"><option value="1">On</option><option value="0">Off</option></select></p>
+      <p class="note">中文 voice: <select id="sVoiceZh" style="max-width:260px"></select> <button class="btn" id="tZh" style="font-size:14px;padding:4px 10px">▶ 试听</button> · English instructions: <select id="sAiV"><option value="1">Natural AI voice</option><option value="0">Device voice</option></select> <span id="aiSt"></span><br>For the most natural Chinese voice on an iPad: Settings → Accessibility → Spoken Content → Voices → Chinese (China mainland) → download a voice marked "Premium" or "Enhanced" (e.g. Lilian or Tingting). It is picked automatically.</p>
+      <button class="btn" id="pCopy" style="font-size:16px">Copy summary</button> <span class="note" id="pMsg"></span>
+      <p class="note">Stroke data: Make Me a Hanzi / Hanzi Writer (Arphic Public License, MIT). Poems: Tang dynasty, public domain.</p>
+    </div>
+  </section>
+</div>
+<div class="modal" id="mWhy"><div class="mcard"><div style="font-size:52px" id="wEmoji">🐼</div><h2 id="wTitle" style="margin:0">Let's learn from this</h2><div id="wBody"></div><div id="wBar"><i></i></div><div style="display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap"><button class="btn" id="wAgain">🔊 Hear again</button><button class="btn go" id="wOk" disabled>👂 Listen…</button></div></div></div>
+<div class="modal" id="mDone"><div class="mcard"><div style="font-size:56px" id="mdE">🎉</div><h2 id="mdT" style="margin:4px 0">Great job!</h2><div class="stars" id="mdS"></div><div id="mdC" style="font-size:22px;font-weight:800"></div><div id="mdL" style="color:#5a4fcf;font-weight:800;margin-top:4px"></div><div style="display:flex;gap:10px;justify-content:center;margin-top:14px"><button class="btn go" id="mdAgain">Play again</button><button class="btn" id="mdHome">🏠</button></div></div></div>
+<script>
+const QS=new URLSearchParams(location.search),KID=(QS.get("k")||"jonah").replace(/[^a-z0-9_-]/gi,"")||"jonah",IS_PARENT=QS.get("p")==="1"||window.top===window;
+const NAME=KID.charAt(0).toUpperCase()+KID.slice(1),KEY=KID+"_chinese_state";
+const $=id=>document.getElementById(id),rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const today=()=>new Date().toLocaleDateString("en-CA"),delay=ms=>new Promise(r=>setTimeout(r,ms));
+let S={v:1,coins:0,voice:1,lv:{},st:{},days:{},ch:{}};
+try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const setCoins=()=>document.querySelectorAll(".cc").forEach(e=>e.textContent=S.coins);
+let ac;function A(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume()}catch(e){}return ac}
+function tone(f,d,t=0,type="sine",v=.15){const a=A();if(!a)return;try{const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,a.currentTime+t);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+t+d);o.connect(g);g.connect(a.destination);o.start(a.currentTime+t);o.stop(a.currentTime+t+d+.02)}catch(e){}}
+const sfx={good:()=>{tone(660,.12);tone(880,.18,.1)},bad:()=>tone(200,.22,0,"triangle"),win:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.2,i*.12,"triangle",.12)),tap:()=>tone(520,.06,0,"sine",.08)};
+/* ---------- voice: pick the most human-sounding voice the device has ---------- */
+let VOICES=[];function loadVoices(){try{VOICES=speechSynthesis.getVoices()||[]}catch(e){}}loadVoices();try{speechSynthesis.addEventListener("voiceschanged",loadVoices)}catch(e){}
+const BADV=/compact|eloquence|albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|\bfred\b|junior|ralph|kathy|grandma|grandpa|rocko|shelley|\bflo\b|eddy|reed|sandy|novelty/i;
+function voiceList(L){return VOICES.filter(v=>v.lang&&v.lang.toLowerCase().replace("_","-").startsWith(L))}
+function voiceScore(v,L){const n=v.name.toLowerCase();let s=0;if(/premium/.test(n))s+=70;if(/enhanced/.test(n))s+=55;if(/natural|neural/.test(n))s+=60;if(/online/.test(n))s+=20;if(/siri/.test(n))s+=45;if(/google/.test(n))s+=30;
+  if(L==="en"){if(/\b(ava|zoe|samantha|allison|susan|nicky|joelle|noelle|aria|jenny|michelle|emma|ana|evan|nathan)\b/.test(n))s+=15;if(/en-us/.test(v.lang.toLowerCase().replace("_","-")))s+=10}
+  if(L==="zh"){if(/xiaoxiao|xiaoyi|yunxi|tingting|ting-ting|lili|lilian|yu-shu|meijia/.test(n))s+=15;if(/zh-cn/.test(v.lang.toLowerCase().replace("_","-")))s+=10}
+  if(BADV.test(n))s-=200;return s}
+function bestVoice(L){const vs=voiceList(L);if(!vs.length)return null;const want=L==="zh"?S.voiceZh:S.voiceEn;if(want){const f=vs.find(v=>v.name===want);if(f)return f}return vs.slice().sort((a,b)=>voiceScore(b,L)-voiceScore(a,L))[0]}
+function mkUtter(t){const zhT=/[一-鿿]/.test(t),L=zhT?"zh":"en",u=new SpeechSynthesisUtterance(t),v=bestVoice(L);if(v){u.voice=v;u.lang=v.lang}else u.lang=zhT?"zh-CN":"en-US";
+  const nat=v&&/premium|enhanced|natural|neural|siri|google/i.test(v.name);u.rate=zhT?.85:(nat?.95:.9);u.pitch=1.0;return u}
+function voiceOptions(L,cur){const vs=voiceList(L).slice().sort((a,b)=>voiceScore(b,L)-voiceScore(a,L));return `<option value="">Auto (best on this device${vs[0]?": "+vs[0].name:""})</option>`+vs.filter(v=>!BADV.test(v.name)).map(v=>`<option value="${v.name.replace(/"/g,"&quot;")}" ${v.name===cur?"selected":""}>${v.name} (${v.lang})</option>`).join("")}
+function estRead(t){return Math.max(2000,String(t).trim().split(/\s+/).length*300)}
+
+/* ---------- natural AI voice (hub only): shared/hubvoice.js; falls back to the device voice ---------- */
+let HV=null;const PREFETCH=()=>["Listen, and tap the picture.","Your turn! Trace each stroke in order.","Now read it with me!","Which character is missing?","Listen to the tone."];
+if(window.top!==window||/family-hub/.test(location.pathname)){import("../shared/hubvoice.js").then(m=>{HV=m;m.init({getS:()=>S});setTimeout(()=>{try{m.prefetch(PREFETCH())}catch(e){}},1500)}).catch(()=>{})}
+function stopSpeech(){try{speechSynthesis.cancel()}catch(e){}if(HV)HV.stop()}
+function speak(t){if(!+S.voice||!t)return;if(HV&&HV.canSpeak(t)){try{speechSynthesis.cancel()}catch(e){}HV.speakDone(t).catch(e=>{if(String(e&&e.message)==="timeout"){HV.stop();webSpeak(t)}});return}if(HV)HV.stop();webSpeak(t)}
+function speakDone(t){if(+S.voice&&HV&&HV.canSpeak(t)){try{speechSynthesis.cancel()}catch(e){}return HV.speakDone(t).catch(()=>{HV.stop();return webSpeakDone(t)})}if(HV)HV.stop();return webSpeakDone(t)}
+function aiVoiceStatus(){if(!HV)return "Natural voice: only available inside the Family Hub (this preview uses the device voice).";const s=HV.status();
+  return s.st==="ready"?`Natural voice ready ✅${s.slow?" — this device is slow at making it, so some lines may use the device voice":""}`:s.st==="loading"?`Natural voice downloading… ${s.pct||0}% (about 90 MB, only the first time)`:s.st==="fail"?`Natural voice couldn't load (${s.err}). Using the device voice.`:"Natural voice is off."}
+function webSpeakDone(t){return new Promise(res=>{let done=false;const fin=()=>{if(!done){done=true;res()}};const est=estRead(t);
+  if(!+S.voice||!window.speechSynthesis){setTimeout(fin,est);return}
+  try{speechSynthesis.cancel();const u=mkUtter(t);u.onend=()=>setTimeout(fin,400);u.onerror=()=>setTimeout(fin,est);speechSynthesis.speak(u)}catch(e){setTimeout(fin,est)}
+  setTimeout(fin,est*2.2+3000)})}
+
+async function say2(en,zh){if(en)await speakDone(en);if(zh)await speakDone(zh)}
+const sayZh=zh=>speak(zh);
+let token=0;function fb(t,c){$("fb").textContent=t;$("fb").className="fb "+(c||"")}
+/* ---------- data ---------- */
+const SETS=[["数字 Numbers",[["一","yī","one","1️⃣","一个"],["二","èr","two","2️⃣","二月"],["三","sān","three","3️⃣","三只"],["四","sì","four","4️⃣","四个"],["五","wǔ","five","5️⃣","五月"],["六","liù","six","6️⃣","六岁"],["七","qī","seven","7️⃣","七天"],["八","bā","eight","8️⃣","八个"],["九","jiǔ","nine","9️⃣","九点"],["十","shí","ten","🔟","十个"]]],["大自然 Nature",[["日","rì","sun","☀️","日出"],["月","yuè","moon","🌙","月亮"],["水","shuǐ","water","💧","喝水"],["火","huǒ","fire","🔥","火车"],["山","shān","mountain","⛰️","大山"],["木","mù","wood","🪵","木头"],["石","shí","stone","🪨","石头"],["田","tián","field","🌾","田地"],["云","yún","cloud","☁️","白云"],["天","tiān","sky","🌤️","天空"]]],["身体 Body",[["人","rén","person","🧍","大人"],["口","kǒu","mouth","👄","口水"],["手","shǒu","hand","✋","小手"],["目","mù","eye","👁️","目光"],["耳","ěr","ear","👂","耳朵"],["头","tóu","head","🙆","头发"],["足","zú","foot","🦶","足球"],["牙","yá","tooth","🦷","牙齿"],["心","xīn","heart","❤️","开心"],["鼻","bí","nose","👃","鼻子"]]],["大小方向 Size & place",[["大","dà","big","🐘","大象"],["小","xiǎo","small","🐜","小鸟"],["上","shàng","up","⬆️","上面"],["下","xià","down","⬇️","下面"],["左","zuǒ","left","⬅️","左手"],["右","yòu","right","➡️","右手"],["中","zhōng","middle","🎯","中间"],["多","duō","many","🍬","很多"],["少","shǎo","few","🔹","很少"],["长","cháng","long","📏","长短"]]],["家人 Family",[["爸","bà","dad","👨","爸爸"],["妈","mā","mom","👩","妈妈"],["哥","gē","big brother","👦","哥哥"],["姐","jiě","big sister","👧","姐姐"],["弟","dì","little brother","🧒","弟弟"],["妹","mèi","little sister","👶","妹妹"],["爷","yé","grandpa","👴","爷爷"],["奶","nǎi","grandma","👵","奶奶"],["我","wǒ","I / me","🙋","我们"],["你","nǐ","you","👉","你好"]]],["动物 Animals",[["马","mǎ","horse","🐴","小马"],["牛","niú","cow","🐮","牛奶"],["羊","yáng","sheep","🐑","小羊"],["鸟","niǎo","bird","🐦","小鸟"],["鱼","yú","fish","🐟","金鱼"],["虫","chóng","bug","🐛","虫子"],["狗","gǒu","dog","🐶","小狗"],["猫","māo","cat","🐱","小猫"],["鸡","jī","chicken","🐔","小鸡"],["兔","tù","rabbit","🐰","兔子"]]],["颜色 Colors",[["红","hóng","red","🔴","红色"],["黄","huáng","yellow","🟡","黄色"],["蓝","lán","blue","🔵","蓝天"],["绿","lǜ","green","🟢","绿色"],["白","bái","white","⚪","白云"],["黑","hēi","black","⚫","黑色"],["色","sè","color","🎨","颜色"],["花","huā","flower","🌸","花朵"],["草","cǎo","grass","🌿","小草"],["叶","yè","leaf","🍃","树叶"]]],["动作 Actions",[["吃","chī","eat","🍽️","吃饭"],["喝","hē","drink","🥤","喝水"],["看","kàn","look","👀","看书"],["听","tīng","listen","🎧","听歌"],["说","shuō","speak","💬","说话"],["走","zǒu","walk","🚶","走路"],["跑","pǎo","run","🏃","跑步"],["飞","fēi","fly","🕊️","飞机"],["坐","zuò","sit","🪑","坐下"],["开","kāi","open","🚪","开门"]]],["上学 School",[["学","xué","learn","🎒","上学"],["书","shū","book","📖","看书"],["本","běn","notebook","📓","本子"],["字","zì","character","🔤","写字"],["写","xiě","write","✍️","写字"],["生","shēng","student","🧑‍🎓","学生"],["老","lǎo","old","🧓","老人"],["师","shī","teacher","🧑‍🏫","老师"],["好","hǎo","good","👍","你好"],["们","men","(group)","👥","我们"]]],["天气时间 Weather & time",[["年","nián","year","📅","新年"],["今","jīn","now / today","📍","今天"],["明","míng","bright","🌅","明天"],["早","zǎo","morning","🌄","早上"],["晚","wǎn","evening","🌃","晚上"],["风","fēng","wind","🌬️","大风"],["雨","yǔ","rain","🌧️","下雨"],["雪","xuě","snow","❄️","下雪"],["春","chūn","spring","🌱","春天"],["冬","dōng","winter","⛄","冬天"]]],["吃住行 Food & home",[["米","mǐ","rice","🍚","米饭"],["饭","fàn","meal","🍱","吃饭"],["果","guǒ","fruit","🍎","水果"],["菜","cài","vegetable","🥬","青菜"],["茶","chá","tea","🍵","喝茶"],["门","mén","door","🚪","开门"],["家","jiā","home","🏠","回家"],["车","chē","car","🚗","汽车"],["电","diàn","electric","⚡","电视"],["球","qiú","ball","⚽","足球"]]],["常用字 Everyday words",[["是","shì","is","✅","是的"],["不","bù","not","🚫","不要"],["有","yǒu","have","🤲","没有"],["在","zài","at / in","📌","在家"],["和","hé","and","➕","我和你"],["的","de","'s (of)","🔗","我的"],["也","yě","also","🔁","也是"],["来","lái","come","👋","过来"],["去","qù","go","🏃‍♂️","出去"],["爱","ài","love","💕","我爱你"]]]];
+const ALL=SETS.flatMap((s,i)=>s[1].map(c=>({c:c[0],py:c[1],en:c[2],e:c[3],w:c[4],set:i})));
+const CH=Object.fromEntries(ALL.map(x=>[x.c,x]));
+function pool(L){const top=Math.min(L,SETS.length)-1,cur=ALL.filter(x=>x.set===top),old=ALL.filter(x=>x.set<top);return {cur,old,all:[...cur,...old]}}
+function pickChar(L){const P=pool(L);const weak=P.all.filter(x=>{const s=S.ch[x.c];return s&&s.miss>0&&(s.ok||0)<3});if(weak.length&&Math.random()<.25)return pick(weak);return (P.old.length&&Math.random()<.35)?pick(P.old):pick(P.cur)}
+function chStat(c,ok){const s=S.ch[c]||(S.ch[c]={n:0,ok:0,miss:0});s.n++;if(ok)s.ok++;else{s.miss++;s.ok=Math.max(0,s.ok-1)}}
+const mastered=()=>ALL.filter(x=>(S.ch[x.c]||{}).ok>=3).length;
+const TONESETS=[[["妈","mā"],["麻","má"],["马","mǎ"],["骂","mà"]],[["八","bā"],["拔","bá"],["把","bǎ"],["爸","bà"]],[["一","yī"],["姨","yí"],["椅","yǐ"],["亿","yì"]],[["汤","tāng"],["糖","táng"],["躺","tǎng"],["烫","tàng"]],[["屋","wū"],["无","wú"],["五","wǔ"],["雾","wù"]],[["师","shī"],["十","shí"],["使","shǐ"],["是","shì"]]];
+const TMARK={a:"āáǎà",e:"ēéěè",i:"īíǐì",o:"ōóǒò",u:"ūúǔù",ü:"ǖǘǚǜ"};
+function plain(py){let t=0,s="";for(const ch of py){let f=false;for(const v in TMARK){const k=TMARK[v].indexOf(ch);if(k>=0){s+=v;t=k+1;f=true;break}}if(!f)s+=ch}return {s,t}}
+function withTone(s,t){if(!t)return s;const order=["a","o","e"];let idx=-1;for(const v of order){idx=s.indexOf(v);if(idx>=0)break}
+  if(idx<0){if(s.includes("iu"))idx=s.indexOf("u");else if(s.includes("ui"))idx=s.indexOf("i");else{for(let i=s.length-1;i>=0;i--)if("iuü".includes(s[i])){idx=i;break}}}
+  if(idx<0)return s;const v=s[idx];return s.slice(0,idx)+TMARK[v][t-1]+s.slice(idx+1)}
+const TONE_UI=[["1","ˉ","flat — high and level"],["2","ˊ","rising — goes up"],["3","ˇ","dips — down then up"],["4","ˋ","falling — goes down"]];
+const toneSvg=t=>{const P=["M8 12 L52 12","M8 34 L52 8","M8 16 L28 36 L52 10","M8 8 L52 36"][t-1];return `<svg viewBox="0 0 60 44" width="60" height="44"><path d="${P}" fill="none" stroke="#5a4fcf" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`};
+const SENT=[["我 爱 妈妈","❤️👩","I love Mom"],["小猫 吃 鱼","🐱🐟","The kitten eats fish"],["爸爸 开 车","👨🚗","Dad drives the car"],["我 喝 水","🥤","I drink water"],["小鸟 在 天上 飞","🐦☁️","The bird flies in the sky"],["今天 下雨 了","🌧️","It's raining today"],["哥哥 在 跑步","👦🏃","Big brother is running"],["我 有 一本 书","📖","I have a book"],["天上 有 月亮","🌙","There's a moon in the sky"],["小狗 在 家","🐶🏠","The puppy is at home"],["奶奶 喝 茶","👵🍵","Grandma drinks tea"],["妹妹 吃 米饭","👶🍚","Little sister eats rice"],["我 是 学生","🧑‍🎓","I am a student"],["春天 来 了","🌱🌸","Spring is here"],["冬天 下雪 了","⛄❄️","It's snowing in winter"],["老师 在 写字","🧑‍🏫✍️","The teacher is writing"],["小兔 跑 得 快","🐰💨","The rabbit runs fast"],["我 和 你 是 好朋友","🤝","You and I are good friends"],["爷爷 在 看 书","👴📖","Grandpa is reading"],["红花 很 美","🌹","The red flower is pretty"]];
+const POEMS=[
+ ["咏鹅","骆宾王","🦢",["鹅，鹅，鹅，","曲项向天歌。","白毛浮绿水，","红掌拨清波。"],["é, é, é,","qū xiàng xiàng tiān gē.","bái máo fú lǜ shuǐ,","hóng zhǎng bō qīng bō."],"Geese sing to the sky, white feathers float on green water, red feet paddle the clear waves."],
+ ["静夜思","李白","🌙",["床前明月光，","疑是地上霜。","举头望明月，","低头思故乡。"],["chuáng qián míng yuè guāng,","yí shì dì shàng shuāng.","jǔ tóu wàng míng yuè,","dī tóu sī gù xiāng."],"Moonlight by my bed looks like frost. I look up at the moon and think of home."],
+ ["春晓","孟浩然","🌸",["春眠不觉晓，","处处闻啼鸟。","夜来风雨声，","花落知多少。"],["chūn mián bù jué xiǎo,","chù chù wén tí niǎo.","yè lái fēng yǔ shēng,","huā luò zhī duō shǎo."],"Sleeping in on a spring morning, birds sing everywhere. After last night's wind and rain, how many flowers fell?"],
+ ["悯农","李绅","🌾",["锄禾日当午，","汗滴禾下土。","谁知盘中餐，","粒粒皆辛苦。"],["chú hé rì dāng wǔ,","hàn dī hé xià tǔ.","shuí zhī pán zhōng cān,","lì lì jiē xīn kǔ."],"Farmers work in the midday sun. Every grain of rice on our plate took hard work."],
+ ["登鹳雀楼","王之涣","🏯",["白日依山尽，","黄河入海流。","欲穷千里目，","更上一层楼。"],["bái rì yī shān jìn,","huáng hé rù hǎi liú.","yù qióng qiān lǐ mù,","gèng shàng yì céng lóu."],"The sun sets behind the mountains, the river flows to the sea. To see farther, climb one more floor."],
+ ["画","王维","🖼️",["远看山有色，","近听水无声。","春去花还在，","人来鸟不惊。"],["yuǎn kàn shān yǒu sè,","jìn tīng shuǐ wú shēng.","chūn qù huā hái zài,","rén lái niǎo bù jīng."],"In a painting, mountains have color but the water makes no sound; the flowers stay after spring and the birds aren't scared."]];
+/* ---------- gate (read-aloud mistake card; button unlocks after it is heard) ---------- */
+let gateTok=0;
+function gate(o){return new Promise(res=>{const tok=++gateTok;$("wEmoji").textContent=o.emoji||"🐼";$("wTitle").textContent=o.title||"Let's learn from this";$("wBody").innerHTML=o.html;
+  const b=$("wOk"),bar=$("wBar").firstElementChild;b.disabled=true;b.classList.remove("ready");b.textContent="👂 Listen…";$("mWhy").classList.add("on");
+  const run=()=>{const ms=estRead(o.say||"")+(o.zh?1500:0);bar.style.transition="none";bar.style.width="0";void bar.offsetWidth;bar.style.transition=`width ${ms/1000}s linear`;bar.style.width="100%";return Promise.all([say2(o.say,o.zh),delay(Math.min(ms,4000))])};
+  run().then(()=>{if(gateTok!==tok)return;b.disabled=false;b.textContent=o.btn||"I got it 👍";b.classList.add("ready")});
+  $("wAgain").onclick=()=>run();
+  b.onclick=()=>{if(b.disabled||gateTok!==tok)return;gateTok++;$("mWhy").classList.remove("on");stopSpeech();res(true)}})}
+function closeGate(){gateTok++;$("mWhy").classList.remove("on")}
+/* ---------- registry, levels, mix rule, challenge ---------- */
+const GAMES=[
+ {id:"listen",ic:"🎧",n:"Listen & Tap",zh:"听一听",max:12,run:playListen,say:"Listen to the Chinese word, then tap the picture."},
+ {id:"read",ic:"🔤",n:"Read Characters",zh:"认汉字",max:12,run:playRead,say:"Look at the Chinese character. Tap the picture that matches."},
+ {id:"tones",ic:"🎵",n:"Pinyin & Tones",zh:"拼音声调",max:5,run:playTones,say:"Listen carefully to the tone. Is it flat, rising, dipping, or falling?"},
+ {id:"write",ic:"✍️",n:"Write Characters",zh:"写汉字",max:12,run:playWrite,say:"Watch how the character is written, then trace it stroke by stroke."},
+ {id:"sentence",ic:"📖",n:"Sentences",zh:"说句子",max:5,run:playSentence,say:"Listen to the sentence and show what it means."},
+ {id:"poem",ic:"📜",n:"Poems",zh:"读古诗",max:6,run:playPoem,say:"Let's read a famous Chinese poem together."}];
+let chalId=null;const GMAX=id=>(GAMES.find(g=>g.id===id)||{max:1}).max;
+const lv=id=>Math.min(GMAX(id),(S.lv[id]||1)+(chalId===id?1:0));
+const st=id=>S.st[id]||(S.st[id]={rounds:0,stars:0,m:[]});
+const MIXON=()=>S.mix!==0,CAP=5;
+function mixT(){const d=today();if(!S.mixd||S.mixd.day!==d)S.mixd={day:d,log:[],n:{},rest:{}};return S.mixd}
+function lockOf(id){if(!MIXON())return null;const m=mixT();if((m.n[id]||0)>=CAP)return {k:"cap"};if(m.rest[id]>0)return {k:"rest",need:m.rest[id]};return null}
+function boostId(){const m=mixT(),ok=GAMES.filter(g=>!lockOf(g.id));if(!ok.length)return null;return ok.sort((a,b)=>((m.n[a.id]||0)-(m.n[b.id]||0))||(lv(a.id)/a.max-lv(b.id)/b.max))[0].id}
+function recordRound(id){const m=mixT();m.n[id]=(m.n[id]||0)+1;m.log.push(id);for(const k in m.rest)if(k!==id&&m.rest[k]>0)m.rest[k]--;let s=0;for(let i=m.log.length-1;i>=0&&m.log[i]===id;i--)s++;let r=null;if(MIXON()&&s>=3){m.rest[id]=2;m.log.push("|");r=id}save();return r}
+function renderHome(){setCoins();const m=mixT(),bs=MIXON()?boostId():null;
+  $("tiles").innerHTML=`<div class="mixbar"><span class="mx">🏅 ${mastered()}/${ALL.length} 字 mastered</span>${MIXON()?`<span class="mx">Today: ${GAMES.map(g=>`${g.ic}${m.n[g.id]||0}`).join(" ")}</span>`:""}</div><div class="tiles">`+GAMES.map(g=>{const s=S.st[g.id],L=lockOf(g.id),b=bs===g.id;return `<button class="tile ${L?"lk":""} ${b?"bst":""}" data-g="${g.id}">${L?`<span class="lkb">${L.k==="cap"?"🌙 tomorrow":`💤 ${L.need} other`}</span>`:b?`<span class="lkb b">⭐ boost</span>`:""}<span class="ic">${g.ic}</span><b>${g.zh}</b><small>${g.n} · Level ${lv(g.id)}${s&&s.rounds?` · ${"⭐".repeat(Math.round(s.stars/s.rounds))}`:""}</small></button>`}).join("")+"</div>";
+  document.querySelectorAll(".tile[data-g]").forEach(b=>b.onclick=()=>{A();openGame(b.dataset.g)})}
+function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));window.scrollTo(0,0)}
+let curG=null;
+function openGame(id){const L=lockOf(id),g=GAMES.find(x=>x.id===id);
+  if(L){token++;closeGate();show("home");renderHome();gate({emoji:L.k==="cap"?"🌙":"💤",title:L.k==="cap"?`${g.zh} is done for today`:"Time to mix it up!",html:L.k==="cap"?`<div class="wa">You played ${g.n} ${CAP} times today. Try another one! 🌟</div>`:`<div class="wp">${g.ic} ${g.n} is resting 💤</div><div class="wa">Play ${L.need} other Chinese game${L.need>1?"s":""} to wake it up ✅</div>`,say:L.k==="cap"?`You played ${g.n} ${CAP} times today. Great work! Try another one.`:`${g.n} is resting. Learning Chinese in different ways makes it stick. Play ${L.need} other game${L.need>1?"s":""} to wake it up.`,btn:"Pick another 👍"});return}
+  curG=g;curG.boost=MIXON()&&boostId()===id;token++;{const s=S.st[id];chalId=(S.chal!==0&&s&&(s.h3||0)>=2&&(S.lv[id]||1)<g.max)?id:null}
+  show("game");$("gTitle").textContent=`${g.ic} ${g.zh} ${g.n}`;$("gLvl").textContent=(chalId===id?"⚡ Challenge level ":"Level ")+lv(id);$("instr").textContent=g.say;fb("");$("area").innerHTML="";
+  const tk=token;(async()=>{await speakDone(chalId===id?"Challenge time! This one is a little harder. "+g.say:g.say);if(tk===token)g.run(tk)})()}
+function finish(id,score,metric,extra){const g=GAMES.find(x=>x.id===id),s=st(id);const stars=score>=.9?3:score>=.6?2:1;s.rounds++;s.stars+=stars;s.m.push(metric);if(s.m.length>20)s.m.shift();
+  const old=S.lv[id]||1,isCh=chalId===id;chalId=null;let lvMsg="",bonus=0;
+  if(isCh){if(stars>=2){S.lv[id]=Math.min(g.max,old+(stars===3?2:1));bonus+=10;s.chalWon=(s.chalWon||0)+1;lvMsg=`⚡ Challenge beaten! Jump to level ${S.lv[id]}!`}else lvMsg="⚡ That was a stretch. Trying hard ones grows your brain!";s.chal=(s.chal||0)+1}
+  else if(stars===3&&old<g.max){S.lv[id]=old+1;lvMsg=`⬆️ Level ${old+1} next!`}else if(stars===1&&old>1){S.lv[id]=old-1;lvMsg="Let's practice an easier level."}
+  s.h3=isCh?0:stars===3?(s.h3||0)+1:0;
+  const rested=recordRound(id);if(g.boost){bonus+=5;extra=(extra?extra+"<br>":"")+"⭐ Boost bonus +5"}g.boost=false;if(rested)lvMsg+=(lvMsg?" ":"")+`💤 ${g.n} rests now. Play 2 other Chinese games to wake it!`;
+  const c=stars*5+bonus;S.coins+=c;const d=S.days[today()]||(S.days[today()]={rounds:0});d.rounds++;S.lvh=S.lvh||{};S.lvh[today()]={...S.lv};save();setCoins();
+  try{if(window.parent!==window&&window.parent.fhAward)window.parent.fhAward("chinese",`${id}:${Date.now()}`,stars,`Panda Chinese ${g.n} ${"⭐".repeat(stars)}`,`熊猫中文 ${g.zh} ${"⭐".repeat(stars)}`)}catch(e){}
+  $("mdE").textContent=stars===3?"🌟":stars===2?"🎉":"💪";$("mdT").textContent=stars===3?"太棒了! Amazing!":stars===2?"很好! Great job!":"加油! Good try!";$("mdS").innerHTML=[0,1,2].map(i=>`<span class="${i<stars?"":"off"}">⭐</span>`).join("");
+  $("mdC").innerHTML=`<span class="coin" style="vertical-align:middle"></span> +${c} coins${extra?`<div style="font-size:16px;color:#555">${extra}</div>`:""}`;$("mdL").textContent=lvMsg;$("mDone").classList.add("on");sfx.win();speak(stars===3?"太棒了！":stars===2?"很好！":"加油！")}
+$("mdAgain").onclick=()=>{$("mDone").classList.remove("on");openGame(curG.id)};
+$("mdHome").onclick=()=>{closeGate();$("mDone").classList.remove("on");token++;show("home");renderHome()};
+$("back").onclick=()=>{token++;closeGate();stopSpeech();show("home");renderHome()};
+$("gSay").onclick=()=>{if(window._again)window._again();else speak($("instr").textContent)};
+/* generic multiple choice with mistake card + recycling */
+async function mcRound(tk,items,label,opts={}){let right=0;const missed=[];
+  const ask=async(it,lab,scored)=>{$("instr").innerHTML=lab;$("area").innerHTML=`<div class="qbox">${it.html}</div><div class="choices">${it.opts.map((o,i)=>`<button class="ch ${o.cls||""}" data-i="${i}">${o.h}</button>`).join("")}</div>`;
+    window._again=()=>say2(it.en,it.zh);await say2(it.en,it.zh);if(tk!==token)return;let first=true,busy=false;
+    await new Promise(res=>document.querySelectorAll(".ch").forEach(b=>b.onclick=async()=>{if(tk!==token||busy)return;const o=it.opts[+b.dataset.i];
+      if(o.v===it.ans){b.classList.add("good");sfx.good();if(first&&scored)right++;if(it.c)chStat(it.c,first);fb(first?pick(["对了！Yes!","真棒！Great!","没错！Right!"]):"现在会了！Now you know it! 🧠","good");if(it.after)await speakDone(it.after);setTimeout(res,500)}
+      else{busy=true;b.classList.add("bad");sfx.bad();if(first&&scored)missed.push(it);if(first&&it.c)chStat(it.c,false);first=false;const w=it.why(o);
+        await gate({emoji:"🐼",title:"Let's learn from this",html:w.html,say:w.say,zh:w.zh,btn:"Try again 💪"});if(tk!==token)return;busy=false;fb("")}}))};
+  for(let i=0;i<items.length&&tk===token;i++)await ask(items[i],`${label} ${i+1}/${items.length}`,true);
+  for(const it of missed){if(tk!==token)return null;fb("");await ask({...it,opts:shuffle(it.opts)},`<span class="tag">🔁 Again</span> ${label}`,false)}
+  window._again=null;return {right,n:items.length,missed:missed.length}}
+const chOpt=x=>({h:`<span style="font-size:46px">${x.e}</span>`,v:x.c});
+/* ---------- 1. Listen & Tap ---------- */
+async function playListen(tk){const L=lv("listen"),items=[];const used=new Set();
+  for(let i=0;i<6;i++){let x;do{x=pickChar(L)}while(used.has(x.c)&&used.size<pool(L).all.length);used.add(x.c);const ds=shuffle(pool(L).all.filter(y=>y.c!==x.c&&y.e!==x.e)).slice(0,L<=2?2:3);
+    items.push({c:x.c,en:i===0?"Listen, and tap the picture.":"",zh:x.w,html:`<div style="font-size:60px">🔊</div><div class="note">Tap 🔊 at the top to hear it again</div>`,opts:shuffle([x,...ds]).map(chOpt),ans:x.c,after:`${x.w}`,
+      why:o=>{const p=CH[o.v];return {html:`<div class="wp">You picked <span class="big">${p.e}</span> — that's <b>${p.w}</b> (${p.en})</div><div class="wa">You heard <b>${x.w}</b> ${x.e} — ${x.en} ✅</div>`,say:`You picked ${p.en}. The word was ${x.en}.`,zh:`${x.w}。${p.w}。`}}})}
+  const r=await mcRound(tk,items,"🎧");if(r&&tk===token)finish("listen",r.right/r.n,r.right/r.n,r.missed?`Practiced ${r.missed} again`:"")}
+/* ---------- 2. Read Characters ---------- */
+async function playRead(tk){const L=lv("read"),items=[];const used=new Set();
+  for(let i=0;i<6;i++){let x;do{x=pickChar(L)}while(used.has(x.c)&&used.size<pool(L).all.length);used.add(x.c);const ds=shuffle(pool(L).all.filter(y=>y.c!==x.c&&y.e!==x.e)).slice(0,L<=2?2:3);
+    const rev=L>=4&&i%2===1;
+    if(!rev)items.push({c:x.c,en:"",zh:"",html:`<div class="hz">${x.c}</div>`,opts:shuffle([x,...ds]).map(chOpt),ans:x.c,after:`${x.c}，${x.w}`,
+      why:o=>{const p=CH[o.v];return {html:`<div class="wp">You picked <span class="big">${p.e}</span> — that's <b>${p.c}</b> ${p.py}</div><div class="wa"><span class="hz sm">${x.c}</span> ${x.py} means <b>${x.en}</b> ${x.e} ✅</div><div>Word: ${x.w}</div>`,say:`This character means ${x.en}.`,zh:`${x.c}，${x.w}。`}}});
+    else items.push({c:x.c,en:"Which character is",zh:x.c+"，"+x.w,html:`<div style="font-size:64px">${x.e}</div>`,opts:shuffle([x,...ds]).map(y=>({h:`<span class="hz sm">${y.c}</span>`,v:y.c})),ans:x.c,
+      why:o=>{const p=CH[o.v];return {html:`<div class="wp">You picked <span class="hz sm">${p.c}</span> ${p.py} — ${p.en} ${p.e}</div><div class="wa">${x.e} is <span class="hz sm">${x.c}</span> ${x.py} ✅</div>`,say:`That one means ${p.en}. ${x.en} is this one.`,zh:`${x.c}，${x.w}。`}}})}
+  const r=await mcRound(tk,items,"🔤");if(r&&tk===token)finish("read",r.right/r.n,r.right/r.n,r.missed?`Practiced ${r.missed} again`:"")}
+/* ---------- 3. Pinyin & Tones ---------- */
+async function playTones(tk){const L=lv("tones"),items=[];
+  for(let i=0;i<6;i++){
+    if(L<=3){const set=L===1?TONESETS[0]:L===2?TONESETS[0]:pick(TONESETS);const allowed=L===1?[0,3]:[0,1,2,3];const k=pick(allowed),[c,py]=set[k];
+      items.push({en:i===0?"Listen to the tone.":"",zh:c,html:`<div style="font-size:54px">🔊</div><div class="note">${L>=3?"":"Hint: watch the lines"}</div>`,opts:allowed.map(t=>({h:`${toneSvg(t+1)}<br><b>${withTone(plain(py).s,t+1)}</b><br><small>${TONE_UI[t][0]}声</small>`,v:String(t+1)})),ans:String(k+1),after:c,
+        why:o=>({html:`<div class="wp">You picked tone ${o.v} ${toneSvg(+o.v)}</div><div class="wa">${c} <b>${py}</b> is tone ${k+1}: ${TONE_UI[k][2]} ${toneSvg(k+1)} ✅</div>`,say:`This one is tone ${k+1}. Its voice is ${TONE_UI[k][2]}. Listen again.`,zh:c})})}
+    else{const x=pickChar(Math.min(12,6+L*2)),p=plain(x.py),opts=new Set([x.py]);[1,2,3,4].filter(t=>t!==p.t).forEach(t=>opts.add(withTone(p.s,t)));
+      const ol=shuffle([...opts]).slice(0,L===4?3:4);if(!ol.includes(x.py))ol[0]=x.py;
+      items.push({c:x.c,en:"",zh:x.c,html:`<div class="hz">${x.c}</div><div class="note">${x.e} ${x.en}</div>`,opts:shuffle(ol).map(v=>({h:`<b style="font-size:26px">${v}</b>`,v})),ans:x.py,after:x.w,
+        why:o=>({html:`<div class="wp">You picked <b>${o.v}</b></div><div class="wa"><span class="hz sm">${x.c}</span> is <b>${x.py}</b> — tone ${p.t||"neutral"} ✅</div>`,say:`Listen to the tone. This character says`,zh:x.c})})}}
+  const r=await mcRound(tk,items,"🎵");if(r&&tk===token)finish("tones",r.right/r.n,r.right/r.n,r.missed?`Practiced ${r.missed} again`:"")}
+/* ---------- 4. Write Characters (Hanzi Writer, stroke order) ---------- */
+let STROKES=null;async function strokes(){if(STROKES)return STROKES;try{STROKES=await (await fetch("strokes.json")).json()}catch(e){STROKES={}}return STROKES}
+async function playWrite(tk){const L=lv("write"),N=3;const data=await strokes();const used=new Set();let score=0,totalMiss=0;
+  if(!window.HanziWriter||!Object.keys(data).length){$("area").innerHTML=`<p>Writing needs the stroke files. Please open Panda Chinese from the Family Hub.</p>`;return}
+  for(let i=0;i<N&&tk===token;i++){let x;do{x=pickChar(L)}while(used.has(x.c));used.add(x.c);
+    $("instr").innerHTML=`✍️ ${i+1}/${N} · <b>${x.c}</b> ${x.py} — ${x.en} ${x.e}`;$("area").innerHTML=`<div style="display:flex;justify-content:center"><div id="hw" style="width:min(80vw,300px);height:min(80vw,300px);background:#fff;border-radius:20px;box-shadow:inset 0 0 0 3px #e9ecef;background-image:linear-gradient(#f1edff 1px,transparent 1px),linear-gradient(90deg,#f1edff 1px,transparent 1px);background-size:50% 50%;background-position:center"></div></div><div class="fb" id="wst"></div>`;
+    const size=$("hw").clientWidth;const w=HanziWriter.create("hw",x.c,{width:size,height:size,padding:12,showOutline:true,strokeAnimationSpeed:1,delayBetweenStrokes:250,strokeColor:"#2b2d42",radicalColor:"#5a4fcf",highlightColor:"#ffd166",drawingWidth:Math.max(18,size/12),showHintAfterMisses:2,charDataLoader:(c,ok)=>ok(data[c])});
+    window._again=()=>w.animateCharacter();
+    await say2(`Watch how to write`,`${x.c}，${x.w}`);if(tk!==token)return;$("wst").textContent="👀 Watch the strokes…";
+    await new Promise(r=>w.animateCharacter({onComplete:r}));if(tk!==token)return;await delay(300);
+    $("wst").textContent="✍️ Your turn! Trace each stroke in order.";speak("Your turn! Trace each stroke in order.");
+    const res=await new Promise(r=>w.quiz({onMistake:()=>{sfx.bad()},onCorrectStroke:()=>sfx.tap(),onComplete:s=>r(s)}));if(tk!==token)return;
+    const mist=res.totalMistakes||0;totalMiss+=mist;const ok=mist<=Math.max(1,Math.floor(data[x.c].strokes.length/3));chStat(x.c,ok);score+=ok?1:mist<=data[x.c].strokes.length?.5:0;
+    sfx.good();$("wst").textContent=ok?"写得好！Beautiful writing! ✨":"Done! Keep practicing the order 💪";
+    if(!ok){await gate({emoji:"✍️",title:"Stroke order matters",html:`<div><span class="hz sm">${x.c}</span> has ${data[x.c].strokes.length} strokes.</div><div class="wa">Remember: top to bottom, left to right, and outside before inside ✅</div>`,say:`This character has ${data[x.c].strokes.length} strokes. Remember: top to bottom, left to right, outside before inside. Watch it once more.`,btn:"Watch again 👀"});if(tk!==token)return;await new Promise(r=>w.animateCharacter({onComplete:r}))}
+    else await speakDone(`${x.c}，${x.w}`);await delay(400)}
+  window._again=null;if(tk===token)finish("write",score/N,totalMiss,`${totalMiss} wrong strokes`)}
+/* ---------- 5. Sentences ---------- */
+async function playSentence(tk){const L=lv("sentence"),N=5,lst=shuffle(SENT).slice(0,N);
+  if(L<=2||L===5){const items=lst.map(s=>{const ds=shuffle(SENT.filter(t=>t!==s)).slice(0,2),txt=s[0].replace(/ /g,"");
+      return {en:L===5?"":"Listen.",zh:L===5?"":txt,html:L===5?`<div class="hz md">${txt}</div><div class="note">Read it, then tap the picture</div>`:`<div style="font-size:54px">🔊</div>${L===2?`<div class="hz md">${txt}</div>`:""}`,opts:shuffle([s,...ds]).map(t=>({h:`<span style="font-size:40px">${t[1]}</span>`,v:t[0]})),ans:s[0],after:txt,
+        why:o=>{const p=SENT.find(t=>t[0]===o.v);return {html:`<div class="wp">${p[1]} means “${p[2]}”</div><div class="wa"><b>${txt}</b> ${s[1]} — “${s[2]}” ✅</div>`,say:`That picture means ${p[2]}. The sentence means ${s[2]}.`,zh:txt}}}});
+    const r=await mcRound(tk,items,"📖");if(r&&tk===token)finish("sentence",r.right/r.n,r.right/r.n,r.missed?`Practiced ${r.missed} again`:"");return}
+  let right=0;
+  for(let i=0;i<N&&tk===token;i++){const s=lst[i],words=s[0].split(" "),txt=words.join("");let first=true;
+    $("instr").innerHTML=`📖 ${i+1}/${N} · Put the words in order`;
+    const build=()=>{$("area").innerHTML=`<div style="text-align:center;font-size:50px">${s[1]}</div><div id="slot" class="sbox"></div><div class="choices" id="wt">${shuffle(words.map((w,k)=>({w,k}))).map(o=>`<button class="ch wd" data-w="${o.w}">${o.w}</button>`).join("")}</div>`};
+    build();window._again=()=>speak(txt);await say2(L===3?"Listen, then put the words in order.":"Put the words in order to make the sentence.",L===3?txt:"");
+    while(tk===token){const got=[];await new Promise(res=>document.querySelectorAll(".wd").forEach(b=>b.onclick=()=>{if(b.disabled)return;b.disabled=true;b.style.opacity=.35;got.push(b.dataset.w);sfx.tap();$("slot").textContent=got.join(" ");speak(b.dataset.w);if(got.length===words.length)setTimeout(res,500)}));
+      if(tk!==token)return;if(got.join("")===txt){sfx.good();if(first)right++;fb(first?"对了！":"现在对了！","good");await speakDone(txt);await delay(500);fb("");break}
+      sfx.bad();first=false;await gate({emoji:"📖",title:"Almost!",html:`<div class="wp">You made: ${got.join(" ")}</div><div class="wa">Right order: <b>${words.join(" ")}</b> ${s[1]} ✅</div><div>“${s[2]}”</div>`,say:`Chinese puts who first, then what they do. The sentence means ${s[2]}.`,zh:txt,btn:"Try again 💪"});if(tk!==token)return;build()}}
+  window._again=null;if(tk===token)finish("sentence",right/N,right/N)}
+/* ---------- 6. Poems (Tang dynasty, public domain) ---------- */
+async function playPoem(tk){const L=lv("poem"),P=POEMS[L-1];const [title,author,emo,lines,pys,meaning]=P;
+  const draw=(hi)=>{$("area").innerHTML=`<div class="poem"><div style="font-size:44px">${emo}</div><div class="pt">${title}</div><div class="pa">${author}</div>${lines.map((l,i)=>`<div class="pl ${i===hi?"on":""}"><div class="py">${pys[i]}</div><div>${l}</div></div>`).join("")}</div>`};
+  $("instr").textContent=`📜 ${title} — listen and read along`;draw(-1);window._again=async()=>{for(let i=0;i<4;i++){draw(i);await speakDone(lines[i])}draw(-1)};
+  await speakDone(`This poem is called`);await speakDone(`${title}，${author}。`);if(tk!==token)return;
+  for(let rep=0;rep<2&&tk===token;rep++){for(let i=0;i<4&&tk===token;i++){draw(i);await speakDone(lines[i]);await delay(250)}if(rep===0&&tk===token){draw(-1);await speakDone("Now read it with me!");}}
+  if(tk!==token)return;draw(-1);await speakDone("It means: "+meaning);if(tk!==token)return;
+  const items=shuffle([0,1,2,3]).slice(0,3).map(li=>{const chars=[...lines[li]].filter(c=>/[一-鿿]/.test(c)),k=rnd(0,chars.length-1),ans=chars[k];
+    const others=[...new Set(POEMS.flatMap(p=>[...p[3].join("")]).filter(c=>/[一-鿿]/.test(c)&&c!==ans))];let n=-1;
+    const blanked=[...lines[li]].map(c=>{if(/[一-鿿]/.test(c)){n++;if(n===k)return "<span class='blank'>？</span>"}return c}).join("");
+    return {en:"Which character is missing?",zh:"",html:`<div class="hz md">${blanked}</div><div class="note">${pys[li]}</div>`,opts:shuffle([ans,...shuffle(others).slice(0,2)]).map(c=>({h:`<span class="hz sm">${c}</span>`,v:c})),ans,after:lines[li],
+      why:o=>({html:`<div class="wp">You picked <span class="hz sm">${o.v}</span></div><div class="wa">${lines[li].replace(ans,`<b style="color:#2d6a4f">${ans}</b>`)} ✅</div>`,say:"Listen to the line again.",zh:lines[li]})}});
+  const r=await mcRound(tk,items,"📜");window._again=null;if(r&&tk===token)finish("poem",r.right/r.n,r.right/r.n,`${title} · ${author}`)}
+/* ---------- parents ---------- */
+function measure(id){const s=S.st[id];if(!s||!s.m.length)return "–";const last=s.m.slice(-5),avg=last.reduce((a,b)=>a+b,0)/last.length;return id==="write"?`${avg.toFixed(1)} wrong strokes per round`:`first-try ${Math.round(avg*100)}%`}
+function renderParents(){$("pTable").innerHTML=GAMES.map(g=>{const s=S.st[g.id];return `<tr><td>${g.ic} ${g.zh} ${g.n}</td><td>${lv(g.id)}/${g.max}</td><td>${s?s.rounds:0}</td><td>${s&&s.rounds?(s.stars/s.rounds).toFixed(1):"–"}</td><td>${measure(g.id)}</td></tr>`}).join("");
+  $("pChars").innerHTML=SETS.map((st0,i)=>`<div style="margin:4px 0"><b>${i+1}. ${st0[0]}</b> ${st0[1].map(c=>{const s=S.ch[c[0]]||{};const col=(s.ok||0)>=3?"#80ed99":s.n?((s.miss||0)>(s.ok||0)?"#ffb3c1":"#fff3c4"):"#eee";return `<span title="${c[1]} ${c[2]}" style="display:inline-block;min-width:30px;text-align:center;font-size:20px;background:${col};border-radius:8px;margin:1px;padding:1px 3px">${c[0]}</span>`}).join("")}</div>`).join("");
+  $("sVoice").value=S.voice;$("sMix").value=MIXON()?"1":"0";$("sChal").value=S.chal===0?"0":"1";$("sVoiceZh").innerHTML=voiceOptions("zh",S.voiceZh);$("sAiV").value=S.aiVoice===0?"0":"1";$("aiSt").textContent=aiVoiceStatus()}
+$("toParents").onclick=()=>{renderParents();show("parents")};$("pBack").onclick=()=>{show("home");renderHome()};
+$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};$("sMix").onchange=e=>{S.mix=+e.target.value;save()};$("sChal").onchange=e=>{S.chal=+e.target.value;save()};
+$("sVoiceZh").onchange=e=>{S.voiceZh=e.target.value;save()};$("sAiV").onchange=e=>{S.aiVoice=+e.target.value;save();if(S.aiVoice&&HV)HV.init({getS:()=>S})};
+$("tZh").onclick=()=>{const v=S.voice;S.voice=1;speak("你好，Jonah！我们一起学中文吧！");S.voice=v};
+$("mixReset").onclick=()=>{const m=mixT();m.rest={};m.n={};m.log.push("|");save();$("pMsg").textContent="Unlocked for today."};
+$("pCopy").onclick=async()=>{const t=[`${NAME} — Panda Chinese (${today()})`,`Characters mastered: ${mastered()}/${ALL.length}`,...GAMES.map(g=>`${g.n}: level ${lv(g.id)}, ${(S.st[g.id]||{}).rounds||0} rounds, ${measure(g.id)}`)].join("\n");try{await navigator.clipboard.writeText(t);$("pMsg").textContent="Copied."}catch(e){$("pMsg").textContent=t}};
+if(!IS_PARENT)$("toParents").style.display="none";
+/* Grade 1–2 start (Bobby 2026-11-21): skip the number-only start; adapts up or down from here */
+if(!S._g12){S._g12=1;const B={listen:3,read:2,tones:2};for(const k in B)S.lv[k]=Math.max(S.lv[k]||1,B[k])}
+renderHome();save();
+</script>
+</body>
+</html>
