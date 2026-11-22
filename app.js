@@ -1174,7 +1174,7 @@ function brainStatsHtml(kid) {
   const ckd = (a, b) => b == null ? "" : a > b ? ` <b style="color:#2d6a4f">▲${a - b}</b>` : a < b ? ` <span style="color:#c9184a">▼${b - a}</span>` : "";
   const ckHtml = ck ? `<div class="meta" style="margin-top:6px"><b>🧪 ${zh ? "大脑小测" : "Brain Check"} ${ck.d}</b> · ${zh ? "思维" : "Thinking"} <b>${ck.iq}</b>${ckd(ck.iq, ckp && ckp.iq)} · ${zh ? "情商" : "Heart (EQ)"} <b>${ck.eq}</b>${ckd(ck.eq, ckp && ckp.eq)} · ${zh ? "趋势" : "trend"}: ${cks.map(c => c.iq + "/" + c.eq).join(" → ")}</div>
     <div class="meta">${CKN.map(([k, ic, en, z]) => `${ic} ${zh ? z : en} ${ck.s[k] ?? "–"}${ckd(ck.s[k], ckp && ckp.s[k])}`).join(" · ")} · ${zh ? "数字广度" : "digit span"} ${ck.raw.fwd || 0}/${ck.raw.bwd || 0}</div>
-    <div class="meta" style="opacity:.8">${zh ? "分数=每项答对的百分比，看趋势，不是临床智商。" : "Scores = % of each subtest. Watch the trend; this is not a clinical IQ score."}</div>` : `<div class="meta">🧪 ${zh ? "还没做过大脑小测（每3天一次，打开大脑乐园时提示）。" : "No Brain Check yet (every 3 days, prompted when he opens Brain Park)."}</div>`;
+    <div class="meta" style="opacity:.8">${zh ? "分数=每项答对的百分比，看趋势，不是临床智商。" : "Scores = % of each subtest. Watch the trend; this is not a clinical IQ score."}</div>` : `<div class="meta">🧪 ${zh ? "还没做过大脑小测（每周一次，可选，不会挡住游戏）。" : "No Brain Check yet (optional, offered once a week in Brain Park; it never blocks games)."}</div>`;
   const rows = BP_G.map(([id, ic, en, z, max]) => { const s = (P.st || {})[id]; return `<tr><td>${ic} ${zh ? z : en}</td><td>${max ? `${(P.lv || {})[id] || 1}/${max}${dl(id)}` : "–"}</td><td>${s ? s.rounds : 0}</td><td>${s && s.rounds ? (s.stars / s.rounds).toFixed(1) : "–"}</td><td>${s ? brainMeasure(id, s.m) : "–"}</td></tr>`; }).join("");
   return `<div class="coach"><h4>${h}</h4>
     <div class="meta">🪙 ${P.coins || 0} ${zh ? "金币" : "coins"} · ${zh ? "最近7天" : "Last 7 days"}: ${r7} ${zh ? "局" : "rounds"}, ${d7}/7 ${zh ? "天" : "days"}</div>
@@ -1413,7 +1413,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121p5${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121k2${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
