@@ -96,6 +96,8 @@ function parentHtml() {
     <table style="width:100%;border-collapse:collapse;font-size:15px;margin-top:6px"><tr style="text-align:left"><th>Unit</th><th>Read</th><th>⭐ Practice</th><th>⬆️ Challenge</th><th>📝 Unit test</th></tr>
     ${LES.map(l => { const r = P.lessons[l.id] || {}, t = P.tests[l.id]; return `<tr style="border-top:1px dashed #0003"><td>${l.emoji} ${esc(l.title)}</td><td>${Math.max(0, readOf(l.id) + 1)}/4</td><td>${r.pBest != null ? `${r.pBest}/6` : "–"}</td><td>${r.chBest != null ? `${r.chBest}/3` : "–"}</td><td>${t ? `best ${t.best}/${t.of} · last ${t.last}/${t.of} (${t.date})` : "–"}</td></tr>`; }).join("")}</table>
     ${P.quizzes.length ? `<p style="margin-top:10px"><b>Quick quizzes:</b> ${P.quizzes.slice(-6).map(q => `${q.score}/${q.of} (${q.date.slice(5)})`).join(" · ")}</p>` : ""}
+    ${P.ws ? `<p style="margin-top:10px"><b>✍️ Worksheets (typed answers):</b> ${Object.entries(P.ws).map(([u, w]) => `${esc((LES.find(x => x.id === u) || {}).title || u)}: ${w.first}/${w.n} right without notes, work shown on ${w.work}`).join(" · ")}</p>` : ""}
+    ${(P.flags || []).filter(f => !f.done).length ? `<p style="margin-top:10px"><b>🚩 Circled for office hours (${(P.flags || []).filter(f => !f.done).length}):</b></p><ol>${(P.flags || []).filter(f => !f.done).slice(-12).map(f => `<li>${esc(f.q)} <span class="sub">(${esc(f.why)}, ${f.d.slice(5)})</span></li>`).join("")}</ol>` : ""}
     ${top.length ? `<p style="margin-top:10px"><b>Most-missed questions:</b></p><ul>${top.map(([q, n]) => `<li>${esc(q)} <span class="sub">(${n}×)</span></li>`).join("")}</ul>` : ""}
     <p class="sub" style="margin-top:8px">Lessons follow the official syllabus (basis.campusconcourse.com, course 7369). Dr. Covert teaches from guided notes, so if his notes use a different value (e.g. g = 10 instead of 9.8), follow the notes.</p></div>`;
 }
@@ -135,11 +137,12 @@ function lesson(i, step, mode) {
   if (step === 4) {
     mode = mode || "practice"; const r = P.lessons[l.id] || {}, t = P.tests[l.id];
     const chOpen = PARENT || (r.pBest || 0) >= 4;
-    body = `<div class="modes" style="grid-template-columns:repeat(${AD && window.PHY_GEN ? 4 : 3},1fr)!important">
+    body = `<div class="modes" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important">
       <button data-m="practice" class="${mode === "practice" ? "on" : ""}">⭐ Practice (6)<span>${r.pBest != null ? `best ${r.pBest}/6` : "hints allowed"}</span></button>
       <button data-m="challenge" class="${mode === "challenge" ? "on" : ""}"${chOpen ? "" : " disabled"}>⬆️ Challenge (3)<span>${chOpen ? (r.chBest != null ? `best ${r.chBest}/3` : "multi-step") : "🔒 get 4/6 in Practice"}</span></button>
       <button data-m="test" class="${mode === "test" ? "on" : ""}">📝 Unit test (10)<span>${t ? `best ${t.best}/${t.of}` : "15 min, no hints"}</span></button>
-      ${AD && window.PHY_GEN ? `<button data-m="endless" class="${mode === "endless" ? "on" : ""}">♾️ Endless<span>Level ${AD.level(l.id)}/5 · ${LVN[AD.level(l.id)]}</span></button>` : ""}</div><div id="play"></div>`;
+      ${AD && window.PHY_GEN ? `<button data-m="endless" class="${mode === "endless" ? "on" : ""}">♾️ Endless<span>Level ${AD.level(l.id)}/5 · ${LVN[AD.level(l.id)]}</span></button>` : ""}
+      ${wsKinds(l.id).length ? `<button data-m="worksheet" class="${mode === "worksheet" ? "on" : ""}">✍️ Worksheet<span>type it · show work${(P.flags || []).filter(f => f.u === l.id && !f.done).length ? ` · 🚩 ${(P.flags || []).filter(f => f.u === l.id && !f.done).length}` : ""}</span></button>` : ""}</div><div id="play"></div>`;
   }
   app.innerHTML = head + body;
   if (step === 0 && window.SIMS && SIMS[l.id] && document.getElementById("sim")) { try { SIMS[l.id](document.getElementById("sim")); } catch (e) { console.warn("sim", e); } }
@@ -160,6 +163,7 @@ function lesson(i, step, mode) {
     if (mode === "test") testRun({ title: `📝 Unit ${l.unit} test: ${l.title}`, qs: (() => { const fixed = shuffle([...l.pr, ...l.ch, ...l.tq]); if (!window.PHY_GEN || !PHY_GEN.setSeen) return fixed.slice(0, 10).map(q => mix(Object.assign({ t: l.id }, q))); const seen = {}, gen = [], used = new Set(); for (let k = 0; k < 30 && gen.length < 5; k++) { PHY_GEN.setSeen(seen); const g = PHY_GEN.make(l.id, Math.max(3, AD ? AD.level(l.id) : 3)); if (g && !used.has(g.q)) { used.add(g.q); seen[g.angle] = (seen[g.angle] || 0) + 1; gen.push(g); } } return shuffle([...fixed.slice(0, 10 - gen.length), ...gen]).map(q => mix(Object.assign({ t: l.id }, q))); })(), secs: 15 * 60, box: $("#play"), done: res => {
       const t = P.tests[l.id] = P.tests[l.id] || { best: 0, of: res.of, log: [] }; t.last = res.score; t.of = res.of; t.date = today; t.best = Math.max(t.best, res.score); t.log.push({ date: today, score: res.score, secs: res.secs }); save(); } });
     else if (mode === "endless") endless(i);
+    else if (mode === "worksheet") worksheet(i);
     else practice(i, mode);
   }
 }
@@ -196,6 +200,62 @@ function endless(i) {
         fb.innerHTML = `<div class="fb no">The answer is ${LET[q.a]}. ${esc(q.why || "")} A fresh version will come back soon.</div>${mv.moved < 0 ? `<div class="fb hint">⬇️ Let's build it up: back to Level ${mv.lv}/5 for a bit.</div>` : ""}<div class="row"><span class="spacer"></span><button class="btn go" id="nq">Next →</button></div>`;
         $("#nq").onclick = draw; }
     });
+  };
+  draw();
+}
+
+// ---- ✍️ Worksheet mode (2026-11-21), built on Dr. Covert's advice to parents:
+// "Physics is heavily calculation based… worksheets are designed around the types of questions on the exams." Study method he gave:
+// try it WITHOUT notes → circle what you can't do → retry WITH the notes, writing the steps → bring circled ones to office hours.
+// Typed number + unit (checked like his tests), the formula and knowns written out, notes open only after a miss, 🚩 office-hours list.
+const WS_KINDS = { measure: ["conv"], kinematics: ["speed", "dist", "time", "accel", "avgspeed"], forces: ["weight", "netforce", "fma"], energy: ["work", "ke", "pe"], waves: ["wave", "period"] };
+const FORMULAS = { measure: ["Metric ladder: k · h · da · BASE · d · c · m (×10 each step down)"], kinematics: ["v = d ÷ t", "d = v × t", "t = d ÷ v", "a = (v_final − v_start) ÷ t", "v_final = v_start + a × t", "average speed = total d ÷ total t"],
+  forces: ["W = m × g", "m = W ÷ g", "F_net = m × a", "a = F_net ÷ m", "m = F_net ÷ a", "F_net = add forces (+ one way, − the other)"], energy: ["Work = F × d", "F = W ÷ d", "KE = ½ × m × v²", "PE = m × g × h", "h = PE ÷ (m × g)", "P = W ÷ t"], waves: ["v = f × λ", "f = v ÷ λ", "λ = v ÷ f", "T = 1 ÷ f", "f = 1 ÷ T"] };
+const wsKinds = id => (window.QGEN && WS_KINDS[id] || []).filter(k => QGEN.GEN[k]);
+const flagIt = (l, q, why) => { P.flags = P.flags || []; if (P.flags.some(f => f.q === q.q)) return; P.flags.push({ d: today, u: l.id, q: q.q, a: QGEN.answerText(q), why, done: false }); P.flags = P.flags.slice(-60); save(); };
+function officeList(l) { const fl = (P.flags || []).filter(f => !f.done && (!l || f.u === l.id)); if (!fl.length) return "";
+  return `<div class="card" style="margin-top:12px"><div class="q">🚩 Circled for office hours${l ? "" : " (all units)"} · ${fl.length}</div><p class="sub">Dr. Covert asked: bring the problems you circled so he can see what's hard. Show him this list or copy them into your notebook.</p>
+    <ol style="margin:6px 0 0 18px">${fl.map(f => `<li style="margin:6px 0">${esc(f.q)} <span class="sub">· ${f.d.slice(5)}${l ? "" : ` · ${esc((LES.find(x => x.id === f.u) || {}).title || f.u)}`}</span> <button class="btn" data-flagdone="${esc(f.q)}" style="padding:2px 10px;font-size:13px">✓ Asked</button></li>`).join("")}</ol></div>`; }
+function worksheet(i) {
+  const l = LES[i], box = $("#play"), kinds = wsKinds(l.id); let n = 0, stars = 0;
+  if (!kinds.length) { box.innerHTML = `<div class="card"><p>No calculation worksheet for this unit; use ♾️ Endless.</p></div>`; return; }
+  const nextP = () => AD.next(l.id + ":ws", (lv, item) => { const k = item && item.k && kinds.includes(item.k) ? item.k : kinds[Math.floor(Math.random() * kinds.length)]; const p = QGEN.GEN[k].gen(ADAPT.tier(lv, 3)); p.k = k; return p; }, p => p.q);
+  const draw = () => {
+    const p = nextP(); n++; let tries = 0; const t0 = Date.now(); const units = (p.units && p.units.length > 1) ? shuffle(p.units.slice()) : null;
+    box.innerHTML = `<div class="card"><div class="sub">✍️ Worksheet problem ${n} · <b>Level ${AD.level(l.id + ":ws")}/5</b> · ⭐ ${stars} · <span id="wsMode">📕 No notes first</span>${p._review ? " · 🔁 one you missed earlier" : ""}</div>
+      <div class="q" style="margin-top:6px">${esc(p.q)}</div>
+      <div style="display:grid;gap:8px;margin-top:10px">
+        <label class="sub"><b>1 · Given</b> (list what you know, with units): <input id="wsGiven" placeholder="e.g. d = 120 m, t = 8 s" style="width:100%;padding:8px;border:2px solid #16161d;border-radius:10px;font:inherit"></label>
+        <label class="sub"><b>2 · Equation</b>: <select id="wsEq" style="padding:8px;border:2px solid #16161d;border-radius:10px;font:inherit;max-width:100%"><option value="">— pick the formula —</option>${(FORMULAS[l.id] || []).map(f => `<option>${esc(f)}</option>`).join("")}</select></label>
+        <label class="sub"><b>3 · Answer</b>: <span style="display:flex;gap:8px;flex-wrap:wrap"><input id="wsAns" inputmode="decimal" placeholder="number${p.kind === "frac" ? " or a/b" : ""}" style="flex:1;min-width:120px;padding:10px;border:2px solid #16161d;border-radius:10px;font:600 18px inherit">${units ? `<select id="wsUnit" style="padding:10px;border:2px solid #16161d;border-radius:10px;font:600 16px inherit"><option value="">unit…</option>${units.map(u => `<option>${esc(u)}</option>`).join("")}</select>` : p.unit ? `<span style="align-self:center;font-weight:700">${esc(p.unit)}</span>` : ""}</span></label>
+      </div>
+      <div class="row"><button class="btn go" id="wsCheck">Check ✓</button><button class="btn" id="wsFlag">🚩 Circle for office hours</button><span class="spacer"></span><button class="btn" id="wsStop">🏁 Stop</button></div>
+      <div id="fb"></div></div>${officeList(l)}`;
+    $("#wsStop").onclick = () => lesson(i, 4, "worksheet");
+    $("#wsFlag").onclick = () => { flagIt(l, p, "circled"); $("#wsFlag").textContent = "🚩 Circled"; $("#wsFlag").disabled = true; };
+    box.querySelectorAll("[data-flagdone]").forEach(b => b.onclick = () => { const f = (P.flags || []).find(x => x.q === b.dataset.flagdone); if (f) { f.done = true; f.asked = today; save(); } b.closest("li").remove(); });
+    const steps = () => `<div class="fb hint" style="margin-top:8px"><b>✅ Worked solution</b>${p.steps.map((s, k) => `<div style="margin-top:4px"><b>${["Equation · ", "Substitute · ", "Solve · ", "Check · "][k] || ""}</b>${esc(s)}</div>`).join("")}<div style="margin-top:4px"><b>Answer:</b> ${esc(QGEN.answerText(p))}</div></div>`;
+    const notes = () => `<div class="fb" style="background:#eef6ff;border:2px dashed #3b82f6;margin-top:8px"><b>📒 Your notes are open now.</b> Write the formula, list the knowns with units, plug in, then solve.<ul style="margin:6px 0 0 18px">${(FORMULAS[l.id] || []).map(f => `<li>${esc(f)}</li>`).join("")}</ul>${l.moves.slice(0, 3).map(m => `<div class="sub" style="margin-top:4px">• ${esc(m.m)}</div>`).join("")}</div>`;
+    $("#wsCheck").onclick = () => {
+      const raw = $("#wsAns").value.trim(); if (!raw) { $("#fb").innerHTML = `<div class="fb hint">Type your answer first.</div>`; return; }
+      const unit = units ? $("#wsUnit").value : p.unit; if (units && !unit) { $("#fb").innerHTML = `<div class="fb hint">Pick a unit. On Dr. Covert's tests the unit counts.</div>`; return; }
+      tries++; const res = QGEN.check(p, raw, unit), secs = Math.round((Date.now() - t0) / 1000), shown = !!($("#wsGiven").value.trim() && $("#wsEq").value);
+      if (res.ok) { const first = tries === 1; if (first) stars++;
+        track({ t: l.id, m: "worksheet", ok: first, first, secs, q: p.q, work: shown }); const mv = AD.record(l.id + ":ws", true, { firstTry: first, slow: secs > 300, key: p.q, mkey: p.k, item: { k: p.k } });
+        P.ws = P.ws || {}; const w = P.ws[l.id] = P.ws[l.id] || { n: 0, first: 0, work: 0 }; w.n++; if (first) w.first++; if (shown) w.work++; save();
+        box.querySelectorAll("input,select,#wsCheck").forEach(x => x.disabled = true);
+        $("#fb").innerHTML = `<div class="fb ok">${first ? "⭐ Right without notes!" : "✅ Got it with your notes."}${shown ? "" : " Next time fill in Given and Equation too: on the test, showing work earns points."}</div>${mv.moved > 0 ? `<div class="fb ok">⬆️ Level up! Worksheet level ${mv.lv}/5.</div>` : ""}${steps()}<div class="row"><span class="spacer"></span><button class="btn go" id="wsNext">Next problem →</button></div>`;
+        $("#wsNext").onclick = draw;
+      } else if (tries === 1) {
+        const why = { unit: "Your number is right, but the UNIT is wrong.", simplify: "Right value, but simplify the fraction.", number: "That isn't a number I can read.", value: "Not quite." }[res.why] || "Not quite.";
+        $("#wsMode").textContent = "📒 Notes open"; $("#fb").innerHTML = `<div class="fb no">${why} Try again with your notes.</div>${notes()}`;
+      } else {
+        track({ t: l.id, m: "worksheet", ok: false, first: false, secs, q: p.q, work: shown }); const mv = AD.record(l.id + ":ws", false, { firstTry: false, key: p.q, mkey: p.k, item: { k: p.k } });
+        flagIt(l, p, "missed twice"); box.querySelectorAll("input,select,#wsCheck,#wsFlag").forEach(x => x.disabled = true);
+        $("#fb").innerHTML = `<div class="fb no">Still not it, so I circled it for office hours 🚩. Read the worked solution, then copy the steps into your notebook.</div>${mv.moved < 0 ? `<div class="fb hint">⬇️ Back to worksheet level ${mv.lv}/5 for a bit.</div>` : ""}${steps()}<div class="row"><span class="spacer"></span><button class="btn go" id="wsNext">Next problem →</button></div>`;
+        $("#wsNext").onclick = draw;
+      }
+    };
   };
   draw();
 }

@@ -175,13 +175,29 @@
   T("waves", 1, 3, "units", d => { const sets = [["frequency", "hertz (Hz)"], ["wavelength", "meters (m)"], ["period", "seconds (s)"], ["wave speed", "meters per second (m/s)"]]; const [q, a] = pick(sets);
     return mc(`What unit is ${q} measured in?`, a, sets.map(s => s[1]).filter(x => x !== a), null, "1 Hz = 1 wave per second.", `${cap(q)}: ${a}.`, { ok: () => true }); });
 
+
+  // ───────────────────── 🧰 Math skills: rearranging formulas & powers of ten (Dr. Covert: "foundational math skills") ─────────────────────
+  const REARR = {
+    measure: [["D = m ÷ V", "V", "V = m ÷ D", ["V = D ÷ m", "V = m × D", "V = D − m"]], ["D = m ÷ V", "m", "m = D × V", ["m = D ÷ V", "m = V ÷ D", "m = D + V"]]],
+    kinematics: [["v = d ÷ t", "t", "t = d ÷ v", ["t = v ÷ d", "t = d × v", "t = d − v"]], ["v = d ÷ t", "d", "d = v × t", ["d = v ÷ t", "d = t ÷ v", "d = v + t"]], ["a = (v_f − v_i) ÷ t", "t", "t = (v_f − v_i) ÷ a", ["t = a ÷ (v_f − v_i)", "t = a × (v_f − v_i)", "t = v_f − v_i − a"]], ["a = (v_f − v_i) ÷ t", "v_f", "v_f = v_i + a × t", ["v_f = v_i − a × t", "v_f = a ÷ t + v_i", "v_f = a × t − v_i"]]],
+    forces: [["F = m × a", "m", "m = F ÷ a", ["m = a ÷ F", "m = F × a", "m = F − a"]], ["F = m × a", "a", "a = F ÷ m", ["a = m ÷ F", "a = F × m", "a = F − m"]], ["W = m × g", "m", "m = W ÷ g", ["m = g ÷ W", "m = W × g", "m = W − g"]]],
+    energy: [["W = F × d", "d", "d = W ÷ F", ["d = F ÷ W", "d = W × F", "d = W − F"]], ["PE = m × g × h", "h", "h = PE ÷ (m × g)", ["h = (m × g) ÷ PE", "h = PE × m × g", "h = PE − m − g"]], ["KE = ½ × m × v²", "m", "m = 2 × KE ÷ v²", ["m = KE ÷ (2 × v²)", "m = v² ÷ (2 × KE)", "m = 2 × KE × v²"]], ["P = W ÷ t", "W", "W = P × t", ["W = P ÷ t", "W = t ÷ P", "W = P + t"]]],
+    waves: [["v = f × λ", "λ", "λ = v ÷ f", ["λ = f ÷ v", "λ = v × f", "λ = v − f"]], ["v = f × λ", "f", "f = v ÷ λ", ["f = λ ÷ v", "f = v × λ", "f = v − λ"]], ["T = 1 ÷ f", "f", "f = 1 ÷ T", ["f = T", "f = T − 1", "f = 1 × T"]]]
+  };
+  Object.keys(REARR).forEach(u => T(u, 1, 5, "math", d => { const [f, x, ans, wr] = pick(REARR[u]);
+    return mc(`Start from ${f}. Which equation is solved for ${x}?`, ans, wr, null, "Undo what's being done to the letter you want: undo × by ÷, undo ÷ by ×, undo + by −.", `${ans}. Check it: put numbers into both versions; they should agree.`, { ok: () => true }); }));
+  T("measure", 2, 5, "math", d => { const a = ri(11, 49) / 10, b = ri(11, 49) / 10, e1 = ri(2, 6), e2 = ri(2, 6), mul = Math.random() < 0.6; const sup = k => (k < 0 ? "⁻" : "") + String(Math.abs(k)).split("").map(x => "⁰¹²³⁴⁵⁶⁷⁸⁹"[x]).join("");
+    let m, e; if (mul) { m = a * b; e = e1 + e2; } else { m = a / b; e = e1 - e2; } while (m >= 10) { m /= 10; e++; } while (m < 1) { m *= 10; e--; } m = r(m, 2);
+    const A = `${m} × 10${sup(e)}`;
+    return mc(`${mul ? "Multiply" : "Divide"}: (${a} × 10${sup(e1)}) ${mul ? "×" : "÷"} (${b} × 10${sup(e2)}). Give the answer in scientific notation.`, A, [`${m} × 10${sup(mul ? e1 * e2 : e1 + e2)}`, `${m} × 10${sup(e + 1)}`, `${m} × 10${sup(e - 1)}`, `${r(mul ? a + b : a - b, 2)} × 10${sup(e)}`], null, mul ? "Multiply the front numbers, ADD the exponents." : "Divide the front numbers, SUBTRACT the exponents.", `${mul ? `${a} × ${b}` : `${a} ÷ ${b}`} = ${r(mul ? a * b : a / b, 3)}; exponent ${mul ? `${e1} + ${e2}` : `${e1} − ${e2}`}. Adjusted so the front number is 1–10: ${A}.`, { ok: () => Math.abs((mul ? a * b * 10 ** (e1 + e2) : a / b * 10 ** (e1 - e2)) / (m * 10 ** e) - 1) < 0.01 }); });
+
   // Tag the original gen.js templates with angles (by their order in gen.js) so rotation covers them too.
   const ORIG = { inquiry: ["concept", "concept", "compute", "graph", "concept"], measure: ["compute", "units", "reverse", "units"], kinematics: ["compute", "compute", "multi", "graph", "units"], forces: ["compute", "compute", "real", "concept", "concept"], energy: ["compute", "compute", "compute", "compute", "multi"], waves: ["compute", "reverse", "real", "concept", "concept"] };
   Object.keys(ORIG).forEach(u => (PG.U[u] || []).forEach((t, i) => { if (!t.angle) t.angle = ORIG[u][i] || "compute"; }));
 
   // Angle-aware picker: prefers the angle he has seen least in this unit (counts kept by the app), at his level.
-  const ANGLES = ["compute", "reverse", "scale", "units", "graph", "concept", "misconception", "error", "multi", "real"];
-  const ANAME = { compute: "🧮 Compute", reverse: "↩️ Reverse", scale: "📈 What if…", units: "📏 Units & sense", graph: "📊 Graphs & tables", concept: "💡 Concept", misconception: "🪤 Trap", error: "🔍 Spot the mistake", multi: "🧗 Multi-step", real: "🌍 Real world" };
+  const ANGLES = ["compute", "reverse", "scale", "units", "graph", "concept", "misconception", "error", "multi", "real", "math"];
+  const ANAME = { compute: "🧮 Compute", reverse: "↩️ Reverse", scale: "📈 What if…", units: "📏 Units & sense", graph: "📊 Graphs & tables", concept: "💡 Concept", misconception: "🪤 Trap", error: "🔍 Spot the mistake", multi: "🧗 Multi-step", real: "🌍 Real world", math: "🧰 Math skills" };
   let SEEN = {};
   const baseMake = PG.make;
   PG.setSeen = s => { SEEN = s || {}; };
