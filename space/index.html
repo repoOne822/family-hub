@@ -445,7 +445,11 @@ CUR.zh=[
 const GALS=[["g1","1️⃣ Grade 1"],["g2","2️⃣ Grade 2"],["g3","3️⃣ Grade 3"],["words","📚 Reading"],["zh","🀄 中文"]];
 function topicName(g,lv){return g==="words"?WORD_NAMES[lv]:(CUR[g][lv-1]||[""])[0]}
 function galSize(g){return g==="words"?WORD_NAMES.length-1:CUR[g].length}
-function makeQ(g,lv){const q0=makeQ0(g,lv);if(FOCUS()&&g==="zh"&&q0.opts.length>3){const ok=q0.opts.find(o=>String(o.v)===String(q0.ans));const rest=shuffle(q0.opts.filter(o=>o!==ok)).slice(0,2);q0.opts=shuffle([ok,...rest])}return q0}
+/* 🎯 Two-way difficulty + no repeats (Bobby 2026-11-21): 2 misses in a row in a mission, or 2 one-star missions in a row on a planet,
+   mixes in easier questions from the planet before (never locks anything). The last 30 questions aren't repeated. */
+const SQ_RECENT=[];
+function sqEase(g,lv){if(!G||G.g!==g||G.lv!==lv||lv<=1||g==="words")return false;const r=G.res||[];const two=r.length>=2&&r[r.length-1]!==2&&r[r.length-2]!==2;const warm=((S.warm||{})[g+":"+lv]||0)>=2&&(G.qi||0)<4;return (two||warm)&&Math.random()<.6}
+function makeQ(g,lv){const L=sqEase(g,lv)?lv-1:lv;let q0;for(let i=0;i<8;i++){q0=makeQ0(g,L);if(!SQ_RECENT.includes(q0.q))break}SQ_RECENT.push(q0.q);if(SQ_RECENT.length>30)SQ_RECENT.shift();if(L!==lv)q0.eased=true;if(FOCUS()&&g==="zh"&&q0.opts.length>3){const ok=q0.opts.find(o=>String(o.v)===String(q0.ans));const rest=shuffle(q0.opts.filter(o=>o!==ok)).slice(0,2);q0.opts=shuffle([ok,...rest])}return q0}
 function makeQ0(g,lv){if(g==="words"){const q=wordsQ(lv);return q}const t=CUR[g][lv-1];const q=t[2]();q.skill=`${g}_${lv}`;q.say=q.say.replace(/[☐]/g," ");return q}
 
 /* ================= planets ================= */
@@ -829,6 +833,7 @@ function finishMission(){
   let perfectBonus=0,pstreak="";if(stars===3){S.st.pstreak=(S.st.pstreak||0)+1;perfectBonus=25;if(S.st.pstreak%3===0){perfectBonus+=50;pstreak=`🔥 ${S.st.pstreak} perfect missions in a row! +50 bonus`}S.coins+=perfectBonus;G.coinsWon+=perfectBonus}else S.st.pstreak=0;
   const wasBoost=(boostArea()||[]).includes(SQA(G.g));if(wasBoost&&MIXON()){S.coins+=10;G.coinsWon+=10}
   const rested=recordArea(G.g);
+  S.warm=S.warm||{};const wk=G.g+":"+G.lv;let warmMsg="";if(!G.boss){if(stars===1){S.warm[wk]=(S.warm[wk]||0)+1;if(S.warm[wk]===2&&G.lv>1)warmMsg="🛟 Next time on this planet we'll start with a few easier warm-ups."}else delete S.warm[wk]}
   let unlock="";
   if(G.m===2&&G.lv===S.lv[G.g]){if(G.lv<galSize(G.g)){S.lv[G.g]=G.lv+1;unlock=`🔓 New planet unlocked: ${PLANETS[G.g][G.lv][0]}!`}else{const nx={g1:"g2",g2:"g3"}[G.g];if(nx&&!S.lv[nx]){S.lv[nx]=1;unlock=`🌌 NEW GALAXY unlocked: ${nx==="g2"?"Grade 2":"Grade 3"}!`}}}
   save();
@@ -842,7 +847,7 @@ function finishMission(){
     $("mdTitle").textContent=g.boss?"Boss defeated!":stars===3?"Perfect mission!":"Mission complete!";
     $("mdStars").innerHTML=[0,1,2].map(i=>`<span class="${i<stars?"":"off"}">⭐</span>`).join("");
     $("mdCoins").innerHTML=`<span class="coin" style="vertical-align:middle"></span> +${g.coinsWon} coins`;
-    $("mdUnlock").textContent=[unlock,wasBoost&&MIXON()?"⭐ Mix-it-up bonus +10!":"",rested?`💤 ${SQA_N[rested]} rests now. Play 2 missions in another galaxy to wake it!`:""].filter(Boolean).join("  ")||(stars<3?"Get every answer right the first time to win a 🎁 treasure chest!":"");
+    $("mdUnlock").textContent=[unlock,wasBoost&&MIXON()?"⭐ Mix-it-up bonus +10!":"",rested?`💤 ${SQA_N[rested]} rests now. Play 2 missions in another galaxy to wake it!`:"",warmMsg].filter(Boolean).join("  ")||(stars<3?"Get every answer right the first time to win a 🎁 treasure chest!":"");
     $("mdCoins").innerHTML=`<span class="coin" style="vertical-align:middle"></span> +${g.coinsWon+g.penalty} coins${g.penalty?` <span style="color:#d00000">− ${g.penalty} for mistakes</span>`:""}${perfectBonus?`<div style="color:#2d6a4f;font-size:18px">🌟 Perfect bonus +25${pstreak?"<br>"+pstreak:""}</div>`:""}`;
     $("mdChest").innerHTML=stars===3?`<button class="chestbtn" id="chestBtn"><span class="ce">🎁</span>Tap to open your treasure chest!</button>`:"";
     if(stars===3)$("chestBtn").onclick=openChest;

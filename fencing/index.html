@@ -807,6 +807,7 @@ body.duelfocus main{padding-top:6px}
 <canvas id="confetti"></canvas>
 <div class="toast" id="toast"></div>
 
+<script src="qmore.js?v=20261121ad4"></script>
 <script>
 // ---------- storage ----------
 const store={get(k,d){try{const v=localStorage.getItem('ellis_'+k);return v?JSON.parse(v):d}catch(e){return d}},
@@ -2456,7 +2457,7 @@ function genFam(R){
   return {kind:'fam',t:'see',q:`${FAMT[f]}<br>Which moves could he be about to make?`,o:opt,a:0,w:`That clue is the ${f.toUpperCase()} family: ${opt[0]}. ${FAMHELP[f]}`,D:950+tier*120,conc:['family'],html:true};
 }
 // handwritten questions join the ladder with a fixed difficulty
-const BR_HAND=[].concat(Q.map(x=>Object.assign({D:880+Math.random()*140,conc:['read']},x)),QY12.map(x=>Object.assign({D:1220+Math.random()*120,conc:['priority']},x)),QY14.map(x=>Object.assign({D:1430+Math.random()*150,conc:['y14']},x)));
+const BR_HAND=[].concat(Q.map(x=>Object.assign({D:880+Math.random()*140,conc:['read']},x)),QY12.map(x=>Object.assign({D:1220+Math.random()*120,conc:['priority']},x)),QY14.map(x=>Object.assign({D:1430+Math.random()*150,conc:['y14']},x)),...(()=>{const M=window.FB_MORE||{};return [].concat((M.y10||[]).map(x=>Object.assign({D:900+Math.random()*150,conc:['read']},x)),(M.y12||[]).map(x=>Object.assign({D:1150+Math.random()*150,conc:['priority']},x)),(M.y14||[]).map(x=>Object.assign({D:1350+Math.random()*200,conc:['y14']},x)))})());
 function brWeakest(){const e=Object.entries(state.brainC).filter(([k,v])=>v.n>=3);if(!e.length)return null;e.sort((a,b)=>a[1].ok/a[1].n-b[1].ok/b[1].n);return e[0][1].ok/e[0][1].n<.75?e[0][0]:null}
 function brNext(seen){
   const R=state.brainR,target=R+40+Math.random()*80-30,weak=Math.random()<.35?brWeakest():null;
