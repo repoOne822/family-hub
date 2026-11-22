@@ -1387,7 +1387,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121u2${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121u3${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
@@ -1758,8 +1758,8 @@ function kidRender() {
     const cur = curLevel(m), span = (+m.target) - (+m.baseline), p = span ? clamp01((cur - (+m.baseline)) / span) : 1;
     return `<div class="kw-goal"><div class="gn">${esc(mName(m))}</div><div class="kw-rocket"><i style="width:${Math.round(p * 100)}%"></i><span style="left:${Math.max(6, Math.min(88, p * 100))}%">${KI("🚀", 24)}</span><em>${KI("flag", 18)}</em></div><div class="kw-sub">${t.nowAt} ${cur}${esc(m.unit || "")} → ${+m.target}${esc(m.unit || "")}</div></div>`;
   };
-  const worlds = S.subjects.filter(x => x.active).map(x => ({ x, ms: S.metrics.filter(m => m.subject_id === x.id), docs: S.docs.filter(dc => dc.subject_id === x.id) })).filter(w => w.ms.length || w.docs.length || w.x.app_url);
-  const loose = S.metrics.filter(m => !S.subjects.some(x => x.active && x.id === m.subject_id));
+  const worlds = S.subjects.filter(x => x.active).map(x => ({ x, ms: S.metrics.filter(m => m.subject_id === x.id && !m.parent_only), docs: S.docs.filter(dc => dc.subject_id === x.id) })).filter(w => w.ms.length || w.docs.length || w.x.app_url);
+  const loose = S.metrics.filter(m => !m.parent_only && !S.subjects.some(x => x.active && x.id === m.subject_id)); // parent_only = grades etc., parents see them, the kid page does not
   const looseDocs = S.docs.filter(dc => !S.subjects.some(x => x.active && x.id === dc.subject_id));
   const goals = S.goals.filter(x => x.status !== "proposed"), mine = S.goals.filter(x => x.status === "proposed");
   const wins = S.entries.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 18);
