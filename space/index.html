@@ -42,6 +42,7 @@ canvas#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
 @keyframes spin{to{transform:rotate(360deg)}}
 .you{position:absolute;font-size:44px;transform:translate(-50%,-120%);animation:bob 1.6s ease-in-out infinite;pointer-events:none}
 @keyframes kbob{50%{transform:translateY(-10px) scale(1.08)}}
+@keyframes callme{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}#mBreak.calling .card{animation:callme .9s ease-in-out infinite;box-shadow:0 0 0 6px #ffd166,0 0 40px #ffd166}#mBreak.calling #bkOk{font-size:26px;padding:16px 30px}
 @keyframes bob{50%{transform:translate(-50%,-135%)}}
 /* modal */
 .modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
@@ -875,11 +876,27 @@ const sessionOver=()=>{naturalBreak();return onBreak()||(S.playSec||0)>=(+S.bloc
 const BREAKS2=[["🚀","Do 10 rocket jumps"],["🛸","Fly around the room like a spaceship"],["⭐","Stretch up to the stars 10 times"],["🐸","Hop like a frog 10 times"],["💧","Get a drink of water"],["🧑‍🚀","Do 5 astronaut squats"],["👀","Look out the window at something far away"],["🌬️","Take 5 big rocket breaths"],["🦩","Stand on one foot like a flamingo"],["🐻","Walk like a bear across the room"]];
 const BREAKS=["Do 10 rocket jumps 🚀","Fly around the room like a spaceship 🛸","Stretch up to the stars 10 times ⭐","Hop like a frog 10 times 🐸","Get a drink of water 💧","Do 5 astronaut squats 🧑‍🚀"];
 let bkTick=null;
-function breakTime(){quitGame();if(!onBreak()){S.breakUntil=Date.now()+(+S.rest||5)*60000;S.playSec=0;save()}show("title");$("mBreak").classList.add("on");speak("Great flying, astronaut! Time for a break. Let's move our bodies!");runBreak()}
+/* ---- 📣 Come back after the break (Bobby 2026-11-21): the screen stays awake during the break; when it ends, a chime and a
+   friendly voice call him back (repeats for 3 min); tapping "Let's fly" within 2 min earns a comeback bonus (+10 🪙, +20 more every 3rd time in a row). ---- */
+let bkWake=null,bkCallT=[];
+async function bkWakeOn(){try{if(navigator.wakeLock&&!bkWake){bkWake=await navigator.wakeLock.request("screen");bkWake.addEventListener("release",()=>{bkWake=null})}}catch(e){}}
+function bkWakeOff(){try{bkWake&&bkWake.release()}catch(e){}bkWake=null}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&$("mBreak").classList.contains("on")&&(onBreak()||bkCallT.length))bkWakeOn()});
+const BK_CALLS=[`${NAME}! Your rocket is refueled. Come back and fly!`,`${NAME}, the stars are waiting! Tap Let's fly!`,`Astronaut ${NAME}, come back to your spaceship!`,`${NAME}! Come back quick for a bonus!`,`Your rocket is ready, ${NAME}. Let's go!`];
+function bkChime(){[784,988,1175,1568].forEach((f,i)=>tone(f,.18,i*.14,"triangle",.16))}
+function bkCallStop(){bkCallT.forEach(clearTimeout);bkCallT=[];$("mBreak").classList.remove("calling");bkWakeOff()}
+function bkCallStart(){bkCallStop();bkWakeOn();S.breakDone=Date.now();save();$("mBreak").classList.add("calling");
+  [0,20,45,75,110,150,180].forEach((sec,i)=>bkCallT.push(setTimeout(()=>{bkChime();setTimeout(()=>speak(BK_CALLS[i%BK_CALLS.length]),700)},sec*1000)));
+  bkCallT.push(setTimeout(()=>{$("mBreak").classList.remove("calling");bkWakeOff()},190000))}
+function bkComeback(){const late=!S.breakDone||Date.now()-S.breakDone>120000;S.breakDone=0;bkCallStop();
+  if(late){S.st.backStreak=0;save();return}
+  S.st.backStreak=(S.st.backStreak||0)+1;S.st.backOnTime=(S.st.backOnTime||0)+1;let b=10;if(S.st.backStreak%3===0)b+=20;
+  S.coins+=b;save();setCoins();sfx.coin();toast(`⚡ Back on time! +${b} 🪙`);speak(S.st.backStreak%3===0?`Wow! Back on time ${S.st.backStreak} times in a row! Plus ${b} coins!`:`Back on time! Plus ${b} coins!`)}
+function breakTime(){quitGame();bkWakeOn();if(!onBreak()){S.breakUntil=Date.now()+(+S.rest||5)*60000;S.playSec=0;save()}show("title");$("mBreak").classList.add("on");speak("Great flying, astronaut! Time for a break. Let's move our bodies!");runBreak()}
 function runBreak(){clearInterval(bkTick);const total=(+S.rest||5)*60000;let lastTask=-1;
   const upd=()=>{const left=Math.max(0,(S.breakUntil||0)-Date.now()),sec=Math.ceil(left/1000);$("bkClock").textContent=`${Math.floor(sec/60)}:${String(sec%60).padStart(2,"0")}`;$("bkBar").style.width=(100-left/total*100)+"%";
     const ti=Math.floor((total-left)/45000)%BREAKS2.length;if(ti!==lastTask&&left>0){lastTask=ti;const t=BREAKS2[(ti+new Date().getDate())%BREAKS2.length];$("bkEmoji").textContent=t[0];$("bkTask").textContent=t[1];if(ti>0)speak(t[1]);}
-    if(left<=0){clearInterval(bkTick);$("bkTitle").textContent="Refueled! Ready to fly!";$("bkClock").textContent="✅";$("bkTask").textContent="Great job taking a break!";$("bkOk").disabled=false;$("bkOk").style.opacity=1;$("bkOk").textContent="🚀 Let's fly!";sfx.win();speak("Refueled! Ready to fly!")}else{$("bkTitle").textContent="Break time, astronaut!";$("bkOk").disabled=true;$("bkOk").style.opacity=.4;$("bkOk").textContent="⛽ Refueling…"}};
+    if(left<=0){clearInterval(bkTick);$("bkTitle").textContent="Refueled! Ready to fly!";$("bkClock").textContent="✅";$("bkTask").textContent="Tap Let's fly within 2 minutes for a ⚡ comeback bonus!";$("bkEmoji").textContent="🚀";$("bkNote").textContent="Your rocket is full of fuel!";$("bkOk").disabled=false;$("bkOk").style.opacity=1;$("bkOk").textContent="🚀 Let's fly!";if(!S.breakDone||Date.now()-S.breakDone>200000){bkCallStart()}}else{$("bkTitle").textContent="Break time, astronaut!";$("bkNote").textContent="Rest your eyes and move your body. The rocket needs to refuel!";$("bkOk").disabled=true;$("bkOk").style.opacity=.4;$("bkOk").textContent="⛽ Refueling…"}};
   upd();bkTick=setInterval(upd,1000)}
 
 /* ================= main loop ================= */
@@ -1086,7 +1103,7 @@ $("quit").onclick=()=>{quitGame();show("map")};
 $("mpClose").onclick=()=>$("mPlanet").classList.remove("on");
 $("mdNext").onclick=()=>{$("mdNext").classList.remove("ready");nextMission()};
 $("mdMap").onclick=()=>{$("mDone").classList.remove("on");quitGame();if(sessionOver())breakTime();else show("map")};
-$("bkOk").onclick=()=>{if(onBreak())return;$("mBreak").classList.remove("on");show("map")};$("pEndBreak").onclick=()=>{S.breakUntil=0;S.playSec=0;save();$("pMsg").textContent="Break ended. He can play again."};
+$("bkOk").onclick=()=>{if(onBreak())return;bkComeback();$("mBreak").classList.remove("on");show("map")};$("pEndBreak").onclick=()=>{bkCallStop();S.breakDone=0;S.breakUntil=0;S.playSec=0;save();$("pMsg").textContent="Break ended. He can play again."};
 $("toParents").onclick=()=>show("parents");$("pBack").onclick=()=>show("title");
 $("sChal").onchange=e=>{S.chal=+e.target.value;save()};$("sMix").onchange=e=>{const v=+e.target.value;if(v){S.mix=1;S.mixN=v}else S.mix=0;save()};$("sMixReset").onclick=()=>{gmix().rest={};gmix().log.push("|");save();toast("All galaxies are awake for today")};
 $("sFocus").onchange=e=>{S.focus=e.target.value==="1";save()};$("sBlock").onchange=e=>{S.block=+e.target.value;save()};$("sRest").onchange=e=>{S.rest=+e.target.value;save()};$("sVoice").onchange=e=>{S.voice=+e.target.value;save()};$("sAiV").onchange=e=>{S.aiVoice=+e.target.value;save();if(S.aiVoice&&HV)HV.init({getS:()=>S})};$("sAiName").onchange=e=>{S.aiVoiceName=e.target.value;save()};$("tAi").onclick=()=>{const v=S.voice;S.voice=1;speak("Hi Jonah! Ready for a space adventure? Let's blast off and learn something amazing today!");S.voice=v};

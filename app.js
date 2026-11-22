@@ -1196,7 +1196,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121t1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121cb1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
@@ -1249,9 +1249,16 @@ function gameMixTrack(kid, cfg, fs) {
   return () => clearInterval(tick);
 }
 /* ---- 🧘 Play & break coach: wraps every hub game for the boys (Space Quest has its own) ---- */
-const COACH = { jonah: { play: 20, rest: 5 }, eric: { play: 30, rest: 5 }, ellis: { play: 30, rest: 5 } };
+const COACH = { jonah: { play: 20, rest: 5, call: true }, eric: { play: 30, rest: 5 }, ellis: { play: 30, rest: 5 } };
 const COACH_MOVES = { en: ["Do 10 jumping jacks 🤸", "Stretch up to the ceiling 10 times 🙆", "Get a drink of water 💧", "Look out the window at something far away 👀", "Do 5 slow squats 🏋️", "Take 5 big slow breaths 🌬️", "Walk around the house once 🚶", "Shake out your arms and legs 💃"],
   zh: ["做10个开合跳 🤸", "向上伸展10次 🙆", "去喝一杯水 💧", "看看窗外远处的东西 👀", "慢慢做5个深蹲 🏋️", "做5次慢慢的深呼吸 🌬️", "在家里走一圈 🚶", "甩甩胳膊和腿 💃"] };
+/* 📣 Come back after the break (Bobby 2026-11-21): screen stays awake during the break; at the end a chime + voice call,
+   repeated for ~3 min for Jonah (call: true); one chime for the older boys. */
+let coachWake = null;
+async function coachWakeOn() { try { if (navigator.wakeLock && !coachWake) { coachWake = await navigator.wakeLock.request("screen"); coachWake.addEventListener("release", () => { coachWake = null; }); } } catch (e) {} }
+function coachWakeOff() { try { coachWake && coachWake.release(); } catch (e) {} coachWake = null; }
+function coachChime() { try { const a = coachChime.a || (coachChime.a = new (window.AudioContext || window.webkitAudioContext)()); a.resume && a.resume();
+  [784, 988, 1175, 1568].forEach((f, i) => { const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + i * .14; o.type = "triangle"; o.frequency.value = f; g.gain.setValueAtTime(.16, t); g.gain.exponentialRampToValueAtTime(.001, t + .25); o.connect(g).connect(a.destination); o.start(t); o.stop(t + .3); }); } catch (e) {} }
 function playCoach(kid, fs) {
   const L = COACH[kid] || { play: 30, rest: 5 }, key = `fh_coach_${kid}`, zh = lang === "zh";
   let st = {}; try { st = JSON.parse(localStorage.getItem(key) || "{}"); } catch (e) {}
@@ -1265,14 +1272,21 @@ function playCoach(kid, fs) {
   warn.style.cssText = "position:absolute;left:50%;top:56px;transform:translateX(-50%);z-index:4;display:none;background:#ffd166;color:#3b2400;font-weight:800;padding:8px 16px;border-radius:14px;box-shadow:0 6px 20px #0006";
   warn.textContent = zh ? "⏳ 还有1分钟就休息啦，先做完这一题！" : "⏳ Break in 1 minute — finish what you're doing!"; fs.appendChild(warn);
   let tick = null, bt = null;
+  let callT = [];
+  const first = String(kidName(kid) || kid).split(/\s/)[0];
+  const CALLS = zh ? [`${first}，休息好啦！快回来玩吧！`, `${first}，游戏在等你哦！`, `${first}，快回来，我们继续！`] : [`${first}! Break's over. Come back and play!`, `${first}, your game is waiting for you!`, `${first}, come on back. Let's keep going!`];
+  const stopCall = () => { callT.forEach(clearTimeout); callT = []; coachWakeOff(); };
+  const startCall = () => { stopCall(); const times = L.call ? [0, 20, 45, 75, 110, 150, 180] : [0];
+    times.forEach((sec, i) => callT.push(setTimeout(() => { coachChime(); if (L.call) setTimeout(() => gmSay(CALLS[i % CALLS.length]), 700); }, sec * 1000)));
+    if (L.call) { coachWakeOn(); callT.push(setTimeout(coachWakeOff, 190000)); } else coachWakeOff(); };
   const showBreak = () => {
-    warn.style.display = "none"; ov.style.display = "flex"; const total = L.rest * 60000; let lastMove = -1;
+    warn.style.display = "none"; ov.style.display = "flex"; const total = L.rest * 60000; let lastMove = -1; coachWakeOn();
     const draw = () => { const left = Math.max(0, st.breakUntil - Date.now()), sec = Math.ceil(left / 1000), mv = Math.floor((total - left) / 60000) % 8;
       if (left > 0) { if (mv !== lastMove || !ov.innerHTML) { lastMove = mv; }
         ov.innerHTML = `<div style="max-width:420px"><div style="font-size:64px">🧘</div><h2 style="margin:6px 0">${zh ? "休息时间！" : "Break time!"}</h2><div style="font-size:60px;font-weight:800;color:#ffd166">${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}</div><p style="font-size:22px;margin:10px 0"><b>${COACH_MOVES[zh ? "zh" : "en"][(mv + new Date().getDate()) % 8]}</b></p><p style="opacity:.85">${zh ? `你已经玩了${L.play}分钟。让眼睛和身体休息一下，游戏会等你。` : `You played for ${L.play} minutes. Rest your eyes and move your body — your game will wait for you.`}</p></div>`; }
-      else { clearInterval(bt); bt = null; st.sec = 0; st.breakUntil = 0; saveSt();
+      else { clearInterval(bt); bt = null; st.sec = 0; st.breakUntil = 0; saveSt(); startCall();
         ov.innerHTML = `<div><div style="font-size:64px">✅</div><h2>${zh ? "休息好了！" : "Recharged!"}</h2><button style="font:inherit;font-weight:800;font-size:22px;padding:12px 26px;border:none;border-radius:16px;background:#ffd166;color:#3b2400;cursor:pointer">${zh ? "回到游戏 ▶" : "Back to the game ▶"}</button></div>`;
-        ov.querySelector("button").onclick = () => { ov.style.display = "none"; }; } };
+        ov.querySelector("button").onclick = () => { stopCall(); ov.style.display = "none"; }; } };
     draw(); clearInterval(bt); bt = setInterval(draw, 1000);
   };
   if (st.breakUntil > Date.now()) showBreak();
@@ -1283,7 +1297,7 @@ function playCoach(kid, fs) {
     if (st.sec >= L.play * 60) { st.breakUntil = Date.now() + L.rest * 60000; saveSt(); showBreak(); }
     if (st.sec % 10 === 0) saveSt();
   }, 1000);
-  return () => { clearInterval(tick); clearInterval(bt); st.last = Date.now(); saveSt(); };
+  return () => { clearInterval(tick); clearInterval(bt); stopCall(); st.last = Date.now(); saveSt(); };
 }
 document.addEventListener("click", e => { const a = e.target.closest("[data-app]"); if (a) { e.preventDefault(); e.stopPropagation(); openApp(a.dataset.app, a.dataset.appkid); } }, true);
 
