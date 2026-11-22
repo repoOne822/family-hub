@@ -1,0 +1,9 @@
+-- Applied 2026-11-21 (migrations learn_refresh_v2_app_rules + learn_refresh_nightly_cron).
+-- 1) learn_refresh() from 2026-11-21_learn_refresh.sql was renamed learn_core(); a new learn_refresh() wraps it:
+--    · only AMC + Physics get a coach-tuned difficulty; Space Quest / Brain Park / Realm of Forces / Piste Duel adapt themselves
+--    · Robot Lab chapters judged by levels done + stars; Brain Park games by rounds + stars
+--    (full body lives in the database: select pg_get_functiondef('public.learn_refresh(date)'::regprocedure);)
+-- 2) skill_catalog.max_level set for Robot Lab chapters (levels per chapter).
+-- 3) Nightly schedule:
+--    create extension if not exists pg_cron;
+--    select cron.schedule('learn-refresh-nightly', '35 3 * * *', $$select public.learn_refresh()$$);  -- 03:35 UTC ≈ 7:35 PM PST / 8:35 PM PDT

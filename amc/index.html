@@ -235,6 +235,20 @@ addEventListener("visibilitychange", () => { if (document.visibilityState === "h
 const levelOf = (p, mode) => p.level || (p.lvl === "challenge" ? "hard" : mode === "gym" || p.gen ? "medium" : "easy");
 const VIS = window.AMC_VIS || { main: {}, moves: {} }, GYM = window.AMC_GYM, REAL = window.AMC_REAL || {};
 const PARENT = new URLSearchParams(location.search).get("p") === "1";
+// 🎯 Coach tuning (2026-11-21): the hub's nightly learning model sets each chapter's difficulty (1 easy · 2 medium · 3 hard)
+// and status. The hub hands it over in localStorage (fh_tune_<kid>_amc); it isn't synced back. Missing = old behaviour.
+const TUNE = (() => { try { return JSON.parse(localStorage.getItem(`fh_tune_${new URLSearchParams(location.search).get("k") || ""}_amc`) || "{}") || {}; } catch (e) { return {}; } })();
+const TLV = ["easy", "medium", "hard"];
+const tuned = (topic, lv) => { const t = TUNE[topic]; return t && t.d && !["new", "started"].includes(t.s) ? TLV[Math.min(3, Math.max(1, t.d)) - 1] : lv; };
+const COACH_FOCUS = ["lacking", "rushing", "slow"];
+const coachBadge = id => { const t = TUNE[id]; if (!t || !t.s) return "";
+  if (COACH_FOCUS.includes(t.s)) return `<span class="wk" style="background:#ff8a3d;right:auto;left:10px">🎯 ${t.s === "slow" ? "Speed up" : t.s === "rushing" ? "Slow down" : "Practise"}</span>`;
+  if (t.s === "mastered") return `<span class="wk" style="background:#2fbf71;right:auto;left:10px">⬆️ ${t.d >= 3 ? "Hard" : "Ready for harder"}</span>`;
+  if (t.s === "review") return `<span class="wk" style="background:#7c5cff;right:auto;left:10px">🔁 Review</span>`;
+  return ""; };
+// gym: an easier chapter mixes in starter problems, a harder one mixes in challenge problems
+const gymNext = l => { const t = TUNE[l.id], d = t && t.d; if (d >= 3 && l.ch && l.ch.length && Math.random() < 0.4) return { ...l.ch[Math.floor(Math.random() * l.ch.length)], lvl: "challenge" };
+  if (d === 1 && t && COACH_FOCUS.includes(t.s) && l.pr && l.pr.length && Math.random() < 0.4) return l.pr[Math.floor(Math.random() * l.pr.length)]; return GYM.make(l.id); };
 const probURL = (y, n) => `https://artofproblemsolving.com/wiki/index.php/${y}_AMC_8_Problems/Problem_${n}`;
 const lessonOf = topic => LES.findIndex(l => l.id === topic);
 const topicName = t => { const l = LES[lessonOf(t)]; return l ? `${l.emoji} ${l.title}` : "🧩 Logic & puzzles"; };
@@ -271,7 +285,8 @@ function weakestTopic() {
   const cov = coveredSoFar(), st = {};
   (P.events || []).filter(e => e.m !== "read" && !e.blank && e.t).slice(-200).forEach(e => { const r = st[e.t] = st[e.t] || [0, 0]; r[1]++; if (e.ok) r[0]++; });
   const cands = LES.filter(l => cov.has(l.n) && CFG.chapters.includes(l.n)).map(l => [l, st[l.id] ? st[l.id][0] / st[l.id][1] : 0.5, st[l.id] ? st[l.id][1] : 0]);
-  cands.sort((a, b) => a[1] - b[1] || a[2] - b[2]);
+  const cf = l => COACH_FOCUS.includes((TUNE[l.id] || {}).s) ? 0 : 1;
+  cands.sort((a, b) => cf(a[0]) - cf(b[0]) || a[1] - b[1] || a[2] - b[2]);
   return (cands[0] || [LES[CFG.chapters[0] - 1]])[0];
 }
 function dayPlan(d) {
@@ -373,7 +388,7 @@ function home() {
     ${todayHtml()}
     ${examsHtml()}
     <div class="row"><button class="btn pink" id="mixBtn">🔀 Mixed review (10 problems)</button>${lastMix ? `<span class="sub">Last mixed review: ${lastMix.score}/${lastMix.of} on ${lastMix.date}</span>` : `<span class="sub">Mixing chapters is how the real test feels.</span>`}</div>
-    <div class="grid">${LES.map((l, i) => `<button class="tile ${COLORS[i % 6]}" data-l="${i}">${thisWeek.includes(l.n) ? `<span class="wk">This week</span>` : !CFG.chapters.includes(l.n) ? `<span class="wk" style="background:#bbb">Bonus</span>` : ""}<div class="em">${l.emoji}</div><div class="n">Lesson ${l.n}</div><div class="t">${esc(l.title)}</div><div class="z">${esc(l.zh)}</div><div class="st">${starStr(starsOf(l.id))}</div><div class="pg">${(P.lessons[l.id] || {}).chBest != null ? `⬆️ ${(P.lessons[l.id]).chBest}/3 · ` : ""}${((P.lessons[l.id] || {}).gym || {}).done ? `♾️ ${(P.lessons[l.id]).gym.done} · ` : ""}Book p. ${esc(l.pages)}</div></button>`).join("")}</div>
+    <div class="grid">${LES.map((l, i) => `<button class="tile ${COLORS[i % 6]}" data-l="${i}">${thisWeek.includes(l.n) ? `<span class="wk">This week</span>` : !CFG.chapters.includes(l.n) ? `<span class="wk" style="background:#bbb">Bonus</span>` : ""}${coachBadge(l.id)}<div class="em">${l.emoji}</div><div class="n">Lesson ${l.n}</div><div class="t">${esc(l.title)}</div><div class="z">${esc(l.zh)}</div><div class="st">${starStr(starsOf(l.id))}</div><div class="pg">${(P.lessons[l.id] || {}).chBest != null ? `⬆️ ${(P.lessons[l.id]).chBest}/3 · ` : ""}${((P.lessons[l.id] || {}).gym || {}).done ? `♾️ ${(P.lessons[l.id]).gym.done} · ` : ""}Book p. ${esc(l.pages)}</div></button>`).join("")}</div>
     ${PARENT ? `<div class="card parent"><div class="q">👨‍👩‍👦 Parent corner <span class="sub">(${CFG.name} doesn't see this section)</span></div>${parentHistory()}</div>` : ""}
     ${!PARENT ? "" : `<div class="card parent"><div class="q">📝 Real AMC 8 tests (parents)</div><p class="sub">The truest practice: a real past test, timed at exactly 40 minutes, no calculator. Do it on AoPS (or print it), check the answer key, read the step-by-step solutions on Random Math for anything you missed, and type in your score. Start with the newer years; do one every week or two from mid-December. More years: <a href="https://www.randommath.com/past-contests/amc-8-tests-and-solutions" target="_blank" rel="noopener">Random Math archive ↗</a></p>
       ${focusHtml()}
@@ -458,7 +473,7 @@ function lesson(i, step, mode) {
   if (step === 4) {
     app.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => lesson(i, 4, b.dataset.mode));
     if (mode === "real") { realList(l); return; }
-    if (mode === "gym") practice([GYM.make(l.id)].map(p => ({ ...p, from: l })), i, "gym");
+    if (mode === "gym") practice([gymNext(l)].map(p => ({ ...p, from: l })), i, "gym");
     else practice((mode === "challenge" ? l.ch : l.pr).map(p => ({ ...p, from: l })), i, mode);
   }
 }
@@ -623,7 +638,7 @@ function practice(list, i, mode) {
         } else $("#fb").innerHTML = `<div class="fb no">Not quite. Try again! ${hints ? "" : "Tap 💡 for a hint."}</div>${hints ? `<div class="fb hint"><b>👀 What to notice:</b> ${esc(p.steps[0])}${hints > 1 ? `<div style="margin-top:6px"><b>🧠 The plan:</b> ${esc(p.steps[1])}</div>` : ""}</div>` : ""}`;
       }
     });
-    $("#nx").onclick = () => { if (mode === "gym") { list.push({ ...GYM.make(LES[i].id), from: LES[i] }); } if (k < list.length - 1) { k++; draw(); window.scrollTo(0, 0); } else finish(); };
+    $("#nx").onclick = () => { if (mode === "gym") { list.push({ ...gymNext(LES[i]), from: LES[i] }); } if (k < list.length - 1) { k++; draw(); window.scrollTo(0, 0); } else finish(); };
   };
   const finish = () => {
     clearInterval(timerI); const secs = Math.round((Date.now() - t0) / 1000);
@@ -746,7 +761,7 @@ function buildExam(kind) {
     const cov = coveredSoFar();
     let pool = LES.filter(l => P.lessons[l.id] || cov.has(l.n)).map(l => l.id);
     for (const n of CFG.chapters) { if (pool.length >= 3) break; const id = LES[n - 1].id; if (!pool.includes(id)) pool.push(id); }
-    return CFG.daily.levels.map(lv => examItem(pickTopic(pool), lv, used));
+    return CFG.daily.levels.map(lv => { const id = pickTopic(pool); return examItem(id, tuned(id, lv), used); });
   }
   const all = LES.filter(l => CFG.chapters.includes(l.n)).map(l => l.id), levels = CFG.weekly.levels;
   // spread topics: no topic more than 3 times

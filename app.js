@@ -1,7 +1,7 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261121r1";
+import { STR } from "./i18n.js?v=20261121ln1";
 import * as Pix from "./pixel.js?v=20261121r1";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
@@ -79,6 +79,7 @@ async function loadAll() {
   S.kids.sort((a, b) => (a.sort ?? 9) - (b.sort ?? 9));
   S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); S.subjects.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
   if (!coachKid || !S.kids.some(k => k.id === coachKid)) coachKid = S.kids[0]?.id || null;
+  try { await lnLoad(); } catch (e) { S.skill_state = S.skill_state || []; S.learn_days = S.learn_days || []; } // 📚 nightly learning model
 }
 async function upsert(table, row, onConflict) { const { error } = await sb.from(table).upsert(row, onConflict ? { onConflict } : undefined); if (error) throw error; }
 async function del(table, match) { let q = sb.from(table).delete(); for (const [k, v] of Object.entries(match)) q = q.eq(k, v); const { error } = await q; if (error) throw error; }
@@ -156,8 +157,8 @@ async function boot() {
 }
 
 /* ---------------- shell + routing ---------------- */
-const ROUTES = ["today", "calendar", "rewards", "dashboard", "roadmap", "performance", "feedback", "subjects", "log", "plans", "reports", "family"];
-const NAVKEY = { today: "Today", calendar: "Cal", rewards: "Rewards", dashboard: "Dash", roadmap: "Roadmap", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" };
+const ROUTES = ["today", "calendar", "rewards", "dashboard", "learning", "roadmap", "performance", "feedback", "subjects", "log", "plans", "reports", "family"];
+const NAVKEY = { today: "Today", calendar: "Cal", rewards: "Rewards", dashboard: "Dash", learning: "Learn", roadmap: "Roadmap", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" };
 const navLabel = r => T()["nav" + NAVKEY[r]] || r;
 const PICON = {
   today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
@@ -167,6 +168,7 @@ const PICON = {
   subjects: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7"/>',
   roadmap: '<path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/>',
   performance: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  learning: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5M22 9v6"/>',
   feedback: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
   log: '<path d="M4 6h16M4 12h10M4 18h7"/><path d="M17 14l3 3-4 4h-3v-3z"/>',
   plans: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/>',
@@ -177,7 +179,7 @@ const PICON = {
   globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/>',
   out: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/>' };
 const pIcon = n => `<svg class="pico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PICON[n] || ""}</svg>`;
-const NAVGROUPS = [[null, ["today", "calendar", "rewards"]], [{ en: "Kids", zh: "孩子" }, ["dashboard", "subjects", "roadmap", "performance", "feedback"]], [{ en: "Records", zh: "记录" }, ["log", "plans", "reports"]], [{ en: "Home", zh: "家庭" }, ["family"]]];
+const NAVGROUPS = [[null, ["today", "calendar", "rewards"]], [{ en: "Kids", zh: "孩子" }, ["dashboard", "learning", "subjects", "roadmap", "performance", "feedback"]], [{ en: "Records", zh: "记录" }, ["log", "plans", "reports"]], [{ en: "Home", zh: "家庭" }, ["family"]]];
 const TABS = ["today", "calendar", "dashboard", "rewards"];
 function renderShell() {
   const t = T(), zh = lang === "zh", lk = (r, cls = "") => `<a href="#${r}" data-r="${r}" class="${cls}">${pIcon(r)}<span>${r === "dashboard" && cls.includes("tab") ? (zh ? "孩子" : "Kids") : navLabel(r)}</span></a>`;
@@ -215,7 +217,7 @@ function route() {
   if ($("#pgTitle")) $("#pgTitle").textContent = navLabel(onR); window.scrollTo(0, 0);
   const waiting = (S.redemptions || []).filter(r => r.status === "requested").length; // badge: reward requests waiting for a parent
   document.querySelectorAll('[data-r="rewards"]').forEach(a => { let b = a.querySelector(".pbadge"); if (!waiting) { b && b.remove(); return; } if (!b) { b = document.createElement("span"); b.className = "pbadge"; a.appendChild(b); } b.textContent = waiting; b.setAttribute("aria-label", waiting + " waiting"); });
-  ({ today: viewToday, calendar: viewCalendar, rewards: viewRewards, dashboard: viewDash, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, roadmap: viewRoadmap, doc: () => viewDoc(doc) })[h]();
+  ({ today: viewToday, calendar: viewCalendar, rewards: viewRewards, dashboard: viewDash, learning: viewLearning, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, roadmap: viewRoadmap, doc: () => viewDoc(doc) })[h]();
 }
 
 /* ---------------- TODAY ---------------- */
@@ -396,18 +398,18 @@ function engine(kid, asOf) {
 const DNET = {
   en: { title: "Decision map", sub: "How the coach got to today's advice. Signals on the left feed the rules in the middle, which lead to a choice on the right. The highlighted path is what's driving it now.",
     legend: "● fired · ○ not fired · ◌ no data yet", cols: ["SIGNALS", "COACH RULES", "CHOICE"],
-    inp: { n: "Check-ins (7d)", adh: "Adherence", eng: "Engagement", mood: "His mood (7d)", gap: "Parent vs him", conc: "Concerns / behavior", pace: "Goal pace", stale: "Grade freshness", amc: "AMC 8 data" },
-    rule: { R1: "Ease off", R2: "He says it's hard", R3: "Views don't match", R4: "Behavior pattern", R5: "Change the method", R6: "Fix the routine", R7: "Level up", R8: "Shift time", R9: "Update needed", R10: "Not enough data", R11: "AMC focus chapter" },
-    out: { O1: "Lighten the load", O2: "Talk & connect first", O3: "Change practice type", O4: "Set a fixed time", O5: "Add one challenge", O6: "Move a session", O7: "Log a new grade", O8: "Keep logging, no changes" },
+    inp: { n: "Check-ins (7d)", adh: "Adherence", eng: "Engagement", mood: "His mood (7d)", gap: "Parent vs him", conc: "Concerns / behavior", pace: "Goal pace", stale: "Grade freshness", amc: "AMC 8 data", skl: "Skills (learning model)" },
+    rule: { R1: "Ease off", R2: "He says it's hard", R3: "Views don't match", R4: "Behavior pattern", R5: "Change the method", R6: "Fix the routine", R7: "Level up", R8: "Shift time", R9: "Update needed", R10: "Not enough data", R11: "AMC focus chapter", R13: "Retune practice" },
+    out: { O1: "Lighten the load", O2: "Talk & connect first", O3: "Change practice type", O4: "Set a fixed time", O5: "Add one challenge", O6: "Move a session", O7: "Log a new grade", O8: "Keep logging, no changes", O9: "Practise weak skills (auto-tuned)" },
     behindAhead: (b, a) => `${b} behind · ${a} ahead`, stale: n => n ? `${n} stale` : "ok", noData: "no data yet",
-    amc: { weak: "needs work", slow: "slow", rush: "rushing", ok: "ok", nodata: "no data yet" } },
+    amc: { weak: "needs work", slow: "slow", rush: "rushing", ok: "ok", nodata: "no data yet" }, skl: (l, m, mv) => `${l} need help · ${m} mastered${mv ? ` · ${mv} retuned` : ""}` },
   zh: { title: "决策图", sub: "教练如何得出今天的建议：左边的信号进入中间的规则，再得出右边的决定。高亮的路径就是现在起作用的依据。",
     legend: "● 触发 · ○ 未触发 · ◌ 暂无数据", cols: ["信号", "教练规则", "决定"],
-    inp: { n: "打卡次数（7天）", adh: "完成率", eng: "投入度", mood: "他的心情（7天）", gap: "家长与他评分差", conc: "担忧 / 行为", pace: "目标进度", stale: "成绩更新", amc: "AMC 8 数据" },
-    rule: { R1: "减负", R2: "他说很难", R3: "看法不一致", R4: "行为模式", R5: "换方法", R6: "固定作息", R7: "加一点难度", R8: "调配时间", R9: "需要更新成绩", R10: "数据不足", R11: "AMC 重点章节" },
-    out: { O1: "减轻负担", O2: "先沟通陪伴", O3: "换练习方式", O4: "定好固定时间", O5: "增加一个挑战", O6: "调整练习分配", O7: "录入新成绩", O8: "继续记录，暂不调整" },
+    inp: { n: "打卡次数（7天）", adh: "完成率", eng: "投入度", mood: "他的心情（7天）", gap: "家长与他评分差", conc: "担忧 / 行为", pace: "目标进度", stale: "成绩更新", amc: "AMC 8 数据", skl: "技能（学习模型）" },
+    rule: { R1: "减负", R2: "他说很难", R3: "看法不一致", R4: "行为模式", R5: "换方法", R6: "固定作息", R7: "加一点难度", R8: "调配时间", R9: "需要更新成绩", R10: "数据不足", R11: "AMC 重点章节", R13: "重新调整练习" },
+    out: { O1: "减轻负担", O2: "先沟通陪伴", O3: "换练习方式", O4: "定好固定时间", O5: "增加一个挑战", O6: "调整练习分配", O7: "录入新成绩", O8: "继续记录，暂不调整", O9: "练薄弱技能（自动调难度）" },
     behindAhead: (b, a) => `${b} 项落后 · ${a} 项超前`, stale: n => n ? `${n} 项过期` : "正常", noData: "暂无数据",
-    amc: { weak: "需加强", slow: "偏慢", rush: "太急", ok: "正常", nodata: "暂无数据" } } };
+    amc: { weak: "需加强", slow: "偏慢", rush: "太急", ok: "正常", nodata: "暂无数据" }, skl: (l, m, mv) => `${l} 项需帮助 · ${m} 项已掌握${mv ? ` · ${mv} 项已调整` : ""}` } };
 function amcFlag(kid) {
   const save = (S.app_saves || []).find(a => a.kid === kid && a.app === "amc"), P = save && save.data ? save.data[`${kid}_amc_progress`] : null;
   if (!P) return { flag: "nodata" };
@@ -429,14 +431,17 @@ function decisionNet(kid, r, color) {
     ["conc", `${r.concerns7}${r.behAvg7 != null ? " · " + fmt1(r.behAvg7) + "/5" : ""}`, hasCk || r.concerns7 > 0, f.pattern],
     ["pace", L.behindAhead(f.behindN, f.aheadN), r.goals.length > 0, f.behindN > 0],
     ["stale", L.stale(f.staleN), true, f.staleN > 0]];
+  const sk = typeof skillSignal === "function" ? skillSignal(kid) : null; // 📚 nightly learning model
+  if (sk) inputs.push(["skl", L.skl(sk.lack, sk.mast, sk.moved), sk.has, sk.lack >= 2 || sk.moved > 0]);
   if (isAmc) inputs.push(["amc", L.amc[am.flag] + (am.topic ? " · " + amcTopic(am.topic) : ""), am.flag !== "nodata", ["weak", "slow", "rush"].includes(am.flag)]);
   const adh = r.adh7, rules = [
     ["R1", f.easeOff && r.logged7 >= 3, ["adh", "eng"]], ["R2", f.moodLow, ["mood"]], ["R3", f.gapHigh && !f.moodLow, ["gap"]], ["R4", f.pattern, ["conc"]],
     ["R5", f.behindN > 0 && adh != null && adh >= .75, ["pace", "adh"]], ["R6", f.behindN > 0 && (adh == null || adh < .75), ["pace", "adh"]],
     ["R7", f.levelUp, ["adh", "eng", "pace"]], ["R8", f.aheadN > 0 && f.behindN > 0 && !f.easeOff, ["pace"]], ["R9", f.staleN > 0, ["stale"]], ["R10", r.logged7 < 4, ["n"]]];
   if (isAmc) rules.push(["R11", ["weak", "slow", "rush"].includes(am.flag), ["amc"]]);
+  if (sk) rules.push(["R13", sk.has && (sk.lack >= 2 || sk.moved > 0), ["skl"]]);
   const ract = Object.fromEntries(rules.map(x => [x[0], x[1]])), gated = ract.R10;
-  const outputs = [["O1", ["R1"]], ["O2", ["R2", "R3", "R4"]], ["O3", ["R5"].concat(isAmc ? ["R11"] : [])], ["O4", ["R6"]], ["O5", ["R7"]], ["O6", ["R8"]], ["O7", ["R9"]], ["O8", ["R10"]]];
+  const outputs = [["O1", ["R1"]], ["O2", ["R2", "R3", "R4"]], ["O3", ["R5"].concat(isAmc ? ["R11"] : [])], ["O4", ["R6"]], ["O5", ["R7"]], ["O6", ["R8"]], ["O7", ["R9"]], ["O8", ["R10"]]].concat(sk ? [["O9", ["R13"]]] : []);
   const oact = Object.fromEntries(outputs.map(([k, src]) => [k, src.some(x => ract[x]) && !(gated && ["O1", "O3", "O4", "O5", "O6"].includes(k))]));
   const n = Math.max(inputs.length, rules.length, outputs.length), rowH = 46, top = 58, W = 870, H = top + (n - 1) * rowH + 30;
   const X = { i: 250, r: 470, o: 650 }, ys = m => [...Array(m)].map((_, i) => top + i * ((n - 1) * rowH) / Math.max(m - 1, 1));
@@ -457,6 +462,150 @@ function decisionNet(kid, r, color) {
     <defs><marker id="dnArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L10,5L0,10z" fill="${grey}"/></marker>
     <marker id="dnArrL" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" fill="${color}"/></marker></defs>
     ${cols}${back}${front}${nodes}</svg>`;
+}
+
+/* ---------------- 📚 LEARNING (2026-11-21): what each boy studied, mastered, is lacking, how efficient he is, how his goals are going.
+   Data comes from the nightly learning model in Supabase (learn_refresh(), pg_cron ~7:35 PM PT): skill_state (one row per skill),
+   skill_history (one row per skill per day, kept forever) and learn_days (time and answers per app per day). One boy at a time, never side by side. */
+let lnKid = null, lnHist = {}, lnBusy = false;
+const LN = {
+  en: { title: "Learning", sub: "Built every night (about 7:35 PM) from all his apps: what he studied, what he has mastered, what he's missing and how efficiently he works.", last: d => `Last update: ${d}`, never: "Not built yet", refresh: "↻ Update now", refreshing: "Updating…",
+    k: { time: "Active time", qs: "Questions", ft: "First-try right", eff: "Efficiency", mast: "Mastered skills" }, wk: "this week", prev: v => `last week ${v}`, effSub: "right answers per 10 active min", mastSub: n => n ? `+${n} new this week` : "none new this week",
+    days: "Last 14 days · active minutes per app", stand: "Where he stands", byApp: "Skill by skill", goals: "Goals", changes: "Difficulty changes (14 days)", noChanges: "No changes yet. The coach waits for at least 5 new tries before moving a level.",
+    trend: "Skills mastered over time", how: "How the coach decides", noData: n => `No app data for ${n} yet. Once he uses his apps, this page fills in after the next nightly update.`,
+    cols: { skill: "Skill", status: "Status", m: "Mastery", tries: "Tries 7d / all", speed: "Speed", lvl: "Level", why: "Why" }, auto: "Auto", lvls: ["Easy", "Medium", "Hard"], selfAdapt: "adapts itself",
+    st: { mastered: "Mastered", review: "Review due", learning: "Working on it", started: "Just started", lacking: "Needs help", slow: "Knows it, but slow", rushing: "Rushing", new: "Not started" },
+    howTxt: ["Mastery = his recent first-try accuracy, with newer answers counting more (last 20 tries).", "Mastered = 85%+ over 8 or more tries and not slow. Needs help = under 60% over 4+ tries. Slow = right but 25%+ over the real-test pace. Rushing = mostly wrong and very fast.",
+      "Difficulty (AMC 8 and Physics) moves one step at a time, only after 5 new tries: up at 85%+ mastery, down under 55%. Ellis's AMC stays at Easy/Medium (light plan).", "Space Quest, Brain Park, Realm of Forces and Piste Duel already adjust on every question, so their own level is shown instead.",
+      "Pick a level yourself in the table to override the coach (Auto gives control back). Nothing he has done is ever erased; every night is saved as history."],
+    pace: s => `${s}s`, notStarted: "Not started yet", newOnly: "Only not-started skills here.", tuned: "AMC 8 and Physics use this level for his daily exam and practice gym.", appsNone: "—" },
+  zh: { title: "学习进度", sub: "每晚（约 7:35）根据他所有应用自动生成：学了什么、掌握了什么、还欠缺什么、学习效率如何。", last: d => `最近更新：${d}`, never: "尚未生成", refresh: "↻ 立即更新", refreshing: "更新中…",
+    k: { time: "有效学习时间", qs: "做题数", ft: "一次做对", eff: "效率", mast: "已掌握技能" }, wk: "本周", prev: v => `上周 ${v}`, effSub: "每 10 分钟有效时间做对的题数", mastSub: n => n ? `本周新增 ${n}` : "本周无新增",
+    days: "最近 14 天 · 每个应用的有效分钟", stand: "现在的状况", byApp: "逐项技能", goals: "目标", changes: "难度调整（14 天）", noChanges: "还没有调整。每次调整前教练至少等他新做 5 题。",
+    trend: "已掌握技能的变化", how: "教练怎么决定", noData: n => `${n} 还没有应用数据。他开始使用后，下一次夜间更新就会出现在这里。`,
+    cols: { skill: "技能", status: "状态", m: "掌握度", tries: "做题 7天/全部", speed: "速度", lvl: "难度", why: "原因" }, auto: "自动", lvls: ["简单", "中等", "难"], selfAdapt: "游戏自调",
+    st: { mastered: "已掌握", review: "该复习了", learning: "学习中", started: "刚开始", lacking: "需要帮助", slow: "会做但慢", rushing: "太急", new: "未开始" },
+    howTxt: ["掌握度 = 他最近一次做对的比例，越新的题权重越大（最近 20 题）。", "已掌握 = 8 题以上做对 85% 且不慢。需要帮助 = 4 题以上低于 60%。偏慢 = 会做但比真实考试节奏慢 25% 以上。太急 = 大多做错而且很快。",
+      "难度（AMC 8 和物理）一次只动一级，而且要新做满 5 题：掌握度 85% 以上升级，低于 55% 降级。Ellis 的 AMC 只用简单/中等（轻松计划）。", "太空探险、大脑乐园、力之境和 Piste Duel 每题都会自己调整，所以这里显示它们自己的级别。",
+      "在表格里选一个难度即可替代教练（选“自动”交回）。他做过的一切都不会删除，每晚都存为历史记录。"],
+    pace: s => `${s} 秒`, notStarted: "还没开始", newOnly: "这里只有未开始的技能。", tuned: "AMC 8 和物理的每日小测和练习馆会按这个难度出题。", appsNone: "—" } };
+const LN_APP = { amc: ["🏆", "AMC 8", "AMC 8", "#7c5cff"], physics: ["🧲", "Physics 6", "物理 6", "#2bb3ff"], quest: ["⚔️", "Realm of Forces", "力之境", "#ff5a5a"], space: ["🚀", "Space Quest", "太空探险", "#ffb020"],
+  brain: ["🧠", "Brain Park", "大脑乐园", "#2fbf71"], robot: ["🤖", "Robot Lab", "机器人实验室", "#ff5ccb"], fencing: ["🤺", "Piste Duel", "Piste Duel", "#c4f53a"] };
+const LN_ST = { mastered: ["✅", "var(--pos)"], review: ["🔁", "#7c5cff"], learning: ["🔨", "var(--accent)"], started: ["🌱", "var(--muted)"], lacking: ["⚠️", "var(--neg)"], slow: ["🐢", "#e08a2b"], rushing: ["⚡", "#e08a2b"], new: ["⬜", "var(--muted)"] };
+const LN_TUNED = ["amc", "physics"];
+const lnApp = a => { const x = LN_APP[a] || ["📦", a, a]; return `${x[0]} ${lang === "zh" ? x[2] : x[1]}`; };
+const lnSkill = s => lang === "zh" && s.label_zh ? s.label_zh : (s.label || s.skill);
+async function lnLoadHist(kid) {
+  const from = daysAgo(34), rows = [];
+  for (let p = 0; p < 20; p++) { const { data, error } = await sb.from("skill_history").select("app,skill,date,status,difficulty,mastery,attempts_day").eq("kid", kid).gte("date", from).order("date").range(p * 1000, p * 1000 + 999); if (error) throw error; rows.push(...(data || [])); if (!data || data.length < 1000) break; }
+  lnHist[kid] = rows; return rows;
+}
+async function lnLoad() {
+  const [a, b] = await Promise.all([sb.from("skill_state").select("*"), sb.from("learn_days").select("*").gte("date", daysAgo(60))]);
+  if (a.error) throw a.error; if (b.error) throw b.error; S.skill_state = a.data || []; S.learn_days = b.data || [];
+}
+async function viewLearning() {
+  const L = LN[lang] || LN.en;
+  lnKid = lnKid && S.kids.some(k => k.id === lnKid) ? lnKid : S.kids[0]?.id; if (!lnKid) return;
+  if (!S.skill_state) { $("#view").innerHTML = `<div class="coach"><p class="meta">…</p></div>`; try { await lnLoad(); } catch (e) { setStatus(e.message, true); return; } }
+  if (!lnHist[lnKid]) { try { await lnLoadHist(lnKid); } catch (e) { lnHist[lnKid] = []; } }
+  lnRender();
+}
+function lnRender() {
+  const L = LN[lang] || LN.en, kid = lnKid, ki = S.kids.findIndex(k => k.id === kid), name = esc(kidName(kid)), zh = lang === "zh";
+  const SS = (S.skill_state || []).filter(s => s.kid === kid), LD = (S.learn_days || []).filter(x => x.kid === kid), H = lnHist[kid] || [];
+  const last = SS.reduce((m, s) => s.computed_on > m ? s.computed_on : m, "");
+  const w1 = daysAgo(6), w2 = daysAgo(13), w2e = daysAgo(7);
+  const sumD = (f, t, k) => LD.filter(x => x.date >= f && x.date <= t).reduce((a, x) => a + (+x[k] || 0), 0);
+  const tNow = sumD(w1, today(), "active_secs"), tPrev = sumD(w2, w2e, "active_secs");
+  const qNow = sumD(w1, today(), "attempts"), qPrev = sumD(w2, w2e, "attempts"), cNow = sumD(w1, today(), "correct"), cPrev = sumD(w2, w2e, "correct");
+  // efficiency only over apps that record time (so a game without a clock doesn't inflate it)
+  const timed = (f, t) => LD.filter(x => x.date >= f && x.date <= t && +x.active_secs > 0), eff = (f, t) => { const r = timed(f, t), s = r.reduce((a, x) => a + +x.active_secs, 0), c = r.reduce((a, x) => a + +x.correct, 0); return s >= 300 ? c / (s / 600) : null; };
+  const eNow = eff(w1, today()), ePrev = eff(w2, w2e);
+  const mins = s => Math.round((s || 0) / 60), pc = (c, q) => q ? Math.round(c / q * 100) + "%" : "—", f1 = v => v == null ? "—" : v.toFixed(1);
+  const mast = SS.filter(s => ["mastered", "review"].includes(s.status)), mastNew = mast.filter(s => s.mastered_on && s.mastered_on >= w1).length;
+  const tabs = `<div class="tabs">${S.kids.map(x => `<button class="${x.id === kid ? "on" : ""}" data-lk="${esc(x.id)}">${esc(kidName(x.id))}</button>`).join("")}</div>`;
+  const head = `<div class="section-h"><h3>📚 ${L.title}</h3>${tabs}</div><p class="meta">${L.sub} ${last ? L.last(fmtDate(last)) : L.never} <button class="btn sm" id="lnRef" ${lnBusy ? "disabled" : ""}>${lnBusy ? L.refreshing : L.refresh}</button></p>`;
+  if (!SS.some(s => s.attempts_total > 0 || s.status !== "new")) { $("#view").innerHTML = head + `<div class="coach"><p>${L.noData(name)}</p></div>`; lnWire(); return; }
+  const kpis = `<div class="pfkpis lnk" style="--kc:${KC[ki % 3]}">
+    <div class="pfk"><b>${mins(tNow)}<small> min</small></b><span>⏱ ${L.k.time} · ${L.wk}<br>${L.prev(mins(tPrev) + " min")}</span></div>
+    <div class="pfk"><b>${qNow}</b><span>✏️ ${L.k.qs} · ${L.wk}<br>${L.prev(qPrev)}</span></div>
+    <div class="pfk"><b>${pc(cNow, qNow)}</b><span>🎯 ${L.k.ft}<br>${L.prev(pc(cPrev, qPrev))}</span></div>
+    <div class="pfk"><b>${f1(eNow)}</b><span>⚡ ${L.k.eff}: ${L.effSub}<br>${L.prev(f1(ePrev))}</span></div>
+    <div class="pfk"><b>${mast.length}</b><span>✅ ${L.k.mast}<br>${L.mastSub(mastNew)}</span></div></div>`;
+  // 14-day stacked minutes per app
+  const days = [...Array(14)].map((_, i) => daysAgo(13 - i)), apps = [...new Set(LD.map(x => x.app))].filter(a => LD.some(x => x.app === a && +x.active_secs > 0));
+  const dayMax = Math.max(1, ...days.map(d => LD.filter(x => x.date === d).reduce((a, x) => a + +x.active_secs, 0)));
+  const chart = `<div class="coach"><h4>📅 ${L.days}</h4><div class="pfdays lnd">${days.map(d => { const rs = LD.filter(x => x.date === d && +x.active_secs > 0), tot = rs.reduce((a, x) => a + +x.active_secs, 0);
+      return `<div title="${esc(d)}"><span class="pfcol lncol">${apps.map(a => { const r = rs.find(x => x.app === a); return r ? `<i style="height:${Math.round(+r.active_secs / dayMax * 100)}%;background:${LN_APP[a]?.[3] || "var(--kc)"}"></i>` : ""; }).join("")}</span><small>${d.slice(5)}</small><b>${mins(tot) || "&nbsp;"}</b></div>`; }).join("")}</div>
+    <div class="lnleg">${apps.map(a => `<span><i style="background:${LN_APP[a]?.[3]}"></i>${lnApp(a)}</span>`).join("")}</div></div>`;
+  // where he stands
+  const order = ["lacking", "rushing", "slow", "review", "learning", "started", "mastered"];
+  const stand = `<div class="coach"><h4>🧭 ${L.stand}</h4>${order.map(st => { const xs = SS.filter(s => s.status === st).sort((a, b) => (b.attempts_7d - a.attempts_7d) || ((a.sort ?? 0) - (b.sort ?? 0))); if (!xs.length) return "";
+      return `<div class="lnb"><div class="lnbh" style="color:${LN_ST[st][1]}">${LN_ST[st][0]} ${L.st[st]} <span class="meta">(${xs.length})</span></div><div class="pfchips">${xs.slice(0, 24).map(s => `<span class="chip" title="${esc(lnApp(s.app))}">${LN_APP[s.app]?.[0] || ""} ${esc(lnSkill(s))}${s.status === "mastered" && s.mastered_on >= w1 ? " ✨" : ""}</span>`).join("")}${xs.length > 24 ? `<span class="meta">+${xs.length - 24}</span>` : ""}</div></div>`; }).join("")}
+    ${(() => { const n = SS.filter(s => s.status === "new").length; return n ? `<div class="lnb"><div class="lnbh meta">⬜ ${L.st.new} <span class="meta">(${n})</span></div></div>` : ""; })()}</div>`;
+  // per-app tables
+  const byApp = [...new Set(SS.map(s => s.app))].sort((a, b) => Object.keys(LN_APP).indexOf(a) - Object.keys(LN_APP).indexOf(b));
+  const changed7 = s => s.difficulty_changed_on && s.difficulty_changed_on >= w1 && s.difficulty_prev != null && s.difficulty !== s.difficulty_prev;
+  const lvlCell = s => {
+    if (!LN_TUNED.includes(s.app)) return `<span class="meta">${s.app_level != null && !["space", "robot"].includes(s.app) ? (zh ? "级 " : "Lv ") + (+s.app_level) + " · " : ""}${L.selfAdapt}</span>`;
+    const arrow = changed7(s) ? (s.difficulty > s.difficulty_prev ? " ⬆️" : " ⬇️") : "";
+    return `<select class="lnsel" data-lsk="${esc(s.app + "|" + s.skill)}"><option value="">${L.auto}${s.parent_level == null && s.difficulty ? " (" + L.lvls[s.difficulty - 1] + ")" : ""}</option>${[1, 2, 3].map(n => `<option value="${n}" ${s.parent_level === n ? "selected" : ""}>${L.lvls[n - 1]}</option>`).join("")}</select>${arrow}`;
+  };
+  const tables = `<div class="coach"><h4>🔎 ${L.byApp}</h4><p class="meta">${L.tuned}</p>${byApp.map((a, ai) => { const xs = SS.filter(s => s.app === a).sort((x, y) => (x.sort ?? 0) - (y.sort ?? 0)), act = xs.filter(s => s.status !== "new");
+      const tried = act.length, m7 = xs.reduce((t, s) => t + (s.attempts_7d || 0), 0);
+      return `<details class="lnapp" ${ai === 0 || m7 > 0 ? "open" : ""}><summary><b>${lnApp(a)}</b> <span class="meta">· ${tried}/${xs.length} · ${m7} ${zh ? "题（7天）" : "tries this week"}</span></summary>
+        ${tried ? `<div style="overflow-x:auto"><table class="pft lnt"><tr><th>${L.cols.skill}</th><th>${L.cols.status}</th><th>${L.cols.m}</th><th>${L.cols.tries}</th><th>${L.cols.speed}</th><th>${L.cols.lvl}</th></tr>
+        ${act.map(s => `<tr><td><b style="font-weight:600">${esc(lnSkill(s))}</b><div class="meta">${esc(zh ? (s.reason_zh || s.reason || "") : (s.reason || ""))}</div></td>
+          <td style="white-space:nowrap;color:${LN_ST[s.status]?.[1] || "inherit"}">${LN_ST[s.status]?.[0] || ""} ${L.st[s.status] || s.status}</td>
+          <td style="white-space:nowrap">${s.mastery != null ? `<span class="pfbar"><i style="width:${Math.round(s.mastery * 100)}%;background:${LN_ST[s.status]?.[1] || "var(--kc)"}"></i></span> ${Math.round(s.mastery * 100)}%` : "—"}</td>
+          <td>${s.attempts_7d || 0} / ${s.attempts_total || 0}</td>
+          <td style="white-space:nowrap">${s.median_secs != null ? L.pace(Math.round(s.median_secs)) + (s.pace_secs ? ` <span class="meta">/ ${s.pace_secs}</span>` : "") : "—"}</td>
+          <td>${lvlCell(s)}</td></tr>`).join("")}</table></div>` : `<p class="meta">${L.newOnly}</p>`}
+        ${xs.length > tried ? `<p class="meta">⬜ ${L.notStarted}: ${xs.filter(s => s.status === "new").slice(0, 30).map(s => esc(lnSkill(s))).join(" · ")}${xs.length - tried > 30 ? " …" : ""}</p>` : ""}</details>`; }).join("")}</div>`;
+  // goals (same engine as the Dashboard coach)
+  const t = T(), r = engine(kid);
+  const goals = `<div class="coach"><h4>🎯 ${L.goals}</h4>${r.goals.length ? `<table class="pft">${r.goals.map(g => { const u = esc(g.m.unit || "");
+      const lab = g.kind === "rate" ? `${g.c7} / ${g.m.per_week} ${t.thisWeek}` : `${+g.m.baseline}${u} → <b>${g.cur}${u}</b> → ${+g.m.target}${u}${g.daysLeft != null ? ` · ${t.daysLeft(g.daysLeft)}` : ""}`;
+      const fill = g.status === "behind" ? "var(--neg)" : ["ahead", "done", "met"].includes(g.status) ? "var(--pos)" : "var(--accent)";
+      return `<tr><td>${subjOf(g.m.subject_id) ? subjOf(g.m.subject_id).icon + " " : ""}${esc(mName(g.m))}<div class="meta">${lab}</div></td><td style="width:34%"><div class="prog"><i style="width:${Math.round(clamp01(g.progress) * 100)}%;background:${fill}"></i></div></td><td><span class="pace ${g.kind === "level" && g.stale ? "stale" : g.status}">${g.kind === "level" && g.stale ? t.pace.stale : t.pace[g.status]}</span></td></tr>`; }).join("")}</table>` : `<p class="meta">${t.noGoals}</p>`}</div>`;
+  // difficulty changes (history: day-to-day level changes, last 14 days)
+  const chg = []; const prevD = {};
+  H.forEach(h => { const k = h.app + "|" + h.skill; if (LN_TUNED.includes(h.app) && h.difficulty != null) { if (prevD[k] != null && prevD[k] !== h.difficulty && h.date >= w2) chg.push({ ...h, from: prevD[k] }); prevD[k] = h.difficulty; } });
+  SS.filter(s => LN_TUNED.includes(s.app) && s.difficulty_changed_on && s.difficulty_changed_on >= w2 && s.difficulty_prev != null && s.difficulty !== s.difficulty_prev && !chg.some(c => c.app === s.app && c.skill === s.skill && c.date === s.difficulty_changed_on))
+    .forEach(s => chg.push({ app: s.app, skill: s.skill, date: s.difficulty_changed_on, from: s.difficulty_prev, difficulty: s.difficulty }));
+  const lab = (a, k) => { const s = SS.find(x => x.app === a && x.skill === k); return s ? lnSkill(s) : k; };
+  const changes = `<div class="coach"><h4>🎚️ ${L.changes}</h4>${chg.length ? chg.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14).map(c => `<div class="pfslow">${c.difficulty > c.from ? "⬆️" : "⬇️"} <b>${esc(lab(c.app, c.skill))}</b> <span class="meta">${lnApp(c.app)} · ${fmtDate(c.date)}</span><div>${L.lvls[c.from - 1]} → <b>${L.lvls[c.difficulty - 1]}</b></div></div>`).join("") : `<p class="meta">${L.noChanges}</p>`}</div>`;
+  // mastered count per day (28 days)
+  const tdays = [...Array(28)].map((_, i) => daysAgo(27 - i)), mc = tdays.map(d => H.filter(h => h.date === d && ["mastered", "review"].includes(h.status)).length), has = tdays.map(d => H.some(h => h.date === d));
+  const mx = Math.max(1, ...mc);
+  const trend = `<div class="coach"><h4>📈 ${L.trend}</h4><div class="pfdays lntr">${tdays.map((d, i) => `<div title="${esc(d)}: ${has[i] ? mc[i] : "—"}"><span class="pfcol" style="height:56px;width:12px"><i style="height:${has[i] ? Math.max(4, Math.round(mc[i] / mx * 100)) : 0}%"></i></span>${i % 7 === 6 ? `<small>${d.slice(5)}</small>` : "<small>&nbsp;</small>"}</div>`).join("")}</div></div>`;
+  const how = `<details class="howto coach"><summary>🧠 ${L.how}</summary><ul>${L.howTxt.map(x => `<li>${x}</li>`).join("")}</ul></details>`;
+  $("#view").innerHTML = head + kpis + `<div class="fbgrid" style="--kc:${KC[ki % 3]};margin-top:12px"><div>${chart}${stand}</div><div>${goals}${changes}${trend}${how}</div></div><div style="--kc:${KC[ki % 3]};margin-top:12px">${tables}</div>`;
+  lnWire();
+}
+function lnWire() {
+  document.querySelectorAll("[data-lk]").forEach(b => b.onclick = async () => { lnKid = b.dataset.lk; if (!lnHist[lnKid]) { try { await lnLoadHist(lnKid); } catch (e) { lnHist[lnKid] = []; } } lnRender(); });
+  const rb = $("#lnRef"); if (rb) rb.onclick = async () => {
+    lnBusy = true; lnRender();
+    try { const { error } = await sb.rpc("learn_refresh"); if (error) throw error; await lnLoad(); lnHist = {}; await lnLoadHist(lnKid); setStatus(T().saved); setTimeout(() => setStatus(""), 2000); }
+    catch (e) { setStatus(e.message || "Update failed", true); }
+    lnBusy = false; lnRender();
+  };
+  document.querySelectorAll("select[data-lsk]").forEach(sel => sel.onchange = async () => {
+    const [app, skill] = sel.dataset.lsk.split("|"), v = sel.value ? +sel.value : null, row = (S.skill_state || []).find(s => s.kid === lnKid && s.app === app && s.skill === skill);
+    const patch = v ? { parent_level: v, difficulty: v, reason: "Set by a parent", reason_zh: "家长设定" } : { parent_level: null };
+    const { error } = await sb.from("skill_state").update({ ...patch, updated_at: new Date().toISOString() }).eq("kid", lnKid).eq("app", app).eq("skill", skill);
+    if (error) { setStatus(error.message, true); return; }
+    if (row) Object.assign(row, patch); setStatus(T().saved); setTimeout(() => setStatus(""), 1500); lnRender();
+  });
+}
+/* skills signal for the decision map: how many skills need help / were retuned in the last 2 days */
+function skillSignal(kid) {
+  const SS = (S.skill_state || []).filter(s => s.kid === kid); if (!SS.length) return null;
+  const lack = SS.filter(s => ["lacking", "rushing", "slow"].includes(s.status)), mast = SS.filter(s => ["mastered", "review"].includes(s.status)).length;
+  const moved = SS.filter(s => s.difficulty_changed_on && s.difficulty_changed_on >= daysAgo(1) && s.difficulty_prev != null && s.difficulty !== s.difficulty_prev).length;
+  return { lack: lack.length, top: lack.sort((a, b) => (b.attempts_7d || 0) - (a.attempts_7d || 0))[0], mast, moved, has: SS.some(s => s.attempts_total > 0) };
 }
 
 /* ---------------- DASHBOARD ---------------- */
@@ -1180,6 +1329,9 @@ async function openApp(url, kid) {
     const localAt = localStorage.getItem(mark) || "";
     if (data && (preview || data.updated_at > localAt)) { Object.entries(data.data || {}).forEach(([k, v]) => { if (k.startsWith(pre) && !cfg.skip.includes(k) && !(cfg.skipPre || []).some(x => k.startsWith(x))) localStorage.setItem(k, JSON.stringify(v)); }); localStorage.setItem(mark, data.updated_at); }
   } catch (e) {}
+  if (["amc", "physics"].includes(cfg.id)) { // 🎯 nightly coach difficulty per chapter/unit (not synced back: key has no app prefix)
+    try { const { data } = await sb.rpc("my_tuning", { p_app: cfg.id, p_kid: kid }); localStorage.setItem(`fh_tune_${kid}_${cfg.id}`, JSON.stringify(data || {})); } catch (e) {}
+  }
   if (cfg.id === "fencing") { // coach lesson notes written by parents → shown inside the game
     try { const { data } = await sb.from("fencing_lessons").select("date,kind,points,focus,homework").eq("kid", kid).order("date", { ascending: false }).limit(20);
       localStorage.setItem("ellis_coachNotes", JSON.stringify(data || [])); } catch (e) {}
@@ -1196,7 +1348,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121cb1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121ln1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);

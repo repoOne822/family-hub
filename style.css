@@ -865,3 +865,15 @@ button:focus:not(:focus-visible),a:focus:not(:focus-visible){outline:none}
 .exrv{border-bottom:1px solid #ece9e2;padding:10px 0}.exrv.ok{opacity:.7}
 .chrow{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.chrow>b{min-width:70px}.chrow input{width:auto}
 @media (max-width:560px){.exbox{padding:14px}.exq{font-size:18px}}
+
+/* 📚 learning page */
+.pfkpis.lnk{grid-template-columns:repeat(5,1fr)}
+@media (max-width:760px){.pfkpis.lnk{grid-template-columns:repeat(2,1fr)}}
+.pfcol.lncol{flex-direction:column-reverse;justify-content:flex-start}.pfcol.lncol i{border-radius:0}
+.lnleg{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:12.5px;color:var(--muted)}.lnleg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.lnb{margin-top:10px}.lnbh{font-weight:700;font-size:13.5px;margin-bottom:5px}
+.lnapp{border-top:1px solid var(--line);padding:10px 0}.lnapp summary{cursor:pointer;font-size:14.5px}
+.lnt td{vertical-align:top}.lnsel{font-size:12.5px;padding:3px 6px;border-radius:8px;background:var(--card);color:var(--ink);border:1px solid var(--line2)}
+.lntr{gap:2px}.lntr>div{min-width:0;flex:1}.lntr .pfcol{width:100%!important;max-width:12px}
+.pfdays.lnd>div{min-width:0;flex:1}.pfdays.lnd small{font-size:10px}
+.lnt td:first-child{min-width:190px}.lnt td:nth-child(3){min-width:90px}
