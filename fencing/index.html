@@ -434,6 +434,7 @@ body.duelfocus main{padding-top:6px}
   <button data-s="rhythm">🥁 Rhythm Game</button>
   <button data-s="comics">📚 Comics</button>
   <button data-s="journal">📓 My Journal</button>
+  <button data-s="brave">💪 Brave Mind</button>
   <button data-s="money">💰 Milestones</button>
   <button data-s="perf">📊 Performance</button>
   <button data-s="badges">🏅 Badges</button>
@@ -460,6 +461,7 @@ body.duelfocus main{padding-top:6px}
   </div></div>
   <div class="hgroup"><h3>⭐ Me</h3><div class="tiles">
     <button class="tile t-me" data-go="journal"><span class="ti">📓</span><b>Journal</b></button>
+    <button class="tile t-me" data-go="brave"><span class="ti">💪</span><b>Brave Mind</b></button>
     <button class="tile t-me" data-go="money"><span class="ti">🪙</span><b>Points</b></button>
     <button class="tile t-me" data-go="badges"><span class="ti">🏅</span><b>Badges</b></button>
     <button class="tile t-me" data-go="perf"><span class="ti">📊</span><b>Performance</b></button>
@@ -679,6 +681,75 @@ body.duelfocus main{padding-top:6px}
     <div class="row" style="margin-top:12px"><button class="btn" id="pSave">Save plan</button></div>
   </div>
   <div class="card"><h2>Past entries</h2><div id="jList" class="small">No entries yet.</div></div>
+</section>
+
+<!-- BRAVE MIND -->
+<section id="brave">
+  <div class="card">
+    <h2>💪 Brave Mind</h2>
+    <div class="hoot"><div class="owl">🦉</div><div class="say"><b>Coach Hoot:</b> Feeling nervous before a bout means you <b>care</b>. Every great fencer feels it, even Olympians. Being brave isn't "not scared". It's being scared and still saluting, stepping on the piste and fencing your plan. 💛</div></div>
+    <div id="bvToday" class="small" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2>🌬️ Calm-Down Breath</h2>
+    <p class="small">Do this on the strip before "En garde", or any time your heart is racing. 3 rounds take about 40 seconds.</p>
+    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+      <div id="bvBall" style="width:120px;height:120px;border-radius:50%;background:#bfe8ff;border:4px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;text-align:center;transition:transform 4s ease-in-out">Ready?</div>
+      <div><button class="btn" id="bvBreathe">▶️ Start 3 breaths</button><div class="small" id="bvBreathTxt" style="margin-top:8px">In through the nose for 4 · hold for 4 · out through the mouth for 4.</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🧠 Worry Busters</h2>
+    <p class="small">Tap the worry that's in your head. Hoot has a stronger thought to swap it for, plus one thing to DO.</p>
+    <div id="bvWorries" class="tiles" style="margin-top:8px"></div>
+    <div id="bvAnswer" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>🔁 Between-Touch Reset</h2>
+    <p class="small">After EVERY touch, win or lose, do these 4 steps while you walk back to the line. It wipes the last touch away.</p>
+    <ol style="font-size:18px;line-height:1.7;margin:6px 0 0 18px">
+      <li>🔄 <b>Turn away</b>: back to your opponent, the last touch is over.</li>
+      <li>🌬️ <b>One big breath</b>: in for 4, out slowly.</li>
+      <li>🗣️ <b>Say your word</b>: "<span id="bvWordShow">Next touch</span>", quietly to yourself.</li>
+      <li>🎯 <b>Pick ONE plan</b>: what did they just do? What will I try?</li>
+    </ol>
+    <label style="margin-top:10px">My power word (pick one or write your own)</label>
+    <div id="bvWords" style="margin:4px 0"></div>
+    <input type="text" id="bvWord" placeholder="e.g. Next touch · Patient · I've got this">
+  </div>
+
+  <div class="card">
+    <h2>🏆 Tournament Day Game Plan</h2>
+    <ul style="font-size:17px;line-height:1.7;margin:4px 0 0 18px">
+      <li>🌙 <b>Night before:</b> pack your bag, then fill in your <a href="#" data-gobv="journal">Pre-Bout Plan Card</a>. Sleep is part of training.</li>
+      <li>🧦 <b>Warm-up:</b> legs moving, a few lunges, then 3 calm breaths.</li>
+      <li>🧍 <b>Before each bout:</b> watch your next opponent for 1 minute. Do they attack a lot, retreat, or wait?</li>
+      <li>⚔️ <b>During the bout:</b> Between-Touch Reset after every touch. Behind on the score? It's just "one touch at a time".</li>
+      <li>📝 <b>After each bout:</b> do a Real Bout Check below (30 seconds). Win or lose, you get Brave points for checking in.</li>
+      <li>🤗 <b>After the day:</b> tell Mom or Dad one thing you're proud of. The result is not the whole story.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>👀 Real Bout Check</h2>
+    <div class="hoot"><div class="owl">🦉</div><div class="say"><b>Coach Hoot:</b> Games train your brain. But the real secret is <b>noticing what happens in your REAL bouts</b>. Fill this in after each bout, even quick ones. That's how you learn to see yourself fence.</div></div>
+    <div id="bvShadowQ" style="margin-top:10px"></div>
+    <label>Score (me – them)</label>
+    <div class="row"><input type="number" id="bvMe" min="0" max="15" style="width:80px" placeholder="me"> <span style="align-self:center">–</span> <input type="number" id="bvThem" min="0" max="15" style="width:80px" placeholder="them"> <input type="text" id="bvOpp" placeholder="Opponent (optional)" style="flex:1"></div>
+    <label>😟 How worried did I feel BEFORE the bout?</label><div id="bvWB" class="bvscale"></div>
+    <label>🙂 How do I feel NOW?</label><div id="bvWA" class="bvscale"></div>
+    <label>👀 What did my opponent do most?</label><div id="bvOD" class="bvpick"></div>
+    <label>🤺 What did I do most?</label><div id="bvMD" class="bvpick"></div>
+    <label>🎯 Did I use my plan?</label><div id="bvPlan" class="bvpick"></div>
+    <label>⭐ One brave or smart thing I did (there's always one!)</label><textarea id="bvGood" placeholder="e.g. I was behind 1–4 and kept doing my reset. I didn't give up."></textarea>
+    <label>🔧 One thing I'd change next bout</label><textarea id="bvFix" placeholder="e.g. I attacked from too far. Next time: get closer first."></textarea>
+    <div class="row" style="margin-top:12px"><button class="btn" id="bvSave">Save bout check (+15 XP)</button><button class="btn ghost" id="bvCopy">Copy for coach</button></div>
+  </div>
+
+  <div class="card"><h2>📈 What I'm learning about myself</h2><div id="bvSum" class="small">No real bouts checked yet. After your next tournament, your patterns will show up here.</div></div>
 </section>
 
 <!-- MILESTONES -->
@@ -2578,6 +2649,104 @@ document.querySelectorAll('#nav button').forEach(b=>b.addEventListener('click',(
 
 save();
 try{pdLevels()}catch(e){console.warn('pdLevels',e)}
+// ---------- Brave Mind: competition nerves + real-bout awareness ----------
+(function braveMind(){
+  const E=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const WORRIES=[
+    {i:'😰',w:'What if I lose?',t:'Losing a bout means I get information, not that I\'m a bad fencer. Every champion lost hundreds of bouts on the way.',d:'Make your goal "fence my plan", not "win". You control your plan.'},
+    {i:'🦍',w:'They\'re bigger / older / rated higher',t:'They have nothing to lose and something to prove, and so do I. Big fencers are often slower to move back. Ratings don\'t fence, people do.',d:'Watch their first 2 touches. Find ONE habit, then use it.'},
+    {i:'📉',w:'I\'m way behind on the score',t:'It\'s never 0–4. It\'s just "the next touch". Comebacks happen one touch at a time.',d:'Do the Between-Touch Reset. Change ONE thing (distance, speed, or a fake).'},
+    {i:'👀',w:'Everyone is watching me',t:'Most people are watching their own fencer or their phone. The people who love me are proud I\'m out there.',d:'Look at the tip of your blade and your opponent\'s chest. That\'s your whole world.'},
+    {i:'🤦',w:'I just made a silly mistake',t:'Mistakes are how my brain learns. The touch is over. I can\'t fix it, but I can win the next one.',d:'Turn away, one big breath, say your power word.'},
+    {i:'🦵',w:'My legs are shaking',t:'Shaky legs mean my body is getting ready with extra energy. That energy makes me FAST.',d:'Bounce on your toes, then 3 calm breaths. Use the energy for your first step.'},
+    {i:'😞',w:'I lost my last bout',t:'That bout is finished. This is a brand-new bout with a brand-new score: 0–0.',d:'Do a 30-second Real Bout Check, write one fix, then let it go.'},
+    {i:'💭',w:'What if Mom and Dad are disappointed?',t:'Mom and Dad are proud of me for trying hard and being brave, not for the score.',d:'Give your best effort. That\'s the only thing anyone is asking for.'}
+  ];
+  const WORDS=['Next touch','Patient','I\'ve got this','Breathe & read','Brave'];
+  const OPP=[['attack','⚡ Attacked a lot'],['retreat','🔙 Retreated / ran away'],['wait','🧍 Waited for me'],['counter','🛡️ Parried / counter-attacked'],['mix','🎭 Mixed it up']];
+  const ME=[['attack','⚡ Attacked'],['retreat','🔙 Retreated'],['wait','🧍 Waited'],['counter','🛡️ Parried / countered'],['froze','❄️ Froze / unsure'],['mix','🎭 Mixed it up']];
+  const PLAN=[['yes','✅ Yes'],['some','🤏 A little'],['no','❌ Forgot'],['none','🤷 No plan']];
+  const sel={wb:0,wa:0,od:'',md:'',plan:'',shadow:''};
+  const ld=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+  const list=()=>{const v=store.get('realBouts',[]);return Array.isArray(v)?v:[]};
+
+  // worries
+  $('bvWorries').innerHTML=WORRIES.map((x,k)=>`<button class="tile t-me" data-wq="${k}"><span class="ti">${x.i}</span><b>${E(x.w)}</b></button>`).join('');
+  $('bvWorries').onclick=e=>{const b=e.target.closest('[data-wq]');if(!b)return;const x=WORRIES[+b.dataset.wq];
+    $('bvAnswer').innerHTML=`<div class="hoot"><div class="owl">🦉</div><div class="say"><div class="small">When your brain says "${E(x.w)}"…</div><div style="margin:6px 0">💬 <b>Say instead:</b> ${E(x.t)}</div><div>👉 <b>Do this:</b> ${E(x.d)}</div></div></div>`;
+    const n=store.get('worryTaps',0)+1;store.set('worryTaps',n);if(n===1)addXP(5,'Brave brain');};
+
+  // power word
+  const showWord=()=>{const w=store.get('powerWord','')||'Next touch';$('bvWordShow').textContent=w;$('bvWord').value=store.get('powerWord','')};
+  $('bvWords').innerHTML=WORDS.map(w=>`<span class="chip" style="cursor:pointer" data-pw="${E(w)}">${E(w)}</span>`).join('');
+  $('bvWords').onclick=e=>{const c=e.target.closest('[data-pw]');if(!c)return;store.set('powerWord',c.dataset.pw);showWord();toast('Power word: '+c.dataset.pw)};
+  $('bvWord').onchange=()=>{store.set('powerWord',$('bvWord').value.trim());showWord()};
+  showWord();
+
+  // breathing
+  let br=null;
+  $('bvBreathe').onclick=()=>{if(br)return;const ball=$('bvBall'),txt=$('bvBreathTxt');let step=0;const seq=[['Breathe IN… 4',1.45],['HOLD… 4',1.45],['Breathe OUT… 4',1]];
+    const tick=()=>{if(step>=9){clearInterval(br);br=null;ball.style.transform='scale(1)';ball.textContent='💙 Calm';txt.textContent='Nice. Your body is calmer now. Ready to fence your plan.';
+        const n=store.get('breaths',0)+1;store.set('breaths',n);if(n<=3)addXP(5,'Calm breaths');return}
+      const s=seq[step%3];ball.textContent=s[0];ball.style.transform=`scale(${s[1]})`;txt.textContent=`Breath ${Math.floor(step/3)+1} of 3`;step++};
+    tick();br=setInterval(tick,4000)};
+
+  // pickers
+  const scale=(id,key)=>{const faces=['😌','🙂','😐','😟','😰'];$(id).innerHTML=faces.map((f,k)=>`<button class="btn ghost" data-v="${k+1}" style="font-size:24px;padding:4px 10px;margin:2px">${f}</button>`).join('');
+    $(id).onclick=e=>{const b=e.target.closest('[data-v]');if(!b)return;sel[key]=+b.dataset.v;[...$(id).children].forEach(x=>x.style.background=x===b?'#ffe08a':'')}};
+  const pick=(id,key,opts)=>{$(id).innerHTML=opts.map(([v,l])=>`<button class="btn ghost" data-v="${v}" style="margin:2px;padding:6px 10px;font-size:15px">${l}</button>`).join('');
+    $(id).onclick=e=>{const b=e.target.closest('[data-v]');if(!b)return;sel[key]=b.dataset.v;[...$(id).children].forEach(x=>x.style.background=x===b?'#ffe08a':'')}};
+  scale('bvWB','wb');scale('bvWA','wa');pick('bvOD','od',OPP);pick('bvMD','md',ME);pick('bvPlan','plan',PLAN);
+
+  // Shadow link: ask whether his game habit showed up in real life
+  function shadowQ(){const v=state.evo||{},h=(v.habits||[])[0];
+    if(!h){$('bvShadowQ').innerHTML='';return}
+    $('bvShadowQ').innerHTML=`<div class="tier" style="padding:10px"><b>🥷 Shadow's detective question</b><div style="margin:4px 0">In Piste Duel, when your opponent does ${evoN(h.o)} ${EVO_BANDS[h.band]||''}, you usually ${evoN(h.e)} (${h.p}% of the time). <b>Did that happen in this real bout?</b></div><div id="bvSh"></div></div>`;
+    pick('bvSh','shadow',[['yes','👍 Yes, I noticed it'],['no','🙅 No, I did something else'],['unsure','🤔 Not sure']]);sel.habit=`${h.o}|${h.band}|${h.e}`}
+
+  function clear(){['bvMe','bvThem','bvOpp','bvGood','bvFix'].forEach(i=>$(i).value='');Object.assign(sel,{wb:0,wa:0,od:'',md:'',plan:'',shadow:''});
+    document.querySelectorAll('#brave .bvscale button,#brave .bvpick button,#bvSh button').forEach(b=>b.style.background='')}
+
+  $('bvSave').onclick=()=>{const me=$('bvMe').value,th=$('bvThem').value;
+    if(me===''&&!sel.od&&!sel.md&&!$('bvGood').value.trim()){toast('Fill in at least the score or what happened');return}
+    const r={d:ld(),at:Date.now(),me:me===''?null:+me,them:th===''?null:+th,opp:$('bvOpp').value.trim(),wb:sel.wb,wa:sel.wa,od:sel.od,md:sel.md,plan:sel.plan,good:$('bvGood').value.trim(),fix:$('bvFix').value.trim(),shadow:sel.shadow,habit:sel.habit||''};
+    const L=list();L.push(r);store.set('realBouts',L.slice(-200));
+    try{perfLog({type:'realBout',...r})}catch(e){}
+    addXP(15,'Brave check-in');confetti(40);clear();render();
+    $('bvToday').innerHTML=`<b>🌟 Saved!</b> You checked in on a real bout. That's what great fencers do, whatever the score.`};
+
+  $('bvCopy').onclick=()=>{const L=list().slice(-12),lab=(a,k)=>(a.find(x=>x[0]===k)||['',k||'—'])[1];
+    const t='Ellis: Real Bout Checks\n'+L.map(r=>`${r.d} ${r.opp||'bout'} ${r.me??'?'}-${r.them??'?'} | worry ${r.wb||'?'}→${r.wa||'?'} | opp: ${lab(OPP,r.od)} | me: ${lab(ME,r.md)} | plan: ${lab(PLAN,r.plan)}\n  ⭐ ${r.good||'-'}\n  🔧 ${r.fix||'-'}`).join('\n');
+    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Copied for coach')).catch(()=>{prompt('Copy this:',t)})};
+
+  function render(){const L=list();shadowQ();
+    const today=ld(),nT=L.filter(r=>r.d===today).length;
+    if(!$('bvToday').innerHTML||nT)$('bvToday').innerHTML=nT?`🌟 ${nT} real bout${nT>1?'s':''} checked today. Brave points earned: <b>${nT*15}</b>.`:'';
+    if(!L.length){$('bvSum').innerHTML='No real bouts checked yet. After your next tournament, your patterns will show up here.';return}
+    const cnt=(k)=>{const m={};L.forEach(r=>{if(r[k])m[r[k]]=(m[r[k]]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1])};
+    const lab=(a,k)=>(a.find(x=>x[0]===k)||['',k])[1];
+    const wbs=L.filter(r=>r.wb&&r.wa),drop=wbs.filter(r=>r.wa<r.wb).length;
+    const early=L.slice(0,Math.ceil(L.length/2)).filter(r=>r.wb),late=L.slice(Math.ceil(L.length/2)).filter(r=>r.wb);
+    const avg=a=>a.length?a.reduce((s,r)=>s+r.wb,0)/a.length:0;
+    const md=cnt('md'),od=cnt('od'),sh=L.filter(r=>r.shadow),shy=sh.filter(r=>r.shadow==='yes').length,pl=L.filter(r=>r.plan==='yes'||r.plan==='some').length;
+    const out=[];
+    out.push(`<div>🤺 <b>${L.length}</b> real bout${L.length>1?'s':''} checked. Every one makes you a smarter fencer.</div>`);
+    if(md.length)out.push(`<div>🔍 What you do most in real bouts: <b>${lab(ME,md[0][0])}</b> (${md[0][1]} of ${L.filter(r=>r.md).length})${md[0][0]==='froze'?'. Next time pick ANY move, even a small step back, instead of waiting.':''}</div>`);
+    if(od.length)out.push(`<div>👀 What opponents do most against you: <b>${lab(OPP,od[0][0])}</b>. Practise your answer to that in Piste Duel and Boss Bouts.</div>`);
+    if(sh.length)out.push(`<div>🥷 Shadow's game habit showed up in real bouts <b>${shy} of ${sh.length}</b> times${shy?'. Your game habits ARE your real habits, so training against Shadow counts!':'. Keep watching for it.'}</div>`);
+    if(L.filter(r=>r.plan).length)out.push(`<div>🎯 You used your plan in <b>${pl} of ${L.filter(r=>r.plan).length}</b> bouts.</div>`);
+    if(wbs.length)out.push(`<div>💛 Your worry went DOWN during <b>${drop} of ${wbs.length}</b> bouts. Proof that once you start fencing, the nerves shrink.</div>`);
+    if(early.length>=2&&late.length>=2&&avg(late)<avg(early))out.push(`<div>📉 Your worry before bouts is getting smaller over time. That's courage growing!</div>`);
+    const goods=L.filter(r=>r.good).slice(-3).reverse();
+    if(goods.length)out.push(`<div style="margin-top:6px"><b>⭐ Brave things you did</b><ul>${goods.map(r=>`<li>${E(r.good)} <span class="small">(${r.d})</span></li>`).join('')}</ul></div>`);
+    const fixes=L.filter(r=>r.fix).slice(-3).reverse();
+    if(fixes.length)out.push(`<div><b>🔧 Your own fixes to practise</b><ul>${fixes.map(r=>`<li>${E(r.fix)}</li>`).join('')}</ul></div>`);
+    $('bvSum').innerHTML=`<div style="font-size:16px;line-height:1.6">${out.join('')}</div>`}
+
+  document.querySelectorAll('[data-gobv]').forEach(a=>a.onclick=e=>{e.preventDefault();goTo(a.dataset.gobv)});
+  document.querySelector('#nav [data-s="brave"]').addEventListener('click',render);
+  render();
+})();
 </script>
 </body>
 </html>
