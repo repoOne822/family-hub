@@ -157,7 +157,7 @@ function lesson(i, step, mode) {
   if (step === 3) examples(i, 0);
   if (step === 4) {
     app.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { if (!b.disabled) lesson(i, 4, b.dataset.m); });
-    if (mode === "test") testRun({ title: `📝 Unit ${l.unit} test: ${l.title}`, qs: shuffle([...l.pr, ...l.ch, ...l.tq]).slice(0, 10).map(q => mix(Object.assign({ t: l.id }, q))), secs: 15 * 60, box: $("#play"), done: res => {
+    if (mode === "test") testRun({ title: `📝 Unit ${l.unit} test: ${l.title}`, qs: (() => { const fixed = shuffle([...l.pr, ...l.ch, ...l.tq]); if (!window.PHY_GEN || !PHY_GEN.setSeen) return fixed.slice(0, 10).map(q => mix(Object.assign({ t: l.id }, q))); const seen = {}, gen = [], used = new Set(); for (let k = 0; k < 30 && gen.length < 5; k++) { PHY_GEN.setSeen(seen); const g = PHY_GEN.make(l.id, Math.max(3, AD ? AD.level(l.id) : 3)); if (g && !used.has(g.q)) { used.add(g.q); seen[g.angle] = (seen[g.angle] || 0) + 1; gen.push(g); } } return shuffle([...fixed.slice(0, 10 - gen.length), ...gen]).map(q => mix(Object.assign({ t: l.id }, q))); })(), secs: 15 * 60, box: $("#play"), done: res => {
       const t = P.tests[l.id] = P.tests[l.id] || { best: 0, of: res.of, log: [] }; t.last = res.score; t.of = res.of; t.date = today; t.best = Math.max(t.best, res.score); t.log.push({ date: today, score: res.score, secs: res.secs }); save(); } });
     else if (mode === "endless") endless(i);
     else practice(i, mode);
@@ -167,22 +167,26 @@ function lesson(i, step, mode) {
 // ---- ♾️ Endless: one problem after another at his level; level moves up/down, misses come back, no recent repeats ----
 function endless(i) {
   const l = LES[i], box = $("#play"); let n = 0, stars = 0;
+  P.angles = P.angles || {}; P.angOk = P.angOk || {}; const AS = P.angles[l.id] = P.angles[l.id] || {}, AO = P.angOk[l.id] = P.angOk[l.id] || {};
+  const AN = PHY_GEN.ANAME || {}, unitAngles = PHY_GEN.ANGLES ? PHY_GEN.ANGLES.filter(a => (PHY_GEN.U[l.id] || []).some(t => t.angle === a)) : [];
+  const coverage = () => unitAngles.length ? `<div class="sub" style="margin-top:10px;line-height:1.9">🧭 <b>Angles on ${esc(l.title)}</b> (${unitAngles.filter(a => AO[a]).length}/${unitAngles.length} mastered): ${unitAngles.map(a => `<span style="display:inline-block;padding:1px 8px;border-radius:999px;margin:2px;border:1.5px solid #16161d;background:${AO[a] >= 3 ? "#bbf7d0" : AO[a] ? "#fef3c7" : (AS[a] ? "#fee2e2" : "#fff")}">${AN[a] || a}${AS[a] ? ` ${AO[a] || 0}/${AS[a]}` : ""}</span>`).join("")}<br><span style="opacity:.7">Green = 3+ right on the first try · yellow = started · red = tried, not yet right</span></div>` : "";
   const own = [...l.pr.map(q => ({ ...q, lv: 2 })), ...l.ch.map(q => ({ ...q, lv: 5 })), ...(l.tq || []).map(q => ({ ...q, lv: 3 }))];
   const nextQ = () => { const lv = AD.level(l.id);
     if (own.length && Math.random() < 0.25) { const q = AD.pick(l.id, own, x => x.q, x => x.lv); if (q) return mix(q); }
+    if (PHY_GEN.setSeen) PHY_GEN.setSeen(AS);
     return AD.next(l.id, (lvl, item) => PHY_GEN.make(l.id, lvl, item), q => q.q) || mix(own[Math.floor(Math.random() * own.length)]); };
   const draw = () => {
-    const q = nextQ(); let tries = 0; const t0 = Date.now(); n++;
-    box.innerHTML = `<div class="card"><div class="sub">♾️ Problem ${n} · <b>Level ${AD.level(l.id)}/5 ${LVN[AD.level(l.id)]}</b> · ⭐ ${stars}${q._review ? " · 🔁 one you missed earlier" : ""}</div><div class="q" style="margin-top:6px">${esc(q.q)}</div>
+    const q = nextQ(); let tries = 0; const t0 = Date.now(); n++; if (q.angle) { AS[q.angle] = (AS[q.angle] || 0) + 1; save(); }
+    box.innerHTML = `<div class="card"><div class="sub">♾️ Problem ${n} · <b>Level ${AD.level(l.id)}/5 ${LVN[AD.level(l.id)]}</b> · ⭐ ${stars}${q.angle ? ` · <b>${AN[q.angle] || q.angle}</b>` : ""}${q._review ? " · 🔁 one you missed earlier" : ""}</div><div class="q" style="margin-top:6px">${esc(q.q)}</div>
       <div class="ch">${q.c.map((c, j) => `<button data-c="${j}"><span class="L">${LET[j]}</span><span>${esc(c)}</span></button>`).join("")}</div><div id="fb"></div>
-      <div class="row"><button class="btn" id="stopE">🏁 Stop</button></div></div>`;
+      <div class="row"><button class="btn" id="stopE">🏁 Stop</button></div>${coverage()}</div>`;
     $("#stopE").onclick = () => lesson(i, 4, "endless");
     box.querySelectorAll("[data-c]").forEach(b => b.onclick = () => {
       const j = +b.dataset.c, fb = $("#fb"); tries++; const secs = Math.round((Date.now() - t0) / 1000);
       const done = (ok, first) => { track({ t: l.id, m: "endless", ok: first, first, secs, q: q.q });
         const mv = AD.record(l.id, ok, { firstTry: first, slow: secs > 180, key: q.q, mkey: q.tid || null, item: q.tid ? { tid: q.tid } : null }); return mv; };
       if (j === q.a) {
-        const first = tries === 1; if (first) stars++; const mv = done(true, first);
+        const first = tries === 1; if (first) { stars++; if (q.angle) { AO[q.angle] = (AO[q.angle] || 0) + 1; save(); } } const mv = done(true, first);
         b.classList.add("right"); box.querySelectorAll("[data-c]").forEach(x => x.disabled = true);
         fb.innerHTML = `<div class="fb ok">${first ? "✅ Yes!" : "✅ Got it on the second try."} ${esc(q.why || "")}</div>${mv.moved > 0 ? `<div class="fb ok">⬆️ <b>Level up!</b> Now Level ${mv.lv}/5 (${LVN[mv.lv]}). Harder problems are coming.</div>` : ""}<div class="row"><span class="spacer"></span><button class="btn go" id="nq">Next →</button></div>`;
         $("#nq").onclick = draw;
