@@ -294,11 +294,18 @@ const TRAITS = { eric: [
   ["finish", "✅ Finished what he started (didn't drop it for a new thing)", "✅ 做完手头的事（没被新事打断就忘）"],
   ["pause", "⏸️ Paused before acting or asking", "⏸️ 行动或提问前先停一下"],
   ["conseq", "🔮 Thought about consequences first", "🔮 先想后果再做"] ] };
+// Eric rates himself in his daily tap-in (first-person wording); parents don't rate (Bobby, 11/21). Parent rows stay off.
+const PARENT_TRAITS = false;
+const KID_TRAITS = { eric: [
+  ["mem", "🎒 I remembered my stuff and my chores", "🎒 我记得自己的东西和家务"],
+  ["finish", "✅ I finished what I started", "✅ 我把开始的事做完了"],
+  ["pause", "⏸️ I stopped and thought before doing or asking", "⏸️ 做事或提问前我先停下来想了想"],
+  ["conseq", "🔮 I thought about what could happen first", "🔮 我先想了会发生什么"] ] };
 const TRAIT_HABITS = { eric: ["eric-planner", "eric-chunk", "eric-launchpad", "eric-lookback"] };
 function behaviorPanel(kid) {
   const tr = TRAITS[kid]; if (!tr) return "";
   const zh = lang === "zh", days = []; for (let i = 13; i >= 0; i--) days.push(daysAgo(i));
-  const ck = d => (S.checkins.find(c => c.kid === kid && c.date === d) || {}).traits || {};
+  const ck = d => { const c = S.checkins.find(c => c.kid === kid && c.date === d) || {}; return c.kid_traits || (PARENT_TRAITS ? c.traits : null) || {}; };
   const pct = (key, from, to) => { const v = days.slice(from, to).map(d => ck(d)[key]).filter(x => x === 0 || x === 1 || x === 2); return v.length ? { p: Math.round(50 * v.reduce((a, b) => a + b, 0) / v.length), n: v.length } : null; };
   const dot = v => `<span title="${v ?? "—"}" style="display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:2px;background:${v === 2 ? "var(--pos)" : v === 1 ? "#e8b84a" : v === 0 ? "var(--neg)" : "var(--line)"}"></span>`;
   const rows = tr.map(([key, en, z]) => { const now = pct(key, 7, 14), was = pct(key, 0, 7), arrow = now && was ? (now.p > was.p + 5 ? " ↑" : now.p < was.p - 5 ? " ↓" : " →") : "";
@@ -313,7 +320,7 @@ function behaviorPanel(kid) {
   const mm = S.metrics.find(m => m.id === `${kid}-missing`), mr = mm ? S.readings.filter(r => r.metric === mm.id).sort((a, b) => b.date.localeCompare(a.date))[0] : null;
   const rated = days.filter(d => Object.keys(ck(d)).length).length;
   return `<div class="goals"><h4>🧭 ${zh ? "行为追踪 · 14天" : "Behavior tracker · 14 days"}</h4>
-    <div class="meta" style="margin:-4px 0 4px">${zh ? `你在每日快速打卡里点（✅ 是 · 〰 有时 · ✗ 没有）。已记录 ${rated}/14 天。百分比 = 最近7天。` : `You tap these in the daily Quick check-in (✅ yes · 〰 sometimes · ✗ not today). Rated ${rated}/14 days. % = last 7 days.`}</div>${rows}
+    <div class="meta" style="margin:-4px 0 4px">${zh ? `${esc(kidName(kid))} 每天打卡时给自己打分（😀 做到了 · 😐 有一点 · 😕 今天没有）。已记录 ${rated}/14 天。百分比 = 最近7天。` : `${esc(kidName(kid))} rates himself each day when he taps in (😀 yes · 😐 sort of · 😕 not today). Rated ${rated}/14 days. % = last 7 days.`}</div>${rows}
     <div class="cats" style="margin-top:8px">${pace || `<span class="meta">${zh ? "应用里还没有足够的答题数据" : "Not enough app answers yet"}</span>`}</div>
     <div class="cats" style="margin-top:6px">${hab}${mm ? `<span class="chip">📋 ${zh ? "缺交作业" : "Missing work"} <b>${mr ? +mr.value : "—"}</b>${mr ? ` <span class="meta">${fmtDate(mr.date)}</span>` : ""}</span>` : ""}</div></div>`;
 }
@@ -336,7 +343,7 @@ function quickRender() {
         <div class="stepper"><button type="button" data-q="${k.id}" data-step="-1">−</button><span class="v">${st.done == null ? "?" : st.done} / ${st.planned}</span><button type="button" data-q="${k.id}" data-step="1">+</button><button type="button" class="btn sm ghost" data-q="${k.id}" data-all="1">${T().allDone}</button><button type="button" class="btn sm ghost" data-q="${k.id}" data-plan="1">${T().planPm}</button></div>
         ${st.more ? `<label>${T().focus}</label>${r5("focus", st.focus)}<label>${T().behavior}</label>${r5("behavior", st.behavior)}<label>${T().effort}</label>${r5("effort", st.effort)}` : `<label>${T().dayOverall}</label>${r5("day", st.day)}`}
       </div>
-      ${TRAITS[k.id] ? `<div class="qtraits" style="margin-top:10px"><label style="font-weight:600">🧭 ${lang === "zh" ? "今天的行为" : "Today's behaviors"}</label>${TRAITS[k.id].map(([key, en, z]) => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:5px 0;flex-wrap:wrap"><span style="font-size:14px">${lang === "zh" ? z : en}</span><span class="rate" style="max-width:170px">${[[2, "✅"], [1, "〰"], [0, "✗"]].map(([n, ic]) => `<button type="button" class="${st.traits[key] === n ? "on" : ""}" data-q="${k.id}" data-trait="${key}" data-n="${n}">${ic}</button>`).join("")}</span></div>`).join("")}</div>` : ""}
+      ${PARENT_TRAITS && TRAITS[k.id] ? `<div class="qtraits" style="margin-top:10px"><label style="font-weight:600">🧭 ${lang === "zh" ? "今天的行为" : "Today's behaviors"}</label>${TRAITS[k.id].map(([key, en, z]) => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:5px 0;flex-wrap:wrap"><span style="font-size:14px">${lang === "zh" ? z : en}</span><span class="rate" style="max-width:170px">${[[2, "✅"], [1, "〰"], [0, "✗"]].map(([n, ic]) => `<button type="button" class="${st.traits[key] === n ? "on" : ""}" data-q="${k.id}" data-trait="${key}" data-n="${n}">${ic}</button>`).join("")}</span></div>`).join("")}</div>` : ""}
       <button type="button" class="qmore" data-q="${k.id}" data-more="1">${st.more ? T().useOverall : T().rateSeparately}</button>
       <input style="margin-top:10px" placeholder="${T().noteOpt}" maxlength="200" data-q="${k.id}" data-note="1" value="${esc(st.note)}"></div>`;
   }).join("");
@@ -363,7 +370,7 @@ $("#quickSave").onclick = async () => {
       if (st.done == null && !rated && !st.note && !hasTraits) continue;
       const f = st.more ? { focus: st.focus, behavior: st.behavior, effort: st.effort } : { focus: st.day, behavior: st.day, effort: st.day };
       const core = (st.done == null && !rated && !st.note) ? {} : { planned: st.planned, done: st.done ?? 0, ...f }; // behaviors only → don't touch study/ratings
-      await upsert("checkins", { kid: k.id, date: d, ...core, ...(TRAITS[k.id] ? { traits: hasTraits ? st.traits : null } : {}), ...(core.planned != null || st.note ? { note: st.note.trim() } : {}), updated_at: new Date().toISOString() }, "kid,date");
+      await upsert("checkins", { kid: k.id, date: d, ...core, ...(PARENT_TRAITS && TRAITS[k.id] ? { traits: hasTraits ? st.traits : null } : {}), ...(core.planned != null || st.note ? { note: st.note.trim() } : {}), updated_at: new Date().toISOString() }, "kid,date");
     }
     $("#quickMode").classList.remove("open"); await refresh(); setStatus(T().saved); setTimeout(() => setStatus(""), 2500);
   } catch (err) { $("#qErr").textContent = err.message || "Save failed"; }
@@ -1387,7 +1394,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121u3${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261121u4${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
@@ -1924,17 +1931,25 @@ function kidRender() {
 }
 function kidTapIn() {
   const t = T(), k = S.kids[0], d = today(), ms = S.metrics.filter(m => m.type === "rate");
-  kidTap = { mood: S.moods.find(m => m.date === d)?.kid_mood || null, counts: {} };
+  kidTap = { mood: S.moods.find(m => m.date === d)?.kid_mood || null, counts: {}, traits: {} };
+  const kt = KID_TRAITS[k.id];
   ms.forEach(m => { const r = S.readings.find(r => r.metric === m.id && r.date === d); kidTap.counts[m.id] = r ? +r.value : 0; });
   $("#kidMode").classList.add("open");
   const el = $("#kidStage");
   const face = () => { el.innerHTML = `<h2>${t.howWasToday(esc(kidName(k.id)))}</h2><div class="bigfaces">${FACES.map((f, i) => `<button data-n="${i + 1}" class="${kidTap.mood === i + 1 ? "on" : ""}" aria-label="${t.faces[i]}">${f}</button>`).join("")}</div>`;
-    el.querySelectorAll("[data-n]").forEach(b => b.onclick = () => { kidTap.mood = +b.dataset.n; b.classList.add("on"); setTimeout(ms.length ? did : save, 180); }); };
+    el.querySelectorAll("[data-n]").forEach(b => b.onclick = () => { kidTap.mood = +b.dataset.n; b.classList.add("on"); setTimeout(kt ? rate : ms.length ? did : save, 180); }); };
+  // rate myself: honest answers are the point, so there are no points for picking 😀
+  const rate = () => { const zh = lang === "zh"; el.innerHTML = `<h2>${zh ? "今天你做得怎么样？" : "How did you do today?"}</h2><div class="meta" style="text-align:center;margin-top:-10px;margin-bottom:12px">${zh ? "说实话就好，没有对错。" : "Be honest. There's no wrong answer."}</div>
+    ${kt.map(([key, en, z]) => `<div style="margin:10px 0"><div style="font-weight:600;margin-bottom:6px">${zh ? z : en}</div><div class="chips">${[[2, "😀", zh ? "做到了" : "Yes"], [1, "😐", zh ? "有一点" : "Sort of"], [0, "😕", zh ? "今天没有" : "Not today"]].map(([n, f, l]) => `<button class="chipbtn ${kidTap.traits[key] === n ? "on" : ""}" data-tr="${key}" data-n="${n}"><span>${f}</span> ${l}</button>`).join("")}</div></div>`).join("")}
+    <div style="text-align:center;margin-top:14px"><button class="btn primary" id="kidRateNext">${zh ? "下一步" : "Next"} →</button></div>`;
+    el.querySelectorAll("[data-tr]").forEach(b => b.onclick = () => { const key = b.dataset.tr, n = +b.dataset.n; if (kidTap.traits[key] === n) delete kidTap.traits[key]; else kidTap.traits[key] = n; rate(); });
+    $("#kidRateNext").onclick = () => (ms.length ? did() : save()); };
   const did = () => { el.innerHTML = `<h2>${t.whatDidYouDo}</h2><div class="meta" style="text-align:center;margin-top:-10px;margin-bottom:12px">${t.tapAll}</div><div class="chips">${ms.map(m => { const n = kidTap.counts[m.id] || 0, mx = m.kid_max || 1; return `<button class="chipbtn ${n ? "on" : ""}" data-m="${esc(m.id)}"><span>${esc(mKidLabel(m))}</span><span class="ct">${n ? (mx > 1 ? "✓".repeat(n) : "✓") : ""}</span></button>`; }).join("")}</div><button class="go" id="kidSave">${t.doneBtn}</button>`;
     el.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { const m = ms.find(x => x.id === b.dataset.m), mx = m.kid_max || 1, n = kidTap.counts[m.id] || 0; kidTap.counts[m.id] = n >= mx ? 0 : n + 1; did(); });
     $("#kidSave").onclick = save; };
   const save = async () => { el.innerHTML = `<div class="thanks">⏳</div>`;
     if (preview) { el.innerHTML = `<div class="thanks">👀</div><h2>${t.previewNoSave}</h2>`; setTimeout(() => $("#kidMode").classList.remove("open"), 1600); return; }
+    if (kt && Object.keys(kidTap.traits).length) { const r = await sb.rpc("kid_self_rate", { p_date: d, p_traits: kidTap.traits }); if (r.error) console.warn("self-rate", r.error.message); }
     const { error } = await sb.rpc("kid_tapin", { p_date: d, p_mood: kidTap.mood, p_counts: kidTap.counts });
     if (error) { el.innerHTML = `<h2>${t.cantSave}</h2>`; return; }
     el.innerHTML = `<div class="thanks">🎉</div><h2>${t.thanks(esc(kidName(k.id)))}</h2>`; confetti();
