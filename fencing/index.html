@@ -1415,7 +1415,8 @@ const today=()=>new Date().toLocaleDateString('en-CA');
 const ptsOf=m=>state.msAmt[m[0]]!=null?state.msAmt[m[0]]:m[5];
 const reached=m=>m[6]?(()=>{const[p,g]=m[6]();return p>=g})():!!state.msOK[m[0]];
 function tierNow(){let t=0;for(let i=0;i<TIERS.length;i++){const ms=MSL.filter(m=>m[1]===i);if(ms.every(reached)&&i<TIERS.length-1)t=i+1;else break}return t}
-function tierUnlocked(i){return i<=tierNow()}
+const OPEN_TIERS=[1,2]; // Silver and Gold milestones are open from the start (no need to finish the tier below first)
+function tierUnlocked(i){return i<=tierNow()||OPEN_TIERS.includes(i)}
 function milestonePts(){return MSL.filter(m=>tierUnlocked(m[1])&&reached(m)).reduce((a,m)=>a+ptsOf(m),0)}
 function totalEarned(){return Math.min(SEASON_MAX,milestonePts()+state.practice)}
 // Practice points: base x tier multiplier, limited per day and per season
@@ -1454,8 +1455,8 @@ function renderMoney(){
   $('seasonTxt').textContent=`${earned} / ${SEASON_MAX} points  ·  $${(earned/100).toFixed(2)} of $20.00`;
   $('mEarned').innerHTML=$$(earned);$('mWait').innerHTML=$$(earned-state.cashed);$('mPaid').innerHTML=$$(state.cashed);$('mLeft').innerHTML=$$(SEASON_MAX-earned);
   $('ladder').innerHTML=TIERS.map((t,i)=>{const ms=MSL.filter(m=>m[1]===i),done=ms.filter(reached).length,pts=ms.reduce((a,m)=>a+ptsOf(m),0);
-    const state_=i<tn?'✅ Complete':i===tn?'⭐ You are here':'🔒 Locked';
-    return `<div class="rung ${i===tn?'here':''} ${i>tn?'lock':''}" style="background:${t.col}"><div class="e">${t.e}</div><b>${t.n}</b>
+    const open=i>tn&&OPEN_TIERS.includes(i),state_=i<tn?'✅ Complete':i===tn?'⭐ You are here':open?'🔓 Open now':'🔒 Locked';
+    return `<div class="rung ${i===tn?'here':''} ${i>tn&&!open?'lock':''}" style="background:${t.col}"><div class="e">${t.e}</div><b>${t.n}</b>
       <div class="small">${done}/${ms.length} milestones · ${pts} pts</div><div class="small"><b>${t.mult}x</b> practice · ${t.cap}/day</div><div class="small">${state_}</div></div>`}).join('');
   const dayP=state.pDay.d===today()?state.pDay.p:0;
   $('practiceBox').innerHTML=`<div><div class="pv">${T.e} ${T.mult}x</div><div class="small">your multiplier</div></div>
