@@ -1900,8 +1900,8 @@ function pdLevels(){
 const RDRILLS=[
  {id:'dist',i:'📏',n:'Distance game',d:'Partner moves back and forth. Stay exactly one lunge away with small steps. Attack only on "close!"'},
  {id:'stepback',i:'⬅️',n:'Step back, then hit back',d:'Partner lunges. One quick step back so it falls short, then hit them while they recover. 10 reps.'},
- {id:'arm',i:'🗡️',n:'Arm first',d:'10 slow arm extensions at a wall target, then 10 extend-then-lunge. Arm moves BEFORE the feet.'},
- {id:'stance',i:'🦘',n:'Springy en garde',d:'Bounce footwork for 2 minutes: knees bent, feet just a little wider than shoulders. Not tall, not super wide.'}
+ {id:'arm',i:'🗡️',n:'Straight thrust (直刺)',d:'10 slow arm extensions straight at a wall target, then 10 extend-then-lunge. Arm goes straight out FIRST, then the feet drive you in fast.'},
+ {id:'stance',i:'👣',n:'Smooth fast feet (coach)',d:'Coach: speed comes from the FEET. 2 minutes of connected steps forward/back, smooth and low, NO bouncing or floating. Finish with a straight thrust: arm straight to the target.'}
 ];
 function rdWeek(){const d=new Date(evoToday()+'T12:00:00');const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return d.toISOString().slice(0,10)}
 function rdState(){let r=store.get('rematchDrills',null);if(!r||r.wk!==rdWeek())r={wk:rdWeek(),done:{}};return r}
