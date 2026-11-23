@@ -414,6 +414,7 @@ body.duelfocus main{padding-top:6px}
 .pdlim{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0;padding:8px 12px;border:2px solid #16161d;border-radius:14px;background:#fff7ed;font-size:16px}
 .pdlimbar{flex:1;min-width:120px;height:10px;background:#fde68a;border-radius:99px;overflow:hidden}.pdlimbar i{display:block;height:100%;background:#f59e0b}
 .pdrest{text-align:center;background:linear-gradient(135deg,#e0e7ff,#fae8ff)!important;border:3px solid #16161d}
+.rdgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:6px}.rdrill{display:flex;flex-direction:column;gap:3px;text-align:left;padding:10px;border:3px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;font:inherit}.rdrill small{color:#444}.rdrill.on{background:#c8f7d0}
 </style>
 </head>
 <body>
@@ -1686,6 +1687,16 @@ const PTIERS=[
  ]}
 ];
 const ALLOPP={};PTIERS.forEach((T,ti)=>T.opps.forEach((o,i)=>{o.tier=ti;o.idx=i;o.hint=o.tips[0];ALLOPP[o.id]=o}));
+// ---------- 🎥 Tournament Rematch: opponents built from Ellis's real bout videos (MFA, 22 Nov 2026) ----------
+const REALOPP=[
+ {id:'rr_duck',e:'🦆',n:'Duck Dodger',style:'ducker',tier:0,win:10,t:12,tell:.85,learn:.4,wheel:.2,moves:['fwd','back','lunge','parry','counter','lure'],real:'Y10 table of 16 · you WON 10–9',
+  type:'Low ducker (from your real Y10 bout)',lesson:'Aim LOW and point the arm first',tips:['He drops into a deep crouch under high attacks, then hits back from below.','Attacks at his CHEST go over his head. Aim at the BELLY or FLANK.','Arm first, then the feet. Keep your knees bent; don\'t charge in standing tall.']},
+ {id:'rr_trap',e:'🕸️',n:'Distance Trap',style:'distance',tier:0,win:10,t:10,tell:.78,learn:.8,wheel:.4,reach:4,moves:['fwd','back','retreat','lure','lunge','parry','counter'],real:'Y10 quarter-final · lost 4–10 to the top seed',
+  type:'Patient distance controller (from your real Y10 quarter-final)',lesson:'Don\'t attack from too far. Make HIM move first',tips:['He waits relaxed, just out of your reach, to bait you into attacking from too far.','If your attack falls short, his long lunge comes straight back (it reaches distance 4!).','Creep in with small steps. Use a Fake or Lure to make him commit first, then step back and hit him on his recovery.']},
+ {id:'rr_lunge',e:'🏹',n:'Long Lunger',style:'press',tier:1,win:15,t:9,tell:.75,learn:.7,wheel:.4,reach:4,moves:['fwd','rhythm','lunge','back','parry','fake'],real:'Y12 table of 32 · lost 1–15 to the top seed',
+  type:'Older long-range attacker (from your real Y12 bout)',lesson:'One quick step back as the lunge starts, then hit back',tips:['She attacks with long, fast lunges from far away, again and again. Her lunge reaches distance 4.','Standing still at distance 4 = touch for her. STEP BACK the moment you see her coil.','Her lunge falls short, she\'s off-balance: ATTACK! Or Parry, then riposte.']}
+];
+REALOPP.forEach(o=>{o.idx=0;o.hint=o.tips[0];ALLOPP[o.id]=o});
 // tactical wheel: which of HIS actions beats YOUR habit
 const BEATS={line:'beat',compound:'counter',ctime:'fake',second:'counter',fleche:'line',remise:'lunge',lunge:'parry',parry:'fake',fake:'counter',counter:'lure',lure:'rhythm',rhythm:'counter',fwd:'counter',back:'fwd',retreat:'lunge',beat:'back',read:'lunge'};
 // FOIL: valid target = torso only. Lines: high (chest, parry 4), out (flank, parry 6), low (belly, parry 8)
@@ -1874,7 +1885,7 @@ function pdLevels(){
   if(!pdAmcOk()){$('pdLevels').innerHTML=pdAmcLock();$('pdLevels').querySelectorAll('[data-go2]').forEach(b=>b.onclick=()=>goTo(b.dataset.go2));
     $('pdToAmc').onclick=()=>{try{if(window.parent&&window.parent!==window&&window.parent.fhOpenApp){window.parent.fhOpenApp('amc/','ellis');return}}catch(e){}toast('Go back (top left) and open 🧩 AMC 8')};return}
   if(!PD_PARENT&&pdLeft()<=0){$('pdLevels').innerHTML=pdLimitBanner();$('pdLevels').querySelectorAll('[data-go2]').forEach(b=>b.onclick=()=>goTo(b.dataset.go2));return}
-  $('pdLevels').innerHTML=pdLimitBanner()+rivalCard()+PTIERS.map((T,ti)=>{const tOpen=lv>=T.req&&(ti===0||state.pdWins[PTIERS[ti-1].opps.slice(-1)[0].id]);
+  $('pdLevels').innerHTML=pdLimitBanner()+rivalCard()+realCard()+PTIERS.map((T,ti)=>{const tOpen=lv>=T.req&&(ti===0||state.pdWins[PTIERS[ti-1].opps.slice(-1)[0].id]);
     const champ=state.pdWins[T.opps.slice(-1)[0].id];
     return `<div class="tier" style="background:${T.col}"><div class="tierh"><b>${T.n}</b> <span class="small">${T.sub}</span>${champ?' 🏆 Champion!':''}${tOpen?'':` <span class="tagd close">🔒 Fencer Lv ${T.req}${ti?' + beat the '+PTIERS[ti-1].n+' champion':''}</span>`}</div>
     <div class="bosses">${T.opps.map((o,i)=>{const open=tOpen&&(i===0||state.pdWins[T.opps[i-1].id]),won=state.pdWins[o.id];
@@ -1883,6 +1894,30 @@ function pdLevels(){
         <div class="small">${open||won?`${o.type}<br>First to ${o.win} · ⏱️ ${o.t}s`:''}<br>${won?'✅ Won':''}</div></button>`}).join('')}</div></div>`}).join('');
   $('pdLevels').querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{if(!b.disabled)pdScout(b.dataset.o)});
   if($('rvGo'))$('rvGo').onclick=()=>{ALLOPP.rival=rivalOpp();pdScout('rival')};
+  realWire();
+}
+// ---------- 🎥 Tournament Rematch card + this week's drills (from the 22 Nov video review) ----------
+const RDRILLS=[
+ {id:'dist',i:'📏',n:'Distance game',d:'Partner moves back and forth. Stay exactly one lunge away with small steps. Attack only on "close!"'},
+ {id:'stepback',i:'⬅️',n:'Step back, then hit back',d:'Partner lunges. One quick step back so it falls short, then hit them while they recover. 10 reps.'},
+ {id:'arm',i:'🗡️',n:'Arm first',d:'10 slow arm extensions at a wall target, then 10 extend-then-lunge. Arm moves BEFORE the feet.'},
+ {id:'stance',i:'🦘',n:'Springy en garde',d:'Bounce footwork for 2 minutes: knees bent, feet just a little wider than shoulders. Not tall, not super wide.'}
+];
+function rdWeek(){const d=new Date(evoToday()+'T12:00:00');const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return d.toISOString().slice(0,10)}
+function rdState(){let r=store.get('rematchDrills',null);if(!r||r.wk!==rdWeek())r={wk:rdWeek(),done:{}};return r}
+function realCard(){
+  const r=rdState(),today=evoToday(),cnt=id=>Object.keys(r.done).filter(k=>k.endsWith('|'+id)).length;
+  return `<div class="tier" style="background:#e9f7ec"><div class="tierh"><b>🎥 Tournament Rematch</b> <span class="small">Opponents built from YOUR real bout videos (22 Nov). Always open.</span></div>
+   <div class="bosses">${REALOPP.map(o=>{const won=state.pdWins[o.id];return `<button class="bosscard ${won?'won':''}" data-o="${o.id}">
+     <div class="small"><b>${o.real}</b></div><div class="e">${o.e}</div><b>${o.n}</b><div class="small">${o.type}<br>🎯 ${o.lesson}<br>First to ${o.win} · ⏱️ ${o.t}s${won?'<br>✅ Beaten':''}</div></button>`}).join('')}</div>
+   <div style="margin-top:10px"><b>🏋️ This week's real-life drills</b> <span class="small">Tap when you do one today (+10 XP). Coach Hoot's goal: each drill 3 days this week.</span>
+   <div class="rdgrid">${RDRILLS.map(x=>{const on=!!r.done[today+'|'+x.id],c=cnt(x.id);return `<button class="rdrill ${on?'on':''}" data-rd="${x.id}"><span style="font-size:24px">${x.i}</span><b>${x.n}</b><small>${x.d}</small><span class="small">${on?'✅ Done today':'Tap when done'} · ${c}/3 this week${c>=3?' 🌟':''}</span></button>`}).join('')}</div></div></div>`;
+}
+function realWire(){
+  document.querySelectorAll('#pdLevels [data-rd]').forEach(b=>b.onclick=()=>{const r=rdState(),k=evoToday()+'|'+b.dataset.rd;
+    if(r.done[k]){delete r.done[k];store.set('rematchDrills',r);pdLevels();return}
+    r.done[k]=1;store.set('rematchDrills',r);addXP(10,'Real-life drill');
+    const c=Object.keys(r.done).filter(x=>x.endsWith('|'+b.dataset.rd)).length;toast(c>=3?'🌟 3 days this week: that drill is becoming a habit!':'💪 Drill logged. Real practice builds real skill!');pdLevels()});
 }
 function pdSkip(t){
   const lvl=t===1?11:14,ids=PTIERS.slice(0,t).flatMap(T=>T.opps.map(o=>o.id));
@@ -1957,12 +1992,16 @@ function pdAI(){
   else{w.back=4;w.retreat=1;w.parry=1}
   if(L.tier>=1){if(d>=3&&d<=4)w.line+=1;if(d>=2&&d<=3)w.compound+=1.6}
   if(L.tier>=2){if(d>=3&&d<=4){w.ctime+=1;w.second+=1.2;w.fleche+=1}}
-  if(PD.vulE&&d>=2&&d<=3)w.lunge+=8;
+  const oReach=L.champ?L.champ.reach:(L.reach||3);
+  if(PD.vulE&&d>=2&&d<=Math.max(3,oReach))w.lunge+=8;
+  if(oReach>=4&&d===4&&st!=='distance')w.lunge+=3;            // long lunger attacks from distance 4
+  if(st==='distance'&&!PD.vulE&&(d===3||d===4)){w.back+=2.5;w.lure+=2;w.lunge*=.4} // stays just out of reach, baits the short attack
+  if(st==='ducker'&&d>=2&&d<=3){w.counter+=2;w.lure+=.8}
   if(PD.vulO){w.back=0;w.retreat=0;w.fwd=0;w.rhythm=0;w.parry+=2;w.lunge*=.3}
   const MUL={press:{fwd:3,rhythm:2,lunge:2.5,back:.15,retreat:.15},runner:{back:3.5,retreat:2,parry:1.5,fwd:.25,lunge:.5},
     wall:{parry:3.5,back:2,lunge:.4,fwd:.5},trapper:{lure:3,counter:3,retreat:2,fwd:.4},bluff:{fake:3,lure:2,beat:1.5},
     blade:{beat:3.5,fake:1.5,compound:2,line:1.5},hawk:{counter:4,parry:1.5,fwd:.6},second:{fake:2.5,lure:2.2,retreat:1.8,parry:2,counter:1.5,second:3.5,ctime:1.5},
-    grizzly:{fwd:3,rhythm:3,lunge:2.5,beat:1.5,back:.2,fleche:3},cobra:{parry:3.5,back:1.5,retreat:2,lure:1.5,fwd:.4,line:3,ctime:2},wheel:{},mixed:{}}[st]||{};
+    grizzly:{fwd:3,rhythm:3,lunge:2.5,beat:1.5,back:.2,fleche:3},ducker:{counter:3,lure:1.5,lunge:1.2,parry:1,fwd:.8},distance:{lure:2.5,retreat:2,back:1.5,counter:1.5,fwd:.6,lunge:.8},cobra:{parry:3.5,back:1.5,retreat:2,lure:1.5,fwd:.4,line:3,ctime:2},wheel:{},mixed:{}}[st]||{};
   Object.keys(MUL).forEach(k=>w[k]*=MUL[k]);
   if(L.focus&&L.focus.length)L.focus.forEach(k=>{if(w[k]>0)w[k]+=2.5}); // Shadow: practise today's weak spots
   // strip awareness: corner him at the end; don't back off your own end
@@ -2074,7 +2113,7 @@ function pdThink(H){
   const L=PD.L,d=D();
   const allow=(L.moves==='all'?Object.keys(PD_ACTS).filter(k=>k!=='read'&&k!=='remise'&&(PD_ACTS[k].tier||0)<=L.tier):L.moves).filter(k=>TELL[k]);
   const eActs=Object.keys(PD_ACTS).filter(unlocked);if(!eActs.length||!allow.length)return null;
-  const S={lineE:PD.lastE==='line',lineO:PD.lastO==='line',oR:L.champ?L.champ.reach:3,me:PD.me,op:PD.op,vulE:PD.vulE,vulO:PD.vulO,vulEWhy:PD.vulEWhy,vulOWhy:PD.vulOWhy,pline:pdFavLine()||PD.pline,pcirc:PD.pcirc,det:true};
+  const S={lineE:PD.lastE==='line',lineO:PD.lastO==='line',oR:L.champ?L.champ.reach:(L.reach||3),duck:L.style==='ducker',me:PD.me,op:PD.op,vulE:PD.vulE,vulO:PD.vulO,vulEWhy:PD.vulEWhy,vulOWhy:PD.vulOWhy,pline:pdFavLine()||PD.pline,pcirc:PD.pcirc,det:true};
   const th=PD.tgtHist.slice(-8),tg={chest:.5,flank:.5,belly:.5,dis:.5};th.forEach(t=>tg[t]+=1);const tt=Object.values(tg).reduce((a,b)=>a+b,0);
   const val=r=>r.pt==='O'?10:r.pt==='E'?-10:-r.grade*3;
   const pay={};allow.forEach(o=>{pay[o]={};eActs.forEach(e=>{
@@ -2185,6 +2224,7 @@ function pdResolve(e,o,S){
   else if(eL){
     if(shortE){nvE=true;grade=-1;why=o==='back'||o==='retreat'?`He stepped back and your attack fell short. Now you\'re off-balance!`:o==='lure'?'🪤 He LURED you! He swayed back and your attack fell short. You\'re off-balance.':'Too far! Your attack fell short and you\'re off-balance.';fxT='SHORT!';fxG=false}
     else if(d<2){why='Too close. You got jammed.';fxT='JAMMED'}
+    else if(S.duck&&(S.atk||'chest')==='chest'&&['counter','lure','fwd'].includes(o)){pt='O';grade=-2;fxG=false;fxT='DUCKED!';why='🦆 He DUCKED under your chest attack and hit you from below! Against a ducker, aim LOW: belly or flank.'}
     else if(o==='parry'&&!vO&&(S.atk==='dis'?S.pcirc:TGT[S.atk||'chest'].line===S.pline)){nvE=true;nvEWhy='parried';grade=-1;fxT='CLANG!';fxG=false;
       why=S.atk==='dis'?'🌀 He made a COUNTER-PARRY (a circle) and caught your disengage! Against circle parries, attack direct to the open line.':`🛡️ He PARRIED in ${LINE[S.pline]}, right where you aimed. Look at his guard and hit a DIFFERENT line!`}
     else if(!S.det&&S.offRoll<TGT[S.atk||'chest'].off*(hasPerk('sharp')?.15:1)){grade=0;fxT='WHITE LIGHT';fxG=false;call='⚪ Off-target (white light). Halt, no touch.';
@@ -2318,7 +2358,7 @@ function pdChoose(e,tgt){
     else if(e==='lunge'&&o==='parry'&&PD.atk&&PD.atk!=='dis'&&TGT[PD.atk].line!==PD.pline){PD.pline=TGT[PD.atk].line;PD.champNote='⚡ Champion reflexes! He moved his parry to your line.'}
     else if(e==='lunge'&&o==='parry'&&PD.atk==='dis'&&!PD.pcirc){PD.pcirc=true;PD.champNote='⚡ Champion reflexes! He circled his parry and caught your disengage.'}
   }
-  const S={lineE:PD.lastE==='line',lineO:PD.lastO==='line',oR:PD.L.champ?PD.L.champ.reach:3,me:PD.me,op:PD.op,vulE:PD.vulE,vulO:PD.vulO,vulEWhy:PD.vulEWhy,vulOWhy:PD.vulOWhy,atk:PD.atk,pline:PD.pline,pcirc:PD.pcirc,offRoll:Math.random()};
+  const S={lineE:PD.lastE==='line',lineO:PD.lastO==='line',oR:PD.L.champ?PD.L.champ.reach:(PD.L.reach||3),duck:PD.L.style==='ducker',me:PD.me,op:PD.op,vulE:PD.vulE,vulO:PD.vulO,vulEWhy:PD.vulEWhy,vulOWhy:PD.vulOWhy,atk:PD.atk,pline:PD.pline,pcirc:PD.pcirc,offRoll:Math.random()};
   let {me,op,d,pt,why,nvE,nvO,grade,fxT,fxG,nE,nO,call,nvEWhy,nvOWhy}=pdResolve(e,o,S);
   if(PD.atk)nE+=' → '+TGT[PD.atk].n;
   PD.me=me;PD.op=op;
@@ -2349,7 +2389,7 @@ function pdPoint(w){
   if(PD.score[0]>=PD.L.win||PD.score[1]>=PD.L.win)return pdLater(pdEnd,1800);
   pdLater(pdReset,3200);
 }
-function pdNextOpp(id){const o=ALLOPP[id],T=PTIERS[o.tier];if(o.rival)return null;
+function pdNextOpp(id){const o=ALLOPP[id],T=PTIERS[o.tier];if(o.rival||o.real)return null;
   if(o.idx<T.opps.length-1)return T.opps[o.idx+1];const N=PTIERS[o.tier+1];return N&&pdLv()>=N.req?N.opps[0]:null}
 let pdLossRun={id:null,n:0};
 function pdEnd(){
