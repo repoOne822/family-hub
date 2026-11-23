@@ -1116,9 +1116,18 @@ function renderJ(){
   $('jList').innerHTML=entries.slice().reverse().map(e=>`<div class="entry"><b>${e.d}</b><br>🪤 Created: ${esc(e.a)}<br>👀 Misread: ${esc(e.b)}<br>⚡ Next: ${esc(e.c)}${e.h?'<br>🏠 Retreat idea: '+esc(e.h):''}</div>`).join('');
 }
 function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+// ✏️ tap-to-start sentence starters (typing on a phone is slow; a starter gets him going)
+const J_START={j1:['I stepped back, then…','I faked, then…','I waited until he stopped, then…'],j2:['I attacked from too far','I didn\'t see his fake','I froze when he…'],j3:['Get closer first, then attack','Retreat FAST and parry','Use a fake to test him'],
+  j4:['Change my speed, then…','Stop suddenly and…'],p1:['Does he attack first?','Does he retreat a lot?','What does he do at the edge?'],p2:['slow, slow, FAST','step back to pull him in','fake first'],p3:['parry-riposte','attack when he stops','fake, then real attack']};
+Object.entries(J_START).forEach(([id,arr])=>{const el=$(id);if(!el)return;const d=document.createElement('div');d.className='jstart';d.style.margin='2px 0 4px';
+  d.innerHTML='<span class="small">✏️ Tap to start: </span>'+arr.map(t=>`<span class="chip" style="cursor:pointer" data-js="${esc(t).replace(/"/g,'&quot;')}">${esc(t)}</span>`).join('');
+  d.onclick=ev=>{const c=ev.target.closest('[data-js]');if(!c)return;const v=el.value.trim();el.value=(v?v+' ':'')+c.dataset.js+(c.dataset.js.endsWith('…')?' ':'');el.focus()};
+  el.insertAdjacentElement('afterend',d)});
+const jWords=t=>(t||'').trim().split(/\s+/).filter(w=>w.length>0).length;
 $('jSave').onclick=()=>{
   const e={d:$('jDate').value,a:$('j1').value.trim(),b:$('j2').value.trim(),c:$('j3').value.trim(),h:$('j4').value.trim()};
   if(!e.a&&!e.b&&!e.c){toast('Write at least one answer!');return}
+  if(Math.max(jWords(e.a),jWords(e.b),jWords(e.c))<3){toast('Add a few more words so future-you remembers! Tap a ✏️ starter to begin.');return}
   entries.push(e);store.set('entries',entries);state.journals++;addXP(20,'Journal saved!');practice(8,'Journal');
   ['j1','j2','j3','j4'].forEach(k=>$(k).value='');renderJ();
 };
@@ -2342,6 +2351,7 @@ function pdPoint(w){
 }
 function pdNextOpp(id){const o=ALLOPP[id],T=PTIERS[o.tier];if(o.rival)return null;
   if(o.idx<T.opps.length-1)return T.opps[o.idx+1];const N=PTIERS[o.tier+1];return N&&pdLv()>=N.req?N.opps[0]:null}
+let pdLossRun={id:null,n:0};
 function pdEnd(){
   perfDuel(true);store.set('pdModel',PDG);
   PD.over=true;clearInterval(pdTimerI);const won=PD.score[0]>=PD.L.win,o=PD.L,tierMul=o.tier+1;
@@ -2351,13 +2361,20 @@ function pdEnd(){
     addXP(first?20+10*tierMul:6+2*tierMul,'Duel won!');practice(4+3*tierMul,'Piste Duel');
     if(o.final&&first)setTimeout(()=>toast(`🏆 ${PTIERS[o.tier].n} CHAMPION!`),900)}
   else{pdGain(6*tierMul);addXP(4,'Good fight!');practice(3,'Piste Duel')}
+  if(won)pdLossRun={id:null,n:0};else pdLossRun=pdLossRun.id===o.id?{id:o.id,n:pdLossRun.n+1}:{id:o.id,n:1};
+  const frz=PD.hist.filter(h=>h.e==='freeze').length,pw=(()=>{try{return store.get('powerWord','')||'Next touch'}catch(e){return 'Next touch'}})();
+  const brave=won?'':`<div class="hoot" style="text-align:left;margin:8px 0"><div class="owl">🦉</div><div class="say">${pdLossRun.n>=3?`<b>${pdLossRun.n} tries in a row against ${o.n}. That's brave!</b> Every try teaches you how he fences.`:`<b>Tough bout, and you kept fencing to the end.</b>`}
+    ${frz>=3?`<div style="margin-top:4px">❄️ You froze ${frz} times. Next time pick ANY move, even a small step back. A choice beats waiting.</div>`:''}
+    <div style="margin-top:4px">🔁 Before the next bout: turn away, one big breath, say "<b>${esc(pw)}</b>", pick ONE thing to change (distance, speed or a fake).</div>
+    <div style="margin-top:6px"><a href="#" id="pdBrave">💪 Open Brave Mind</a></div></div></div>`;
   const nx=won?pdNextOpp(o.id):null;
   $('pdOver').style.display='block';
-  $('pdOver').innerHTML=`<h2>${won?(o.final?'🏆 '+PTIERS[o.tier].n+' CHAMPION! You beat '+o.n+'!':'🏆 You beat '+o.n+'!'):'💪 '+o.n+' won this time'}</h2><p>${PD.score[0]} : ${PD.score[1]} · <b>+${PD.gained} fencer XP</b></p>
+  $('pdOver').innerHTML=`<h2>${won?(o.final?'🏆 '+PTIERS[o.tier].n+' CHAMPION! You beat '+o.n+'!':'🏆 You beat '+o.n+'!'):'💪 '+o.n+' won this time'}</h2><p>${PD.score[0]} : ${PD.score[1]} · <b>+${PD.gained} fencer XP</b></p>${brave}
     ${pdInsights(3).length?`<div class="pbox" style="text-align:left;margin:8px 0"><b>🧠 What ${o.n} figured out about you:</b><ul>${pdInsights(3).map(x=>`<li>${x.txt}</li>`).join('')}</ul><div class="small">Change these habits and he can't predict you!</div></div>`:''}
     ${fav?`<p class="small">Your most-used move: ${PD_ACTS[fav].i} ${PD_ACTS[fav].n} (${favPct}%). ${favPct>=40?'Opponents can predict that. Mix it up!':'Nice variety!'}</p>`:''}
     <div class="row" style="justify-content:center"><button class="btn" id="pdNext">${nx?'Next: '+nx.e+' '+nx.n+' ➜':'Play again'}</button><button class="btn ghost" id="pdMenuB">Menu</button></div>`;
   $('pdNext').onclick=()=>pdScout(nx?nx.id:o.id);$('pdMenuB').onclick=pdMenu;
+  if($('pdBrave'))$('pdBrave').onclick=ev=>{ev.preventDefault();pdMenu();goTo('brave')};
   if(pdLeft()<=0){$('pdNext').textContent='🌙 Done for today';$('pdNext').onclick=pdMenu}
 }
 function pdMenu(){if(PD&&!PD.over&&PD.raw&&PD.raw.length>=3)perfDuel(false);document.body.classList.remove('duelfocus');clearInterval(pdTimerI);clearTimeout(pdLaterT);if(PD)PD.over=true;$('pdGame').style.display='none';$('pdPick').style.display='block';pdLevels()}
