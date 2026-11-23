@@ -936,6 +936,7 @@ const QCOACH=[
  {t:'set',q:'To have "blade feel" (feeling his blade through yours), your fingers should be…',o:['Squeezing as hard as possible','Light and relaxed','Off the handle','Pointing at the ceiling'],a:1,w:'剑和剑需要有感觉: light fingers can feel when he pushes, gives way or gets ready to attack.'},
  {t:'hit',q:'Coach says a beat-parry and riposte is a…',o:['Slow block','Change of rhythm: slow, slow, then SNAP','Way to rest','Foul'],a:1,w:'击打防守还击是个节奏的变化: the sharp beat is a sudden rhythm change. Riposte on the snap, before he recovers.'},
  {t:'set',q:'When you press his blade, how should it look?',o:['Big and obvious so he sees it','Small and hidden: fingers and wrist only','With a loud stamp','From the shoulder'],a:1,w:'压剑要隐蔽一点: hide the press. If he sees it coming, he just moves his blade away.'},
+ {t:'see',q:'Coach noticed you were fencing with "no ideas". What should you do before every touch?',o:['Just react to whatever happens','Pick ONE plan (Read → Set up → Strike) before "Allez"','Close your eyes','Copy your opponent'],a:1,w:'练剑的时候没想法: fencing without an idea is just reacting. Before each touch, decide one plan, then check after: did it work?'},
  {t:'see',q:'A top fencer waits just out of your reach. Your best plan?',o:['Attack from far away','Small smooth steps in, make HIM lunge first, step back, then hit','Stand still and hope','Turn your back'],a:1,w:'Observe, creep in smoothly, make him commit first, then hit with a straight thrust. Attacking from too far is his trap.'}
 ];
 const COACH_CARDS=[
@@ -949,7 +950,8 @@ const COACH_CARDS=[
  ['✊','Control the blade','控制剑，给对方压力','Take his blade and press. Make him react to you.','In a bout, find his blade before you attack.'],
  ['🤝','Blade feel','剑和剑需要有感觉','Light fingers feel when he pushes, gives way or gets ready.','Blade contact with a partner, eyes closed for 20 seconds.'],
  ['⚡','Beat-parry = rhythm change','击打防守还击是节奏变化','Slow, slow, then SNAP the beat and riposte on the snap.','10 beat-parry ripostes: wait… wait… SNAP!'],
- ['🤫','Hidden press','压剑要隐蔽一点','Press with fingers and wrist only, so he can\'t see it coming.','Secret press game: press without your partner seeing your hand move.']
+ ['🤫','Hidden press','压剑要隐蔽一点','Press with fingers and wrist only, so he can\'t see it coming.','Secret press game: press without your partner seeing your hand move.'],
+ ['💡','Have an idea every touch','练剑时要有想法','Coach saw you fencing with no plan. Before every "Allez", pick ONE idea: Read → Set up → Strike.','Before each practice touch, whisper your plan, like "make him lunge, step back, hit".']
 ];
 const BANKS={coach:{n:'🦉 Coach '+COACH_DATE,q:QCOACH,timer:0},rookie:{n:'🐣 Rookie',q:Q,timer:0},y12:{n:'🟠 Y12',q:QY12,timer:20},y14:{n:'🔴 Y14',q:QY14,timer:14}};
 let qi=0,qs=0,order=[],streak=0,qBank='rookie',qT=null,qOpts=[];
