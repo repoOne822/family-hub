@@ -1960,7 +1960,7 @@ function pdScout(id){
   if(pdLeft()<=0){toast('🌙 Piste Duel is resting until tomorrow');pdLevels();return}
   const o=ALLOPP[id],T=PTIERS[o.tier];
   $('pdModal').innerHTML=`<div class="modalBox" style="width:min(480px,92vw);text-align:left"><div style="text-align:center"><div style="font-size:56px">${o.e}</div>
-    <h2 style="margin:0">${o.n}</h2><div class="small">${o.rival?'Your rival · it learns from you every day':T.n+' · '+(o.final?'Direct elimination':'Pool bout')} · first to ${o.win} touches</div></div>
+    <h2 style="margin:0">${o.n}</h2><div class="small">${o.rival?'Your rival · it learns from you every day':T.n+' · '+(o.real?'Tournament rematch':o.final?'Direct elimination':'Pool bout')} · first to ${o.win} touches</div></div>
     <h3 style="margin:12px 0 4px">📋 ${o.rival?'Shadow says…':'Scouting report'}</h3><div><b>Type:</b> ${o.type}</div>
     <ul style="margin:6px 0 0;padding-left:20px">${o.tips.map(t=>`<li>${t}</li>`).join('')}</ul>
     <div class="row" style="justify-content:center;margin-top:14px"><button class="btn" id="scGo">⚔️ En garde!</button><button class="btn ghost" id="scNo">Back</button></div></div>`;
