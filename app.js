@@ -1394,6 +1394,10 @@ async function openApp(url, kid) {
     const localAt = localStorage.getItem(mark) || "";
     if (data && (preview || data.updated_at > localAt)) { Object.entries(data.data || {}).forEach(([k, v]) => { if (k.startsWith(pre) && !cfg.skip.includes(k) && !(cfg.skipPre || []).some(x => k.startsWith(x))) localStorage.setItem(k, JSON.stringify(v)); }); localStorage.setItem(mark, data.updated_at); }
   } catch (e) {}
+  if (cfg.id === "quest") { // ⏳ parent-set daily limit (kids.quest_limit, minutes) always wins over the copy saved on his device
+    try { const { data } = await sb.from("kids").select("quest_limit").eq("id", kid).maybeSingle(); const lim = data && data.quest_limit;
+      if (lim != null) { const k = `${kid}_quest_save`, Q = JSON.parse(localStorage.getItem(k) || "null"); if (Q) { Q.settings = Q.settings || {}; if (Q.settings.limit !== lim) { Q.settings.limit = lim; localStorage.setItem(k, JSON.stringify(Q)); } } } } catch (e) {}
+  }
   if (["amc", "physics"].includes(cfg.id)) { // 🎯 nightly coach difficulty per chapter/unit (not synced back: key has no app prefix)
     try { const { data } = await sb.rpc("my_tuning", { p_app: cfg.id, p_kid: kid }); localStorage.setItem(`fh_tune_${kid}_${cfg.id}`, JSON.stringify(data || {})); } catch (e) {}
   }
