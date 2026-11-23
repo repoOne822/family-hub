@@ -2240,13 +2240,13 @@ function pdResolve(e,o,S){
   }
   if(!pt&&!why){
     const stepIn=k=>k==='fwd'||k==='rhythm';
-    if(e==='counter'&&stepIn(o)&&d<=3){pt='E';grade=2;why='🔁 COUNTER! You hit him as he stepped in.';fxT='TOUCHÉ!'}
+    if(e==='counter'&&stepIn(o)&&d<=3){pt='E';grade=2;why='🔁 COUNTER! You saw the distance change as he stepped in, and hit him. Coach: counter when the distance changes!';fxT='TOUCHÉ!'}
     else if(o==='counter'&&stepIn(e)&&d<=3){pt='O';grade=-2;fxG=false;fxT='OUCH';why='He countered as you stepped in. When he\'s standing still and watching you, don\'t walk in!'}
     else if(e==='retreat'&&stepIn(o)){nvO=true;grade=1;why='↩️ RETREAT & STOP worked! He chased, you stopped, he overran. He\'s off-balance: ATTACK!';fxT='OVERRUN!'}
     else if(o==='retreat'&&stepIn(e)){nvE=true;grade=-1;fxG=false;why='He retreated and stopped, and you chased right into him. You\'re off-balance!';fxT='OOPS'}
     else if(e==='rhythm'&&['parry','read','fake','beat','lure','counter'].includes(o)&&d<=4){nvO=true;grade=1;why='🥁 RHYTHM CHANGE! Your burst caught him flat-footed. He\'s off-balance: ATTACK!';fxT='ZOOM!'}
     else if(o==='rhythm'&&['parry','read','fake','beat','lure'].includes(e)&&d<=4){nvE=true;grade=-1;fxG=false;why='He burst forward with a rhythm change and caught you flat-footed!';fxT='ZOOM'}
-    else if(e==='counter'){nvE=true;grade=-1;fxG=false;why='You countered at nothing. He didn\'t step in. Now you\'re off-balance.'}
+    else if(e==='counter'){nvE=true;grade=-1;fxG=false;why='You countered at nothing. The distance didn\'t change (he didn\'t step in). Observe first, then counter when he closes the distance.'}
     else if(o==='counter'){nvO=true;grade=1;why='He tried to counter, but you didn\'t step in. He\'s off-balance: ATTACK!'}
     else if(e==='fake'&&o==='parry'&&inRange(d)){nvO=true;grade=1;why='🎭 Your FAKE worked! He parried air and he\'s open. ATTACK now!';fxT='FOOLED!'}
     else if(o==='fake'&&e==='parry'&&oppRange(d)){nvE=true;grade=-1;fxG=false;why='You bit on his fake and parried air. Twitchy arm = fake!';fxT='FOOLED'}
