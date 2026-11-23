@@ -1902,7 +1902,7 @@ const RDRILLS=[
  {id:'stepback',i:'⬅️',n:'Step back, then hit back',d:'Partner lunges. One quick step back so it falls short, then hit them while they recover. 10 reps.'},
  {id:'arm',i:'🗡️',n:'Straight thrust (直刺)',d:'10 slow arm extensions straight at a wall target, then 10 extend-then-lunge. Arm goes straight out FIRST, then the feet drive you in fast.'},
  {id:'stance',i:'👣',n:'Smooth fast feet (coach)',d:'Coach: speed comes from the FEET. 2 minutes of connected steps forward/back, smooth and low, NO bouncing or floating. Finish with a straight thrust: arm straight to the target.'},
- {id:'riposte',i:'🛡️',n:'Compact riposte (coach)',d:'Coach: parry small, then riposte by extending the arm with the point aimed. NO swinging from the shoulder. Control the tip, keep it tight (收住). 10 slow, then 10 fast.'},
+ {id:'riposte',i:'🛡️',n:'Compact riposte (coach)',d:'Coach: a sharp little BEAT-parry (击打防守), then riposte at once by extending the arm with the point aimed. The beat-parry is a RHYTHM CHANGE: slow, slow, then snap! No swinging from the shoulder; control the tip, keep it tight (收住). 10 slow, then 10 fast.'},
  {id:'feel',i:'🤝',n:'Blade feel (coach)',d:'Coach: control the blade, put pressure on, feel blade on blade. With a partner, keep light blade contact while you both step forward and back for 1 minute. Eyes closed for the last 20 s: feel when they push, then take their blade and extend.'}
 ];
 function rdWeek(){const d=new Date(evoToday()+'T12:00:00');const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return d.toISOString().slice(0,10)}
@@ -2236,7 +2236,7 @@ function pdResolve(e,o,S){
   }else if(oL){
     if(shortO){nvO=true;grade=2;why=e==='lure'?'🪤 Your LURE worked! He attacked, you swayed back, he fell short. He\'s off-balance: ATTACK!':e==='back'||e==='retreat'?'You stepped back and his attack fell short. He\'s off-balance: ATTACK now!':'His attack fell short. He\'s off-balance!';fxT='SHORT!'}
     else if(d<2){why='He got jammed. Too close.';fxT='JAMMED'}
-    else if(e==='parry'&&!vE){nvO=true;nvOWhy='parried';grade=2;why='🛡️ GREAT PARRY! He\'s off-balance. ATTACK next for the riposte! Keep it small: point first, no swinging from the shoulder.';fxT='CLANG!'}
+    else if(e==='parry'&&!vE){nvO=true;nvOWhy='parried';grade=2;why='🛡️ GREAT PARRY! He\'s off-balance. ATTACK next for the riposte! Keep it small: point first, no swinging from the shoulder. A sharp beat-parry + instant riposte = a rhythm change!';fxT='CLANG!'}
     else{pt='O';grade=-2;fxG=false;fxT='OUCH';why=e==='fwd'||e==='rhythm'?'You stepped right into his attack. Watch for the coiled back leg 💨!':e==='counter'?'He attacked, he didn\'t step in. Counter only works against a step forward.':e==='freeze'?'You froze and he attacked. Decide faster!':e==='parry'?'You were off-balance, so your parry was too slow.':e==='read'?'You were reading while he attacked. Read from a SAFE distance (4+).':`You tried a ${PD_ACTS[e].n.toLowerCase()} while he attacked. When his back leg is coiled: PARRY or step back!`}
   }
   if(!pt&&!why){
