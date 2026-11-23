@@ -415,6 +415,7 @@ body.duelfocus main{padding-top:6px}
 .pdlimbar{flex:1;min-width:120px;height:10px;background:#fde68a;border-radius:99px;overflow:hidden}.pdlimbar i{display:block;height:100%;background:#f59e0b}
 .pdrest{text-align:center;background:linear-gradient(135deg,#e0e7ff,#fae8ff)!important;border:3px solid #16161d}
 .rdgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:6px}.rdrill{display:flex;flex-direction:column;gap:3px;text-align:left;padding:10px;border:3px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;font:inherit}.rdrill small{color:#444}.rdrill.on{background:#c8f7d0}
+.ccgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:8px}.cc{border:3px solid var(--line);border-radius:16px;padding:10px;background:#fff}.cc.ok{background:#e6f9e9}
 </style>
 </head>
 <body>
@@ -527,6 +528,7 @@ body.duelfocus main{padding-top:6px}
     </div>
   </div>
   <div class="tip">💡 Say it in your head before every bout: <b>Look. Trap. Zap!</b></div>
+  <div id="coachCards"></div>
   <div id="coachNotes"></div>
 </section>
 
@@ -585,7 +587,7 @@ body.duelfocus main{padding-top:6px}
 <section id="quiz">
   <div class="card">
     <div class="row"><h2 style="margin-right:auto">Brain Battles</h2><span id="qnum" class="small"></span></div>
-    <div class="row qlv"><button class="btn ghost sm" data-qb="ladder">🧠 Brain Ladder (adapts to you)</button><button class="btn ghost sm" data-qb="rookie">🐣 Rookie</button><button class="btn ghost sm" data-qb="y12">🟠 Y12 · 20s timer</button><button class="btn ghost sm" data-qb="y14">🔴 Y14 · 14s timer</button></div>
+    <div class="row qlv"><button class="btn ghost sm" data-qb="ladder">🧠 Brain Ladder (adapts to you)</button><button class="btn ghost sm" data-qb="coach">🦉 Coach Nov 23</button><button class="btn ghost sm" data-qb="rookie">🐣 Rookie</button><button class="btn ghost sm" data-qb="y12">🟠 Y12 · 20s timer</button><button class="btn ghost sm" data-qb="y14">🔴 Y14 · 14s timer</button></div>
     <div class="row" style="margin:6px 0 14px"><div class="bar"><i id="qbar"></i></div></div>
     <div id="qbox"></div>
   </div>
@@ -920,7 +922,36 @@ const QY14=[
  {t:'set',q:'He fences with "absence of blade" (his blade away, no contact). Which of your actions is most useful?',o:['Beats and prise de fer','Direct attacks with good distance and a ready parry','Only flèches','Closing your eyes'],a:1,w:'With no blade to take, attack directly with good timing and distance, and be ready to parry his counter.'},
  {t:'hit',q:'You make a false attack to draw his parry, he parries, then you disengage and hit. What is this?',o:['A remise','A feint-disengage / compound attack','A point in line','Counter-time'],a:1,w:'A feint draws the parry, and the disengage avoids it. That\'s a compound attack.'}
 ];
-const BANKS={rookie:{n:'🐣 Rookie',q:Q,timer:0},y12:{n:'🟠 Y12',q:QY12,timer:20},y14:{n:'🔴 Y14',q:QY14,timer:14}};
+// ---------- 🦉 Coach's private lesson, 23 Nov 2026 (added to the Academy by Bobby's request) ----------
+const COACH_DATE='Nov 23';
+const QCOACH=[
+ {t:'move',q:'Coach says your fencing SPEED comes from…',o:['Your arm','Your feet','Your shoulders','Shouting loudly'],a:1,w:'速度来源于脚: speed comes from the feet. Fast, pushing feet carry the attack; the arm just points.'},
+ {t:'move',q:'Coach said your rhythm was off. How should your footwork be?',o:['Stop-start, with big pauses','Smooth and connected, one step flowing into the next','As many jumps as possible','Only big steps'],a:1,w:'脚步要连贯: smooth, connected steps. Stop-start footwork breaks your rhythm and slows your attack.'},
+ {t:'hit',q:'What kind of attack did Coach ask for?',o:['A big swinging cut','A straight thrust: arm goes straight to the target','Bend the arm and pull back first','Aim at the mask'],a:1,w:'要直刺: a straight thrust. The point travels in a straight line, so it arrives first.'},
+ {t:'move',q:'Why does Coach say NO jumping, bouncing or floating?',o:['It looks silly','Your body goes up and down, so you can\'t push off fast at the right moment','It\'s against the rules','It makes the lights flash'],a:1,w:'不要跳动浮动: stay low and smooth. If your head bobs up and down, your feet aren\'t ready to push. Check: your head stays at one height.'},
+ {t:'hit',q:'You parried his attack. How should your riposte go?',o:['Swing it out from the shoulder','Extend the arm with the point aimed, small and controlled','Pull back first, then hit','Spin around'],a:1,w:'防守还击不要用肩膀甩出去，要控制剑尖，要收住: no shoulder swing. Control the tip and keep it tight.'},
+ {t:'see',q:'What are the first touches of a bout for, says Coach?',o:['Attacking as fast as possible','Observing: how far he lunges, his rhythm, does he wait or charge','Resting','Waving to Mom and Dad'],a:1,w:'需要观察: observe first. Watch his distance, footwork and rhythm, then make your plan.'},
+ {t:'hit',q:'When is the right moment to counter-attack?',o:['Any time you feel like it','When the distance CHANGES, like when he steps in','When he is far away and still','Only after a halt'],a:1,w:'根据距离的变化来反击: counter on the change in distance. If the distance didn\'t change, a counter hits nothing.'},
+ {t:'set',q:'Your opponent waits relaxed with his blade low. What does Coach want you to do with his blade?',o:['Ignore it','Take it, control it and put pressure on him','Run away','Copy him'],a:1,w:'控制剑，给对方压力: control the blade and press. Make him react to YOU.'},
+ {t:'set',q:'To have "blade feel" (feeling his blade through yours), your fingers should be…',o:['Squeezing as hard as possible','Light and relaxed','Off the handle','Pointing at the ceiling'],a:1,w:'剑和剑需要有感觉: light fingers can feel when he pushes, gives way or gets ready to attack.'},
+ {t:'hit',q:'Coach says a beat-parry and riposte is a…',o:['Slow block','Change of rhythm: slow, slow, then SNAP','Way to rest','Foul'],a:1,w:'击打防守还击是个节奏的变化: the sharp beat is a sudden rhythm change. Riposte on the snap, before he recovers.'},
+ {t:'set',q:'When you press his blade, how should it look?',o:['Big and obvious so he sees it','Small and hidden: fingers and wrist only','With a loud stamp','From the shoulder'],a:1,w:'压剑要隐蔽一点: hide the press. If he sees it coming, he just moves his blade away.'},
+ {t:'see',q:'A top fencer waits just out of your reach. Your best plan?',o:['Attack from far away','Small smooth steps in, make HIM lunge first, step back, then hit','Stand still and hope','Turn your back'],a:1,w:'Observe, creep in smoothly, make him commit first, then hit with a straight thrust. Attacking from too far is his trap.'}
+];
+const COACH_CARDS=[
+ ['👣','Speed from the feet','速度来源于脚','Fast feet push you in. The arm only points the way.','Do 10 fast advance-lunges: feel the push from your back leg.'],
+ ['🔗','Connected footwork','脚步要连贯','One step flows into the next, no stop-start.','Move forward and back for 1 minute without stopping.'],
+ ['🗡️','Straight thrust','要直刺','The point goes straight to the target: no bent arm, no wind-up.','10 slow straight extensions at a wall target.'],
+ ['🧍','No bouncing or floating','不要跳动浮动','Stay low and smooth. Your head stays at one height.','Ask Mom or Dad to watch your head while you move.'],
+ ['🛡️','Compact riposte','防守还击收住','After the parry, extend with the point aimed. No shoulder swing.','10 parry-ripostes, shoulder quiet, only the arm moves.'],
+ ['👀','Observe first','需要观察','First touches: how far does he lunge? Does he wait, duck or charge?','Next bout: count his lunge distance in the first 2 touches.'],
+ ['📏','Counter on the distance change','根据距离的变化来反击','When he steps in and the distance changes, THAT is your moment.','Game: Mom or Dad drifts in and out; tap only when they step in.'],
+ ['✊','Control the blade','控制剑，给对方压力','Take his blade and press. Make him react to you.','In a bout, find his blade before you attack.'],
+ ['🤝','Blade feel','剑和剑需要有感觉','Light fingers feel when he pushes, gives way or gets ready.','Blade contact with a partner, eyes closed for 20 seconds.'],
+ ['⚡','Beat-parry = rhythm change','击打防守还击是节奏变化','Slow, slow, then SNAP the beat and riposte on the snap.','10 beat-parry ripostes: wait… wait… SNAP!'],
+ ['🤫','Hidden press','压剑要隐蔽一点','Press with fingers and wrist only, so he can\'t see it coming.','Secret press game: press without your partner seeing your hand move.']
+];
+const BANKS={coach:{n:'🦉 Coach '+COACH_DATE,q:QCOACH,timer:0},rookie:{n:'🐣 Rookie',q:Q,timer:0},y12:{n:'🟠 Y12',q:QY12,timer:20},y14:{n:'🔴 Y14',q:QY14,timer:14}};
 let qi=0,qs=0,order=[],streak=0,qBank='rookie',qT=null,qOpts=[];
 function startQuiz(bank){if(bank)qBank=bank;const B=BANKS[qBank];order=B.q.map((_,i)=>i).sort(()=>Math.random()-.5);qi=0;qs=0;streak=0;
   document.querySelectorAll('[data-qb]').forEach(b=>b.classList.toggle('on',b.dataset.qb===qBank));showQ()}
@@ -2517,7 +2548,7 @@ function genFam(R){
   return {kind:'fam',t:'see',q:`${FAMT[f]}<br>Which moves could he be about to make?`,o:opt,a:0,w:`That clue is the ${f.toUpperCase()} family: ${opt[0]}. ${FAMHELP[f]}`,D:950+tier*120,conc:['family'],html:true};
 }
 // handwritten questions join the ladder with a fixed difficulty
-const BR_HAND=[].concat(Q.map(x=>Object.assign({D:880+Math.random()*140,conc:['read']},x)),QY12.map(x=>Object.assign({D:1220+Math.random()*120,conc:['priority']},x)),QY14.map(x=>Object.assign({D:1430+Math.random()*150,conc:['y14']},x)),...(()=>{const M=window.FB_MORE||{};return [].concat((M.y10||[]).map(x=>Object.assign({D:900+Math.random()*150,conc:['read']},x)),(M.y12||[]).map(x=>Object.assign({D:1150+Math.random()*150,conc:['priority']},x)),(M.y14||[]).map(x=>Object.assign({D:1350+Math.random()*200,conc:['y14']},x)))})());
+const BR_HAND=[].concat(QCOACH.map(x=>Object.assign({D:930+Math.random()*160,conc:['read']},x)),Q.map(x=>Object.assign({D:880+Math.random()*140,conc:['read']},x)),QY12.map(x=>Object.assign({D:1220+Math.random()*120,conc:['priority']},x)),QY14.map(x=>Object.assign({D:1430+Math.random()*150,conc:['y14']},x)),...(()=>{const M=window.FB_MORE||{};return [].concat((M.y10||[]).map(x=>Object.assign({D:900+Math.random()*150,conc:['read']},x)),(M.y12||[]).map(x=>Object.assign({D:1150+Math.random()*150,conc:['priority']},x)),(M.y14||[]).map(x=>Object.assign({D:1350+Math.random()*200,conc:['y14']},x)))})());
 function brWeakest(){const e=Object.entries(state.brainC).filter(([k,v])=>v.n>=3);if(!e.length)return null;e.sort((a,b)=>a[1].ok/a[1].n-b[1].ok/b[1].n);return e[0][1].ok/e[0][1].n<.75?e[0][0]:null}
 function brNext(seen){
   const R=state.brainR,target=R+40+Math.random()*80-30,weak=Math.random()<.35?brWeakest():null;
@@ -2717,7 +2748,7 @@ try{pdLevels()}catch(e){console.warn('pdLevels',e)}
     {i:'📉',w:'I\'m way behind on the score',t:'It\'s never 0–4. It\'s just "the next touch". Comebacks happen one touch at a time.',d:'Do the Between-Touch Reset. Change ONE thing (distance, speed, or a fake).'},
     {i:'👀',w:'Everyone is watching me',t:'Most people are watching their own fencer or their phone. The people who love me are proud I\'m out there.',d:'Look at the tip of your blade and your opponent\'s chest. That\'s your whole world.'},
     {i:'🤦',w:'I just made a silly mistake',t:'Mistakes are how my brain learns. The touch is over. I can\'t fix it, but I can win the next one.',d:'Turn away, one big breath, say your power word.'},
-    {i:'🦵',w:'My legs are shaking',t:'Shaky legs mean my body is getting ready with extra energy. That energy makes me FAST.',d:'Bounce on your toes, then 3 calm breaths. Use the energy for your first step.'},
+    {i:'🦵',w:'My legs are shaking',t:'Shaky legs mean my body is getting ready with extra energy. That energy makes me FAST.',d:'Sink low into en garde, then 3 calm breaths. Use the energy for a fast first push from your feet.'},
     {i:'😞',w:'I lost my last bout',t:'That bout is finished. This is a brand-new bout with a brand-new score: 0–0.',d:'Do a 30-second Real Bout Check, write one fix, then let it go.'},
     {i:'💭',w:'What if Mom and Dad are disappointed?',t:'Mom and Dad are proud of me for trying hard and being brave, not for the score.',d:'Give your best effort. That\'s the only thing anyone is asking for.'}
   ];
@@ -2805,6 +2836,23 @@ try{pdLevels()}catch(e){console.warn('pdLevels',e)}
   document.querySelectorAll('[data-gobv]').forEach(a=>a.onclick=e=>{e.preventDefault();goTo(a.dataset.gobv)});
   document.querySelector('#nav [data-s="brave"]').addEventListener('click',render);
   render();
+})();
+
+// ---------- 🦉 Coach's lesson cards (Academy): each point with a kid explanation and a try-it ----------
+(function coachCards(){
+  const box=document.getElementById('coachCards');if(!box)return;
+  const E=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const draw=()=>{const ok=store.get('coachCardsOk',{}),n=COACH_CARDS.filter((c,i)=>ok[i]).length;
+    box.innerHTML=`<div class="card"><h2>🦉 Coach's lesson cards: ${COACH_DATE}</h2>
+      <p class="small">Your private lesson, turned into cards. Read each one, try it, then tap "I get it". <b>${n}/${COACH_CARDS.length}</b> learned.</p>
+      <div class="ccgrid">${COACH_CARDS.map((c,i)=>`<div class="cc ${ok[i]?'ok':''}"><div style="font-size:30px">${c[0]}</div><b>${E(c[1])}</b><div class="small">${E(c[2])}</div>
+        <p style="margin:6px 0">${E(c[3])}</p><div class="small">🏋️ Try it: ${E(c[4])}</div>
+        <button class="btn sm ${ok[i]?'ghost':''}" data-cc="${i}">${ok[i]?'✅ Got it':'I get it!'}</button></div>`).join('')}</div>
+      <div class="row" style="justify-content:center;margin-top:10px"><button class="btn" id="ccQuiz">🧠 Take the Coach ${COACH_DATE} quiz</button></div></div>`;
+    box.querySelectorAll('[data-cc]').forEach(b=>b.onclick=()=>{const ok=store.get('coachCardsOk',{}),i=+b.dataset.cc;
+      if(!ok[i]){ok[i]=1;store.set('coachCardsOk',ok);addXP(5,'Coach card learned');if(Object.keys(ok).length===COACH_CARDS.length){confetti(120);toast('🦉 All of Coach\'s lesson learned!')}}draw()});
+    $('ccQuiz').onclick=()=>{goTo('quiz');setTimeout(()=>startQuiz('coach'),50)};
+  };draw();
 })();
 </script>
 </body>
