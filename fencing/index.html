@@ -1903,7 +1903,7 @@ const RDRILLS=[
  {id:'arm',i:'🗡️',n:'Straight thrust (直刺)',d:'10 slow arm extensions straight at a wall target, then 10 extend-then-lunge. Arm goes straight out FIRST, then the feet drive you in fast.'},
  {id:'stance',i:'👣',n:'Smooth fast feet (coach)',d:'Coach: speed comes from the FEET. 2 minutes of connected steps forward/back, smooth and low, NO bouncing or floating. Finish with a straight thrust: arm straight to the target.'},
  {id:'riposte',i:'🛡️',n:'Compact riposte (coach)',d:'Coach: a sharp little BEAT-parry (击打防守), then riposte at once by extending the arm with the point aimed. The beat-parry is a RHYTHM CHANGE: slow, slow, then snap! No swinging from the shoulder; control the tip, keep it tight (收住). 10 slow, then 10 fast.'},
- {id:'feel',i:'🤝',n:'Blade feel (coach)',d:'Coach: control the blade, put pressure on, feel blade on blade. With a partner, keep light blade contact while you both step forward and back for 1 minute. Eyes closed for the last 20 s: feel when they push, then take their blade and extend.'}
+ {id:'feel',i:'🤝',n:'Blade feel (coach)',d:'Coach: control the blade, put pressure on, feel blade on blade. With a partner, keep light blade contact while you both step forward and back for 1 minute. Eyes closed for the last 20 s: feel when they push, then take their blade and extend. Coach: press the blade SECRETLY (隐蔽): fingers only, no big arm move your partner can see.'}
 ];
 function rdWeek(){const d=new Date(evoToday()+'T12:00:00');const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return d.toISOString().slice(0,10)}
 function rdState(){let r=store.get('rematchDrills',null);if(!r||r.wk!==rdWeek())r={wk:rdWeek(),done:{}};return r}
@@ -2251,7 +2251,7 @@ function pdResolve(e,o,S){
     else if(o==='counter'){nvO=true;grade=1;why='He tried to counter, but you didn\'t step in. He\'s off-balance: ATTACK!'}
     else if(e==='fake'&&o==='parry'&&inRange(d)){nvO=true;grade=1;why='🎭 Your FAKE worked! He parried air and he\'s open. ATTACK now!';fxT='FOOLED!'}
     else if(o==='fake'&&e==='parry'&&oppRange(d)){nvE=true;grade=-1;fxG=false;why='You bit on his fake and parried air. Twitchy arm = fake!';fxT='FOOLED'}
-    else if(e==='beat'&&inRange(d)&&!['back','retreat','lure'].includes(o)){nvO=true;grade=1;why='⚡ BEAT! You controlled his blade and he can\'t parry. ATTACK now! Coach: control the blade and keep the pressure on.';fxT='CLANG!'}
+    else if(e==='beat'&&inRange(d)&&!['back','retreat','lure'].includes(o)){nvO=true;grade=1;why='⚡ BEAT! You controlled his blade and he can\'t parry. ATTACK now! Coach: control the blade and keep the pressure on, but keep your blade pressure small and hidden so he doesn\'t see it coming.';fxT='CLANG!'}
     else if(o==='beat'&&oppRange(d)&&!['back','retreat','lure'].includes(e)){nvE=true;grade=-1;fxG=false;why='He beat your blade aside. Step back to be safe!';fxT='CLANG'}
     else if(e==='beat')why='Your beat missed. He was too far or moving away.';
     else if(e==='fake'&&o==='parry')why='Too far: a fake only fools him at distance 2–3. Step in first!';
