@@ -79,6 +79,7 @@ button:disabled{opacity:.45;cursor:default}
 .wi{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--card);text-align:left;font:inherit;color:inherit;cursor:pointer;min-height:56px}
 .wi b{display:block}.dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--line)}
 .dot.l1{background:var(--sun)}.dot.l2{background:var(--ok)}.dot.lh{background:var(--bad)}
+.star{font-size:22px;line-height:1;color:var(--mute);padding:4px 6px;cursor:pointer;flex:none}.star.on{color:#e0a200}
 .wi .st{margin-left:auto;font-size:12px;font-weight:800;color:var(--mute);white-space:nowrap}
 .opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
 @media(max-width:480px){.opts{grid-template-columns:minmax(0,1fr)}}
@@ -151,7 +152,7 @@ label{font-weight:700;font-size:15px}
         <p class="lead">Tap the card to see the meaning. Then tap a button below. <span class="zh">点卡片看中文意思，再选“认识”或“再练”。</span></p>
         <div class="deck"><button class="fc" id="tFc" aria-label="Flip card"></button></div>
         <div class="under">
-          <div class="row"><button class="b ghost" id="tHear">Listen 听</button><button class="b mic hidden" id="tSay" data-label="Say it 我来说">Say it 我来说</button></div>
+          <div class="row"><button class="b ghost" id="tHear">Listen 听</button><button class="b ghost" id="tSave" aria-pressed="false">☆ Save 收藏</button><button class="b mic hidden" id="tSay" data-label="Say it 我来说">Say it 我来说</button></div>
           <div class="row"><button class="b no" id="tAgain">Again 再练</button><button class="b ok" id="tKnow">I know it 认识</button></div>
         </div>
         <div class="row" style="margin-top:10px;justify-content:flex-end"><span class="sp">Your choice 你来决定：</span><button class="b ghost" id="tEasy">Already know it 早就会了</button><button class="b ghost" id="tHard">Too hard for now 现在太难</button></div>
@@ -339,7 +340,7 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"
 const day=(d=new Date())=>{const z=new Date(d.getTime()-d.getTimezoneOffset()*6e4);return z.toISOString().slice(0,10)};
 const addDays=(s,n)=>{const d=new Date(s+"T12:00:00");d.setDate(d.getDate()+n);return day(d)};
 const BASE=TOPICS.flatMap(t=>t[3].map(w=>({en:w[0],zh:w[1],ex:w[2],topic:t[0],tEn:t[1],tZh:t[2]})));
-const DEF={streak:0,last:"",days:{},words:{},done:{},t:{date:"",w:0,s:0,k:0,r:0},updated:0,profile:null,custom:[],lessons:[],mis:{},rest:"",sec:{},acc:{},share:false};
+const DEF={streak:0,last:"",days:{},words:{},done:{},t:{date:"",w:0,s:0,k:0,r:0},updated:0,saved:[],profile:null,custom:[],lessons:[],mis:{},rest:"",sec:{},acc:{},share:false};
 let S=JSON.parse(JSON.stringify(DEF)),ALL=[];
 try{const l=JSON.parse(localStorage.getItem("abbyEnglish")||"null");if(l)S=Object.assign(S,l)}catch(e){}
 function rebuildAll(){ALL=[...BASE,...(S.custom||[])]}
@@ -348,6 +349,9 @@ const known=()=>Object.values(S.words).filter(w=>w.b>=2).length;
 const topicKnown=t=>ALL.filter(w=>w.topic===t&&S.words[w.en]&&S.words[w.en].b>=2).length;
 const weekKey=d=>{const x=new Date(d+"T12:00:00");x.setDate(x.getDate()-x.getDay());return day(x)};
 const GROUPS={mine:["My phrases","我的句子"],fix:["Fix list","错题本"]};
+const isSaved=en=>(S.saved||[]).includes(en);
+function toggleSave(en){S.saved=S.saved||[];const i=S.saved.indexOf(en);if(i<0)S.saved.unshift(en);else S.saved.splice(i,1);persist();return i<0}
+const wordsIn=t=>t==="saved"?(S.saved||[]).map(en=>ALL.find(w=>w.en===en)).filter(Boolean):ALL.filter(w=>w.topic===t);
 function addCard(en,zh,ex,topic){en=String(en||"").trim();if(!en||en.length>140)return false;if(!ALL.some(w=>w.en.toLowerCase()===en.toLowerCase())){
  const g=GROUPS[topic]||((S.lessons||[]).find(l=>l.id===topic)||{}),tEn=g[0]||g.title||"Lesson",tZh=g[1]||g.zh||"新课";S.custom.push({en,zh:String(zh||""),ex:String(ex||en),topic,tEn,tZh});rebuildAll()}
  const w=ALL.find(x=>x.en.toLowerCase()===en.toLowerCase());S.words[w.en]={b:0,d:day()};persist();return true}
@@ -400,13 +404,13 @@ let deck=[],cur=null;
 function buildDeck(){const t=day();const due=ALL.filter(w=>S.words[w.en]&&S.words[w.en].d<=t).sort((a,b)=>S.words[a.en].b-S.words[b.en].b).slice(0,goalMin()+5);
  const seenToday=Object.values(S.words).filter(w=>w.n===t).length;const fresh=ALL.filter(w=>!S.words[w.en]).slice(0,Math.max(0,newPerDay()-seenToday));deck=[...due,...fresh]}
 function showCard(){const fc=$("tFc");fc.classList.remove("flip");cur=deck[0]||null;$("tMicOut")&&($("tMicOut").innerHTML="");
- if(!cur){const left=ALL.filter(w=>!S.words[w.en]).length;fc.innerHTML=`<div class="face front"><div class="w">All done!</div><div class="zh" style="color:var(--sunInk);font-size:20px">今天的单词完成了！</div><div class="hint">${left<15?"Almost out of new words: tap “New lesson for me” in Words. 新词快学完了，去“单词”点“给我新课”。":"Next: a sound drill or a conversation. 下一步：练发音或对话。"}</div></div>`;$("tLeft").textContent="";["tKnow","tAgain","tHear","tEasy","tHard"].forEach(i=>$(i).disabled=true);$("tSay").classList.add("hidden");return}
- ["tKnow","tAgain","tHear","tEasy","tHard"].forEach(i=>$(i).disabled=false);const st=S.words[cur.en];const isNew=!st;cur.rev=!!st&&st.b>=2;
+ if(!cur){const left=ALL.filter(w=>!S.words[w.en]).length;fc.innerHTML=`<div class="face front"><div class="w">All done!</div><div class="zh" style="color:var(--sunInk);font-size:20px">今天的单词完成了！</div><div class="hint">${left<15?"Almost out of new words: tap “New lesson for me” in Words. 新词快学完了，去“单词”点“给我新课”。":"Next: a sound drill or a conversation. 下一步：练发音或对话。"}</div></div>`;$("tLeft").textContent="";["tKnow","tAgain","tHear","tEasy","tHard","tSave"].forEach(i=>$(i).disabled=true);$("tSay").classList.add("hidden");return}
+ ["tKnow","tAgain","tHear","tEasy","tHard","tSave"].forEach(i=>$(i).disabled=false);const st=S.words[cur.en];const isNew=!st;cur.rev=!!st&&st.b>=2;
  const tag=`<span class="tag">${esc(cur.tEn)} · ${esc(cur.tZh)}${isNew?" · New 新":""}${cur.rev?" · Say it 说英文":""}${st&&st.h?" · Was hard 之前觉得难":""}</span>`;
  fc.innerHTML=cur.rev
   ?`<div class="face front">${tag}<div class="w zh" style="color:var(--sunInk);font-family:'Noto Sans SC',sans-serif">${esc(cur.zh)}</div><div class="hint">Say it in English first, then flip. 先说出英文，再翻面看答案。</div></div><div class="face back"><div class="m" style="font-family:Fraunces,serif">${esc(cur.en)}</div><div class="ex">${esc(cur.ex)}</div></div>`
   :`<div class="face front">${tag}<div class="w">${esc(cur.en)}</div><div class="hint">Tap to flip 点一下翻面</div></div><div class="face back"><div class="m">${esc(cur.zh)}</div><div class="ex">${esc(cur.ex)}</div><div class="sp">Say the sentence out loud. 大声读这句话。</div></div>`;
- $("tSay").classList.toggle("hidden",!(D&&cur.rev));
+ $("tSay").classList.toggle("hidden",!(D&&cur.rev));const sv=isSaved(cur.en);$("tSave").textContent=sv?"★ Saved 已收藏":"☆ Save 收藏";$("tSave").setAttribute("aria-pressed",sv);
  if(!cur.rev)say(cur.en,0.8);
  $("tLeft").textContent=`${deck.length} card${deck.length>1?"s":""} left today · 今天还剩 ${deck.length} 张`}
 function markKnown(en){const t=day();const o=S.words[en]||{};S.words[en]={b:4,d:addDays(t,BOX[4]),n:o.n||"",self:1}}
@@ -423,6 +427,7 @@ function grade(know){if(!cur)return;const t=day();const w=S.words[cur.en]||{b:0,
 function cele(msg){const n=known();const m=[10,25,50,100,150,200,300,500].includes(n)?`${n} words learned! 已经会 ${n} 个词了！`:msg;if(!m)return;const el=$("tCele");el.textContent=m;el.classList.remove("hidden");clearTimeout(cele.t);cele.t=setTimeout(()=>el.classList.add("hidden"),2600)}
 $("tFc").addEventListener("click",()=>{if(!cur)return;$("tFc").classList.toggle("flip");if($("tFc").classList.contains("flip"))say(cur.rev?cur.en+". "+cur.ex:cur.ex,0.85)});
 $("tHear").addEventListener("click",()=>cur&&say(cur.en,0.8));
+$("tSave").addEventListener("click",()=>{if(!cur)return;const on=toggleSave(cur.en);renderWords();$("tSave").textContent=on?"★ Saved 已收藏":"☆ Save 收藏";$("tSave").setAttribute("aria-pressed",on);const el=$("tCele");el.textContent=on?`Saved “${cur.en}”. Find it in Words → ⭐ Saved. 已收藏，在“单词 → 收藏”里找。`:"Removed from Saved. 已取消收藏。";el.classList.remove("hidden");clearTimeout(cele.t);cele.t=setTimeout(()=>el.classList.add("hidden"),2600)});
 $("tSay").addEventListener("click",()=>{if(cur)micStart($("tSay"),cur.en,$("tMicOut"),p=>{if(p>=80){$("tFc").classList.add("flip")}})});
 $("tKnow").addEventListener("click",()=>grade(true));$("tAgain").addEventListener("click",()=>grade(false));
 function renderTasks(){const t=S.t;const mins=Math.round((S.sec[day()]||0)/60),g=goalMin();
@@ -445,20 +450,20 @@ $("editMe").addEventListener("click",()=>{const p=S.profile||{};$("pName").value
 function renderToday(){rollDay();buildDeck();showCard();renderTasks();renderStats()}
 /* ---------- words ---------- */
 let topic="greet";
-function topicList(){const extra=[];if(S.custom.some(w=>w.topic==="mine"))extra.push(["mine",...GROUPS.mine]);if(S.custom.some(w=>w.topic==="fix"))extra.push(["fix",...GROUPS.fix]);
+function topicList(){const extra=[];if((S.saved||[]).length)extra.push(["saved","⭐ Saved","收藏"]);if(S.custom.some(w=>w.topic==="mine"))extra.push(["mine",...GROUPS.mine]);if(S.custom.some(w=>w.topic==="fix"))extra.push(["fix",...GROUPS.fix]);
  (S.lessons||[]).forEach(l=>extra.push([l.id,l.title,l.zh]));return [...extra,...TOPICS.map(t=>[t[0],t[1],t[2]])]}
 function renderWords(){const tl=topicList();if(!tl.some(t=>t[0]===topic))topic=tl[0][0];
  $("topicChips").innerHTML=tl.map(t=>`<button class="chip" data-t="${esc(t[0])}" aria-pressed="${t[0]===topic}">${esc(t[1])} <span class="zh">${esc(t[2])}</span></button>`).join("");
- const list=ALL.filter(w=>w.topic===topic);$("wQuizBtn").disabled=list.length<4;
- $("wlist").innerHTML=list.map(w=>{const s=S.words[w.en];const l=!s?"":s.h?"lh":s.b>=2?"l2":"l1";const lab=!s?"":s.h?"Too hard 太难":s.self?"Know 早就会":s.b>=2?"Learned 已会":"Learning 在学";return `<button class="wi" data-w="${esc(w.en)}"><span class="dot ${l}"></span><span><b>${esc(w.en)}</b><span class="zh">${esc(w.zh)}</span></span>${marking||s?`<span class="st">${lab}</span>`:""}</button>`}).join("")}
+ const list=wordsIn(topic);$("wQuizBtn").disabled=list.length<4;
+ $("wlist").innerHTML=list.map(w=>{const s=S.words[w.en];const l=!s?"":s.h?"lh":s.b>=2?"l2":"l1";const lab=!s?"":s.h?"Too hard 太难":s.self?"Know 早就会":s.b>=2?"Learned 已会":"Learning 在学";return `<button class="wi" data-w="${esc(w.en)}"><span class="dot ${l}"></span><span><b>${esc(w.en)}</b><span class="zh">${esc(w.zh)}</span></span>${marking||s?`<span class="st">${lab}</span>`:""}<span class="star${isSaved(w.en)?" on":""}" data-star="${esc(w.en)}" role="button" aria-label="Save word" style="${marking||s?"margin-left:6px":"margin-left:auto"}">${isSaved(w.en)?"★":"☆"}</span></button>`}).join("")}
 $("topicChips").addEventListener("click",e=>{const b=e.target.closest("[data-t]");if(b){topic=b.dataset.t;renderWords();$("wQuiz").classList.add("hidden")}});
 let marking=false;
 $("markMode").addEventListener("click",()=>{marking=!marking;$("markMode").setAttribute("aria-pressed",marking);$("markMode").textContent=marking?"Done 完成":"Mark what I know 标记已会/太难";$("markTip").classList.toggle("hidden",!marking);if(!marking){persist();renderStats()}renderWords()});
-$("wlist").addEventListener("click",e=>{const b=e.target.closest("[data-w]");if(!b)return;const w=ALL.find(x=>x.en===b.dataset.w);
+$("wlist").addEventListener("click",e=>{const st=e.target.closest("[data-star]");if(st){toggleSave(st.dataset.star);renderWords();return}const b=e.target.closest("[data-w]");if(!b)return;const w=ALL.find(x=>x.en===b.dataset.w);
  if(marking){const s=S.words[w.en];if(!s||(!s.self&&!s.h))markKnown(w.en);else if(s.self)markHard(w.en);else delete S.words[w.en];persist();renderWords();renderStats();return}
  say(w.en,0.8).then(()=>say(w.ex,0.85))});
 let q={n:0,ok:0,w:null};
-function quizNext(){const pool=ALL.filter(w=>w.topic===topic);if(q.n>=8){$("wQuiz").innerHTML=`<div class="big">${q.ok}/8</div><p>${q.ok>=6?"Excellent! 太棒了！":"Good practice. Try again tomorrow. 不错，明天再练。"}</p><button class="b sun" id="qAgain">Again 再来</button>`;award(q.ok,"");return}
+function quizNext(){const pool=wordsIn(topic);if(q.n>=8){$("wQuiz").innerHTML=`<div class="big">${q.ok}/8</div><p>${q.ok>=6?"Excellent! 太棒了！":"Good practice. Try again tomorrow. 不错，明天再练。"}</p><button class="b sun" id="qAgain">Again 再来</button>`;award(q.ok,"");return}
  const w=pool[Math.floor(Math.random()*pool.length)];q.w=w;const others=pool.filter(x=>x!==w).sort(()=>Math.random()-.5).slice(0,3);const opts=[w,...others].sort(()=>Math.random()-.5);
  $("wQuiz").innerHTML=`<div class="row" style="justify-content:space-between"><b>Question ${q.n+1} of 8 · 第 ${q.n+1} 题</b><button class="b ghost" id="qPlay">Play again 再听</button></div><p class="sp">What does this word mean? 这个词是什么意思？</p><div class="opts">${opts.map(o=>`<button class="opt" data-a="${esc(o.en)}">${esc(o.zh)}</button>`).join("")}</div>`;say(w.en,0.8)}
 $("wQuizBtn").addEventListener("click",()=>{q={n:0,ok:0,w:null};$("wQuiz").classList.remove("hidden");quizNext()});
@@ -569,9 +574,22 @@ $("chatMic").addEventListener("click",()=>{if(!D)return;$("chatMic").dataset.lab
 renderWords();renderSounds();renderTalk();renderRead();renderWriteTask();go(location.hash.slice(1));
 $("chatMic").classList.add("hidden");
 /* ---------- Family Hub wiring: voice, mic, AI coach, sign-in + cloud save ---------- */
-let HV=null;import("../shared/hubvoice.js").then(m=>{HV=m;m.init({getS:()=>({})})}).catch(()=>{});
-T={speak:(text,o)=>{const r=(o&&o.rate)||0.9;if(HV&&r>=0.8&&HV.canSpeak(text))return HV.speakDone(text,9000);
- return new Promise(res=>{if(!("speechSynthesis" in window))return res();try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang="en-US";u.rate=r*0.95;const v=speechSynthesis.getVoices().find(v=>/en[-_]US/.test(v.lang)&&/natural|premium|enhanced|samantha|aria|jenny/i.test(v.name));if(v)u.voice=v;u.onend=res;u.onerror=res;speechSynthesis.speak(u)}catch(e){res()}})}};
+/* voice: phones use the device voice (reliable, works with the silent switch); computers use the hub's natural voice with device fallback */
+const MOBILE=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent));
+try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}
+let HV=null;if(!MOBILE)import("../shared/hubvoice.js").then(m=>{HV=m;m.init({getS:()=>({})})}).catch(()=>{});
+const SS=("speechSynthesis" in window)?window.speechSynthesis:null;let enVoice=null,curU=null,unlocked=false;
+function pickVoice(){if(!SS)return;const vs=SS.getVoices().filter(v=>/^en[-_]/i.test(v.lang));enVoice=vs.find(v=>/en[-_]US/i.test(v.lang)&&/natural|premium|enhanced|samantha|aria|jenny|google us/i.test(v.name))||vs.find(v=>/en[-_]US/i.test(v.lang))||vs[0]||null}
+if(SS){pickVoice();try{SS.addEventListener("voiceschanged",pickVoice)}catch(e){SS.onvoiceschanged=pickVoice}}
+function unlock(){if(unlocked||!SS)return;unlocked=true;try{const u=new SpeechSynthesisUtterance(" ");u.volume=0;SS.speak(u)}catch(e){}}
+addEventListener("pointerdown",unlock,{capture:true,once:true});addEventListener("touchend",unlock,{capture:true,once:true});
+function deviceSay(text,r){return new Promise(res=>{if(!SS)return res();let done=false;const fin=()=>{if(!done){done=true;res()}};
+ const go=()=>{try{const u=new SpeechSynthesisUtterance(text);u.lang="en-US";if(enVoice)u.voice=enVoice;u.rate=Math.max(0.5,Math.min(1.2,r*(MOBILE?0.9:0.95)));u.onend=fin;u.onerror=fin;curU=u;SS.speak(u);if(SS.paused)SS.resume()}catch(e){fin()}
+  setTimeout(fin,1500+text.length*110)};
+ if(SS.speaking||SS.pending){SS.cancel();setTimeout(go,80)}else go()})}
+T={speak:async(text,o)=>{const r=(o&&o.rate)||0.9;
+ if(HV&&r>=0.8&&HV.canSpeak(text)){try{return await HV.speakDone(text,6000)}catch(e){}}
+ return deviceSay(text,r)}};
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(SR){const L={f:[],p:[],s:[]};let rec=null;
  D={onFinal:f=>L.f.push(f),onPartial:f=>L.p.push(f),onState:f=>L.s.push(f),
