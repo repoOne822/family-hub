@@ -13,7 +13,8 @@ let lang = "en";
 try { lang = localStorage.getItem("fh_lang") || (navigator.language?.startsWith("zh") ? "zh" : "en"); } catch (e) {}
 const T = () => STR[lang];
 const S = { user: null, me: null, kids: [], entries: [], goals: [], metrics: [], checkins: [], readings: [], docs: [], journal: [], moods: [], subjects: [] };
-const KID_DOMAIN = "kids.family-hub.local"; // kid logins are username@this; no real email needed
+const KID_DOMAIN = "kids.family-hub.local";
+const LEARNER_DOMAIN = "learners.family-hub.local"; // 📖 adult English learners (Abby): own page at abby/, kept out of the boys' data // kid logins are username@this; no real email needed
 let coachKid = null, selKid = "";
 
 const $ = s => document.querySelector(s);
@@ -98,7 +99,7 @@ function renderLanding() {
       <button class="herobtn" style="background:var(--pink)" data-door="parent">👨‍👩‍👦 ${t.parentDoor}<small>${t.parentDoorSub}</small></button>
     </div>
     <p class="meta" style="text-align:center;margin-top:18px">🔒 ${t.signInSub}</p>
-    <p style="text-align:center;margin-top:10px"><a class="linkbtn" href="abby/" style="text-decoration:none">📖 ${lang === "zh" ? "Abby 的英语学习 →" : "Abby's English learning →"}</a></p>
+    <div class="hero" style="grid-template-columns:1fr;margin-top:-10px"><button class="herobtn" style="background:var(--yellow,#ffe066);padding:20px 26px;font-size:22px" data-door="learner">📖 ${lang === "zh" ? "Abby 的英语学习" : "Abby's English"}<small>${lang === "zh" ? "用名字和 PIN 登录，每天练英语" : "Sign in with your name + PIN to practice English"}</small></button></div>
     ${marquee()}</div>`;
   $("#langBtn").onclick = toggleLang;
   document.querySelectorAll("[data-door]").forEach(b => b.onclick = () => { siMode = b.dataset.door; siStage = "form"; renderSignIn(); });
@@ -106,21 +107,22 @@ function renderLanding() {
 function renderSignIn(msg) {
   if (siStage === "landing" && !msg) return renderLanding();
   siStage = "form";
-  const kidSide = siMode === "kid";
+  const kidSide = siMode !== "parent", learner = siMode === "learner";
   $("#root").innerHTML = `<div class="signin" style="margin-top:9vh">
     <div style="display:flex;justify-content:space-between;align-items:center"><button class="linkbtn" id="backBtn" style="margin:0;text-decoration:none">${T().back}</button><button class="lang" id="langBtn">${lang === "en" ? "中文" : "English"}</button></div>
-    <h1 style="margin-top:14px">${kidSide ? `🧒 ${T().kidSignInTitle}` : `👨‍👩‍👦 ${T().parentSignInTitle}`}</h1>
-    <p class="meta" style="margin-bottom:14px">${kidSide ? T().kidSignInSub : T().parentSignInSub}</p>
+    <h1 style="margin-top:14px">${learner ? `📖 ${lang === "zh" ? "Abby 的英语学习" : "Abby's English"}` : kidSide ? `🧒 ${T().kidSignInTitle}` : `👨‍👩‍👦 ${T().parentSignInTitle}`}</h1>
+    <p class="meta" style="margin-bottom:14px">${learner ? (lang === "zh" ? "输入名字（abby）和 PIN。登录后进度会保存，换设备也能接着学。" : "Type your name (abby) and your PIN. Signing in saves your progress across devices.") : kidSide ? T().kidSignInSub : T().parentSignInSub}</p>
     ${siMode === "parent" ? `<form id="siForm"><label>${T().emailLabel}</label><input type="email" id="siEmail" required autocomplete="email" value="${esc(lastEmail())}">${pMode === "pw" ? `<label style="margin-top:10px">${T().passwordL}</label><input type="password" id="siPw" required autocomplete="current-password" minlength="8">` : ""}<button class="btn primary" style="width:100%;margin-top:12px">${pMode === "pw" ? T().signIn : T().sendLink}</button></form>
       <button class="linkbtn" id="pModeBtn" type="button">${pMode === "pw" ? T().useLink : T().usePassword}</button>`
       : `<form id="kidForm2"><label>${T().username}</label><input id="kUser" required autocomplete="username" autocapitalize="none" spellcheck="false"><label style="margin-top:10px">${T().pin}</label><input id="kPin" type="password" inputmode="numeric" required autocomplete="current-password" minlength="6"><button class="btn primary" style="width:100%;margin-top:12px">${T().signIn}</button></form>`}
     <p class="meta" id="siMsg" style="margin-top:12px">${msg ? esc(msg) : ""}</p></div>`;
   $("#langBtn").onclick = toggleLang;
   $("#backBtn").onclick = () => { siStage = "landing"; renderLanding(); };
-  if (siMode === "kid") { $("#kidForm2").onsubmit = async e => {
+  if (learner) { $("#kUser").value = "abby"; $("#siMsg").insertAdjacentHTML("afterend", `<p class="meta" style="margin-top:6px"><a class="linkbtn" href="abby/">${lang === "zh" ? "先不登录，直接练习 →" : "Practice without signing in →"}</a></p>`); }
+  if (kidSide) { $("#kidForm2").onsubmit = async e => {
     e.preventDefault();
     const u = $("#kUser").value.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "");
-    const { error } = await sb.auth.signInWithPassword({ email: `${u}@${KID_DOMAIN}`, password: $("#kPin").value });
+    const { error } = await sb.auth.signInWithPassword({ email: `${u}@${learner ? LEARNER_DOMAIN : KID_DOMAIN}`, password: $("#kPin").value });
     if (error) $("#siMsg").textContent = T().badLogin;
   }; return; }
   $("#pModeBtn").onclick = () => { pMode = pMode === "pw" ? "link" : "pw"; try { localStorage.setItem("fh_pmode", pMode); } catch (e) {} renderSignIn(); };
@@ -236,8 +238,26 @@ function viewToday() {
       return `<div class="tcard" style="border-top:4px solid ${KC[i % 3]};display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center"><span style="width:52px;height:52px;border-radius:14px;background:#fff;display:grid;place-items:center">${avatarHtml(k.avatar, 46)}</span><div><b>${esc(kidName(k.id))}</b>
         <div class="meta">${c.kid_mood ? `${T().heSaid} ${FACES[c.kid_mood - 1]}` : T().notYet} · ${c.focus ? `${T().parentRated} ✓` : `${T().parentRated} —`}</div>
         ${habits.length ? `<div class="meta">${esc(habits.join(" · "))}</div>` : ""}${(() => { const q = ptsOf(k.id), td = (S.point_ledger || []).filter(r => r.kid === k.id && r.date === d && r.source !== "spend").reduce((a, r) => a + r.points, 0); return `<div class="meta">⭐ ${lang === "zh" ? `今天 +${td} · 可用 ${q.balance}` : `+${td} today · ${q.balance} to spend`}</div>`; })()}<button class="btn sm" style="margin-top:8px" data-pv="${esc(k.id)}">👀 ${T().viewHisPage}</button></div></div>`; }).join("")}</div>
+    <div class="section-h" style="margin-top:22px"><h3>📖 ${lang === "zh" ? "Abby 的英语学习" : "Abby's English"}</h3><a class="btn sm" href="abby/" target="_blank" rel="noopener">${lang === "zh" ? "打开 →" : "Open →"}</a></div><div class="tcard" id="abbyCard"><span class="meta">…</span></div>
     <div class="section-h" style="margin-top:22px"><h3>📅 ${CL().upcoming}</h3><a class="btn sm" href="#calendar">${CL().h} →</a></div><div class="tcard">${calUpcoming("all", 14, true)}</div>${marquee()}`;
   $("#goKids").onclick = openKidMode; $("#goQuick").onclick = openQuick; $("#goLog").onclick = () => openEntry();
+  fillAbbyCard();
+}
+// 📖 Abby's English summary on the parent Today page (reads learner_saves; quiet if not set up yet)
+async function fillAbbyCard() {
+  const el = $("#abbyCard"); if (!el) return; const zh = lang === "zh";
+  let rows = null; try { const { data, error } = await sb.from("learner_saves").select("email,data,updated_at"); if (error) throw error; rows = data || []; } catch (e) { rows = null; }
+  if (!el.isConnected) return;
+  if (rows === null) { el.innerHTML = `<span class="meta">${zh ? "云端进度还没开通：需要运行 supabase/sql/2026-11-23_learner_abby.sql，然后在 Family 页面给 Abby 设 PIN。" : "Cloud progress isn't on yet: run supabase/sql/2026-11-23_learner_abby.sql, then set Abby's PIN on the Family page."}</span>`; return; }
+  if (!rows.length) { el.innerHTML = `<span class="meta">${zh ? "还没有进度。Abby 用名字 abby 和 PIN 登录后，这里会显示她的学习情况。" : "No progress yet. Once Abby signs in (name abby + PIN), her practice shows here."}</span>`; return; }
+  const d0 = today(), addD = n => { const x = new Date(d0 + "T12:00:00"); x.setDate(x.getDate() + n); return x.toLocaleDateString("en-CA"); };
+  el.innerHTML = rows.map(r => { const s = r.data || {}, w = Object.values(s.words || {}), kn = w.filter(x => x.b >= 2).length, goal = (s.profile && s.profile.mins) || 15;
+    const mins = [...Array(7)].map((_, i) => Math.round(((s.sec || {})[addD(i - 6)] || 0) / 60)), todayM = mins[6], hit = mins.filter(m => m >= goal).length;
+    const alive = s.last === d0 || s.last === addD(-1) || s.last === addD(-2);
+    const status = !s.last ? "⚪" : s.last === d0 ? "🟢" : alive ? "🟡" : "🔴";
+    return `<div style="display:grid;gap:4px"><div><b>${status} ${esc((s.profile && s.profile.name) || "Abby")}</b> <span class="meta">${zh ? "今天" : "today"} ${todayM}/${goal} min · ${zh ? "连续" : "streak"} ${alive ? (+s.streak || 0) : 0} · ${zh ? "上次" : "last"} ${esc(s.last || "—")}</span></div>
+      <div class="meta">${zh ? "已会单词" : "Words known"} <b>${kn}</b> · ${zh ? "在学" : "learning"} ${w.length - kn} · ${zh ? "我的句子" : "my phrases"} ${(s.custom || []).filter(x => x.topic === "mine").length} · ${zh ? "错题本" : "fix list"} ${(s.custom || []).filter(x => x.topic === "fix").length}</div>
+      <div class="meta">${zh ? "近 7 天分钟" : "Minutes, last 7 days"}: ${mins.join(" · ")} (${zh ? `${hit} 天达标` : `goal met ${hit} day${hit === 1 ? "" : "s"}`})</div></div>`; }).join("");
 }
 
 /* ---------------- KID MODE ---------------- */
