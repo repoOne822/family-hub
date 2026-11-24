@@ -1211,6 +1211,12 @@ $('jSave').onclick=()=>{
   if(Math.max(jWords(e.a),jWords(e.b),jWords(e.c))<3){toast('Add a few more words so future-you remembers! Tap a ✏️ starter to begin.');return}
   entries.push(e);store.set('entries',entries);state.journals++;addXP(20,'Journal saved!');practice(8,'Journal');
   ['j1','j2','j3','j4'].forEach(k=>$(k).value='');renderJ();
+  // spotted a freeze? point him to the matching Brave Mind tool
+  let jn=$('jNudge');if(!jn){jn=document.createElement('div');jn.id='jNudge';jn.style.marginTop='10px';$('jSave').parentElement.insertAdjacentElement('afterend',jn)}
+  if(/\bfr(oze|eez)/i.test([e.a,e.b,e.c,e.h].join(' '))){
+    jn.innerHTML='<div class="hoot"><div class="owl">🦉</div><div class="say"><b>Coach Hoot:</b> You noticed a freeze and wrote it down. That is brave, honest thinking! 💛 Freezes shrink when you pick your move <i>before</i> the touch. <div style="margin-top:8px"><button class="btn" id="jFreezeGo">❄️ Open the Freeze Buster</button></div></div></div>';
+    $('jFreezeGo').onclick=()=>{const k=[...document.querySelectorAll('#bvWorries [data-wq]')].findIndex(b=>/freeze/i.test(b.textContent));window.bvOpenWorry&&window.bvOpenWorry(k<0?0:k)};
+  }else jn.innerHTML='';
 };
 $('jCopy').onclick=()=>{
   const txt=entries.map(e=>`${e.d}\nCreated: ${e.a}\nMisread: ${e.b}\nNext: ${e.c}${e.h?'\nRetreat idea: '+e.h:''}`).join('\n\n')||'(no entries yet)';
@@ -2800,6 +2806,7 @@ try{pdLevels()}catch(e){console.warn('pdLevels',e)}
     {i:'👀',w:'Everyone is watching me',t:'Most people are watching their own fencer or their phone. The people who love me are proud I\'m out there.',d:'Look at the tip of your blade and your opponent\'s chest. That\'s your whole world.'},
     {i:'🤦',w:'I just made a silly mistake',t:'Mistakes are how my brain learns. The touch is over. I can\'t fix it, but I can win the next one.',d:'Turn away, one big breath, say your power word.'},
     {i:'🦵',w:'My legs are shaking',t:'Shaky legs mean my body is getting ready with extra energy. That energy makes me FAST.',d:'Sink low into en garde, then 3 calm breaths. Use the energy for a fast first push from your feet.'},
+    {i:'❄️',w:'I freeze when he\'s ready to counter',t:'Freezing is my brain asking "what\'s the plan?". A counter-attacker WANTS me to come straight in. If I don\'t go straight in, his plan has nothing to hit.',d:'Decide before "Allez": when he gets set to counter, take one small step back so his counter falls short, OR show a fake to pull it out, then hit. Any move beats standing still.'},
     {i:'😞',w:'I lost my last bout',t:'That bout is finished. This is a brand-new bout with a brand-new score: 0–0.',d:'Do a 30-second Real Bout Check, write one fix, then let it go.'},
     {i:'💭',w:'What if Mom and Dad are disappointed?',t:'Mom and Dad are proud of me for trying hard and being brave, not for the score.',d:'Give your best effort. That\'s the only thing anyone is asking for.'}
   ];
@@ -2816,6 +2823,7 @@ try{pdLevels()}catch(e){console.warn('pdLevels',e)}
   $('bvWorries').onclick=e=>{const b=e.target.closest('[data-wq]');if(!b)return;const x=WORRIES[+b.dataset.wq];
     $('bvAnswer').innerHTML=`<div class="hoot"><div class="owl">🦉</div><div class="say"><div class="small">When your brain says "${E(x.w)}"…</div><div style="margin:6px 0">💬 <b>Say instead:</b> ${E(x.t)}</div><div>👉 <b>Do this:</b> ${E(x.d)}</div></div></div>`;
     const n=store.get('worryTaps',0)+1;store.set('worryTaps',n);if(n===1)addXP(5,'Brave brain');};
+  window.bvOpenWorry=k=>{goTo('brave');const b=document.querySelector(`#bvWorries [data-wq="${k}"]`);if(b){b.click();setTimeout(()=>b.scrollIntoView({block:'center'}),50)}};
 
   // power word
   const showWord=()=>{const w=store.get('powerWord','')||'Next touch';$('bvWordShow').textContent=w;$('bvWord').value=store.get('powerWord','')};
