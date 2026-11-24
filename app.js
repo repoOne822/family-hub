@@ -98,6 +98,7 @@ function renderLanding() {
       <button class="herobtn" style="background:var(--pink)" data-door="parent">👨‍👩‍👦 ${t.parentDoor}<small>${t.parentDoorSub}</small></button>
     </div>
     <p class="meta" style="text-align:center;margin-top:18px">🔒 ${t.signInSub}</p>
+    <p style="text-align:center;margin-top:10px"><a class="linkbtn" href="abby/" style="text-decoration:none">📖 ${lang === "zh" ? "Abby 的英语学习 →" : "Abby's English learning →"}</a></p>
     ${marquee()}</div>`;
   $("#langBtn").onclick = toggleLang;
   document.querySelectorAll("[data-door]").forEach(b => b.onclick = () => { siMode = b.dataset.door; siStage = "form"; renderSignIn(); });
@@ -150,6 +151,7 @@ async function boot() {
   if (!S.user) { siStage = "landing"; return renderLanding(); }
   try { await loadMe(); } catch (e) { S.me = null; }
   if (!S.me) { $("#root").innerHTML = `<div class="signin"><p>${T().notListed}</p><button class="btn" id="soBtn">${T().signOut}</button></div>`; $("#soBtn").onclick = () => sb.auth.signOut(); return; }
+  if (S.me.role === "learner") { location.replace("abby/"); return; } // 📖 adult English learner (Abby) has her own page
   if (isKid()) return kidBoot();
   renderShell(); setStatus(T().loading);
   try { await loadAll(); setStatus(""); route(); }
@@ -836,6 +838,10 @@ async function viewFamily() {
         <div><span class="dot" style="--kc:${KC[i % 3]};display:inline-block"></span> <b>${esc(kidName(k.id))}</b><div class="meta">${t.username}: <code>${esc(u.email.split("@")[0])}</code></div></div>
         <div style="display:flex;gap:8px;max-width:360px"><input type="password" inputmode="numeric" minlength="6" placeholder="${t.pin}" data-pinfor="${esc(k.id)}"><button class="btn sm primary" style="white-space:nowrap" data-setpin="${esc(k.id)}">${t.setPin}</button></div></div>` : ""; }).join("")}
       <div class="err" id="pinMsg" style="margin-top:8px"></div></div>
+    <div class="coach" style="margin-top:16px"><h4>📖 ${lang === "zh" ? "Abby 的英语学习" : "Abby's English"}</h4>
+      <p class="meta">${lang === "zh" ? "Abby 的独立英语页面（不计入孩子们的积分和报告）。她用用户名 <code>abby</code> 和你设的 PIN 登录，进度保存在她自己的账户里。打开页面可查看她的进度。" : "Abby's own English page (separate from the boys' points and reports). She signs in with username <code>abby</code> and the PIN you set here; her progress saves to her own account. Open the page to see her progress."}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;max-width:560px;margin-top:8px"><input type="password" inputmode="numeric" minlength="6" placeholder="${t.pin}" id="abbyPin" style="flex:1;min-width:140px"><button class="btn sm primary" data-setlpin="abby">${t.setPin}</button><a class="btn sm" href="abby/" target="_blank" rel="noopener">${lang === "zh" ? "打开页面" : "Open page"}</a></div>
+      <div class="err" id="lpinMsg" style="margin-top:8px"></div></div>
     <div class="coach" style="margin-top:16px"><h4>${t.proposals}</h4>
       ${props.length ? props.map(g => `<div class="goal"><span class="dot" style="--kc:${kidColor(g.kid)};margin-top:6px"></span><span><b>${esc(kidName(g.kid))}:</b> ${esc(g.text)}</span><span style="margin-left:auto;display:flex;gap:6px"><button class="btn sm primary" data-approve="${g.id}">${t.approve}</button><button class="btn sm" data-decline="${g.id}">${t.decline}</button></span></div>`).join("") : `<div class="meta">${t.noProposals}</div>`}</div>
     <div class="coach" style="margin-top:16px"><h4>${t.journals}</h4><p class="meta">${t.journalsHelp}</p>
@@ -847,6 +853,12 @@ async function viewFamily() {
         const inp = document.querySelector(`[data-pinfor="${CSS.escape(x.dataset.setpin)}"]`);
         const { error } = await sb.rpc("set_kid_pin", { p_kid: x.dataset.setpin, p_pin: inp.value });
         $("#pinMsg").style.color = error ? "var(--neg)" : "var(--pos)"; $("#pinMsg").textContent = error ? error.message : `${kidName(x.dataset.setpin)}: ${t.pinSet}`; if (!error) inp.value = "";
+      }
+      if (x.dataset.setlpin) {
+        const inp = $("#abbyPin"), { error } = await sb.rpc("set_learner_pin", { p_login: x.dataset.setlpin, p_pin: inp.value });
+        $("#lpinMsg").style.color = error ? "var(--neg)" : "var(--pos)";
+        $("#lpinMsg").textContent = error ? (/set_learner_pin|schema cache|does not exist/i.test(error.message) ? (lang === "zh" ? "还需要先运行数据库设置（supabase/sql/2026-11-23_learner_abby.sql）。" : "The database setup still needs to run first (supabase/sql/2026-11-23_learner_abby.sql).") : error.message) : `Abby: ${t.pinSet}`;
+        if (!error) inp.value = "";
       }
       if (x.id === "pwSave") {
         const a = $("#pw1").value, b = $("#pw2").value, m = $("#pwMsg");
