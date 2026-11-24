@@ -257,7 +257,8 @@ async function fillAbbyCard() {
     const status = !s.last ? "⚪" : s.last === d0 ? "🟢" : alive ? "🟡" : "🔴";
     return `<div style="display:grid;gap:4px"><div><b>${status} ${esc((s.profile && s.profile.name) || "Abby")}</b> <span class="meta">${zh ? "今天" : "today"} ${todayM}/${goal} min · ${zh ? "连续" : "streak"} ${alive ? (+s.streak || 0) : 0} · ${zh ? "上次" : "last"} ${esc(s.last || "—")}</span></div>
       <div class="meta">${zh ? "已会单词" : "Words known"} <b>${kn}</b> · ${zh ? "在学" : "learning"} ${w.length - kn} · ${zh ? "我的句子" : "my phrases"} ${(s.custom || []).filter(x => x.topic === "mine").length} · ${zh ? "错题本" : "fix list"} ${(s.custom || []).filter(x => x.topic === "fix").length}</div>
-      <div class="meta">${zh ? "近 7 天分钟" : "Minutes, last 7 days"}: ${mins.join(" · ")} (${zh ? `${hit} 天达标` : `goal met ${hit} day${hit === 1 ? "" : "s"}`})</div></div>`; }).join("");
+      <div class="meta">${zh ? "近 7 天分钟" : "Minutes, last 7 days"}: ${mins.join(" · ")} (${zh ? `${hit} 天达标` : `goal met ${hit} day${hit === 1 ? "" : "s"}`})</div>
+      ${(() => { const f = (s.fb || []).slice(-1)[0]; if (!f) return ""; const L = { easy: zh ? "太简单" : "too easy", ok: zh ? "刚好" : "just right", hard: zh ? "太难" : "too hard" }; return `<div class="meta">💬 ${zh ? "她的反馈" : "Her feedback"} ${esc(f.d)}: ${esc(L[f.level] || "—")}${(f.best || []).length ? ` · ${zh ? "最有帮助" : "helped most"}: ${esc(f.best.join(", "))}` : ""}${f.note ? ` · “${esc(f.note)}”` : ""}</div>`; })()}</div>`; }).join("");
 }
 
 /* ---------------- KID MODE ---------------- */

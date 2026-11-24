@@ -113,6 +113,12 @@ select{font:16px inherit;padding:10px;border-radius:10px;border:1.5px solid var(
 .note{font-size:13px;color:var(--mute);margin-top:18px}
 .sp{color:var(--mute);font-size:14px}
 .hidden{display:none!important}
+#usesWrap{position:fixed;inset:0;background:rgba(20,8,26,.55);z-index:50;display:flex;align-items:flex-end;justify-content:center;padding:0}
+#usesBox{width:min(760px,100%);max-height:88vh;overflow-y:auto;border-radius:22px 22px 0 0;padding:20px 18px 32px}
+@media(min-width:760px){#usesWrap{align-items:center;padding:20px}#usesBox{border-radius:22px}}
+.urow{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.urow .play{padding:6px 10px;min-height:38px}
+body.lesszh .urow .zh:not(.show),body.lesszh .line .zh:not(.show),body.lesszh .wi .zh:not(.show),body.lesszh #rQs .zh:not(.show){filter:blur(6px);cursor:pointer}
 .inp{display:block;width:100%;font:16px inherit;padding:11px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);min-height:46px;margin-top:4px}
 label{font-weight:700;font-size:15px}
 .stage{border-top:1px solid var(--line);padding:10px 0}.stage:first-child{border-top:0}
@@ -172,6 +178,7 @@ label{font-weight:700;font-size:15px}
             <button class="b sun" type="submit">Save 保存</button>
           </form>
         </div>
+        <div class="box hidden" id="fbBox" style="margin-bottom:16px;border:2px solid var(--plum2)"></div>
         <div class="box">
           <div class="row" style="justify-content:space-between"><h3>Today's plan <span class="zh">今日计划</span></h3><span class="tag" id="minTag"></span></div>
           <div id="tasks" style="margin-top:8px"></div>
@@ -182,6 +189,7 @@ label{font-weight:700;font-size:15px}
           <p class="sp" style="margin:4px 0 8px">Use English in real life, then check it off. 在生活中真正用英语，做到就打勾。</p>
           <div id="missions"></div>
         </div>
+        <div class="box" style="margin-top:16px" id="adjBox"></div>
         <div class="box" style="margin-top:16px">
           <h3>Your path <span class="zh">学习路线</span></h3>
           <div id="path" style="margin-top:8px"></div>
@@ -276,9 +284,11 @@ label{font-weight:700;font-size:15px}
       <form class="send" id="chatForm"><input id="chatIn" placeholder="Type here… 在这里输入…" autocomplete="off"><button class="b ghost mic-btn" type="button" id="chatMic">Mic</button><button class="b" type="submit">Send</button></form>
     </div>
   </section>
+  <div id="usesWrap" class="hidden" role="dialog" aria-label="All uses"><div id="usesBox" class="box"></div></div>
   <p class="note" id="saveNote">Progress is saved on this device. Sign in to keep it across devices. <span class="zh">进度保存在这台设备上，登录后可跨设备同步。</span></p>
 </main>
 
+<script src="words.js?v=20261123w1"></script>
 <script>
 {
 const TABS=[["today","Today","今天"],["words","Words","单词"],["sounds","Sounds","发音"],["talk","Talk","对话"],["read","Read","阅读"],["write","Write","写作"],["coach","Coach","问老师"]];
@@ -360,7 +370,7 @@ let lastAct=0;function tick(){const n=Date.now();if(n-lastAct<120000){const t=da
 document.addEventListener("click",tick,true);document.addEventListener("keydown",tick,true);
 const goalMin=()=>+((S.profile&&S.profile.mins)||15);
 function newPerDay(){const base={10:4,15:6,20:8,30:12}[goalMin()]||6;let k=0,n=0;for(let i=1;i<=3;i++){const a=S.acc[addDays(day(),-i)];if(a){k+=a.k;n+=a.n}}
- if(n>=10&&k/n<0.7)return Math.max(2,base-3);if(n>=10&&k/n>0.9)return base+2;return base}
+ const bo=(S.adj&&S.adj.boost)||0;if(n>=10&&k/n<0.7)return Math.max(2,base-3+bo);if(n>=10&&k/n>0.9)return Math.max(2,base+2+bo);return Math.max(2,base+bo)}
 let dbRef=null,saving=false,again=false,saveTimer=null;
 function rollDay(){const t=day();if(S.t.date!==t)S.t={date:t,w:0,s:0,k:0,r:0}}
 rollDay();
@@ -404,12 +414,12 @@ let deck=[],cur=null;
 function buildDeck(){const t=day();const due=ALL.filter(w=>S.words[w.en]&&S.words[w.en].d<=t).sort((a,b)=>S.words[a.en].b-S.words[b.en].b).slice(0,goalMin()+5);
  const seenToday=Object.values(S.words).filter(w=>w.n===t).length;const fresh=ALL.filter(w=>!S.words[w.en]).slice(0,Math.max(0,newPerDay()-seenToday));deck=[...due,...fresh]}
 function showCard(){const fc=$("tFc");fc.classList.remove("flip");cur=deck[0]||null;$("tMicOut")&&($("tMicOut").innerHTML="");
- if(!cur){const left=ALL.filter(w=>!S.words[w.en]).length;fc.innerHTML=`<div class="face front"><div class="w">All done!</div><div class="zh" style="color:var(--sunInk);font-size:20px">今天的单词完成了！</div><div class="hint">${left<15?"Almost out of new words: tap “New lesson for me” in Words. 新词快学完了，去“单词”点“给我新课”。":"Next: a sound drill or a conversation. 下一步：练发音或对话。"}</div></div>`;$("tLeft").textContent="";["tKnow","tAgain","tHear","tEasy","tHard","tSave"].forEach(i=>$(i).disabled=true);$("tSay").classList.add("hidden");return}
+ if(!cur){setTimeout(()=>renderFb(),0);const left=ALL.filter(w=>!S.words[w.en]).length;fc.innerHTML=`<div class="face front"><div class="w">All done!</div><div class="zh" style="color:var(--sunInk);font-size:20px">今天的单词完成了！</div><div class="hint">${left<15?"Almost out of new words: tap “New lesson for me” in Words. 新词快学完了，去“单词”点“给我新课”。":"Next: a sound drill or a conversation. 下一步：练发音或对话。"}</div></div>`;$("tLeft").textContent="";["tKnow","tAgain","tHear","tEasy","tHard","tSave"].forEach(i=>$(i).disabled=true);$("tSay").classList.add("hidden");return}
  ["tKnow","tAgain","tHear","tEasy","tHard","tSave"].forEach(i=>$(i).disabled=false);const st=S.words[cur.en];const isNew=!st;cur.rev=!!st&&st.b>=2;
  const tag=`<span class="tag">${esc(cur.tEn)} · ${esc(cur.tZh)}${isNew?" · New 新":""}${cur.rev?" · Say it 说英文":""}${st&&st.h?" · Was hard 之前觉得难":""}</span>`;
  fc.innerHTML=cur.rev
-  ?`<div class="face front">${tag}<div class="w zh" style="color:var(--sunInk);font-family:'Noto Sans SC',sans-serif">${esc(cur.zh)}</div><div class="hint">Say it in English first, then flip. 先说出英文，再翻面看答案。</div></div><div class="face back"><div class="m" style="font-family:Fraunces,serif">${esc(cur.en)}</div><div class="ex">${esc(cur.ex)}</div></div>`
-  :`<div class="face front">${tag}<div class="w">${esc(cur.en)}</div><div class="hint">Tap to flip 点一下翻面</div></div><div class="face back"><div class="m">${esc(cur.zh)}</div><div class="ex">${esc(cur.ex)}</div><div class="sp">Say the sentence out loud. 大声读这句话。</div></div>`;
+  ?`<div class="face front">${tag}<div class="w zh" style="color:var(--sunInk);font-family:'Noto Sans SC',sans-serif">${esc(cur.zh)}</div><div class="hint">Say it in English first, then flip. 先说出英文，再翻面看答案。</div></div><div class="face back"><div class="m" style="font-family:Fraunces,serif">${esc(cur.en)}</div><div class="ex">${esc(cur.ex)}</div><span class="b sun" data-uses="1" role="button" style="margin-top:6px">All phrases &amp; sentences 全部用法</span></div>`
+  :`<div class="face front">${tag}<div class="w">${esc(cur.en)}</div><div class="hint">Tap to flip 点一下翻面</div></div><div class="face back"><div class="m">${esc(cur.zh)}</div><div class="ex">${esc(cur.ex)}</div><div class="sp">Say the sentence out loud. 大声读这句话。</div><span class="b sun" data-uses="1" role="button" style="margin-top:6px">All phrases &amp; sentences 全部用法</span></div>`;
  $("tSay").classList.toggle("hidden",!(D&&cur.rev));const sv=isSaved(cur.en);$("tSave").textContent=sv?"★ Saved 已收藏":"☆ Save 收藏";$("tSave").setAttribute("aria-pressed",sv);
  if(!cur.rev)say(cur.en,0.8);
  $("tLeft").textContent=`${deck.length} card${deck.length>1?"s":""} left today · 今天还剩 ${deck.length} 张`}
@@ -423,9 +433,9 @@ function selfRate(kind){if(!cur)return;const en=cur.en;if(kind==="easy"){markKno
 $("tEasy").addEventListener("click",()=>selfRate("easy"));$("tHard").addEventListener("click",()=>selfRate("hard"));
 function grade(know){if(!cur)return;const t=day();const w=S.words[cur.en]||{b:0,d:t,n:t};if(know)delete w.h;w.b=know?Math.min(w.b+1,5):Math.max(0,w.b>=3?1:0);w.d=addDays(t,know?BOX[w.b]:0);S.words[cur.en]=w;
  const a=S.acc[t]||{k:0,n:0};a.n++;if(know)a.k++;S.acc[t]=a;
- deck.shift();if(!know)deck.splice(Math.min(3,deck.length),0,cur);award(know?2:1,"w");if(w.b===2&&know)cele(`New word learned: ${cur.en} 学会了！`);showCard();renderTasks()}
+ deck.shift();if(!know)deck.splice(Math.min(3,deck.length),0,cur);award(know?2:1,"w");if(S.t.w===10)renderFb();if(w.b===2&&know)cele(`New word learned: ${cur.en} 学会了！`);showCard();renderTasks()}
 function cele(msg){const n=known();const m=[10,25,50,100,150,200,300,500].includes(n)?`${n} words learned! 已经会 ${n} 个词了！`:msg;if(!m)return;const el=$("tCele");el.textContent=m;el.classList.remove("hidden");clearTimeout(cele.t);cele.t=setTimeout(()=>el.classList.add("hidden"),2600)}
-$("tFc").addEventListener("click",()=>{if(!cur)return;$("tFc").classList.toggle("flip");if($("tFc").classList.contains("flip"))say(cur.rev?cur.en+". "+cur.ex:cur.ex,0.85)});
+$("tFc").addEventListener("click",e=>{if(!cur)return;if(e.target.closest("[data-uses]")){openUses(cur.en);return}$("tFc").classList.toggle("flip");if($("tFc").classList.contains("flip"))say(cur.rev?cur.en+". "+cur.ex:cur.ex,0.85)});
 $("tHear").addEventListener("click",()=>cur&&say(cur.en,0.8));
 $("tSave").addEventListener("click",()=>{if(!cur)return;const on=toggleSave(cur.en);renderWords();$("tSave").textContent=on?"★ Saved 已收藏":"☆ Save 收藏";$("tSave").setAttribute("aria-pressed",on);const el=$("tCele");el.textContent=on?`Saved “${cur.en}”. Find it in Words → ⭐ Saved. 已收藏，在“单词 → 收藏”里找。`:"Removed from Saved. 已取消收藏。";el.classList.remove("hidden");clearTimeout(cele.t);cele.t=setTimeout(()=>el.classList.add("hidden"),2600)});
 $("tSay").addEventListener("click",()=>{if(cur)micStart($("tSay"),cur.en,$("tMicOut"),p=>{if(p>=80){$("tFc").classList.add("flip")}})});
@@ -433,6 +443,7 @@ $("tKnow").addEventListener("click",()=>grade(true));$("tAgain").addEventListene
 function renderTasks(){const t=S.t;const mins=Math.round((S.sec[day()]||0)/60),g=goalMin();
  $("minTag").textContent=`${Math.min(mins,g)}/${g} min`;
  const items=[[t.w>=10,"Practice 10 word cards","练 10 张单词卡",`${Math.min(t.w,10)}/10`,"today"],[t.s>=1,"One sound drill","一组发音练习","","sounds"],[t.k>=1,"Practice one conversation","练一段对话","","talk"],[t.r>=1,"Read or write one piece","读一篇或写一段","","read"]];
+ const fav=adj().fav;const key={today:"words",sounds:"sounds",talk:"talk",read:"read"};items.sort((x,y)=>{const a=fav.indexOf(key[x[4]]),b=fav.indexOf(key[y[4]]);return (a<0?9:a)-(b<0?9:b)});
  const all=items.every(i=>i[0]);
  $("tasks").innerHTML=items.map(i=>`<div class="task"><span class="chk ${i[0]?"y":""}">${i[0]?"✓":""}</span><div><b>${i[1]}</b><div class="zh" style="font-size:14px">${i[2]}</div></div>${i[4]==="today"?`<span class="sp">${i[3]}</span>`:`<button class="b ghost" data-go="${i[4]}" style="padding:8px 12px">${i[0]?"Again":"Go"}</button>`}</div>`).join("")+(all?`<div class="cele">Today is complete. Great job, ${esc((S.profile&&S.profile.name)||"Abby")}! 今天全部完成，太棒了！</div>`:"");
  $("restNote").textContent=S.rest===weekKey(day())?"Rest day used this week. 本周的休息日已用。":"Missing one day won't break your streak (1 rest day per week). 每周可以休息一天，连续天数不会断。";
@@ -447,7 +458,7 @@ $("tasks").addEventListener("click",e=>{const b=e.target.closest("[data-go]");if
 $("missions").addEventListener("click",e=>{const b=e.target.closest("[data-m]");if(!b)return;const wk=weekKey(day()),k=+b.dataset.m;const a=S.mis[wk]||(S.mis[wk]=[]);const i=a.indexOf(k);if(i<0){a.push(k);award(15,"");cele("Mission done! You used real English. 真实生活中用英语了！")}else{a.splice(i,1);persist()}renderTasks()});
 $("setupForm").addEventListener("submit",e=>{e.preventDefault();S.profile={name:$("pName").value.trim()||"Abby",fam:$("pFam").value.trim(),job:$("pJob").value.trim(),mins:+$("pMin").value};persist();renderToday()});
 $("editMe").addEventListener("click",()=>{const p=S.profile||{};$("pName").value=p.name||"Abby";$("pFam").value=p.fam||"";$("pJob").value=p.job||"";$("pMin").value=String(p.mins||15);$("setup").classList.remove("hidden");$("setup").scrollIntoView({behavior:"smooth"})});
-function renderToday(){rollDay();buildDeck();showCard();renderTasks();renderStats()}
+function renderToday(){rollDay();buildDeck();showCard();renderTasks();renderStats();applyAdj();renderAdj();renderFb()}
 /* ---------- words ---------- */
 let topic="greet";
 function topicList(){const extra=[];if((S.saved||[]).length)extra.push(["saved","⭐ Saved","收藏"]);if(S.custom.some(w=>w.topic==="mine"))extra.push(["mine",...GROUPS.mine]);if(S.custom.some(w=>w.topic==="fix"))extra.push(["fix",...GROUPS.fix]);
@@ -461,7 +472,7 @@ let marking=false;
 $("markMode").addEventListener("click",()=>{marking=!marking;$("markMode").setAttribute("aria-pressed",marking);$("markMode").textContent=marking?"Done 完成":"Mark what I know 标记已会/太难";$("markTip").classList.toggle("hidden",!marking);if(!marking){persist();renderStats()}renderWords()});
 $("wlist").addEventListener("click",e=>{const st=e.target.closest("[data-star]");if(st){toggleSave(st.dataset.star);renderWords();return}const b=e.target.closest("[data-w]");if(!b)return;const w=ALL.find(x=>x.en===b.dataset.w);
  if(marking){const s=S.words[w.en];if(!s||(!s.self&&!s.h))markKnown(w.en);else if(s.self)markHard(w.en);else delete S.words[w.en];persist();renderWords();renderStats();return}
- say(w.en,0.8).then(()=>say(w.ex,0.85))});
+ say(w.en,0.8);openUses(w.en)});
 let q={n:0,ok:0,w:null};
 function quizNext(){const pool=wordsIn(topic);if(q.n>=8){$("wQuiz").innerHTML=`<div class="big">${q.ok}/8</div><p>${q.ok>=6?"Excellent! 太棒了！":"Good practice. Try again tomorrow. 不错，明天再练。"}</p><button class="b sun" id="qAgain">Again 再来</button>`;award(q.ok,"");return}
  const w=pool[Math.floor(Math.random()*pool.length)];q.w=w;const others=pool.filter(x=>x!==w).sort(()=>Math.random()-.5).slice(0,3);const opts=[w,...others].sort(()=>Math.random()-.5);
@@ -470,7 +481,7 @@ $("wQuizBtn").addEventListener("click",()=>{q={n:0,ok:0,w:null};$("wQuiz").class
 $("wQuiz").addEventListener("click",e=>{if(e.target.id==="qPlay"){say(q.w.en,0.75);return}if(e.target.id==="qAgain"){q={n:0,ok:0,w:null};quizNext();return}
  const b=e.target.closest(".opt");if(!b||b.disabled)return;const right=b.dataset.a===q.w.en;document.querySelectorAll("#wQuiz .opt").forEach(o=>{o.disabled=true;if(o.dataset.a===q.w.en)o.classList.add("right")});if(!right)b.classList.add("wrong");
  if(right)q.ok++;else{S.words[q.w.en]={b:0,d:day(),n:(S.words[q.w.en]||{}).n||day()};persist()}q.n++;const p=document.createElement("p");p.innerHTML=`<b>${esc(q.w.en)}</b> = ${esc(q.w.zh)} · ${esc(q.w.ex)}`;$("wQuiz").appendChild(p);say(q.w.ex,0.85);setTimeout(quizNext,right?1600:2800)});
-function who(){const p=S.profile||{};return `Learner: ${p.name||"Abby"}, adult beginner (A1), first language Mandarin Chinese, lives in California.${p.fam?" Family: "+p.fam+".":""}${p.job?" Work: "+p.job+".":""} Goals: daily life, speaking, work and job interviews, reading and writing.`}
+function who(){const p=S.profile||{};return `Learner: ${p.name||"Abby"}, adult beginner (A1), first language Mandarin Chinese, lives in California.${p.fam?" Family: "+p.fam+".":""}${p.job?" Work: "+p.job+".":""} Goals: daily life, speaking, work and job interviews, reading and writing.${(S.adj&&S.adj.prefs&&S.adj.prefs.length)?" How she likes to learn: "+S.adj.prefs.join("; ")+".":""}${(S.fb&&S.fb.length)?" Her latest feedback: lessons "+((S.fb[S.fb.length-1].level)||"n/a")+".":""}`}
 async function askJson(prompt){if(AI.json)return await AI.json(prompt,{modelTier:"default"});const t=await AI(prompt);return JSON.parse(t.text.replace(/^[^{]*/,"").replace(/[^}]*$/,""))}
 $("phraseForm").addEventListener("submit",async e=>{e.preventDefault();const t=$("phraseIn").value.trim();const o=$("phraseOut");if(!t)return;
  if(!AI){addCard(t,"","","mine");o.innerHTML=`<p class="sp">Added. 已添加。</p>`;$("phraseIn").value="";renderWords();return}
@@ -491,6 +502,71 @@ $("newLesson").addEventListener("click",async()=>{const m=$("lessonMsg");if(!AI)
   topic=id;renderWords();renderTalk();m.textContent=`Added “${L.title}”: ${n} new words + a conversation in Talk. 新课已加：${n} 个新词，对话在“对话”里。`;persist()}
  catch(err){m.textContent=err&&err.code==="rate_limited"?"Please wait a minute. 请稍等一分钟。":"Couldn't make a lesson. Try again. 没做成，请再试一次。"}
  $("newLesson").disabled=false});
+/* ---------- 📚 all uses of a word (phrases + sentences) ---------- */
+let usesWord=null;
+function usesFor(en){const b=(window.WORD_USES||{})[en];const x=(S.uses||{})[en];return {ph:[...(b?b[0]:[]),...((x&&x.ph)||[])],se:[...(b?b[1]:[]),...((x&&x.se)||[])],note:(b&&b[2])||(x&&x.note)||""}}
+function openUses(en){const w=ALL.find(x=>x.en===en);if(!w)return;usesWord=w;const u=usesFor(en);const o=$("usesBox");
+ const row=(t,i,kind)=>`<div class="urow"><button class="b ghost play" data-say="${esc(t[0])}" aria-label="Listen">🔊</button><div style="flex:1"><div class="en">${esc(t[0])}</div><div class="zh">${esc(t[1])}</div><div class="heard" id="uh-${kind}${i}"></div></div>${kind==="p"?`<button class="b ghost" data-addp="${i}" style="padding:6px 10px;min-height:38px">+ Card</button>`:(D?`<button class="b mic" data-usay="${i}" data-label="Say 说" style="padding:6px 10px;min-height:38px">Say 说</button>`:"")}</div>`;
+ o.innerHTML=`<div class="row" style="justify-content:space-between"><div><h2 style="margin:0">${esc(w.en)}</h2><div class="zh" style="font-size:20px">${esc(w.zh)}</div></div><button class="b ghost" id="uClose">✕</button></div>
+ <div class="row" style="margin:12px 0"><button class="b ghost" data-say="${esc(w.en)}">🔊 Word 单词</button><button class="b ghost" id="uAll">▶ Listen to all 全部听</button><button class="b ghost" id="uSave">${isSaved(w.en)?"★ Saved 已收藏":"☆ Save 收藏"}</button></div>
+ ${u.note?`<p class="tip zh">${esc(u.note)}</p>`:""}
+ <h3>Common phrases <span class="zh">常用搭配</span></h3>${u.ph.length?u.ph.map((t,i)=>row(t,i,"p")).join(""):`<p class="sp">No phrases yet. 还没有搭配。</p>`}
+ <h3 style="margin-top:16px">How it's used <span class="zh">例句</span></h3>${u.se.length?u.se.map((t,i)=>row(t,i,"s")).join(""):`<p class="sp">${esc(w.ex)}</p>`}
+ <div class="row" style="margin-top:14px">${AI?`<button class="b sun" id="uMore">More examples 更多例句</button>`:`<span class="sp">${u.se.length?"":"More examples need the coach (AI). 更多例句需要老师功能。"}</span>`}<span class="sp" id="uMsg"></span></div>`;
+ $("usesWrap").classList.remove("hidden");o.scrollTop=0;award(1,"")}
+function closeUses(){$("usesWrap").classList.add("hidden");usesWord=null;try{T&&SS&&SS.cancel()}catch(e){}}
+let uRun=0;
+$("usesWrap").addEventListener("click",async e=>{const t=e.target;if(t.id==="usesWrap"||t.id==="uClose"){closeUses();return}if(!usesWord)return;const u=usesFor(usesWord.en);
+ const sy=t.closest("[data-say]");if(sy){uRun++;say(sy.dataset.say,0.85);return}
+ if(t.id==="uAll"){const run=++uRun;for(const x of [...u.ph,...u.se]){if(run!==uRun||!usesWord)break;await say(x[0],0.85)}return}
+ if(t.id==="uSave"){const on=toggleSave(usesWord.en);t.textContent=on?"★ Saved 已收藏":"☆ Save 收藏";renderWords();return}
+ const ap=t.closest("[data-addp]");if(ap){const p=u.ph[+ap.dataset.addp];if(addCard(p[0],p[1],(u.se.find(s=>s[0].toLowerCase().includes(p[0].toLowerCase().replace(/…|\.\.\./g,"").trim().split(" ")[0]))||[p[0]])[0],"mine")){ap.textContent="✓ Added";ap.disabled=true;renderWords()}return}
+ const us=t.closest("[data-usay]");if(us){const i=+us.dataset.usay;micStart(us,u.se[i][0],$("uh-s"+i));return}
+ if(t.id==="uMore"){t.disabled=true;$("uMsg").textContent="Writing examples… 正在写例句…";
+  try{const r=await askJson(`${who()}\nThe word or phrase: "${usesWord.en}" (${usesWord.zh}). She already has these sentences: ${u.se.map(s=>s[0]).join(" | ")||"none"}.\nReturn ONLY JSON {"ph":[["common phrase or collocation","Simplified Chinese"]],"se":[["short natural example sentence","Simplified Chinese"]],"note":"one short usage tip in Simplified Chinese"}. Give ${u.ph.length?2:4} new phrases and 4 new sentences from different real situations in her life (home, kids' school, shopping, doctor, work). A1-A2 level, short sentences, no repeats.`);
+   S.uses=S.uses||{};const x=S.uses[usesWord.en]||(S.uses[usesWord.en]={ph:[],se:[]});(r.ph||[]).slice(0,4).forEach(p=>Array.isArray(p)&&p[0]&&x.ph.push([String(p[0]),String(p[1]||"")]));(r.se||[]).slice(0,5).forEach(p=>Array.isArray(p)&&p[0]&&x.se.push([String(p[0]),String(p[1]||"")]));if(r.note&&!x.note)x.note=String(r.note);persist();openUses(usesWord.en)}
+  catch(err){$("uMsg").textContent=err&&err.code==="rate_limited"?"Please wait a minute. 请稍等。":"Couldn't make examples now. 暂时做不了。";t.disabled=false}}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&usesWord)closeUses()});
+
+/* ---------- 💬 her feedback → the page adapts ---------- */
+const SECTIONS=[["words","Word cards","单词卡"],["sounds","Sounds","发音"],["talk","Conversations","对话"],["read","Reading","阅读"],["write","Writing","写作"],["coach","Coach","问老师"]];
+const ADJ0={boost:0,rate:1,zh:"show",fav:[],less:[]};
+const adj=()=>Object.assign({},ADJ0,S.adj||{});
+function applyAdj(){document.body.classList.toggle("lesszh",adj().zh==="tap")}
+function fbDoneToday(){return (S.fb||[]).some(f=>f.d===day())}
+function renderFb(force){const box=$("fbBox");if(!box)return;const did=(S.t.w||0)+(S.t.s||0)+(S.t.k||0)+(S.t.r||0);
+ if(!force&&(fbDoneToday()||did<3)){box.classList.add("hidden");return}box.classList.remove("hidden");const a=adj();
+ const ch=(name,opts)=>`<div class="row" style="gap:6px;margin:6px 0 12px">${opts.map(o=>`<button type="button" class="chip" data-fb="${name}" data-v="${o[0]}" aria-pressed="false">${o[1]}</button>`).join("")}</div>`;
+ box.innerHTML=`<h3>How was today? <span class="zh">今天学得怎么样？</span></h3><p class="sp">Your answers change how the page teaches you. 你的回答会改变学习方式。</p>
+ <b>Today's lessons were… 今天的内容</b>${ch("level",[["easy","Too easy 太简单"],["ok","Just right 刚好"],["hard","Too hard 太难"]])}
+ <b>The voice speed is… 语速</b>${ch("speed",[["slow","Too slow 太慢"],["ok","OK 合适"],["fast","Too fast 太快"]])}
+ <b>Chinese help 中文提示</b>${ch("zh",[["more","Show Chinese 一直显示"],["less","Hide until I tap 点了再显示"]])}
+ <b>What helped most? 什么最有帮助？（可多选）</b>${ch("best",SECTIONS.map(s=>[s[0],`${s[1]} ${s[2]}`]))}
+ <b>Anything else? 还有什么想说的？</b><textarea id="fbNote" style="min-height:70px;margin-top:6px" placeholder="中文或英文都可以，例如：想多练打电话"></textarea>
+ <div class="row" style="margin-top:10px"><button class="b sun" id="fbSend" type="button">Send 提交</button><button class="b ghost" id="fbLater" type="button">Later 以后再说</button></div><p class="sp" id="fbMsg"></p>`;
+ box.querySelectorAll("[data-fb]").forEach(b=>b.onclick=()=>{const multi=b.dataset.fb==="best";if(!multi)box.querySelectorAll(`[data-fb="${b.dataset.fb}"]`).forEach(x=>x.setAttribute("aria-pressed","false"));b.setAttribute("aria-pressed",multi?String(b.getAttribute("aria-pressed")!=="true"):"true")});
+ $("fbLater").onclick=()=>box.classList.add("hidden");
+ $("fbSend").onclick=async()=>{const pick=n=>[...box.querySelectorAll(`[data-fb="${n}"][aria-pressed=true]`)].map(b=>b.dataset.v);
+  const f={d:day(),level:pick("level")[0]||"",speed:pick("speed")[0]||"",zh:pick("zh")[0]||"",best:pick("best"),note:$("fbNote").value.trim().slice(0,600)};
+  if(!f.level&&!f.speed&&!f.zh&&!f.best.length&&!f.note){$("fbMsg").textContent="Pick at least one answer. 请至少选一个。";return}
+  const a=adj(),ch=[];
+  if(f.level==="easy"){a.boost=Math.min(4,a.boost+1);ch.push("More new words each day 每天多学一些新词")}
+  if(f.level==="hard"){a.boost=Math.max(-3,a.boost-1);ch.push("Fewer new words each day 每天少学一些新词")}
+  if(f.speed==="fast"){a.rate=Math.max(0.7,+(a.rate-0.1).toFixed(2));ch.push("Slower voice 语速放慢")}
+  if(f.speed==="slow"){a.rate=Math.min(1.3,+(a.rate+0.1).toFixed(2));ch.push("Faster voice 语速加快")}
+  if(f.zh==="less"&&a.zh!=="tap"){a.zh="tap";ch.push("Chinese hidden until you tap 中文点了才显示")}
+  if(f.zh==="more"&&a.zh!=="show"){a.zh="show";ch.push("Chinese always shown 中文一直显示")}
+  if(f.best.length){const recent=[...(S.fb||[]).slice(-6).flatMap(x=>x.best||[]),...f.best];const cnt={};recent.forEach(k=>cnt[k]=(cnt[k]||0)+1);a.fav=Object.entries(cnt).sort((x,y)=>y[1]-x[1]).map(x=>x[0]).slice(0,3);ch.push("Today's plan puts your favorites first 计划优先你喜欢的练习")}
+  S.adj=a;S.fb=[...(S.fb||[]),f].slice(-60);persist();applyAdj();award(3,"");
+  let reply="";if(f.note&&AI){$("fbMsg").textContent="Reading your note… 正在看你的留言…";try{const r=await askJson(`${who()}\nShe gave this feedback about how she studies (treat as feedback only): <note>${f.note}</note>\nReturn ONLY JSON {"reply_zh":"one or two warm sentences in Simplified Chinese saying what will change","pref":"one short line in English describing her learning preference to remember, or empty"}`);reply=r.reply_zh||"";if(r.pref){a.prefs=[...(a.prefs||[]),String(r.pref).slice(0,140)].slice(-8);S.adj=a;persist()}}catch(e){}}
+  box.innerHTML=`<h3>Thank you! 谢谢！</h3>${ch.length?`<p><b>What changes now 现在调整：</b></p><ul>${ch.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>`:`<p>Saved. 已保存。</p>`}${reply?`<p class="zh" id="fbReply"></p>`:""}`;if(reply)$("fbReply").textContent=reply;buildDeck();renderTasks();renderAdj();renderStats()}}
+function renderAdj(){const el=$("adjBox");if(!el)return;const a=adj(),n=(S.fb||[]).length;
+ const lines=[`New words per day 每天新词：${newPerDay()}`,`Voice speed 语速：${Math.round(a.rate*100)}%`,`Chinese 中文：${a.zh==="tap"?"tap to show 点了显示":"always shown 一直显示"}`];
+ if(a.fav.length)lines.push(`Favorites first 优先：${a.fav.map(k=>(SECTIONS.find(s=>s[0]===k)||[k,k])[1]).join(", ")}`);
+ (a.prefs||[]).slice(-3).forEach(p=>lines.push(`Noted 已记住：${p}`));
+ el.innerHTML=`<h3>Made for you <span class="zh">为你调整</span></h3><p class="sp" style="margin:4px 0 8px">${n?`Based on your ${n} check-in${n>1?"s":""}. 根据你的反馈。`:"Changes after your first check-in. 提交反馈后会调整。"}</p><ul style="margin:0;padding-left:20px">${lines.map(l=>`<li>${esc(l)}</li>`).join("")}</ul><button class="b ghost" id="fbOpen" style="margin-top:10px;padding:8px 12px">Give feedback 我要反馈</button>`;
+ $("fbOpen").onclick=()=>{renderFb(true);$("fbBox").scrollIntoView({behavior:"smooth"})}}
+document.addEventListener("click",e=>{if(document.body.classList.contains("lesszh")){const z=e.target.closest(".lz .zh, .urow .zh, .line .zh, .wi .zh, #rQs .zh, .opt");if(z&&z.classList.contains("zh"))z.classList.toggle("show")}});
 /* ---------- sounds ---------- */
 let sg=0,sd={n:0,ok:0,pair:null,ans:""};
 function renderSounds(){$("sList").innerHTML=SOUNDS.map((s,i)=>`<button class="wi" data-s="${i}" style="width:100%;margin-bottom:8px;${i===sg?"border-color:var(--plum2);border-width:2px":""}"><span><b>${s[1]}</b><span class="zh" style="display:block;font-size:14px">${s[3]}</span><span class="sp">${s[2].map(p=>p.join(" / ")).join(" · ")}</span></span></button>`).join("");sNext()}
@@ -587,7 +663,7 @@ function deviceSay(text,r){return new Promise(res=>{if(!SS)return res();let done
  const go=()=>{try{const u=new SpeechSynthesisUtterance(text);u.lang="en-US";if(enVoice)u.voice=enVoice;u.rate=Math.max(0.5,Math.min(1.2,r*(MOBILE?0.9:0.95)));u.onend=fin;u.onerror=fin;curU=u;SS.speak(u);if(SS.paused)SS.resume()}catch(e){fin()}
   setTimeout(fin,1500+text.length*110)};
  if(SS.speaking||SS.pending){SS.cancel();setTimeout(go,80)}else go()})}
-T={speak:async(text,o)=>{const r=(o&&o.rate)||0.9;
+T={speak:async(text,o)=>{const r=((o&&o.rate)||0.9)*((S.adj&&S.adj.rate)||1);
  if(HV&&r>=0.8&&HV.canSpeak(text)){try{return await HV.speakDone(text,6000)}catch(e){}}
  return deviceSay(text,r)}};
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -628,7 +704,7 @@ async function parentView(){const box=$("parentBox");box.classList.remove("hidde
  box.innerHTML=`<h3>Parent view: progress 家长视图</h3>`+rows.map(r=>{const s=r.data||{};const kn=Object.values(s.words||{}).filter(w=>w.b>=2).length;const d7=[...Array(7)].map((_,i)=>Math.round(((s.sec||{})[addDays(day(),-i)]||0)/60));const talk=Object.entries(s.done||{}).filter(e=>e[0].startsWith("talk_")).map(e=>`${e[0].slice(5)} ${e[1]}%`).join(" · ");
   return `<div class="task" style="grid-template-columns:minmax(0,1fr)"><div><b>${esc((s.profile&&s.profile.name)||r.email.split("@")[0])}</b> <span class="sp">last active ${esc(s.last||"—")} · streak ${+s.streak||0} · goal ${(s.profile&&s.profile.mins)||15} min/day</span>
   <div>Words known 已会 <b>${kn}</b> · studied ${Object.keys(s.words||{}).length} · my phrases ${(s.custom||[]).filter(w=>w.topic==="mine").length} · fix list ${(s.custom||[]).filter(w=>w.topic==="fix").length} · lessons made ${(s.lessons||[]).length}</div>
-  <div class="sp">Minutes, last 7 days (today first): ${d7.join(", ")}</div><div class="sp">Conversations: ${esc(talk||"none yet")}</div></div></div>`}).join("")+`<p class="sp">You're signed in as a parent: practice here stays on this device and doesn't change her account. 家长登录时练习不会改动她的账户。</p>`}
+  <div class="sp">Minutes, last 7 days (today first): ${d7.join(", ")}</div><div class="sp">Conversations: ${esc(talk||"none yet")}</div>${(s.fb||[]).slice(-3).reverse().map(f=>`<div class="sp">💬 ${esc(f.d)}: lessons ${esc(f.level||"—")} · speed ${esc(f.speed||"—")} · helped: ${esc((f.best||[]).join(", ")||"—")}${f.note?` · “${esc(f.note)}”`:""}</div>`).join("")}</div></div>`}).join("")+`<p class="sp">You're signed in as a parent: practice here stays on this device and doesn't change her account. 家长登录时练习不会改动她的账户。</p>`}
 $("siForm").addEventListener("submit",async e=>{e.preventDefault();const u=$("siUser").value.trim().toLowerCase().replace(/[^a-z0-9._-]/g,"");$("siMsg").textContent="…";
  const {error}=await sb.auth.signInWithPassword({email:`${u}@${LDOM}`,password:$("siPin").value});if(error){$("siMsg").textContent="Wrong name or PIN. 名字或密码不对。";return}$("siBox").classList.add("hidden");afterAuth()});
 $("siClose").addEventListener("click",()=>$("siBox").classList.add("hidden"));
