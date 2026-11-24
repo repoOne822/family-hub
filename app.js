@@ -558,7 +558,8 @@ const LN = {
       "在表格里选一个难度即可替代教练（选“自动”交回）。他做过的一切都不会删除，每晚都存为历史记录。"],
     pace: s => `${s} 秒`, notStarted: "还没开始", newOnly: "这里只有未开始的技能。", tuned: "AMC 8 和物理的每日小测和练习馆会按这个难度出题。", appsNone: "—" } };
 const LN_APP = { amc: ["🏆", "AMC 8", "AMC 8", "#7c5cff"], physics: ["🧲", "Physics 6", "物理 6", "#2bb3ff"], quest: ["⚔️", "Realm of Forces", "力之境", "#ff5a5a"], space: ["🚀", "Space Quest", "太空探险", "#ffb020"],
-  brain: ["🧠", "Brain Park", "大脑乐园", "#2fbf71"], robot: ["🤖", "Robot Lab", "机器人实验室", "#ff5ccb"], fencing: ["🤺", "Piste Duel", "Piste Duel", "#c4f53a"] };
+  brain: ["🧠", "Brain Park", "大脑乐园", "#2fbf71"], robot: ["🤖", "Robot Lab", "机器人实验室", "#ff5ccb"], fencing: ["🤺", "Piste Duel", "Piste Duel", "#c4f53a"],
+  chem: ["⚗️", "Chemistry", "化学", "#14b8a6"], bio: ["🧬", "Biology", "生物", "#22c55e"], prealg: ["➗", "Pre-Algebra", "代数预备", "#6366f1"], english: ["📝", "English", "英语", "#f97316"], latin: ["🏛️", "Latin", "拉丁语", "#a16207"], history: ["🗺️", "World History", "世界历史", "#db2777"] };
 const LN_ST = { mastered: ["✅", "var(--pos)"], review: ["🔁", "#7c5cff"], learning: ["🔨", "var(--accent)"], started: ["🌱", "var(--muted)"], lacking: ["⚠️", "var(--neg)"], slow: ["🐢", "#e08a2b"], rushing: ["⚡", "#e08a2b"], new: ["⬜", "var(--muted)"] };
 const LN_TUNED = ["amc", "physics"];
 const lnApp = a => { const x = LN_APP[a] || ["📦", a, a]; return `${x[0]} ${lang === "zh" ? x[2] : x[1]}`; };
@@ -616,7 +617,7 @@ function lnRender() {
   const byApp = [...new Set(SS.map(s => s.app))].sort((a, b) => Object.keys(LN_APP).indexOf(a) - Object.keys(LN_APP).indexOf(b));
   const changed7 = s => s.difficulty_changed_on && s.difficulty_changed_on >= w1 && s.difficulty_prev != null && s.difficulty !== s.difficulty_prev;
   const lvlCell = s => {
-    if (!LN_TUNED.includes(s.app)) return `<span class="meta">${s.app_level != null && !["space", "robot"].includes(s.app) ? (zh ? "级 " : "Lv ") + (+s.app_level) + " · " : ""}${L.selfAdapt}</span>`;
+    if (!LN_TUNED.includes(s.app)) return `<span class="meta">${s.app_level != null && !["space", "robot"].includes(s.app) ? (zh ? "级 " : "Lv ") + Math.round(+s.app_level) + " · " : ""}${L.selfAdapt}</span>`;
     const arrow = changed7(s) ? (s.difficulty > s.difficulty_prev ? " ⬆️" : " ⬇️") : "";
     return `<select class="lnsel" data-lsk="${esc(s.app + "|" + s.skill)}"><option value="">${L.auto}${s.parent_level == null && s.difficulty ? " (" + L.lvls[s.difficulty - 1] + ")" : ""}</option>${[1, 2, 3].map(n => `<option value="${n}" ${s.parent_level === n ? "selected" : ""}>${L.lvls[n - 1]}</option>`).join("")}</select>${arrow}`;
   };
@@ -1023,15 +1024,81 @@ function amcStats(P) {
   const slow = ev.slice(-80).filter(e => e.s > 0).sort((a, b) => b.s - a.s).slice(0, 8);
   return { all: sum(ev), topics, levels, days, week, total, slow, exams: ((P.exams || {}).log || []).slice(-12), readN: new Set(rd.filter(e => e.part == null).map(e => e.t + e.step)).size, readSec: rd.reduce((a, e) => a + (e.s || 0), 0) };
 }
+/* ---- 📈 Same measurement framework for every school subject (Bobby 2026-11-23): AMC, Physics and the six class rooms.
+   Each subject shows the AMC panels: time, tries, fresh first-try accuracy, median speed, by unit (with flags), by level, checkpoints/tests,
+   slowest questions, lessons read, plus the unit table (level, nightly-model status, checkpoint) and the school grade goal. ---- */
+const PF_APPS = ["amc", "physics", "chem", "bio", "prealg", "english", "latin", "history"];
+const PF_ROOMS = ["chem", "bio", "prealg", "english", "latin", "history"];
+const PF_GRADE = { physics: "physics", bio: "bio", english: "english", latin: "latin", history: "history" };
+const pfKey = (kid, app) => app === "amc" ? `${kid}_amc_progress` : app === "physics" ? `${kid}_physics_progress` : `${kid}_study_${app}`;
+let pfApp = "amc";
+function pfDays(kid, app, sessions) {
+  const days = [...Array(7)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d.toLocaleDateString("en-CA"); });
+  const mon = (() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toLocaleDateString("en-CA"); })();
+  const at = (S.app_time || []).filter(x => x.kid === kid && x.app === app);
+  const secOf = d => { const a = at.find(x => x.date === d); if (a) return a.secs; return (sessions || []).filter(x => x.date === d).reduce((s, x) => s + (x.active || 0), 0); };
+  const dates = new Set([...at.map(x => x.date), ...(sessions || []).map(x => x.date)]);
+  return { days: days.map(iso => ({ iso, sec: secOf(iso) })), week: [...dates].filter(d => d >= mon).reduce((s, d) => s + secOf(d), 0), total: [...dates].reduce((s, d) => s + secOf(d), 0) };
+}
+function pfFlags(r, pace) { return r.n < 4 ? "early" : r.acc >= 80 && (r.med == null || r.med <= pace) ? "strong" : r.acc < 60 && r.med != null && r.med < pace * 0.3 ? "rush" : r.acc < 60 ? "weak" : r.acc >= 75 && r.med != null && r.med > pace * 1.25 ? "slow" : ""; }
+function roomStats(P, app, kid) {
+  const lvName = ["", "easy", "medium", "hard"];
+  const ev = (P.log || []).filter(e => e.first && !e.rep && e.m !== "learn").map(e => ({ t: e.u, ok: !!e.ok, s: e.s || null, lv: lvName[Math.round(e.lv || 2)] || "medium", d: e.d, q: e.q, m: e.m }));
+  const sum = list => { const ss = list.map(e => e.s).filter(x => x); return { n: list.length, acc: list.length ? Math.round(list.filter(e => e.ok).length / list.length * 100) : null, med: ss.length ? median(ss) : null }; };
+  const grp = {}; ev.forEach(e => (grp[e.t] = grp[e.t] || []).push(e));
+  const topics = Object.entries(grp).map(([t, l]) => ({ t, ...sum(l) })).map(r => ({ ...r, flag: pfFlags(r, 40) })).sort((a, b) => (a.acc ?? 0) - (b.acc ?? 0));
+  const levels = ["easy", "medium", "hard"].map(lv => ({ lv, ...sum(ev.filter(e => e.lv === lv)) }));
+  const ssApp = (S.skill_state || []).filter(x => x.kid === kid && x.app === app).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+  const nm = id => (P.names || {})[id] ? P.names[id][lang === "zh" ? 1 : 0] : ((x => x ? (lang === "zh" && x.label_zh ? x.label_zh : x.label) : id)(ssApp.find(x => x.skill === id)));
+  const exams = (P.tests || []).slice(-12).map(x => ({ date: x.d, score: x.score, of: x.n, kind: x.cp ? "weekly" : "daily", label: `${x.cp ? "🏁" : "📝"} ${nm(x.u)}` }));
+  const slow = ev.slice(-80).filter(e => e.s).sort((a, b) => b.s - a.s).slice(0, 8);
+  const learned = Object.values(P.learn || {}).filter(x => x && x.done).length;
+  const units = (P.names ? Object.keys(P.names) : ssApp.map(x => x.skill)).map(u => { const ss = (S.skill_state || []).find(x => x.kid === kid && x.app === app && x.skill === u) || {}, cp = (P.cp || {})[u] || {}, r = topics.find(x => x.t === u);
+    return { u, name: nm(u), lv: (P.lv || {})[u], status: ss.status, mastery: ss.mastery, n: r ? r.n : 0, acc: r ? r.acc : null, cp: cp.passed ? `🏁 ${cp.score}/10` : cp.failAt ? "❌" : "", learned: !!((P.learn || {})[u] || {}).done }; });
+  return { all: sum(ev), topics, levels, ...pfDays(kid, app, null), slow, exams, readN: learned, readSec: 0, units, nm, pace: 40 };
+}
+function phyStats(P, kid) {
+  const ev = (P.events || []).filter(e => e.m !== "read" && e.t && e.ok != null && !e.blank && e.first !== false).map(e => ({ t: e.t, ok: !!e.ok, s: e.secs || null, lv: e.m === "challenge" || e.m === "test" || e.m === "checkpoint" ? "hard" : e.m === "practice" ? "easy" : "medium", d: e.d, q: e.q, m: e.m }));
+  const sum = list => { const ss = list.map(e => e.s).filter(x => x); return { n: list.length, acc: list.length ? Math.round(list.filter(e => e.ok).length / list.length * 100) : null, med: ss.length ? median(ss) : null }; };
+  const grp = {}; ev.forEach(e => (grp[e.t] = grp[e.t] || []).push(e));
+  const topics = Object.entries(grp).map(([t, l]) => ({ t, ...sum(l) })).map(r => ({ ...r, flag: pfFlags(r, 90) })).sort((a, b) => (a.acc ?? 0) - (b.acc ?? 0));
+  const levels = ["easy", "medium", "hard"].map(lv => ({ lv, ...sum(ev.filter(e => e.lv === lv)) }));
+  const exams = []; Object.entries(P.tests || {}).forEach(([u, t]) => (t.log || []).forEach(x => exams.push({ date: x.date, score: x.score, of: t.of || 10, kind: "daily", label: `📝 ${u}` })));
+  Object.entries(P.cp || {}).forEach(([u, c]) => (c.tries || []).forEach(x => exams.push({ date: x.d, score: x.score, of: 10, kind: "weekly", label: `🏁 ${u}` })));
+  exams.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const units = Object.keys(P.lessons || {}).map(u => { const ss = (S.skill_state || []).find(x => x.kid === kid && x.app === "physics" && x.skill === u) || {}, c = (P.cp || {})[u] || {}, r = topics.find(x => x.t === u);
+    return { u, name: ss.label || u, lv: ss.difficulty, status: ss.status, mastery: ss.mastery, n: r ? r.n : 0, acc: r ? r.acc : null, cp: c.passed ? `🏁 ${c.score}/10` : c.failAt ? "❌" : "", learned: (P.lessons[u].read ?? -1) >= 3 }; });
+  return { all: sum(ev), topics, levels, ...pfDays(kid, "physics", P.sessions), slow: [], exams: exams.slice(-12), readN: units.filter(x => x.learned).length, readSec: 0, units, nm: u => ((S.skill_state || []).find(x => x.kid === kid && x.app === "physics" && x.skill === u) || {}).label || u, pace: 90 };
+}
+function pfExtra(st, app, kid) {
+  const zh = lang === "zh", gm = PF_GRADE[app] && (S.metrics || []).find(m => m.id === `${kid}-${PF_GRADE[app]}-grade`);
+  let g = "";
+  if (gm) { const cur = curLevel(gm), span = (+gm.target) - (+gm.baseline), p = span ? Math.max(0, Math.min(1, (cur - (+gm.baseline)) / span)) : 1;
+    g = `<div class="coach"><h4>🏫 ${zh ? "学校成绩目标" : "School grade goal"}</h4><p>${esc(zh && gm.name_zh ? gm.name_zh : gm.name)}: ${+gm.baseline}% → <b>${cur}%</b> → ${+gm.target}% ${zh ? "截止" : "by"} ${esc(gm.deadline || "")}</p><span class="pfbar" style="width:100%"><i style="width:${Math.round(p * 100)}%"></i></span>
+      <p class="meta">${zh ? "这里的练习正确率是方向，真正的成绩以学校成绩单为准。新成绩出来后在仪表板里更新。" : "Practice accuracy here points the way; the real measure is the school grade. Update it on the dashboard when a new grade comes in."}</p></div>`; }
+  if (!st.units || !st.units.length) return g;
+  const STN = zh ? { mastered: "已掌握", review: "该复习", learning: "练习中", started: "刚开始", lacking: "需要帮助", slow: "会但慢", rushing: "太急", new: "未开始" } : { mastered: "mastered", review: "review due", learning: "working on it", started: "just started", lacking: "needs help", slow: "right but slow", rushing: "rushing", new: "not started" };
+  const stl = x => x ? `${LN_ST[x] ? LN_ST[x][0] : ""} ${STN[x] || x}` : "—";
+  return g + `<div class="coach"><h4>🧱 ${zh ? "单元总览" : "Units at a glance"}</h4><table class="pft"><tr><th>${zh ? "单元" : "Unit"}</th><th>📖</th><th>${zh ? "题数" : "Tries"}</th><th>${zh ? "首答对" : "Right"}</th><th>🎚️</th><th>${zh ? "夜间模型" : "Model"}</th><th>🏁</th></tr>
+    ${st.units.map(r => `<tr><td>${esc(r.name)}</td><td>${r.learned ? "✓" : ""}</td><td>${r.n}</td><td>${r.acc == null ? "—" : r.acc + "%"}</td><td>${r.lv == null ? "—" : Math.round(r.lv)}</td><td>${stl(r.status)}${r.mastery != null ? ` <span class="meta">${Math.round(r.mastery * 100)}%</span>` : ""}</td><td>${r.cp}</td></tr>`).join("")}</table>
+    <p class="meta">${zh ? "只算新题的第一次作答（不算重复题和课中小测）。🎚️ 级别随对错自动升降。夜间模型每晚更新掌握度。" : "Counts first tries on fresh questions only (no repeats, no in-lesson checks). 🎚️ level moves with right/wrong answers. The nightly model updates mastery every evening."}</p></div>`;
+}
 function viewPerformance() {
-  const t = T(), L = PFS[lang] || PFS.en;
+  const t = T(); let L = PFS[lang] || PFS.en;
   pfKid = pfKid && S.kids.some(k => k.id === pfKid) ? pfKid : (S.kids.find(k => (S.app_saves || []).some(a => a.kid === k.id && a.app === "amc")) || S.kids[0])?.id; if (!pfKid) return;
   const name = esc(kidName(pfKid)), ki = S.kids.findIndex(k => k.id === pfKid);
-  const save = (S.app_saves || []).find(a => a.kid === pfKid && a.app === "amc");
-  const P = save && save.data ? save.data[`${pfKid}_amc_progress`] : null;
-  const subj = S.subjects.find(x => x.kid === pfKid && x.app_url === "amc/");
+  const appsHere = PF_APPS.filter(a => (S.app_saves || []).some(x => x.kid === pfKid && x.app === a)); if (!appsHere.includes(pfApp)) pfApp = appsHere[0] || "amc";
+  const save = (S.app_saves || []).find(a => a.kid === pfKid && a.app === pfApp);
+  const P = save && save.data ? save.data[pfKey(pfKid, pfApp)] : null;
+  const subj = S.subjects.find(x => x.kid === pfKid && x.app_url === pfApp + "/");
+  if (pfApp !== "amc") { const zh = lang === "zh", nmA = lnApp(pfApp), pace = pfApp === "physics" ? 90 : 40;
+    L = Object.assign({}, L, { noData: n => zh ? `${n} 还没有用过${nmA}。` : `${n} hasn't used ${nmA} yet.`, attempts: zh ? "新题首答数" : "Fresh questions tried",
+      pace: zh ? `${nmA}：每题约 ${pace} 秒算正常节奏；只算新题第一次作答。` : `${nmA}: about ${pace} s per question is a normal pace. Only first tries on fresh questions count.`,
+      byTopic: zh ? "按单元" : "By unit", topic: zh ? "单元" : "Unit", exams: zh ? "关卡和单元测" : "Checkpoints & unit tests",
+      readTxt: n => zh ? `已学完 ${n} 个单元的课` : `${n} unit lesson${n === 1 ? "" : "s"} finished` }); }
+  const tp = id => pfApp === "amc" ? amcTopic(id) : esc(st && st.nm ? st.nm(id) : id);
   const asses = (S.assessments || []).filter(a => a.kid === pfKid).sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
-  const st = P ? amcStats(P) : null;
+  const st = P ? (pfApp === "amc" ? amcStats(P) : pfApp === "physics" ? phyStats(P, pfKid) : roomStats(P, pfApp, pfKid)) : null;
   const mins = s => Math.round((s || 0) / 60);
   const pct = v => v == null ? "—" : v + "%";
   const sec = v => v == null ? "—" : v + " s";
@@ -1041,6 +1108,7 @@ function viewPerformance() {
   const dims = Object.keys(L.dims);
   const maxDay = Math.max(1, ...((st && st.days) || []).map(d => d.sec));
   $("#view").innerHTML = `<div class="section-h"><h3>📈 ${L.title}</h3><div class="tabs" id="pfTabs">${S.kids.map(x => `<button class="${x.id === pfKid ? "on" : ""}" data-pk="${esc(x.id)}">${esc(kidName(x.id))}</button>`).join("")}</div></div>
+  <div class="tabs" id="pfApps" style="margin:6px 0 12px">${appsHere.map(a => `<button class="${a === pfApp ? "on" : ""}" data-pa="${a}">${lnApp(a)}</button>`).join("")}</div>
   <div class="fbgrid" style="--kc:${KC[ki % 3]}"><div>
     ${!st ? `<div class="coach"><p>${L.noData(name)}</p></div>` : `
     <div class="pfkpis">
@@ -1049,12 +1117,13 @@ function viewPerformance() {
       <div class="pfk"><b>${pct(st.all.acc)}</b><span>🎯 ${L.acc}</span></div>
       <div class="pfk ${st.all.med > 120 ? "warn" : ""}"><b>${sec(st.all.med)}</b><span>🐢 ${L.med}</span></div></div>
     <p class="meta">${L.pace} ${L.total}: ${mins(st.total)} ${L.min}.</p>
+    ${pfApp !== "amc" ? pfExtra(st, pfApp, pfKid) : ""}
     <div class="coach"><h4>⏱ ${L.last7}</h4><div class="pfdays">${st.days.map(d => `<div><span class="pfcol"><i style="height:${Math.round(d.sec / maxDay * 100)}%"></i></span><small>${d.iso.slice(5)}</small><b>${mins(d.sec)}</b></div>`).join("")}</div></div>
     <div class="coach"><h4>🧭 ${L.byTopic}</h4><table class="pft"><tr><th>${L.topic}</th><th>${L.n}</th><th>${L.right}</th><th>${L.secs}</th><th>${L.flag}</th></tr>
-      ${st.topics.map(r => `<tr><td>${amcTopic(r.t)}</td><td>${r.n}</td><td>${bar(r.acc, 100)} ${pct(r.acc)}</td><td>${sec(r.med)}</td><td>${r.flag === "early" ? `<span class="meta">${L.early}</span>` : r.flag ? L[r.flag] : ""}</td></tr>`).join("")}</table></div>
+      ${st.topics.map(r => `<tr><td>${tp(r.t)}</td><td>${r.n}</td><td>${bar(r.acc, 100)} ${pct(r.acc)}</td><td>${sec(r.med)}</td><td>${r.flag === "early" ? `<span class="meta">${L.early}</span>` : r.flag ? L[r.flag] : ""}</td></tr>`).join("")}</table></div>
     <div class="coach"><h4>📶 ${L.byLevel}</h4><table class="pft">${st.levels.map(r => `<tr><td>${L.levels[r.lv]}</td><td>${r.n}</td><td>${bar(r.acc, 100)} ${pct(r.acc)}</td><td>${sec(r.med)}</td></tr>`).join("")}</table></div>
-    ${st.exams.length ? `<div class="coach"><h4>🏁 ${L.exams}</h4><div class="pfexams">${st.exams.map(x => `<div title="${esc(x.date)}"><span class="pfcol"><i style="height:${Math.round(x.score / x.of * 100)}%;background:${x.kind === "weekly" ? "#7c5cff" : "var(--kc)"}"></i></span><small>${esc((x.date || "").slice(5))}</small><b>${x.score}/${x.of}</b><small>${x.kind === "weekly" ? L.weekly : L.daily}</small></div>`).join("")}</div></div>` : ""}
-    ${st.slow.length ? `<div class="coach"><h4>🐢 ${L.slowest}</h4>${st.slow.map(e => `<div class="pfslow"><b>${e.s}s</b> ${e.ok ? "✅" : "❌"} <span class="meta">${amcTopic(e.t)} · ${L.levels[e.lv] || ""} · ${esc(e.d || "")}</span><div>${esc(e.q || "")}${(e.q || "").length >= 90 ? "…" : ""}</div></div>`).join("")}</div>` : ""}
+    ${st.exams.length ? `<div class="coach"><h4>🏁 ${L.exams}</h4><div class="pfexams">${st.exams.map(x => `<div title="${esc(x.date)}"><span class="pfcol"><i style="height:${Math.round(x.score / x.of * 100)}%;background:${x.kind === "weekly" ? "#7c5cff" : "var(--kc)"}"></i></span><small>${esc((x.date || "").slice(5))}</small><b>${x.score}/${x.of}</b><small>${x.label ? esc(x.label) : x.kind === "weekly" ? L.weekly : L.daily}</small></div>`).join("")}</div></div>` : ""}
+    ${st.slow.length ? `<div class="coach"><h4>🐢 ${L.slowest}</h4>${st.slow.map(e => `<div class="pfslow"><b>${e.s}s</b> ${e.ok ? "✅" : "❌"} <span class="meta">${tp(e.t)} · ${L.levels[e.lv] || ""} · ${esc(e.d || "")}</span><div>${esc(e.q || "")}${(e.q || "").length >= 90 ? "…" : ""}</div></div>`).join("")}</div>` : ""}
     <div class="coach"><h4>📖 ${L.reading}</h4><p>${L.readTxt(st.readN, mins(st.readSec))}</p></div>`}
   </div><div>
     <div class="coach"><h4>📝 ${L.assessH}: ${name}</h4><p class="meta">${L.assessSub}</p>
@@ -1063,15 +1132,16 @@ function viewPerformance() {
       <div class="fbrow"><button class="btn primary" id="pfSave">${L.save}</button></div></div>
     <div class="section-h" style="margin-top:18px"><h3 style="font-size:16px">${L.history} <span class="meta">(${asses.length})</span></h3></div>
     ${asses.length ? asses.slice(0, 20).map(a => `<div class="fbitem neutral"><div class="meta">${fmtDate(a.date)}${a.author ? ` · ${esc(a.author.split("@")[0])}` : ""}<button class="x" data-delas="${a.id}" title="${t.del}">×</button></div><div class="pfchips">${dims.filter(d => a[d]).map(d => `<span class="chip">${L.dims[d]} ${"●".repeat(a[d])}${"○".repeat(5 - a[d])}</span>`).join("")}</div>${a.note ? `<div class="n">${esc(a.note)}</div>` : ""}</div>`).join("") : `<p class="meta">${L.none}</p>`}
-    <div class="coach" style="margin-top:18px"><h4>🤖 ${lang === "zh" ? "他问 Buddy 的问题" : "Questions he asked Buddy"}</h4>
+    ${pfApp !== "amc" ? "" : `<div class="coach" style="margin-top:18px"><h4>🤖 ${lang === "zh" ? "他问 Buddy 的问题" : "Questions he asked Buddy"}</h4>
       <p class="meta">${lang === "zh" ? "AMC 应用里的学习助手。看看哪些词或概念让他卡住。" : "The helper next to his AMC lessons. Shows which words and ideas trip him up."}</p>
       ${(() => { const asks = ((P && P.events) || []).filter(e => e.m === "ask").slice(-25).reverse(); return asks.length ? `<div class="pfask">${asks.map(e => `<div class="pfslow"><span class="meta">${esc(e.d || "")}</span> ${e.ai ? "🤖" : e.hit ? "📖" : "❓"} <b>${esc(e.q || "")}</b>${e.hit ? ` <span class="meta">→ ${esc(e.hit)}</span>` : e.ai ? ` <span class="meta">→ AI</span>` : ` <span class="meta">(${lang === "zh" ? "没找到" : "not found"})</span>`}</div>`).join("")}</div>` : `<p class="meta">${lang === "zh" ? "还没有问题。" : "No questions yet."}</p>`; })()}
-      <div id="pfTutor"></div></div>
+      <div id="pfTutor"></div></div>`}
   </div></div>`;
   const pick = {};
   (async () => { try { const { data, error } = await sb.from("tutor_log").select("created_at,question,answer,model").eq("kid", pfKid).order("created_at", { ascending: false }).limit(15); const box = $("#pfTutor");
     if (!box || error || !data || !data.length) return;
     box.innerHTML = `<h4 style="margin-top:10px">${lang === "zh" ? "AI 回答（最近 15 条）" : "AI answers (latest 15)"}</h4>` + data.map(r => `<details class="pfslow"><summary><span class="meta">${esc((r.created_at || "").slice(0, 10))}</span> <b>${esc(r.question)}</b></summary><div style="white-space:pre-wrap">${esc(r.answer || "")}</div></details>`).join(""); } catch (e) {} })();
+  $("#pfApps").onclick = e => { const b = e.target.closest("[data-pa]"); if (b) { pfApp = b.dataset.pa; viewPerformance(); } };
   $("#pfTabs").onclick = e => { const b = e.target.closest("[data-pk]"); if (b) { pfKid = b.dataset.pk; viewPerformance(); } };
   $("#view").querySelectorAll(".pfseg").forEach(g => g.onclick = e => { const b = e.target.closest("[data-n]"); if (!b) return; pick[g.dataset.dim] = +b.dataset.n; g.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); });
   $("#pfSave").onclick = async () => {
@@ -1484,7 +1554,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261123ad1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261123pf1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);

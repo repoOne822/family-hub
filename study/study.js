@@ -56,6 +56,7 @@ function dynQ(it, lv) {
 }
 // 🎚️ Adaptive level per unit (Bobby 11/23): first-try right → up a third of a level, wrong → down half. 1 Warm-up · 2 Building · 3 Strong.
 P.lv = P.lv || {};
+P.names = Object.fromEntries(C.units.map(u => [u.id, [u.name, u.zh || u.name]])); // labels for the hub's Performance page
 const LVN = ["", "Warm-up", "Building", "Strong"];
 const unitLv = uid => P.lv[uid] || 1.5;
 const lvNow = uid => Math.max(1, Math.min(3, Math.round(unitLv(uid))));
@@ -93,11 +94,12 @@ function ask(it) {
 }
 // 🔒 Repeat rule (Bobby 11/23): a question he already got right in the last 3 days earns no points, and ⭐ needs right answers on 2 DIFFERENT days.
 const recentRight = it => { const s = S(it.id); return !!(s && s.okDay && s.okDay >= addDays(-3)); };
-function record(it, ok, first) {
+function record(it, ok, first, x) { x = x || {};
   const s = P.seen[it.id] = P.seen[it.id] || { n: 0, ok: 0, streak: 0 };
   s.n++; if (ok) { s.ok++; if (s.okDay !== today) s.streak++; s.okDay = today; } else s.streak = 0; s.last = today;
   if (first) bumpLv(it.u, ok);
-  P.log.push({ d: today, u: it.u, id: it.id, ok: ok ? 1 : 0, first: first ? 1 : 0 }); if (P.log.length > 3000) P.log = P.log.slice(-3000);
+  // 📈 measurement (Bobby 11/23: same framework as AMC): seconds, level, repeat, mode → nightly skill model + Performance page
+  P.log.push({ d: today, ts: Date.now(), u: it.u, id: it.id, ok: ok ? 1 : 0, first: first ? 1 : 0, s: x.s || null, lv: lvOf(it), rep: x.rep ? 1 : 0, m: x.m || "prac", k: it.kind, q: x.q ? String(x.q).slice(0, 90) : undefined }); if (P.log.length > 3000) P.log = P.log.slice(-3000);
   save();
 }
 
@@ -166,7 +168,7 @@ function quickCheck(uid, kind, n, back, onPass) {
   const draw = () => { const it = items[k], q = ask(it);
     app.innerHTML = `<div class="card"><div class="sub">✅ ${L("Check yourself", "自我检查")} ${k + 1}/${items.length} · ${L("no peeking", "不许偷看")}</div><div class="q" style="white-space:pre-line">${esc(q.q)}</div>
       <div class="opts">${q.c.map((c, j) => `<button class="opt" data-j="${j}">${"ABCD"[j]}. ${esc(c)}</button>`).join("")}</div><div id="fb"></div></div>`;
-    app.querySelectorAll(".opt").forEach(b => b.onclick = () => { const j = +b.dataset.j, ok = j === q.a; record(it, ok, true);
+    app.querySelectorAll(".opt").forEach(b => b.onclick = () => { const j = +b.dataset.j, ok = j === q.a; record(it, ok, true, { m: "learn", q: q.q });
       app.querySelectorAll(".opt").forEach(x => { x.disabled = true; if (+x.dataset.j === q.a) x.classList.add("right"); }); if (!ok) b.classList.add("wrong");
       $("#fb").innerHTML = ok ? `<div class="fb good"><b>✅ ${L("Yes!", "对了！")}</b><div>${esc(q.why)}</div><button class="btn go" id="nx">${L("Next", "继续")} ▶</button></div>`
         : `<div class="fb bad"><b>❌ ${L("Not yet.", "还没懂。")}</b><div>${esc(q.why)}</div><button class="btn go" id="nx">↩ ${L("Re-read that part", "回去再读一遍")}</button></div>`;
@@ -242,7 +244,7 @@ function run(set, mode) {
     $("#quit").onclick = home;
     const resolve = (ok, why) => {
       const fast = Date.now() - shownAt < 4000;
-      record(it, ok, first); if (first && ok) { ok1++; /* no per-question points: points only from 🏁 checkpoints */ void rep; void fast; }
+      record(it, ok, first, { s: Math.round((Date.now() - shownAt) / 1000), rep: rep || (it.kind === "mc" && !first), m: mode.cp ? "cp" : mode.kind === "test" ? "test" : "prac", q: q.q }); if (first && ok) { ok1++; /* no per-question points: points only from 🏁 checkpoints */ void rep; void fast; }
       if (!ok && first && !test) again.push(it);
       const right = q.num ? window.QGEN.answerText(q) : q.right, expl = q.num ? (q.steps || []).join(" → ") : q.why;
       $("#fb").innerHTML = `${rep && ok ? `<div class="fb" style="background:#fff8d6">🔁 ${L("You got this one right in the last few days: practice only, no points.", "这题最近几天答对过：只算练习，不加分。")}</div>` : ""}<div class="fb ${ok ? "good" : "bad"}"><b>${ok ? "✅ " + L("Yes!", "对了！") : `❌ ${L("Answer", "答案")}: ${esc(right)}`}</b>${why === "unit" ? L(" (check the unit)", "（检查单位）") : why === "simplify" ? L(" (simplify the fraction)", "（约分）") : ""}<div>${esc(expl || "")}</div><button class="btn go" id="nx">${L("Next", "下一题")} ▶</button></div>`;
