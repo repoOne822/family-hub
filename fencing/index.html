@@ -416,6 +416,7 @@ body.duelfocus main{padding-top:6px}
 .pdrest{text-align:center;background:linear-gradient(135deg,#e0e7ff,#fae8ff)!important;border:3px solid #16161d}
 .rdgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:6px}.rdrill{display:flex;flex-direction:column;gap:3px;text-align:left;padding:10px;border:3px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;font:inherit}.rdrill small{color:#444}.rdrill.on{background:#c8f7d0}
 .ccgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:8px}.cc{border:3px solid var(--line);border-radius:16px;padding:10px;background:#fff}.cc.ok{background:#e6f9e9}
+.loop3{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}.loop3>div{border:3px solid var(--line);border-radius:16px;padding:10px;background:#fffbe6;text-align:center}.ideaask{background:#fffbe6;border:3px solid var(--line);border-radius:14px;padding:10px}.ideabtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;justify-content:center}.ideajudge{margin-top:6px;padding:6px 10px;border-radius:12px;border:2px solid var(--line);font-size:15px}.ideajudge.g{background:#d9f7de}.ideajudge.b{background:#ffe6cc}
 </style>
 </head>
 <body>
@@ -437,6 +438,7 @@ body.duelfocus main{padding-top:6px}
   <button data-s="comics">📚 Comics</button>
   <button data-s="journal">📓 My Journal</button>
   <button data-s="brave">💪 Brave Mind</button>
+  <button data-s="think">💡 Think</button>
   <button data-s="money">💰 Milestones</button>
   <button data-s="perf">📊 Performance</button>
   <button data-s="badges">🏅 Badges</button>
@@ -464,6 +466,7 @@ body.duelfocus main{padding-top:6px}
   <div class="hgroup"><h3>⭐ Me</h3><div class="tiles">
     <button class="tile t-me" data-go="journal"><span class="ti">📓</span><b>Journal</b></button>
     <button class="tile t-me" data-go="brave"><span class="ti">💪</span><b>Brave Mind</b></button>
+    <button class="tile t-me" data-go="think"><span class="ti">💡</span><b>Think Habit</b></button>
     <button class="tile t-me" data-go="money"><span class="ti">🪙</span><b>Points</b></button>
     <button class="tile t-me" data-go="badges"><span class="ti">🏅</span><b>Badges</b></button>
     <button class="tile t-me" data-go="perf"><span class="ti">📊</span><b>Performance</b></button>
@@ -753,6 +756,41 @@ body.duelfocus main{padding-top:6px}
   </div>
 
   <div class="card"><h2>📈 What I'm learning about myself</h2><div id="bvSum" class="small">No real bouts checked yet. After your next tournament, your patterns will show up here.</div></div>
+</section>
+
+<!-- THINK HABIT -->
+<section id="think">
+  <div class="card">
+    <h2>💡 Think Like a Fencer</h2>
+    <div class="hoot"><div class="owl">🦉</div><div class="say"><b>Coach Hoot:</b> Coach said you fence with "no ideas". Great fencers have a thinking loop that runs between EVERY touch. It takes 5 seconds, and it becomes automatic if you practise it every day.</div></div>
+    <div class="loop3">
+      <div><div style="font-size:34px">👀</div><b>1. What did he just do?</b><div class="small">Watch the feet, the blade, the reaction.</div></div>
+      <div><div style="font-size:34px">💡</div><b>2. What's my ONE idea?</b><div class="small">Pick it before "Allez". Say it in your head.</div></div>
+      <div><div style="font-size:34px">✅</div><b>3. Did it work?</b><div class="small">Yes: do it again. No: change ONE thing.</div></div>
+    </div>
+    <div class="tip" style="margin-top:10px">🗣️ Your between-touch words: <b>"He did ___. My idea: ___."</b> Say it while you walk back to the line.</div>
+  </div>
+
+  <div class="card">
+    <h2>🎯 Before practice, a lesson or a bout</h2>
+    <p class="small">Pick your idea for today. It shows up in Piste Duel too.</p>
+    <div id="thIdeas" class="tiles"></div>
+    <input type="text" id="thMine" placeholder="Or write your own idea, e.g. make him lunge, step back, hit">
+    <div id="thToday" class="small" style="margin-top:6px"></div>
+    <button class="btn ghost" id="thPrint" style="margin-top:8px">🖨️ Print my Think Card for my fencing bag</button>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="thMode" style="width:auto"> 🎮 In Piste Duel, ask me for my idea before every touch</label>
+  </div>
+
+  <div class="card">
+    <h2>📝 Idea Check (after practice, a lesson or a bout, 20 seconds)</h2>
+    <label>What was it?</label><div id="thKind" class="bvpick"></div>
+    <label>How many touches did I have an idea BEFORE "Allez"?</label><div id="thHow" class="bvpick"></div>
+    <label>👀 One thing I noticed about my opponent (or what Coach said)</label><input type="text" id="thSaw" placeholder="e.g. He always retreats when I step in">
+    <label>💡 An idea that worked (or one to try next time)</label><input type="text" id="thWorked" placeholder="e.g. Counter when he stepped in">
+    <div class="row" style="margin-top:10px"><button class="btn" id="thSave">Save Idea Check (+10 XP)</button></div>
+  </div>
+
+  <div class="card"><h2>📈 My thinking habit</h2><div id="thStats" class="small">No Idea Checks yet. Do one after your next practice!</div></div>
 </section>
 
 <!-- MILESTONES -->
@@ -2019,6 +2057,7 @@ function pdStart(id){
 }
 function pdReset(){
   Object.assign(PD,{me:5,op:9,vulE:false,vulO:false,locked:false,readNow:false}); // en garde lines, 4 m apart
+  if(typeof pdIdeaAsk==='function'&&pdIdeaAsk())return;
   lamps('');$('pdResult').innerHTML='<div class="small">🔔 En garde! Prêts? Allez!</div>';beep(660,.1);pdTempo();
 }
 const D=()=>PD.op-PD.me;
@@ -2423,6 +2462,7 @@ function pdChoose(e,tgt){
 }
 function pdPoint(w){
   PD.score[w==='E'?0:1]++;lamps(w);pdTouchMark(w);
+  {const j=pdIdeaJudge(w);if(j)setTimeout(()=>{const r=$('pdResult');if(r&&!PD.over)r.insertAdjacentHTML('beforeend',j)},60)}
   PD.streakE=w==='E'?PD.streakE+1:0;
   if((PD.streakE>=2&&(PD.L.tier>0||PD.L.final)&&PD.L.style!=='steady')||(PD.L.final&&(PD.score[0]+PD.score[1])%4===0)){PD.streakE=0;PD.spun++;const pool=['press','trapper','bluff','blade','hawk','second','cobra','wheel'].filter(x=>x!==PD.style);
     PD.style=pool[Math.floor(Math.random()*pool.length)];setTimeout(()=>{$('pdHoot').innerHTML=`🔄 <b>${PD.L.n} is changing tactics!</b> What worked before might not work now. READ him again.`;toast('🔄 He changed tactics!')},900)}
@@ -2635,7 +2675,7 @@ function perfLog(rec){
 function perfDuel(finished){
   if(!PD||PD.logged)return;PD.logged=true;
   perfLog({type:'duel',opp:PD.id,oppName:PD.L.n,tier:PTIERS[PD.L.tier].n,final:!!PD.L.final,finished,
-    won:finished&&PD.score[0]>=PD.L.win,score:PD.score.slice(),toWin:PD.L.win,fencerLevel:pdLv(),secs:Math.round((Date.now()-PD.t0)/1000),steps:PD.raw});
+    won:finished&&PD.score[0]>=PD.L.win,score:PD.score.slice(),toWin:PD.L.win,fencerLevel:pdLv(),secs:Math.round((Date.now()-PD.t0)/1000),steps:PD.raw,ideas:PD.ideas||[]});
 }
 let perfBusy=false;
 async function perfFlush(){
@@ -2861,6 +2901,78 @@ try{pdLevels()}catch(e){console.warn('pdLevels',e)}
       if(!ok[i]){ok[i]=1;store.set('coachCardsOk',ok);addXP(5,'Coach card learned');if(Object.keys(ok).length===COACH_CARDS.length){confetti(120);toast('🦉 All of Coach\'s lesson learned!')}}draw()});
     $('ccQuiz').onclick=()=>{goTo('quiz');setTimeout(()=>startQuiz('coach'),50)};
   };draw();
+})();
+// ---------- 💡 Think Like a Fencer: build the "one idea per touch" habit (coach, 23 Nov) ----------
+const TH_IDEAS=[
+ {id:'observe',i:'👀',n:'Observe and test first',d:'Half step or fake, watch his reaction',acts:['read','fake','back','fwd','lure']},
+ {id:'draw',i:'🪤',n:'Make him lunge, step back, hit',d:'Draw the lunge, make it fall short, hit his recovery',acts:['back','retreat','lure','lunge']},
+ {id:'blade',i:'✊',n:'Take his blade and attack',d:'Small hidden press or beat, then straight thrust',acts:['beat','lunge','compound','second']},
+ {id:'counter',i:'📏',n:'Counter when he steps in',d:'Wait for the distance to change, then hit',acts:['counter','parry','line']},
+ {id:'fast',i:'⚡',n:'Fast simple attack',d:'Fast feet, straight thrust, arm first',acts:['lunge','fwd','fleche','rhythm']}
+];
+const thIdea=id=>TH_IDEAS.find(x=>x.id===id);
+// --- Piste Duel: pick ONE idea before every touch, then see if you followed it ---
+function pdIdeaAsk(){
+  if(!PD||PD.over)return false;
+  if(state.ideaMode===false)return false;
+  const box=$('pdResult');PD.ideaPending=true;PD.locked=true;
+  box.innerHTML=`<div class="ideaask"><b>💡 Your ONE idea for this touch?</b> <span class="small">(Coach: never fence without an idea)</span>
+    <div class="ideabtns">${TH_IDEAS.map(x=>`<button class="btn ghost sm" data-idea="${x.id}">${x.i} ${x.n}</button>`).join('')}</div></div>`;
+  box.querySelectorAll('[data-idea]').forEach(b=>b.onclick=()=>{PD.idea=b.dataset.idea;PD.ideaFrom=PD.hist.length;PD.ideaPending=false;
+    $('pdHoot').innerHTML=`💡 <b>Your idea:</b> ${thIdea(PD.idea).i} ${thIdea(PD.idea).n}. ${thIdea(PD.idea).d}.`;
+    lamps('');box.innerHTML='<div class="small">🔔 En garde! Prêts? Allez!</div>';beep(660,.1);pdTempo()});
+  return true;
+}
+function pdIdeaJudge(w){
+  if(!PD||!PD.idea)return '';
+  const I=thIdea(PD.idea),done=PD.hist.slice(PD.ideaFrom||0).map(h=>h.e),used=done.filter(e=>I.acts.includes(e)).length,
+    followed=done.length?used/done.length>=.5:false;
+  PD.ideas=PD.ideas||[];PD.ideas.push({idea:PD.idea,followed,won:w==='E'});
+  const st=state.ideaStats||(state.ideaStats={touches:0,followed:0,wonF:0,wonNF:0,nf:0});
+  st.touches++;if(followed){st.followed++;if(w==='E')st.wonF++;pdGain(3)}else{st.nf++;if(w==='E')st.wonNF++}
+  PD.idea=null;
+  return `<div class="ideajudge ${followed?'g':'b'}">💡 Idea: ${I.i} ${I.n} → ${followed?'✅ you stuck to your idea':'↪️ you drifted away from it'} · ${w==='E'?'touch for you!':'touch for him.'} ${followed&&w!=='E'?'Good thinking! Did he do something new? Change ONE thing.':!followed&&w!=='E'?'Next touch: pick an idea AND stick to it.':followed?'Your idea worked, use it again!':'Lucky touch! Next time make it a planned one.'}</div>`;
+}
+// --- real-life habit page ---
+(function thinkPage(){
+  const E=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const today=()=>evoToday();
+  const KIND=[['lesson','👨‍🏫 Lesson'],['practice','🤺 Club practice'],['bout','🏆 Tournament bout'],['game','🎮 Piste Duel']];
+  const HOW=[[0,'😶 None'],[1,'🤏 A few'],[2,'👍 Most'],[3,'🌟 Every touch']];
+  const sel={kind:'',how:-1};
+  const drawIdeas=()=>{const cur=store.get('thIdeaToday',null);
+    $('thIdeas').innerHTML=TH_IDEAS.map(x=>`<button class="tile t-me ${cur&&cur.d===today()&&cur.id===x.id?'on':''}" data-thi="${x.id}" style="${cur&&cur.d===today()&&cur.id===x.id?'outline:4px solid #2a9d4b':''}"><span class="ti">${x.i}</span><b>${x.n}</b><small class="small">${x.d}</small></button>`).join('');
+    $('thToday').innerHTML=cur&&cur.d===today()?`✅ Today's idea: <b>${E(cur.txt||thIdea(cur.id).n)}</b>`:'No idea picked for today yet.';
+    $('thIdeas').querySelectorAll('[data-thi]').forEach(b=>b.onclick=()=>{store.set('thIdeaToday',{d:today(),id:b.dataset.thi,txt:''});$('thMine').value='';drawIdeas();toast('💡 Idea set for today!')})};
+  $('thMine').onchange=()=>{const t=$('thMine').value.trim();if(t){store.set('thIdeaToday',{d:today(),id:'own',txt:t});drawIdeas()}};
+  const pick=(id,opts,key)=>{$(id).innerHTML=opts.map(([v,l])=>`<button class="btn ghost" data-v="${v}" style="margin:2px;padding:6px 10px;font-size:15px">${l}</button>`).join('');
+    $(id).onclick=e=>{const b=e.target.closest('[data-v]');if(!b)return;sel[key]=key==='how'?+b.dataset.v:b.dataset.v;[...$(id).children].forEach(x=>x.style.background=x===b?'#ffe08a':'')}};
+  pick('thKind',KIND,'kind');pick('thHow',HOW,'how');
+  const log=()=>{const v=store.get('thinkLog',[]);return Array.isArray(v)?v:[]};
+  const stats=()=>{const L=log(),st=state.ideaStats||{touches:0,followed:0,wonF:0,wonNF:0,nf:0};const out=[];
+    if(L.length){const days=[...new Set(L.map(r=>r.d))].sort();let streak=0,d=new Date(today()+'T12:00:00');
+      while(days.includes(d.toISOString().slice(0,10))){streak++;d.setDate(d.getDate()-1)}
+      const last=L.slice(-8),pct=r=>Math.round(r.how/3*100);
+      out.push(`<div>📝 <b>${L.length}</b> Idea Check${L.length===1?'':'s'} · 🔥 streak <b>${streak}</b> day${streak===1?'':'s'}</div>`);
+      out.push(`<div style="display:flex;gap:4px;align-items:flex-end;height:70px;margin:8px 0">${last.map(r=>`<div title="${r.d}" style="flex:1;background:#7bd389;border:2px solid var(--line);border-radius:6px 6px 0 0;height:${Math.max(6,pct(r))}%"></div>`).join('')}</div><div class="small">Touches with an idea, last ${last.length} checks (taller = more thinking)</div>`);
+      const avgE=last.slice(0,Math.ceil(last.length/2)),avgL=last.slice(Math.ceil(last.length/2)),av=a=>a.length?a.reduce((s,r)=>s+r.how,0)/a.length:0;
+      if(avgL.length&&avgE.length&&av(avgL)>av(avgE))out.push('<div>📈 You\'re thinking in more touches than before. The habit is growing!</div>');
+      const w=L.filter(r=>r.worked).slice(-3).reverse();if(w.length)out.push(`<div style="margin-top:6px"><b>💡 Ideas that worked</b><ul>${w.map(r=>`<li>${E(r.worked)} <span class="small">(${r.d})</span></li>`).join('')}</ul></div>`)}
+    if(st.touches)out.push(`<div style="margin-top:6px">🎮 In Piste Duel you stuck to your idea in <b>${st.followed} of ${st.touches}</b> touches.${st.followed>=3&&st.nf>=3?` When you stuck to it you won <b>${Math.round(st.wonF/st.followed*100)}%</b>, when you drifted <b>${Math.round(st.wonNF/st.nf*100)}%</b>.`:''}</div>`);
+    $('thStats').innerHTML=out.length?`<div style="font-size:16px;line-height:1.6">${out.join('')}</div>`:'No Idea Checks yet. Do one after your next practice!'};
+  $('thSave').onclick=()=>{if(!sel.kind||sel.how<0){toast('Pick what it was and how many touches had an idea');return}
+    const L=log();L.push({d:today(),at:Date.now(),kind:sel.kind,how:sel.how,saw:$('thSaw').value.trim(),worked:$('thWorked').value.trim()});store.set('thinkLog',L.slice(-200));
+    try{perfLog({type:'ideaCheck',kind:sel.kind,how:sel.how})}catch(e){}
+    addXP(10,'Idea Check');if(sel.how>=2)confetti(50);toast(sel.how>=3?'🌟 An idea every touch, that\'s how champions think!':sel.how>=2?'👍 Thinking in most touches!':'💪 Checking in builds the habit. Aim for a few more ideas next time!');
+    $('thSaw').value='';$('thWorked').value='';Object.assign(sel,{kind:'',how:-1});['thKind','thHow'].forEach(i=>[...$(i).children].forEach(x=>x.style.background=''));stats()};
+  $('thPrint').onclick=()=>{const cur=store.get('thIdeaToday',null),idea=cur&&cur.d===today()?(cur.txt||thIdea(cur.id).n):'________________';
+    const w=window.open('','_blank');if(!w){toast('Allow pop-ups to print');return}
+    w.document.write(`<html><head><title>Think Card</title><style>body{font-family:sans-serif;padding:20px}.c{border:4px solid #000;border-radius:16px;padding:16px;width:330px;margin-bottom:14px}h2{margin:0 0 8px}li{margin:6px 0;font-size:18px}</style></head><body>
+      <div class="c"><h2>💡 Ellis's Think Card</h2><ol><li>👀 What did he just do? <small>(feet · blade · reaction)</small></li><li>💡 My ONE idea before "Allez"</li><li>✅ Did it work? Keep it or change ONE thing</li></ol><p><b>Today's idea:</b> ${E(idea)}</p><p><small>Fast feet · smooth steps · straight thrust · no bouncing</small></p></div>
+      <div class="c"><h2>🔁 Between touches</h2><ol><li>Turn away, one breath</li><li>"He did ___. My idea: ___."</li><li>En garde, low and smooth</li></ol></div><script>setTimeout(()=>print(),300)<\/script></body></html>`);w.document.close()};
+  $('thMode').checked=state.ideaMode!==false;$('thMode').onchange=()=>{state.ideaMode=$('thMode').checked;save()};
+  document.querySelector('#nav [data-s="think"]').addEventListener('click',()=>{drawIdeas();stats()});
+  drawIdeas();stats();
 })();
 </script>
 </body>
