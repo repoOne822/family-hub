@@ -31,6 +31,15 @@ C.units.forEach(u => {
   (u.topics || []).forEach(t => LB.filter(x => x.t === t).forEach(x => POOL.push({ kind: "mc", id: "lb:" + x.id, u: u.id, q: x.q, c: x.c, a: x.a, why: x.why, f: x.f })));
   (u.gens || []).filter(k => G[k]).forEach(k => { for (let r = 0; r < 4; r++) POOL.push({ kind: "num", id: `g:${k}:${r}`, u: u.id, gen: k }); }); // 4 slots per generator so number skills weigh like a few questions
 });
+// 🧠 Understanding items from each unit's lesson: WHY a power move works, and what a key word means (Bobby 11/23: test understanding, not memory)
+const LESX = window.STUDY_LESSONS || {};
+C.units.forEach(u => { const ls = LESX[u.id]; if (!ls) return;
+  const allWhy = C.units.flatMap(x => (LESX[x.id] || {}).moves || []).map(m => m.why), allDef = C.units.flatMap(x => (LESX[x.id] || {}).words || []).map(w => w[2]);
+  ls.moves.forEach((m, k) => { const d = shuffle(allWhy.filter(x => x !== m.why)).slice(0, 3); if (d.length < 3) return; const c = shuffle([m.why, ...d]);
+    POOL.push({ kind: "mc", id: `why:${u.id}:${k}`, u: u.id, q: `"${m.m}"\nWhy does this work?`, c, a: c.indexOf(m.why), why: m.why, deep: 1 }); });
+  ls.words.forEach((w, k) => { const d = shuffle(allDef.filter(x => x !== w[2])).slice(0, 3); if (d.length < 3) return; const c = shuffle([w[2], ...d]);
+    POOL.push({ kind: "mc", id: `lw:${u.id}:${k}`, u: u.id, q: `What does "${w[0]}" mean?`, c, a: c.indexOf(w[2]), why: `${w[0]}: ${w[2]} (e.g. ${w[3]})` }); });
+});
 const unitItems = uid => POOL.filter(x => x.u === uid);
 const S = id => P.seen[id];
 const mastered = it => (S(it.id) || {}).streak >= 2;
@@ -69,16 +78,16 @@ function record(it, ok, first) {
 function home() {
   const totalM = POOL.filter(mastered).length;
   app.innerHTML = `<div class="top"><h1>${C.icon} ${esc(zh ? C.zh : C.name)}</h1><span class="pill">⭐ ${totalM}/${POOL.length}</span></div>
-  <p class="sub">${C.teacher ? esc(C.teacher) + " · " : ""}${L("Practice what your class covers. Get a question right twice in a row and it's locked in ⭐.", "练习课上学的内容。同一题连续答对两次就算掌握 ⭐。")}</p>
+  <p class="sub">${C.teacher ? esc(C.teacher) + " · " : ""}${L("Learn each unit, practice it, then pass its 🏁 Checkpoint (8/10 on new questions, including WHY questions). Points come only from passing checkpoints.", "学习每个单元、练习，然后通过 🏁 关卡（新题答对8/10，包括“为什么”题）。只有通过关卡才得分。")}</p>
   <div class="card"><b>⚡ ${L("Quick 10", "快速10题")}</b> <span class="sub">${L("what you're learning now + your weakest units", "正在学的 + 最弱的单元")}</span><br><button class="btn go" id="quick" style="margin-top:10px">${L("Start", "开始")} ▶</button></div>
   <div class="units">${C.units.map(u => { const s = unitStats(u); return `<div class="unit ${u.st}"><div class="uh"><b>${esc(zh ? u.zh : u.name)}</b><span class="chip ${u.st}">${ST[u.st]}</span></div>
     <div class="bar"><i style="width:${s.pct}%"></i></div><div class="sub">${s.m}/${s.n} ⭐${s.acc != null ? ` · ${s.acc}% ${L("first-try", "一次答对")}` : ""}${s.last ? ` · ${L("last check", "上次单元测")} ${s.last.score}/${s.last.n}` : ""}</div>
-    <div class="ub">${LES[u.id] ? `<button class="btn sm ${P.learn[u.id] && P.learn[u.id].done ? "" : "go"}" data-learn="${u.id}">📖 ${P.learn[u.id] && P.learn[u.id].done ? L("Learned ✓", "已学 ✓") : L("Learn", "学习")}</button>` : ""}<button class="btn sm" data-prac="${u.id}">${L("Practice", "练习")}</button><button class="btn sm" data-test="${u.id}">${L("Unit check", "单元测")}</button></div></div>`; }).join("")}</div>
+    <div class="ub">${LES[u.id] ? `<button class="btn sm ${P.learn[u.id] && P.learn[u.id].done ? "" : "go"}" data-learn="${u.id}">📖 ${P.learn[u.id] && P.learn[u.id].done ? L("Learned ✓", "已学 ✓") : L("Learn", "学习")}</button>` : ""}<button class="btn sm" data-prac="${u.id}">${L("Practice", "练习")}</button>${cpOk(u.id) ? `<span class="chip done">🏁 ${L("Passed", "已通过")} ${P.cp[u.id].score}/10</span>` : `<button class="btn sm" data-test="${u.id}">🏁 ${L("Checkpoint", "关卡")}</button>`}</div></div>`; }).join("")}</div>
   ${PARENT ? parentView() : ""}`;
   $("#quick").onclick = () => run(quickSet(), { kind: "quick" });
   app.querySelectorAll("[data-learn]").forEach(b => b.onclick = () => learn(b.dataset.learn, 0));
   app.querySelectorAll("[data-prac]").forEach(b => b.onclick = () => run(pick([b.dataset.prac], 10), { kind: "prac", u: b.dataset.prac }));
-  app.querySelectorAll("[data-test]").forEach(b => b.onclick = () => run(pick([b.dataset.test], 10), { kind: "test", u: b.dataset.test }));
+  app.querySelectorAll("[data-test]").forEach(b => b.onclick = () => cpStart(b.dataset.test));
 }
 function parentView() {
   const days = Object.keys(P.days).filter(d => d >= addDays(-13)).length;
@@ -117,8 +126,44 @@ function learn(uid, step) {
   ticks.forEach(t => t.onclick = () => { t.classList.toggle("on"); if (nx.dataset.timed === "1") nx.disabled = !ready(); });
   gateBtn(nx, readSecs(text));
   if (ticks.length && !PARENT) { const iv = setInterval(() => { if (!document.body.contains(nx)) return clearInterval(iv); if (!nx.textContent.startsWith("⏳")) { clearInterval(iv); nx.dataset.timed = "1"; nx.disabled = !ready(); if (!ready()) nx.title = L("Tap every ✓ first", "先把每个 ✓ 点上"); } }, 300); }
-  nx.onclick = () => { track(uid, step); learn(uid, step + 1); };
+  nx.onclick = () => { track(uid, step);
+    if (step === 1) return quickCheck(uid, "lw", 2, () => learn(uid, 1), () => learn(uid, 2));
+    if (step === 2) return quickCheck(uid, "why", 1, () => learn(uid, 2), () => learn(uid, 3));
+    learn(uid, step + 1); };
 }
+// ✅ Check-yourself stops inside the lesson: after Key words (2 word questions) and after Power moves (1 WHY question).
+// All must be right to continue; a miss shows the answer and sends him back to re-read that step.
+function quickCheck(uid, kind, n, back, onPass) {
+  const items = shuffle(POOL.filter(x => x.u === uid && x.id.startsWith(kind + ":"))).slice(0, n); if (!items.length) return onPass();
+  let k = 0;
+  const draw = () => { const it = items[k], q = ask(it);
+    app.innerHTML = `<div class="card"><div class="sub">✅ ${L("Check yourself", "自我检查")} ${k + 1}/${items.length} · ${L("no peeking", "不许偷看")}</div><div class="q" style="white-space:pre-line">${esc(q.q)}</div>
+      <div class="opts">${q.c.map((c, j) => `<button class="opt" data-j="${j}">${"ABCD"[j]}. ${esc(c)}</button>`).join("")}</div><div id="fb"></div></div>`;
+    app.querySelectorAll(".opt").forEach(b => b.onclick = () => { const j = +b.dataset.j, ok = j === q.a; record(it, ok, true);
+      app.querySelectorAll(".opt").forEach(x => { x.disabled = true; if (+x.dataset.j === q.a) x.classList.add("right"); }); if (!ok) b.classList.add("wrong");
+      $("#fb").innerHTML = ok ? `<div class="fb good"><b>✅ ${L("Yes!", "对了！")}</b><div>${esc(q.why)}</div><button class="btn go" id="nx">${L("Next", "继续")} ▶</button></div>`
+        : `<div class="fb bad"><b>❌ ${L("Not yet.", "还没懂。")}</b><div>${esc(q.why)}</div><button class="btn go" id="nx">↩ ${L("Re-read that part", "回去再读一遍")}</button></div>`;
+      $("#nx").onclick = () => { if (!ok) return back(); k++; k < items.length ? draw() : onPass(); }; }); };
+  draw();
+}
+// 🏁 Checkpoint: 10 questions he hasn't gotten right recently: 2 WHY + 1 key word + 7 from the unit (number problems are always new).
+// Pass = 8/10 → unit passed + 30 points (+5 for 10/10). A miss: full review, then 1 hour before a retake with different questions.
+P.cp = P.cp || {};
+const cpOk = uid => !!(P.cp[uid] && P.cp[uid].passed);
+const cpWait = uid => { const c = P.cp[uid]; return c && !c.passed && c.failAt ? Math.max(0, c.failAt + 3600e3 - Date.now()) : 0; };
+function cpStart(uid) {
+  const unit = C.units.find(u => u.id === uid), w = cpWait(uid);
+  if (!PARENT && LES[uid] && !(P.learn[uid] && P.learn[uid].done)) { app.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:50px">📖</div><h2>${L("Learn it first", "先学习")}</h2><p>${L("Finish the 📖 lesson for this unit, then take the checkpoint.", "先学完这个单元的 📖 课，再挑战关卡。")}</p><button class="btn go" id="gl">📖 ${L("Start the lesson", "开始学习")}</button> <button class="btn" id="hm">${L("Back", "返回")}</button></div>`; $("#gl").onclick = () => learn(uid, 0); $("#hm").onclick = home; return; }
+  if (!PARENT && w) { app.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:50px">⏳</div><h2>${L("Review first", "先复习")}</h2><p>${L(`Practice this unit and re-read the lesson. You can retake the checkpoint in ${Math.ceil(w / 60000)} min, with different questions.`, `练习这个单元、重读课文。${Math.ceil(w / 60000)} 分钟后可以重新挑战（换新题）。`)}</p><button class="btn go" id="pr">${L("Practice", "练习")}</button> <button class="btn" id="hm">${L("Back", "返回")}</button></div>`; $("#pr").onclick = () => run(pick([uid], 10), { kind: "prac", u: uid }); $("#hm").onclick = home; return; }
+  const notRecent = x => !(S(x.id) && S(x.id).okDay && S(x.id).okDay >= addDays(-3));
+  const fromPre = (pre, n) => shuffle(POOL.filter(x => x.u === uid && x.id.startsWith(pre) && notRecent(x))).slice(0, n);
+  const set = [...fromPre("why:", 2), ...fromPre("lw:", 1)];
+  const rest = shuffle(POOL.filter(x => x.u === uid && !x.id.startsWith("why:") && !x.id.startsWith("lw:") && (x.kind === "num" || notRecent(x))));
+  const g = {}; for (const it of rest) { if (set.length >= 10) break; if (it.kind === "num") { if ((g[it.gen] || 0) >= 2) continue; g[it.gen] = (g[it.gen] || 0) + 1; } set.push(it); }
+  if (set.length < 6) { app.innerHTML = `<div class="card" style="text-align:center"><h2>${L("Not enough new questions yet", "新题还不够")}</h2><p>${L("You've recently answered most of this unit's questions. Come back in a day or two.", "这个单元的题最近大多答过了，过一两天再来。")}</p><button class="btn" id="hm">${L("Back", "返回")}</button></div>`; $("#hm").onclick = home; return; }
+  run(shuffle(set), { kind: "test", u: uid, cp: true });
+}
+
 function track(uid, step) { const r = P.learn[uid] = P.learn[uid] || {}; r.read = Math.max(r.read ?? -1, step); save(); }
 function examples(uid, e, shown) {
   const les = LES[uid], unit = C.units.find(u => u.id === uid), x = les.ex[e];
@@ -134,7 +179,6 @@ function examples(uid, e, shown) {
   if ($("#nx")) $("#nx").onclick = () => {
     if (e < les.ex.length - 1) return examples(uid, e + 1, 1);
     const r = P.learn[uid] = P.learn[uid] || {}; r.read = 3; const first = !r.done; r.done = r.done || today; save();
-    if (!PARENT && first) award(`learn:${uid}`, 10, `${C.name}: lesson learned`, `${C.zh}：学完一课`);
     run(pick([uid], 10), { kind: "prac", u: uid });
   };
 }
@@ -150,13 +194,13 @@ function run(set, mode) {
     const unit = C.units.find(u => u.id === it.u);
     const needUnit = q.num && q.unit && q.units && q.units.length > 1;
     app.innerHTML = `<div class="top"><h1>${test ? "📝" : "✏️"} ${Math.min(i, n1)}/${n1}${first ? "" : " · " + L("again", "再来")}</h1><button class="btn" id="quit">✕</button></div>
-      <div class="card"><div class="sub">${esc(unit ? (zh ? unit.zh : unit.name) : "")}${it.f ? " · 🎯 " + L("from a test", "考试错题") : ""}</div><div class="q">${esc(q.q)}</div>
+      <div class="card"><div class="sub">${esc(unit ? (zh ? unit.zh : unit.name) : "")}${it.f ? " · 🎯 " + L("from a test", "考试错题") : ""}${mode.cp ? " · 🏁 " + L("Checkpoint", "关卡") : ""}</div><div class="q" style="white-space:pre-line">${esc(q.q)}</div>
       ${q.num ? `<div class="numrow"><input id="ans" inputmode="decimal" autocomplete="off" placeholder="${L("answer", "答案")}">${needUnit ? `<select id="unit">${shuffle(q.units).map(u => `<option>${esc(u)}</option>`).join("")}</select>` : ""}<button class="btn go" id="sub">${L("Check", "检查")}</button></div>` :
         `<div class="opts">${q.c.map((c, j) => `<button class="opt" data-j="${j}">${"ABCD"[j]}. ${esc(c)}</button>`).join("")}</div>`}<div id="fb"></div></div>`;
     $("#quit").onclick = home;
     const resolve = (ok, why) => {
       const fast = Date.now() - shownAt < 4000;
-      record(it, ok, first); if (first && ok) { ok1++; if (!PARENT && !rep && !fast) award(`${it.id}:${today}`, 2, `${C.name} practice`, `${C.zh}练习`); }
+      record(it, ok, first); if (first && ok) { ok1++; /* no per-question points: points only from 🏁 checkpoints */ void rep; void fast; }
       if (!ok && first && !test) again.push(it);
       const right = q.num ? window.QGEN.answerText(q) : q.right, expl = q.num ? (q.steps || []).join(" → ") : q.why;
       $("#fb").innerHTML = `${rep && ok ? `<div class="fb" style="background:#fff8d6">🔁 ${L("You got this one right in the last few days: practice only, no points.", "这题最近几天答对过：只算练习，不加分。")}</div>` : ""}<div class="fb ${ok ? "good" : "bad"}"><b>${ok ? "✅ " + L("Yes!", "对了！") : `❌ ${L("Answer", "答案")}: ${esc(right)}`}</b>${why === "unit" ? L(" (check the unit)", "（检查单位）") : why === "simplify" ? L(" (simplify the fraction)", "（约分）") : ""}<div>${esc(expl || "")}</div><button class="btn go" id="nx">${L("Next", "下一题")} ▶</button></div>`;
@@ -168,12 +212,16 @@ function run(set, mode) {
   };
   const finish = () => {
     P.days[today] = (P.days[today] || 0) + 1;
-    if (test) P.tests.push({ u: mode.u, d: today, score: ok1, n: n1 });
+    if (test) P.tests.push({ u: mode.u, d: today, score: ok1, n: n1, cp: mode.cp ? 1 : 0 });
+    let cpMsg = "";
+    if (mode.cp) { const c = P.cp[mode.u] = P.cp[mode.u] || {}, pass = ok1 >= Math.ceil(n1 * 0.8);
+      if (pass) { c.passed = today; c.score = ok1; delete c.failAt; if (!PARENT) { award(`cp:${mode.u}`, 30, `${C.name} checkpoint passed`, `${C.zh}关卡通过`); if (ok1 === n1) award(`cp10:${mode.u}`, 5, `${C.name} checkpoint perfect`, `${C.zh}关卡满分`); } }
+      else c.failAt = Date.now();
+      cpMsg = pass ? `🏁 ${L("Checkpoint passed! +30 points", "关卡通过！+30 分")}${ok1 === n1 ? " +5" : ""}` : L(`Need ${Math.ceil(n1 * 0.8)}/${n1} to pass. Review the misses, practice, and retake in 1 hour with different questions.`, `需要 ${Math.ceil(n1 * 0.8)}/${n1} 才能通过。复习错题、练习，1 小时后换新题再挑战。`); }
     save();
-    const fresh = set.slice(0, n1).filter(it => !(P.log.slice(-400).some(l => l.id === it.id && l.ok && l.d < today && l.d >= addDays(-3)))).length;
-    if (!PARENT && fresh >= Math.ceil(n1 / 2)) { award(`set:${today}:${P.days[today]}`, 8, `${C.name}: practice set`, `${C.zh}：完成一组练习`); if (test && ok1 >= Math.ceil(n1 * 0.8)) award(`test:${mode.u}:${today}`, 10, `${C.name}: unit check 80%+`, `${C.zh}：单元测80%以上`); }
+    // (no set points: points only from 🏁 checkpoints)
     app.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:60px">${ok1 >= n1 * .8 ? "🏆" : ok1 >= n1 * .5 ? "💪" : "🌱"}</div><h2>${ok1}/${n1} ${L("right the first time", "一次答对")}</h2>
-      <p class="sub">${test ? L("Saved as a unit check.", "已记录为单元测。") : L("Misses came back once; they'll show up again next time too.", "错题已重做一次，下次还会再出现。")}</p><button class="btn go" id="hm">${L("Done", "完成")}</button></div>`;
+      <p class="sub">${mode.cp ? `<b>${cpMsg}</b>` : test ? L("Saved as a unit check.", "已记录为单元测。") : L("Misses came back once; they'll show up again next time too.", "错题已重做一次，下次还会再出现。")}</p><button class="btn go" id="hm">${L("Done", "完成")}</button></div>`;
     $("#hm").onclick = home;
   };
   next();

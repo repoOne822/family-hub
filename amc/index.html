@@ -164,6 +164,7 @@ button{font:inherit;cursor:pointer}
 .goalcard{border-color:#7c3aed}.goalbar{height:12px;background:#ede9fe;border-radius:99px;overflow:hidden;margin-top:8px;border:2px solid var(--line)}.goalbar i{display:block;height:100%;background:#7c3aed;transition:width .4s}
 .goalchip{position:fixed;top:10px;right:12px;z-index:65;background:#7c3aed;color:#fff;font-weight:700;border-radius:999px;padding:6px 12px;font-size:15px;box-shadow:0 3px 10px rgba(0,0,0,.2);pointer-events:none}
 .goaltoast{position:fixed;left:50%;top:60px;transform:translateX(-50%);z-index:80;background:#16a34a;color:#fff;font-weight:700;border-radius:14px;padding:12px 18px;font-size:18px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.tile.locked{opacity:.45;filter:grayscale(.6)}
 </style>
 </head>
 <body>
@@ -185,7 +186,8 @@ const CFGS = {
     weeks: [["2026-11-23", [1, 2]], ["2026-11-30", [3, 4]], ["2026-12-07", [5, 6]], ["2026-12-14", [7, 8]], ["2026-12-21", [9, 10, 11]], ["2026-12-28", [12, 13, 14]], ["2027-01-04", []], ["2027-01-11", []]],
     daily: { levels: ["easy", "easy", "medium", "medium", "hard"], mins: 10, label: "5 problems · 10 min" },
     weekly: { levels: [...Array(10).fill("easy"), ...Array(8).fill("medium"), ...Array(7).fill("hard")], mins: 40, label: "25 problems · 40 min · like the real AMC 8" },
-    intro: "Every chapter of your book, explained super simply. Your plan: 5 sessions a week, a daily exam, and a weekly exam on Saturday. Aim for ⭐⭐⭐⭐ on each lesson before moving on." },
+    checkpoints: true, // 🏁 Bobby 11/23: pass each chapter's checkpoint before the next chapter opens; AMC points come only from checkpoints
+    intro: "Every chapter of your book, explained super simply. Learn it, practice it, then pass the 🏁 Checkpoint to unlock the next chapter. Points come only from passing checkpoints." },
   ellis: { name: "Ellis", scratch: true, chapters: [1, 2, 4, 5, 7, 9, 12, 13, 14],
     weeks: [["2026-11-23", [1]], ["2026-11-30", [2]], ["2026-12-07", [4]], ["2026-12-14", [5]], ["2026-12-21", [7, 9]], ["2026-12-28", [13]], ["2027-01-04", [14, 12]], ["2027-01-11", []]],
     daily: { levels: ["easy", "easy", "medium"], mins: 6, label: "3 problems · 6 min" },
@@ -213,6 +215,7 @@ function recentlyRight(q, beforeTs) { const k = qKey(q), since = dMinus(REP_DAYS
 const hubAward = (ref, pts, label, zh) => { try { if (window.parent !== window && window.parent.fhAward) window.parent.fhAward("amc", ref, pts, label, zh); } catch (e) {} };
 const LV_PTS = { easy: 2, medium: 3, hard: 5, challenge: 6 };
 const awardFor = ev => {
+  if (CFG.checkpoints) return; // points only from 🏁 checkpoints (see checkpoint())
   if (ev.ok && ev.lv != null && ev.m !== "scratch" && !ev.rep && !(ev.s != null && ev.s < 4)) {
     const lv = typeof ev.lv === "number" ? ev.lv : String(ev.lv).toLowerCase(), base = typeof lv === "number" ? [2, 2, 3, 4, 5, 6][Math.min(5, Math.max(1, lv))] : (LV_PTS[lv] || 2);
     const first = ev.tr === 1 && !ev.h, pts = first ? base : 1, name = typeof lv === "number" ? "L" + lv : lv;
@@ -414,7 +417,8 @@ function home() {
     ${todayHtml()}
     ${examsHtml()}
     <div class="row"><button class="btn pink" id="mixBtn">🔀 Mixed review (10 problems)</button>${lastMix ? `<span class="sub">Last mixed review: ${lastMix.score}/${lastMix.of} on ${lastMix.date}</span>` : `<span class="sub">Mixing chapters is how the real test feels.</span>`}</div>
-    <div class="grid">${LES.map((l, i) => `<button class="tile ${COLORS[i % 6]}" data-l="${i}">${thisWeek.includes(l.n) ? `<span class="wk">This week</span>` : !CFG.chapters.includes(l.n) ? `<span class="wk" style="background:#bbb">Bonus</span>` : ""}${coachBadge(l.id)}<div class="em">${l.emoji}</div><div class="n">Lesson ${l.n}</div><div class="t">${esc(l.title)}</div><div class="z">${esc(l.zh)}</div><div class="st">${starStr(starsOf(l.id))}</div><div class="pg">${(P.lessons[l.id] || {}).chBest != null ? `⬆️ ${(P.lessons[l.id]).chBest}/3 · ` : ""}${((P.lessons[l.id] || {}).gym || {}).done ? `♾️ ${(P.lessons[l.id]).gym.done} · ` : ""}Book p. ${esc(l.pages)}</div></button>`).join("")}</div>
+    ${CFG.checkpoints ? `<div class="card" style="padding:12px 16px"><b>🏁 Checkpoints: ${LES.filter(l => cpPassed(l.id)).length}/${LES.length} passed.</b> <span class="sub">Each chapter opens after you pass the one before it. Points come only from passing checkpoints.</span></div>` : ""}
+    <div class="grid">${LES.map((l, i) => `<button class="tile ${COLORS[i % 6]}${unlocked(i) ? "" : " locked"}" data-l="${i}">${CFG.checkpoints ? (cpPassed(l.id) ? `<span class="wk" style="background:#2fbf71;color:#fff;left:auto;right:8px">🏁 Passed</span>` : unlocked(i) ? "" : `<span class="wk" style="background:#555;color:#fff;left:auto;right:8px">🔒</span>`) : ""}${thisWeek.includes(l.n) ? `<span class="wk">This week</span>` : !CFG.chapters.includes(l.n) ? `<span class="wk" style="background:#bbb">Bonus</span>` : ""}${coachBadge(l.id)}<div class="em">${l.emoji}</div><div class="n">Lesson ${l.n}</div><div class="t">${esc(l.title)}</div><div class="z">${esc(l.zh)}</div><div class="st">${starStr(starsOf(l.id))}</div><div class="pg">${(P.lessons[l.id] || {}).chBest != null ? `⬆️ ${(P.lessons[l.id]).chBest}/3 · ` : ""}${((P.lessons[l.id] || {}).gym || {}).done ? `♾️ ${(P.lessons[l.id]).gym.done} · ` : ""}Book p. ${esc(l.pages)}</div></button>`).join("")}</div>
     ${PARENT ? `<div class="card parent"><div class="q">👨‍👩‍👦 Parent corner <span class="sub">(${CFG.name} doesn't see this section)</span></div>${parentHistory()}</div>` : ""}
     ${!PARENT ? "" : `<div class="card parent"><div class="q">📝 Real AMC 8 tests (parents)</div><p class="sub">The truest practice: a real past test, timed at exactly 40 minutes, no calculator. Do it on AoPS (or print it), check the answer key, read the step-by-step solutions on Random Math for anything you missed, and type in your score. Start with the newer years; do one every week or two from mid-December. More years: <a href="https://www.randommath.com/past-contests/amc-8-tests-and-solutions" target="_blank" rel="noopener">Random Math archive ↗</a></p>
       ${focusHtml()}
@@ -464,6 +468,7 @@ function markRead(l, step, secs) {
 }
 
 function lesson(i, step, mode) {
+  if (!unlocked(i)) return lockedCard(i);
   setCtx({ screen: "lesson", lesson: LES[i] && LES[i].id, lessonTitle: LES[i] && LES[i].title });
   if (CFG.scratch && !PARENT && SCR[LES[i].id] && !P.scratch[LES[i].id] && (step || 0) === 0) return basics(i);
   window.scrollTo(0, 0);
@@ -480,7 +485,7 @@ function lesson(i, step, mode) {
   if (step === 2) body = `<div class="card"><div class="q">⚡ Power moves</div><p class="sub">Each move comes with WHY it works. If you know why, you'll remember it on test day.</p>${l.moves.map((m, k) => `<div class="move"><b>${k + 1}</b><div style="flex:1;min-width:0"><div class="mm">${esc(m.m)}</div><div class="why"><span>🤔 Why it works:</span> ${esc(m.why)}</div>${(VIS.moves[l.id] || {})[k] ? VIS.moves[l.id][k]() : ""}${needGate(2) ? `<button class="tick" data-tick>✓ Got it</button>` : ""}</div></div>`).join("")}<p class="sub" style="margin-top:12px">📖 More in your book, pages ${esc(l.pages)}.</p></div>${nav(3)}`;
   if (step === 3) body = `<div id="exs"></div>`;
   if (step === 4) { mode = mode || "basic"; const rec = P.lessons[l.id] || {};
-    body = `<div class="modes">${[["basic", `⭐ Starter (5)`, starStr(starsOf(l.id))], ["challenge", "⬆️ Challenge (3)", rec.chBest != null ? `best ${rec.chBest}/3` : "harder, multi-step"], ["gym", "♾️ Practice gym", (rec.gym || {}).done ? `${rec.gym.done} done` : "endless, new numbers"], ...(PARENT ? [["real", "🏆 Real AMC", "past test problems"]] : [])].map(([m, t, sub]) => `<button class="${m === mode ? "on" : ""}" data-mode="${m}"><b>${t}</b><span>${sub}</span></button>`).join("")}</div><div id="pr"></div>`; }
+    body = `${CFG.checkpoints ? cpBanner(i) : ""}<div class="modes">${[["basic", `⭐ Starter (5)`, starStr(starsOf(l.id))], ["challenge", "⬆️ Challenge (3)", rec.chBest != null ? `best ${rec.chBest}/3` : "harder, multi-step"], ["gym", "♾️ Practice gym", (rec.gym || {}).done ? `${rec.gym.done} done` : "endless, new numbers"], ...(PARENT ? [["real", "🏆 Real AMC", "past test problems"]] : [])].map(([m, t, sub]) => `<button class="${m === mode ? "on" : ""}" data-mode="${m}"><b>${t}</b><span>${sub}</span></button>`).join("")}</div><div id="pr"></div>`; }
   app.innerHTML = head + body;
   $("#back").onclick = home;
   if ($("#basicsBtn")) $("#basicsBtn").onclick = () => basics(i);
@@ -498,12 +503,86 @@ function lesson(i, step, mode) {
   if (step === 3) examples(l, i);
   if (step === 4) {
     app.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => lesson(i, 4, b.dataset.mode));
+    if ($("#cpGo")) $("#cpGo").onclick = () => checkpoint(i);
     if (mode === "real") { realList(l); return; }
     if (mode === "gym") practice([gymNext(l)].map(p => ({ ...p, from: l })), i, "gym");
     else practice((mode === "challenge" ? l.ch : l.pr).map(p => ({ ...p, from: l })), i, mode);
   }
 }
 
+// ---- 🏁 Checkpoints (Bobby 11/23): to prove a chapter, he must pass a fresh, no-hint test that checks it from every side ----
+// 10 questions: 2 understanding (a key word's meaning, WHY a power move works) · 6 apply (new generated problems, levels 2–4) · 2 deep (challenge-level).
+// Every problem is one he has never seen before. Pass = 8/10 AND at least 1 of the 2 deep ones. After a miss: review the solutions, then 1 hour before a retake (new problems).
+// Passing unlocks the next chapter and pays the chapter's points (40, +10 for 10/10). No other AMC problem pays points.
+P.cp = P.cp || {};
+const cpPassed = id => !!(P.cp[id] && P.cp[id].passed);
+const unlocked = i => PARENT || !CFG.checkpoints || i <= 0 || cpPassed(LES[i - 1].id);
+function lockedCard(i) {
+  const prev = LES[i - 1];
+  app.innerHTML = `<div class="top"><button class="btn" id="back">← Lessons</button></div><div class="card" style="text-align:center"><div style="font-size:56px">🔒</div><h2>${esc(LES[i].title)} is locked</h2>
+    <p>Pass the 🏁 checkpoint for <b>Lesson ${prev.n}: ${esc(prev.title)}</b> to open it. Checkpoints prove you really understand a chapter, not just remember answers.</p><button class="btn go" id="goPrev">Go to Lesson ${prev.n} →</button></div>`;
+  $("#back").onclick = home; $("#goPrev").onclick = () => lesson(i - 1, 4);
+}
+const cpWait = id => { const c = P.cp[id]; if (!c || c.passed || !c.failAt) return 0; return Math.max(0, c.failAt + 3600e3 - Date.now()); };
+function cpBanner(i) {
+  const l = LES[i], c = P.cp[l.id] || {}, w = cpWait(l.id), read = readOf(l.id) >= 3 || PARENT;
+  const best = c.best != null ? ` · best ${c.best}/10` : "";
+  if (cpPassed(l.id)) return `<div class="card" style="background:#e3fbe9;padding:12px 16px">🏁 <b>Checkpoint passed</b> on ${c.passed} (${c.score}/10). ${i < LES.length - 1 ? `Lesson ${LES[i + 1].n} is open.` : ""}</div>`;
+  return `<div class="card" style="padding:12px 16px;border-color:#ff5aa5"><b>🏁 Checkpoint</b>: 10 new problems, no hints. Pass with 8/10 (and 1 of the 2 deep problems) to unlock the next chapter and earn <b>40 points</b>${best}.<br>
+    ${!read ? `<span class="sub">Finish steps 1–4 of the lesson first.</span>` : w ? `<span class="sub">⏳ Review your mistakes, then try again in ${Math.ceil(w / 60000)} min (with new problems).</span>` : `<button class="btn go" id="cpGo" style="margin-top:8px">🏁 Take the checkpoint</button>`}</div>`;
+}
+const seenQ = q => P.events.some(e => e.q === String(q).slice(0, 90));
+function cpBuild(l) {
+  const items = [], used = new Set();
+  const fresh = make => { for (let t = 0; t < 14; t++) { const p = make(); if (p && !used.has(p.q) && !seenQ(p.q)) { used.add(p.q); return p; } } const p = make(); if (p) used.add(p.q); return p; };
+  // understanding 1: a key word
+  const w = shuffle(l.words.slice())[0], wd = shuffle(LES.flatMap(x => x.words).filter(x => x[2] !== w[2]).map(x => x[2])).slice(0, 4);
+  const wc = shuffle([w[2], ...wd]);
+  items.push({ q: `What does "${w[0]}" mean?`, c: wc, a: wc.indexOf(w[2]), steps: [`${w[0]}: ${w[2]}`, `Example: ${w[3]}`], level: "easy", kind: "word" });
+  // understanding 2: WHY a power move works
+  const m = shuffle(l.moves.slice())[0], md = shuffle(LES.flatMap(x => x.moves).filter(x => x.why !== m.why).map(x => x.why)).slice(0, 4);
+  const mc = shuffle([m.why, ...md]);
+  items.push({ q: `Power move: "${m.m}"\nWhy does it work?`, c: mc, a: mc.indexOf(m.why), steps: [m.why], level: "medium", kind: "why" });
+  // apply: 6 new problems
+  [2, 3, 3, 3, 4, 4].forEach(lv => { const p = fresh(() => GYM.makeAt ? GYM.makeAt(l.id, lv) : GYM.make(l.id)); if (p) items.push({ ...p, level: lv >= 4 ? "hard" : lv >= 3 ? "medium" : "easy", kind: "apply" }); });
+  // deep: a challenge problem he hasn't seen + a top-level generated one
+  const ch = shuffle((l.ch || []).filter(p => !seenQ(p.q)))[0];
+  items.push({ ...(ch || fresh(() => GYM.makeAt ? GYM.makeAt(l.id, 5) : GYM.make(l.id))), level: "hard", kind: "deep" });
+  items.push({ ...fresh(() => GYM.makeAt ? GYM.makeAt(l.id, 5) : GYM.make(l.id)), level: "hard", kind: "deep" });
+  return items.filter(x => x && x.c && x.c.length);
+}
+function checkpoint(i) {
+  const l = LES[i], list = cpBuild(l), ans = []; let k = 0; const t0 = Date.now();
+  setCtx({ screen: "test", lesson: l.id, test: true });
+  const draw = () => {
+    const p = list[k], shown = Date.now();
+    app.innerHTML = `<div class="top"><h1 style="font-size:22px">🏁 Checkpoint · ${esc(l.title)}</h1><span class="pill">${k + 1}/${list.length}</span></div>
+      <div class="card"><div class="sub">${p.kind === "word" || p.kind === "why" ? "🧠 Understanding" : p.kind === "deep" ? "🔥 Deep problem" : "✏️ Apply it"} · no hints · think first, then answer</div>
+      <p class="q" style="margin-top:12px;white-space:pre-line">${esc(p.q)}</p><div class="ch">${p.c.map((c, j) => `<button data-j="${j}"><span class="L">${LET[j]}</span><span>${esc(c)}</span></button>`).join("")}</div></div>`;
+    app.querySelectorAll("[data-j]").forEach(b => b.onclick = () => {
+      const j = +b.dataset.j, secs = Math.round((Date.now() - shown) / 1000); ans.push({ j, ok: j === p.a, secs });
+      track({ ts: Date.now(), d: today, m: "checkpoint", t: l.id, lv: p.level, s: secs, total: secs, ok: j === p.a, tr: 1, h: 0, q: String(p.q).slice(0, 90) });
+      k++; save(); if (k < list.length) draw(); else finish();
+    });
+  };
+  const finish = () => {
+    const score = ans.filter(a => a.ok).length, deepOk = list.some((p, n) => p.kind === "deep" && ans[n].ok), pass = score >= 8 && deepOk;
+    const c = P.cp[l.id] = P.cp[l.id] || { tries: [] }; c.tries.push({ d: today, score, of: list.length, secs: Math.round((Date.now() - t0) / 1000) });
+    c.best = Math.max(c.best || 0, score);
+    if (pass) { c.passed = today; c.score = score; delete c.failAt; if (!PARENT) { hubAward(`cp:${l.id}`, 40, `AMC checkpoint passed: ${l.title}`, `AMC 关卡通过：${l.zh}`); if (score === list.length) hubAward(`cp10:${l.id}`, 10, `AMC checkpoint perfect: ${l.title}`, `AMC 关卡满分：${l.zh}`); } confetti(); }
+    else c.failAt = Date.now();
+    save();
+    app.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:60px">${pass ? "🏁" : "🌱"}</div><h2>${score}/${list.length}${pass ? " · Checkpoint passed!" : ""}</h2>
+      <p>${pass ? `+40 points${score === list.length ? " +10 perfect bonus" : ""}. ${i < LES.length - 1 ? `Lesson ${LES[i + 1].n}: ${esc(LES[i + 1].title)} is now open.` : "That was the last chapter!"}` : `You need 8/10${deepOk ? "" : " and at least one 🔥 deep problem"}. Read every solution below, practice in the ♾️ gym, and try again in 1 hour with new problems.`}</p></div>
+      <div class="card"><div class="q">Every question, with the full solution</div>${list.map((p, n) => `<div class="move" style="border-top:2px dashed #ddd;padding:10px 0"><b>${ans[n].ok ? "✅" : "❌"}</b><div style="flex:1;min-width:0"><div class="mm" style="white-space:pre-line">${esc(p.q)}</div>
+        <div class="sub">You: ${LET[ans[n].j]}. ${esc(p.c[ans[n].j])} · Answer: ${LET[p.a]}. ${esc(p.c[p.a])}</div>${!ans[n].ok ? `<div class="why">${(p.steps || []).map(st => esc(st)).join("<br>")}${p.trap ? `<br>⚠️ ${esc(p.trap)}` : ""}</div>` : ""}</div></div>`).join("")}
+        <div class="row"><span class="spacer"></span><button class="btn go" id="cpDone">${pass && i < LES.length - 1 ? `Go to Lesson ${LES[i + 1].n} →` : "← Back to the lesson"}</button></div></div>`;
+    $("#cpDone").onclick = () => pass && i < LES.length - 1 ? lesson(i + 1, 0) : lesson(i, 4);
+  };
+  draw();
+}
+
+window.__amcCP = { cpBuild, checkpoint, LES }; // for automated checks
 // ---- 🌱 Start from zero: detailed building blocks before the lesson (Ellis is learning from scratch) ----
 // Each block: idea (+ key words, picture) → 2 worked examples revealed step by step → 2 quick checks.
 // A 💡 Hints panel sits on the side (a pull-up sheet on phones): key words, remember, watch out, peek at the example, and a 🆘 nudge per check.
