@@ -480,7 +480,7 @@ const DNET = {
 function amcFlag(kid) {
   const save = (S.app_saves || []).find(a => a.kid === kid && a.app === "amc"), P = save && save.data ? save.data[`${kid}_amc_progress`] : null;
   if (!P) return { flag: "nodata" };
-  const from = daysAgo(13), st = amcStats({ ...P, events: (P.events || []).filter(e => (e.d || "") >= from) });
+  const from = daysAgo(13), st = amcStats({ ...P, events: amcRep(P.events).filter(e => (e.d || "") >= from) });
   if (!st.all.n) return { flag: "nodata" };
   for (const f of ["weak", "rush", "slow"]) { const tp = st.topics.find(r => r.flag === f); if (tp) return { flag: f, topic: tp.t }; }
   return { flag: "ok" };
@@ -998,8 +998,16 @@ const PFS = {
     levels: { easy: "简单", medium: "中等", hard: "难" }, daily: "每日", weekly: "每周" } };
 let pfKid = null;
 const median = a => { if (!a.length) return null; const b = [...a].sort((x, y) => x - y), m = b.length >> 1; return b.length % 2 ? b[m] : Math.round((b[m - 1] + b[m]) / 2); };
+// 🔒 Repeats (Bobby 11/23): a problem he already got right in the last 3 days doesn't count. The AMC app marks these (ev.rep);
+// for saves from before that, mark them here on the fly.
+function amcRep(events) {
+  if (!events || !events.length) return events || []; const last = {};
+  return events.map(e => { if (!("ok" in e) || !e.q || e.m === "scratch") return e; const prev = last[e.q];
+    const rep = e.rep || (prev && (new Date(e.d) - new Date(prev)) / 864e5 <= 3); if (e.ok === true) last[e.q] = e.d; return rep && !e.rep ? { ...e, rep: true } : e; });
+}
 function amcStats(P) {
-  const ev = (P.events || []).filter(e => e.m !== "read" && typeof e.s === "number" && !e.blank);
+  P = { ...P, events: amcRep(P.events) };
+  const ev = (P.events || []).filter(e => e.m !== "read" && typeof e.s === "number" && !e.blank && !e.rep); // repeats of recently-solved problems don't count
   const rd = (P.events || []).filter(e => e.m === "read");
   const grp = key => { const o = {}; ev.forEach(e => { const k = e[key] || "?"; (o[k] = o[k] || []).push(e); }); return o; };
   const sum = list => ({ n: list.length, acc: list.length ? Math.round(list.filter(e => e.ok).length / list.length * 100) : null, med: median(list.map(e => e.s)) });
@@ -1475,7 +1483,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261123tm1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261123rp1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);

@@ -195,12 +195,25 @@ const CFG = CFGS[KID] || CFGS.eric;
 const LS = `${KID}_amc_progress`;
 const load = () => { try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch (e) { return {}; } };
 let P = load(); P.lessons = P.lessons || {}; P.mixed = P.mixed || []; P.tests = P.tests || {}; P.exams = P.exams || { daily: {}, weekly: {}, log: [] }; P.events = P.events || []; P.sessions = P.sessions || [];
+// 🔒 Repeat rule (Bobby, 11/23): a problem he already got right in the last 3 days is practice only: no points, no stars, no level-ups,
+// and it doesn't count toward his accuracy (ev.rep = true). Answers under 4 s also earn no points (too fast to have read it).
+const REP_DAYS = 3;
+const dMinus = n => { const x = new Date(); x.setDate(x.getDate() - n); return x.toLocaleDateString("en-CA"); };
+const qKey = q => String(q || "").slice(0, 90);
+function recentlyRight(q, beforeTs) { const k = qKey(q), since = dMinus(REP_DAYS); return P.events.some(e => e.ok && e.q === k && e.d >= since && (!beforeTs || (e.ts || 0) < beforeTs)); }
+(function backfillRep() { // mark old repeats once, so the parent view and the nightly model count fresh problems only
+  if (P.repMarked) return; const lastRight = {};
+  P.events.forEach(e => { if (!("ok" in e) || !e.q || e.m === "scratch") return; const prev = lastRight[e.q];
+    if (prev && (new Date(e.d) - new Date(prev)) / 864e5 <= REP_DAYS) e.rep = true;
+    if (e.ok === true) lastRight[e.q] = e.d; });
+  P.repMarked = 1;
+})();
 // ---- performance tracking: active time on the platform + every problem's time and result (synced for parents) ----
 // ⭐ Hub points: harder problems and first-try answers earn more (the hub caps points per day)
 const hubAward = (ref, pts, label, zh) => { try { if (window.parent !== window && window.parent.fhAward) window.parent.fhAward("amc", ref, pts, label, zh); } catch (e) {} };
 const LV_PTS = { easy: 2, medium: 3, hard: 5, challenge: 6 };
 const awardFor = ev => {
-  if (ev.ok && ev.lv != null && ev.m !== "scratch") {
+  if (ev.ok && ev.lv != null && ev.m !== "scratch" && !ev.rep && !(ev.s != null && ev.s < 4)) {
     const lv = typeof ev.lv === "number" ? ev.lv : String(ev.lv).toLowerCase(), base = typeof lv === "number" ? [2, 2, 3, 4, 5, 6][Math.min(5, Math.max(1, lv))] : (LV_PTS[lv] || 2);
     const first = ev.tr === 1 && !ev.h, pts = first ? base : 1, name = typeof lv === "number" ? "L" + lv : lv;
     hubAward(`${ev.m}:${ev.t}:${ev.ts}`, pts, `AMC ${name} problem ✓${first ? " first try" : ""}`, `AMC ${name} 题 ✓${first ? " 一次做对" : ""}`);
@@ -296,7 +309,7 @@ const dow = d => new Date(d + "T12:00:00").getDay(); // 0 Sun … 6 Sat
 const weekOf = d => (WEEKS.filter(w => w[0] <= d).pop() || null);
 function weakestTopic() {
   const cov = coveredSoFar(), st = {};
-  (P.events || []).filter(e => e.m !== "read" && !e.blank && e.t).slice(-200).forEach(e => { const r = st[e.t] = st[e.t] || [0, 0]; r[1]++; if (e.ok) r[0]++; });
+  (P.events || []).filter(e => e.m !== "read" && !e.blank && e.t && !e.rep).slice(-200).forEach(e => { const r = st[e.t] = st[e.t] || [0, 0]; r[1]++; if (e.ok) r[0]++; });
   const cands = LES.filter(l => cov.has(l.n) && CFG.chapters.includes(l.n)).map(l => [l, st[l.id] ? st[l.id][0] / st[l.id][1] : 0.5, st[l.id] ? st[l.id][1] : 0]);
   const cf = l => COACH_FOCUS.includes((TUNE[l.id] || {}).s) ? 0 : 1;
   cands.sort((a, b) => cf(a[0]) - cf(b[0]) || a[1] - b[1] || a[2] - b[2]);
@@ -620,7 +633,8 @@ function practice(list, i, mode) {
   const box = $("#pr") || app;
   const draw = () => {
     const p = list[k]; tries = 0; hinted = false; let hints = 0; const shown = Date.now(); let firstSecs = null;
-    const log = ok => track({ ts: Date.now(), d: today, m: mode, t: p.topic || p.from.id, lv: levelOf(p, mode), s: Math.round(firstSecs), total: Math.round((Date.now() - shown) / 1000), ok, tr: tries, h: hints, q: p.q.slice(0, 90) });
+    const rep = !PARENT && recentlyRight(p.q);
+    const log = ok => track({ ts: Date.now(), d: today, m: mode, t: p.topic || p.from.id, lv: levelOf(p, mode), s: Math.round(firstSecs), total: Math.round((Date.now() - shown) / 1000), ok, tr: tries, h: hints, q: p.q.slice(0, 90), ...(rep ? { rep: true } : {}) });
     const solution = () => `<div class="sol"><div class="solh">📝 How to solve it</div>${p.steps.map((st, n) => `<div class="step s${n}"><span class="lb">${LABELS[n]}</span><div>${esc(st)}</div></div>`).join("")}<div class="trap">⚠️ <b>Trap:</b> ${esc(p.trap)}</div>${SCR[p.from.id] ? `<div class="row" style="margin-top:8px"><button class="btn alt" data-basics="${lessonOf(p.from.id)}">🌱 Explain the basics again</button></div>` : ""}</div>`;
     box.innerHTML = `<div class="card"><div class="row" style="margin-top:0"><span class="sub">${mode === "gym" ? `♾️ Gym problem ${k + 1}${AD ? ` · <b>Level ${AD.level(p.from.id)}/5 ${LVNAME[AD.level(p.from.id)]}</b>${p._review ? " · 🔁 one you missed earlier" : ""}` : ""}` : `Problem ${k + 1} of ${list.length}`}${p.lvl === "challenge" ? ` · <b style="color:#ff5a5a">⬆️ challenge</b>` : ""}${i < 0 ? ` · from <b>${esc(p.from.emoji + " " + p.from.title)}</b>` : ""}</span><span class="spacer"></span><span class="pill">⭐ ${right}</span>${i < 0 ? `<span class="pill timer" id="tm">0:00</span>` : ""}</div>
       ${mode === "gym" ? "" : `<div class="prog"><i style="width:${k / list.length * 100}%"></i></div>`}
@@ -639,12 +653,12 @@ function practice(list, i, mode) {
       if (b.disabled) return; const j = +b.dataset.j; tries++; if (firstSecs === null) firstSecs = (Date.now() - shown) / 1000;
       if (j === p.a) {
         b.classList.add("right"); box.querySelectorAll("[data-j]").forEach(x => x.disabled = true);
-        const star = tries === 1; if (star) right++; log(star); const mv = adRecord(p, true, star, firstSecs);
-        $("#fb").innerHTML = `<div class="fb ok">${star ? "⭐ First try! " : "✅ Got it! "}${esc(p.why)}</div>${mv && mv.moved > 0 ? `<div class="fb ok" style="margin-top:6px">⬆️ <b>Level up!</b> ${esc(p.from.title)} is now Level ${mv.lv}/5 (${LVNAME[mv.lv]}). Harder problems are coming.</div>` : ""}${solution()}`;
+        const star = tries === 1 && !rep; if (star) right++; log(tries === 1); const mv = rep ? null : adRecord(p, true, star, firstSecs);
+        $("#fb").innerHTML = `${rep ? `<div class="fb hint">🔁 You already solved this one in the last few days, so it's practice only: no points or stars. New problems earn points: try the ♾️ Practice gym.</div>` : ""}<div class="fb ok">${star ? "⭐ First try! " : "✅ Got it! "}${esc(p.why)}</div>${mv && mv.moved > 0 ? `<div class="fb ok" style="margin-top:6px">⬆️ <b>Level up!</b> ${esc(p.from.title)} is now Level ${mv.lv}/5 (${LVNAME[mv.lv]}). Harder problems are coming.</div>` : ""}${solution()}`;
         $("#nx").style.display = ""; $("#hint").style.display = "none";
       } else {
         b.classList.add("wrong"); b.disabled = true;
-        if (tries >= 2) { log(false); const mv = adRecord(p, false, false, firstSecs);
+        if (tries >= 2) { log(false); const mv = rep ? null : adRecord(p, false, false, firstSecs);
           box.querySelectorAll("[data-j]").forEach(x => x.disabled = true); box.querySelector(`[data-j="${p.a}"]`).classList.add("right");
           $("#fb").innerHTML = `<div class="fb no">The answer is <b>${LET[p.a]}</b>. Read the steps below, then write this one in your error log. 📒${AD ? " A fresh version of this one will come back soon." : ""}</div>${mv && mv.moved < 0 ? `<div class="fb hint" style="margin-top:6px">⬇️ Let's build it up: ${esc(p.from.title)} goes to Level ${mv.lv}/5 for a bit.</div>` : ""}${solution()}`;
           $("#nx").style.display = ""; $("#hint").style.display = "none";
@@ -668,10 +682,11 @@ function practice(list, i, mode) {
     box.innerHTML = `<div class="card done"><div class="big">${right === list.length ? "🏆" : right >= list.length * .6 ? "🎉" : "💪"}</div>
       ${mode === "gym" ? "" : `<div class="stars">${starStr(right, list.length)}</div>`}<p class="q">${right} / ${mode === "gym" ? answered : list.length} on the first try</p><p>${msg}</p>
       ${i < 0 ? `<p class="sub">Time: ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")} · Contest pace is about 2 minutes per problem.</p>` : `<p class="sub">Best on this lesson: ${starStr(starsOf(LES[i].id))} · 📖 Tell Mom or Dad when you finish this chapter in the book!</p>`}
-      <div class="row" style="justify-content:center"><button class="btn" id="again">${i < 0 ? "🔀 Another mixed review" : mode === "gym" ? "♾️ More gym" : "🔁 Try again"}</button>${i >= 0 && mode === "basic" ? `<button class="btn pink" id="toCh">⬆️ Try the challenge</button>` : ""}${i >= 0 && mode === "challenge" ? `<button class="btn pink" id="toGym">♾️ Practice gym</button>` : ""}<button class="btn go" id="home">← All lessons</button></div></div>`;
+      <div class="row" style="justify-content:center"><button class="btn" id="again">${i < 0 ? "🔀 Another mixed review" : mode === "gym" ? "♾️ More gym" : mode === "basic" ? "🔁 Try again (practice only)" : "🔁 Try again"}</button>${i >= 0 && mode === "basic" ? `<button class="btn pink" id="toCh">⬆️ Try the challenge</button><button class="btn pink" id="toGym2">♾️ New problems (gym)</button>` : ""}${i >= 0 && mode === "challenge" ? `<button class="btn pink" id="toGym">♾️ Practice gym</button>` : ""}<button class="btn go" id="home">← All lessons</button></div></div>`;
     $("#again").onclick = () => i < 0 ? mixed() : lesson(i, 4, mode);
     if ($("#toCh")) $("#toCh").onclick = () => lesson(i, 4, "challenge");
     if ($("#toGym")) $("#toGym").onclick = () => lesson(i, 4, "gym");
+    if ($("#toGym2")) $("#toGym2").onclick = () => lesson(i, 4, "gym");
     $("#home").onclick = home;
   };
   if (i < 0) timerI = setInterval(() => { const s = Math.round((Date.now() - t0) / 1000), el = $("#tm"); if (el) el.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }, 1000);

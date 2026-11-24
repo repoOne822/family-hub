@@ -56,9 +56,11 @@ function ask(it) {
   const o = shuffle(it.c.map((c, j) => [c, j]));
   return { it, q: it.q, c: o.map(x => x[0]), a: o.findIndex(x => x[1] === it.a), why: it.why, right: it.c[it.a] };
 }
+// 🔒 Repeat rule (Bobby 11/23): a question he already got right in the last 3 days earns no points, and ⭐ needs right answers on 2 DIFFERENT days.
+const recentRight = it => { const s = S(it.id); return !!(s && s.okDay && s.okDay >= addDays(-3)); };
 function record(it, ok, first) {
   const s = P.seen[it.id] = P.seen[it.id] || { n: 0, ok: 0, streak: 0 };
-  s.n++; if (ok) { s.ok++; s.streak++; } else s.streak = 0; s.last = today;
+  s.n++; if (ok) { s.ok++; if (s.okDay !== today) s.streak++; s.okDay = today; } else s.streak = 0; s.last = today;
   P.log.push({ d: today, u: it.u, id: it.id, ok: ok ? 1 : 0, first: first ? 1 : 0 }); if (P.log.length > 3000) P.log = P.log.slice(-3000);
   save();
 }
@@ -144,7 +146,7 @@ function run(set, mode) {
   const next = () => {
     if (i >= set.length && again.length && !test) set.push(...again.splice(0));
     if (i >= set.length) return finish();
-    const it = set[i], first = i < n1, q = ask(it); i++;
+    const it = set[i], first = i < n1, q = ask(it), rep = it.kind === "mc" && recentRight(it), shownAt = Date.now(); i++;
     const unit = C.units.find(u => u.id === it.u);
     const needUnit = q.num && q.unit && q.units && q.units.length > 1;
     app.innerHTML = `<div class="top"><h1>${test ? "📝" : "✏️"} ${Math.min(i, n1)}/${n1}${first ? "" : " · " + L("again", "再来")}</h1><button class="btn" id="quit">✕</button></div>
@@ -153,10 +155,11 @@ function run(set, mode) {
         `<div class="opts">${q.c.map((c, j) => `<button class="opt" data-j="${j}">${"ABCD"[j]}. ${esc(c)}</button>`).join("")}</div>`}<div id="fb"></div></div>`;
     $("#quit").onclick = home;
     const resolve = (ok, why) => {
-      record(it, ok, first); if (first && ok) { ok1++; if (!PARENT) award(`${it.id}:${Date.now()}`, 2, `${C.name} practice`, `${C.zh}练习`); }
+      const fast = Date.now() - shownAt < 4000;
+      record(it, ok, first); if (first && ok) { ok1++; if (!PARENT && !rep && !fast) award(`${it.id}:${today}`, 2, `${C.name} practice`, `${C.zh}练习`); }
       if (!ok && first && !test) again.push(it);
       const right = q.num ? window.QGEN.answerText(q) : q.right, expl = q.num ? (q.steps || []).join(" → ") : q.why;
-      $("#fb").innerHTML = `<div class="fb ${ok ? "good" : "bad"}"><b>${ok ? "✅ " + L("Yes!", "对了！") : `❌ ${L("Answer", "答案")}: ${esc(right)}`}</b>${why === "unit" ? L(" (check the unit)", "（检查单位）") : why === "simplify" ? L(" (simplify the fraction)", "（约分）") : ""}<div>${esc(expl || "")}</div><button class="btn go" id="nx">${L("Next", "下一题")} ▶</button></div>`;
+      $("#fb").innerHTML = `${rep && ok ? `<div class="fb" style="background:#fff8d6">🔁 ${L("You got this one right in the last few days: practice only, no points.", "这题最近几天答对过：只算练习，不加分。")}</div>` : ""}<div class="fb ${ok ? "good" : "bad"}"><b>${ok ? "✅ " + L("Yes!", "对了！") : `❌ ${L("Answer", "答案")}: ${esc(right)}`}</b>${why === "unit" ? L(" (check the unit)", "（检查单位）") : why === "simplify" ? L(" (simplify the fraction)", "（约分）") : ""}<div>${esc(expl || "")}</div><button class="btn go" id="nx">${L("Next", "下一题")} ▶</button></div>`;
       $("#nx").onclick = next; $("#nx").focus();
     };
     if (q.num) { const go = () => { const v = $("#ans").value; if (!v.trim()) return $("#ans").focus(); const r = window.QGEN.check(q, v, $("#unit") ? $("#unit").value : q.unit); $("#sub").disabled = true; resolve(r.ok, r.why); };
@@ -167,7 +170,8 @@ function run(set, mode) {
     P.days[today] = (P.days[today] || 0) + 1;
     if (test) P.tests.push({ u: mode.u, d: today, score: ok1, n: n1 });
     save();
-    if (!PARENT) { award(`set:${today}:${P.days[today]}`, 8, `${C.name}: practice set`, `${C.zh}：完成一组练习`); if (test && ok1 >= Math.ceil(n1 * 0.8)) award(`test:${mode.u}:${today}`, 10, `${C.name}: unit check 80%+`, `${C.zh}：单元测80%以上`); }
+    const fresh = set.slice(0, n1).filter(it => !(P.log.slice(-400).some(l => l.id === it.id && l.ok && l.d < today && l.d >= addDays(-3)))).length;
+    if (!PARENT && fresh >= Math.ceil(n1 / 2)) { award(`set:${today}:${P.days[today]}`, 8, `${C.name}: practice set`, `${C.zh}：完成一组练习`); if (test && ok1 >= Math.ceil(n1 * 0.8)) award(`test:${mode.u}:${today}`, 10, `${C.name}: unit check 80%+`, `${C.zh}：单元测80%以上`); }
     app.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:60px">${ok1 >= n1 * .8 ? "🏆" : ok1 >= n1 * .5 ? "💪" : "🌱"}</div><h2>${ok1}/${n1} ${L("right the first time", "一次答对")}</h2>
       <p class="sub">${test ? L("Saved as a unit check.", "已记录为单元测。") : L("Misses came back once; they'll show up again next time too.", "错题已重做一次，下次还会再出现。")}</p><button class="btn go" id="hm">${L("Done", "完成")}</button></div>`;
     $("#hm").onclick = home;
