@@ -152,6 +152,19 @@ label{font-weight:700;font-size:15px}
   </div>
   <div class="box hidden" id="parentBox" style="margin-bottom:22px"></div>
   <section class="view" id="v-today">
+  <div class="box hidden" id="setup" style="border:2px solid var(--sun);margin-bottom:16px">
+    <h3>Welcome, Abby! <span class="zh">欢迎！第一次来，先花 30 秒设置一下</span></h3>
+    <p class="sp">How it works 怎么用：① Tell me about you 先介绍自己 → ② Tap <b>Start</b> each day 每天点“开始” → ③ It takes you step by step: words, sounds, grammar, talk, read 一步一步带你学：单词、发音、语法、对话、阅读。Your lessons and coach will use your real life. 课程和老师会用你自己生活中的内容。</p>
+    <form id="setupForm" style="display:grid;gap:10px">
+      <label>Your name 名字<input id="pName" class="inp" value="Abby"></label>
+      <label>Your family 家人 <span class="sp">optional 可以不填 · e.g. husband Tom, son Max (8)</span><input id="pFam" class="inp" placeholder="丈夫、孩子的名字和年龄"></label>
+      <label>Your work, now or the job you want 工作或想找的工作 <span class="sp">optional 可以不填</span><input id="pJob" class="inp" placeholder="e.g. accountant in China / want office job"></label>
+      <label>Minutes per day 每天学几分钟
+        <select id="pMin"><option value="10">10 min · 轻松</option><option value="15" selected>15 min · 推荐</option><option value="20">20 min · 冲刺</option><option value="30">30 min · 加速</option></select></label>
+      <button class="b sun" type="submit">Save and start 保存并开始 ▶</button>
+    </form>
+  </div>
+  <div class="box hidden" id="nextBox" style="margin-bottom:16px;border:2px solid var(--sun)"></div>
     <div class="grid2">
       <div>
         <h2>Today's words</h2>
@@ -166,18 +179,6 @@ label{font-weight:700;font-size:15px}
         <p class="sp" id="tLeft" style="margin-top:12px"></p>
       </div>
       <div>
-        <div class="box hidden" id="setup" style="border:2px solid var(--sun)">
-          <h3>Tell me about you <span class="zh">先介绍一下你自己</span></h3>
-          <p class="sp">Your lessons and coach will use your real life. 课程和老师会用你自己生活中的内容。</p>
-          <form id="setupForm" style="display:grid;gap:10px">
-            <label>Your name 名字<input id="pName" class="inp" value="Abby"></label>
-            <label>Your family 家人 <span class="sp">e.g. husband Tom, son Max (8)</span><input id="pFam" class="inp" placeholder="丈夫、孩子的名字和年龄"></label>
-            <label>Your work, now or the job you want 工作或想找的工作<input id="pJob" class="inp" placeholder="e.g. accountant in China / want office job"></label>
-            <label>Minutes per day 每天学几分钟
-              <select id="pMin"><option value="10">10 min · 轻松</option><option value="15" selected>15 min · 推荐</option><option value="20">20 min · 冲刺</option><option value="30">30 min · 加速</option></select></label>
-            <button class="b sun" type="submit">Save 保存</button>
-          </form>
-        </div>
         <div class="box hidden" id="fbBox" style="margin-bottom:16px;border:2px solid var(--plum2)"></div>
         <div class="box">
           <div class="row" style="justify-content:space-between"><h3>Today's plan <span class="zh">今日计划</span></h3><span class="tag" id="minTag"></span></div>
@@ -421,7 +422,7 @@ let deck=[],cur=null;
 function buildDeck(){const t=day();const due=ALL.filter(w=>S.words[w.en]&&S.words[w.en].d<=t).sort((a,b)=>S.words[a.en].b-S.words[b.en].b).slice(0,goalMin()+5);
  const seenToday=Object.values(S.words).filter(w=>w.n===t).length;const fresh=ALL.filter(w=>!S.words[w.en]).slice(0,Math.max(0,newPerDay()-seenToday));deck=[...due,...fresh]}
 function showCard(){const fc=$("tFc");fc.classList.remove("flip");cur=deck[0]||null;$("tMicOut")&&($("tMicOut").innerHTML="");
- if(!cur){setTimeout(()=>renderFb(),0);const left=ALL.filter(w=>!S.words[w.en]).length;fc.innerHTML=`<div class="face front"><div class="w">All done!</div><div class="zh" style="color:var(--sunInk);font-size:20px">今天的单词完成了！</div><div class="hint">${left<15?"Almost out of new words: tap “New lesson for me” in Words. 新词快学完了，去“单词”点“给我新课”。":"Next: a sound drill or a conversation. 下一步：练发音或对话。"}</div></div>`;$("tLeft").textContent="";["tKnow","tAgain","tHear","tEasy","tHard","tSave"].forEach(i=>$(i).disabled=true);$("tSay").classList.add("hidden");return}
+ if(!cur){setTimeout(()=>renderFb(),0);const left=ALL.filter(w=>!S.words[w.en]).length;fc.innerHTML=`<div class="face front"><div class="w">All done!</div><div class="zh" style="color:var(--sunInk);font-size:20px">今天的单词完成了！</div><div class="hint">${left<15?"Almost out of new words: tap “New lesson for me” in Words. 新词快学完了，去“单词”点“给我新课”。":"Next: a sound drill or a conversation. 下一步：练发音或对话。"}</div></div>`;$("tLeft").innerHTML=S.profile?`<button class="b sun" id="cardNext" style="width:100%;font-size:18px">Next step 下一步 ▶</button>`:"";["tKnow","tAgain","tHear","tEasy","tHard","tSave"].forEach(i=>$(i).disabled=true);$("tSay").classList.add("hidden");return}
  ["tKnow","tAgain","tHear","tEasy","tHard","tSave"].forEach(i=>$(i).disabled=false);const st=S.words[cur.en];const isNew=!st;cur.rev=!!st&&st.b>=2;
  const tag=`<span class="tag">${esc(cur.tEn)} · ${esc(cur.tZh)}${isNew?" · New 新":""}${cur.rev?" · Say it 说英文":""}${st&&st.h?" · Was hard 之前觉得难":""}</span>`;
  fc.innerHTML=cur.rev
@@ -449,9 +450,10 @@ $("tSay").addEventListener("click",()=>{if(cur)micStart($("tSay"),cur.en,$("tMic
 $("tKnow").addEventListener("click",()=>grade(true));$("tAgain").addEventListener("click",()=>grade(false));
 function renderTasks(){const t=S.t;const mins=Math.round((S.sec[day()]||0)/60),g=goalMin();
  $("minTag").textContent=`${Math.min(mins,g)}/${g} min`;
- const items=[[t.w>=10,"Practice 10 word cards","练 10 张单词卡",`${Math.min(t.w,10)}/10`,"today"],[t.s>=1,"One sound drill","一组发音练习","","sounds"],[(t.g||0)>=1,"One grammar point","一个语法点","","grammar"],[t.k>=1,"Practice one conversation","练一段对话","","talk"],[t.r>=1,"Read or write one piece","读一篇或写一段","","read"]];
+ const cardsOut=!cur&&t.w>0;const items=[[t.w>=10||cardsOut,cardsOut&&t.w<10?"Today's word cards":"Practice 10 word cards",cardsOut&&t.w<10?"今天的单词卡":"练 10 张单词卡",cardsOut&&t.w<10?`${t.w}/${t.w}`:`${Math.min(t.w,10)}/10`,"today"],[t.s>=1,"One sound drill","一组发音练习","","sounds"],[(t.g||0)>=1,"One grammar point","一个语法点","","grammar"],[t.k>=1,"Practice one conversation","练一段对话","","talk"],[t.r>=1,"Read or write one piece","读一篇或写一段","","read"]];
  const fav=adj().fav;const key={today:"words",sounds:"sounds",grammar:"grammar",talk:"talk",read:"read"};items.sort((x,y)=>{const a=fav.indexOf(key[x[4]]),b=fav.indexOf(key[y[4]]);return (a<0?9:a)-(b<0?9:b)});
  const all=items.every(i=>i[0]);
+ renderNext(items,all);
  $("tasks").innerHTML=items.map(i=>`<div class="task"><span class="chk ${i[0]?"y":""}">${i[0]?"✓":""}</span><div><b>${i[1]}</b><div class="zh" style="font-size:14px">${i[2]}</div></div>${i[4]==="today"?`<span class="sp">${i[3]}</span>`:`<button class="b ghost" data-go="${i[4]}" style="padding:8px 12px">${i[0]?"Again":"Go"}</button>`}</div>`).join("")+(all?`<div class="cele">Today is complete. Great job, ${esc((S.profile&&S.profile.name)||"Abby")}! 今天全部完成，太棒了！</div>`:"");
  $("restNote").textContent=S.rest===weekKey(day())?"Rest day used this week. 本周的休息日已用。":"Missing one day won't break your streak (1 rest day per week). 每周可以休息一天，连续天数不会断。";
  const wk=weekKey(day()),idx=Math.floor(new Date(wk+"T12:00:00").getTime()/6048e5)%4,done=S.mis[wk]||[];
@@ -461,9 +463,20 @@ function renderTasks(){const t=S.t;const mins=Math.round((S.sec[day()]||0)/60),g
  const days=[...Array(7)].map((_,i)=>addDays(day(),i-6));const mx=Math.max(g,...days.map(d=>Math.round((S.sec[d]||0)/60)));const wd=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
  $("week").innerHTML=days.map(d=>{const v=Math.round((S.sec[d]||0)/60);return `<div class="bar"><span>${wd[new Date(d+"T12:00:00").getDay()]}</span><span><i style="width:${Math.max(v?4:0,100*v/mx)}%;${v>=g?"background:var(--sun)":""}"></i></span><span>${v}m</span></div>`}).join("")+`<p class="sp" style="margin:6px 0 0">Minutes practiced. Yellow = goal reached. 每天练习分钟，黄色＝达标</p>`;
  $("setup").classList.toggle("hidden",!!S.profile);}
+function renderNext(items,all){const el=$("nextBox");if(!S.profile){el.classList.add("hidden");return}
+ const n=items.filter(i=>i[0]).length,nx=items.find(i=>!i[0]);el.classList.remove("hidden");
+ const dots=items.map(i=>`<span class="chk ${i[0]?"y":""}" style="width:22px;height:22px;font-size:13px">${i[0]?"✓":""}</span>`).join("");
+ el.innerHTML=all?`<b>Today is done! 今天完成了！</b> <span class="zh">Use one English sentence in real life today. 今天在生活里用一句英语吧。</span><div class="row" style="margin-top:8px">${dots}</div>`
+  :`<div class="row" style="justify-content:space-between;align-items:center"><span class="sp">Step ${n+1} of ${items.length} 第 ${n+1}/${items.length} 步</span><span class="row" style="gap:4px">${dots}</span></div>
+  <div style="margin:6px 0 10px"><b>${esc(nx[1])}</b> <span class="zh">${esc(nx[2])}</span></div>
+  <button class="b sun" id="nextGo" data-next="${nx[4]}" style="width:100%;font-size:18px">${n?"Next 下一步":"Start 开始"} ▶</button>`}
+$("tLeft").addEventListener("click",e=>{if(e.target.closest("#cardNext")){const b=$("nextGo");if(b)b.click();else $("nextBox").scrollIntoView({behavior:"smooth"})}});
+$("nextBox").addEventListener("click",e=>{const b=e.target.closest("[data-next]");if(!b)return;const v=b.dataset.next;
+ if(v==="today"){$("tFc").scrollIntoView({behavior:"smooth",block:"center"});return}
+ if(v==="grammar"){gView=todayGram().id;renderGrammar()}location.hash=v});
 $("tasks").addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(!b)return;if(b.dataset.go==="grammar"){gView=todayGram().id;renderGrammar()}location.hash=b.dataset.go});
 $("missions").addEventListener("click",e=>{const b=e.target.closest("[data-m]");if(!b)return;const wk=weekKey(day()),k=+b.dataset.m;const a=S.mis[wk]||(S.mis[wk]=[]);const i=a.indexOf(k);if(i<0){a.push(k);award(15,"");cele("Mission done! You used real English. 真实生活中用英语了！")}else{a.splice(i,1);persist()}renderTasks()});
-$("setupForm").addEventListener("submit",e=>{e.preventDefault();S.profile={name:$("pName").value.trim()||"Abby",fam:$("pFam").value.trim(),job:$("pJob").value.trim(),mins:+$("pMin").value};persist();renderToday()});
+$("setupForm").addEventListener("submit",e=>{e.preventDefault();S.profile={name:$("pName").value.trim()||"Abby",fam:$("pFam").value.trim(),job:$("pJob").value.trim(),mins:+$("pMin").value};persist();renderToday();$("nextBox").scrollIntoView({behavior:"smooth",block:"start"})});
 $("editMe").addEventListener("click",()=>{const p=S.profile||{};$("pName").value=p.name||"Abby";$("pFam").value=p.fam||"";$("pJob").value=p.job||"";$("pMin").value=String(p.mins||15);$("setup").classList.remove("hidden");$("setup").scrollIntoView({behavior:"smooth"})});
 function renderToday(){rollDay();buildDeck();showCard();renderTasks();renderStats();applyAdj();renderAdj();renderFb()}
 /* ---------- words ---------- */
