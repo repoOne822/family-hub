@@ -1154,6 +1154,22 @@ function robotStatsHtml(kid) {
     <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">${ROBO_CH.map(c => { const n = ids.filter(k => k.startsWith(c[0])).length; return `<span class="meta" style="border:1px solid #ffffff33;border-radius:8px;padding:2px 6px">${c[1]} ${n}/${c[2]}</span>`; }).join("")}</div>
     ${hard.length ? `<div class="meta" style="margin-top:4px">${zh ? "花了最多次尝试" : "Took the most tries"}: ${hard.map(([k, d]) => `${esc(k)} (${d.tries})`).join(", ")}</div>` : ""}</div>`;
 }
+/* ---- Ellis's Think Habit (fencing app): daily checklist + Idea Checks, from app_saves ---- */
+function thinkStatsHtml(kid) {
+  const zh = lang === "zh", save = (S.app_saves || []).find(a => a.kid === kid && a.app === "fencing"), D = save && save.data ? save.data : {};
+  const g = k => { let v = D[`${kid}_${k}`]; if (typeof v === "string") { try { v = JSON.parse(v); } catch (e) {} } return v; };
+  const today = new Date().toLocaleDateString("en-CA"), dl = g("dailyList"), sk = g("dailyStreak") || {}, idea = g("thIdeaToday"), tl = g("thinkLog"), it = g("ideaToday"), st = (g("state") || {}).ideaStats;
+  const log = Array.isArray(tl) ? tl : [], wk = log.filter(r => r.at >= Date.now() - 7 * 864e5), lab = ["😶", "🤏", "👍", "🌟"];
+  const items = [["idea", "💡", zh ? "选好今天的主意" : "today's idea", !!(idea && idea.d === today)], ["play", "🎮", zh ? "带主意打3剑" : "3 touches with an idea", (it && it.d === today && it.n >= 3) || !!(dl && dl.d === today && dl.done && dl.done.play)], ["drill", "🏋️", zh ? "一个真实练习" : "one drill", (() => { const r = g("rematchDrills"); return !!(r && r.done && Object.keys(r.done).some(k => k.startsWith(today + "|"))); })()], ["tell", "🗣️", zh ? "告诉爸妈主意" : "told you his idea", !!(dl && dl.d === today && dl.done && dl.done.tell)], ["check", "📝", zh ? "主意检查" : "Idea Check", log.some(r => r.d === today)]];
+  const done = dl && dl.d === today && dl.bonus;
+  const ideaTxt = idea && idea.d === today ? (idea.txt || idea.id) : (zh ? "还没选" : "not picked yet");
+  return `<div class="coach"><h4>💡 ${zh ? "思考习惯（每日清单）" : "Think Habit (daily list)"}</h4>
+    <div class="meta">${zh ? "今天" : "Today"}: ${done ? (zh ? "✅ 全部完成" : "✅ all 5 done") : items.map(x => `${x[3] ? "✅" : "⬜"} ${x[1]} ${x[2]}`).join(" · ")} · 🔥 ${sk.n || 0} ${zh ? "天连续" : "-day streak"}</div>
+    <div class="meta">${zh ? "今天的主意" : "Today's idea"}: <b>${esc(String(ideaTxt))}</b></div>
+    <div class="meta">${zh ? "最近7天主意检查" : "Idea Checks, last 7 days"}: ${wk.length}${wk.length ? " · " + wk.map(r => lab[r.how] || "").join(" ") : ""}${st && st.touches ? ` · ${zh ? "Piste Duel 坚持主意" : "Piste Duel: stuck to his idea"} ${st.followed}/${st.touches}` : ""}</div>
+    ${log.filter(r => r.worked).slice(-2).reverse().map(r => `<div class="meta">💡 ${esc(r.worked)} (${r.d})</div>`).join("")}
+    <div class="meta">${zh ? "问他：“今天你的主意是什么？管用吗？”" : "Ask him: \"What was your idea today, and did it work?\""}</div></div>`;
+}
 /* ---- Space Quest (Jonah's math + words game): parent summary from app_saves ---- */
 const SQ_W = ["", "Find the picture", "First sounds", "Rhyming words", "Short a words", "Short e, i, o, u words", "Missing letter", "Sight words 1", "Blends", "Digraphs", "Sight words 2", "Magic e", "Read a sentence", "Fill in the sentence", "Opposites", "Word meanings", "Story time"];
 const SQ_G = { g1: { en: "Grade 1", zh: "一年级", n: 15 }, g2: { en: "Grade 2", zh: "二年级", n: 14 }, g3: { en: "Grade 3", zh: "三年级", n: 20 }, words: { en: "Reading", zh: "阅读", n: 16 }, zh: { en: "中文", zh: "中文", n: 10 } };
@@ -1314,7 +1330,7 @@ function viewSubjects() {
         <button class="btn sm primary">${t.save}</button></form></details>`;
   const card = x => { const ms = S.metrics.filter(m => m.subject_id === x.id), notes = S.entries.filter(e => e.subject_id === x.id).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5), docs = S.docs.filter(d => d.subject_id === x.id);
     return `<div class="kid" style="--kc:${kidColor(x.kid)};cursor:default"><div class="kid-top"><div><h2>${x.icon} ${esc(sName(x))}</h2>${sDesc(x) ? `<div class="meta">${esc(sDesc(x))}</div>` : ""}</div><div style="display:flex;gap:6px">${x.app_url ? `<button class="btn sm primary" data-app="${esc(x.app_url)}" data-appkid="${esc(x.kid)}">▶ ${t.openApp}</button>` : ""}<button class="btn sm ghost" data-esubj="${x.id}">${t.edit}</button></div></div>
-      ${x.app_url === "fencing/" ? fencingLessonsHtml(x.kid) : ""}
+      ${x.app_url === "fencing/" ? fencingLessonsHtml(x.kid) + thinkStatsHtml(x.kid) : ""}
       ${x.app_url === "space/" ? spaceStatsHtml(x.kid) : ""}${x.app_url === "chinese/" ? chineseStatsHtml(x.kid) : ""}${x.app_url === "robot/" ? robotStatsHtml(x.kid) : ""}${x.app_url === "brain/" ? brainStatsHtml(x.kid) : ""}
       <div class="goals"><h4>${t.goals}</h4>${ms.length ? ms.map(goalRow).join("") : `<div class="meta">${t.noGoals}</div>`}${goalForm(x.id)}</div>
       <div class="latest"><h4>${t.notes}</h4>${notes.map(e => `<div class="meta" style="color:var(--ink)"><span class="tag ${e.tone}">${{ positive: t.toneWin, concern: t.toneConcern, neutral: t.toneNote }[e.tone]}</span>${esc(e.title)} <span class="meta">· ${fmtDate(e.date)}</span></div>`).join("")}
@@ -1456,7 +1472,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261123th1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261123dl1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);

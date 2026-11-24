@@ -417,6 +417,7 @@ body.duelfocus main{padding-top:6px}
 .rdgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:6px}.rdrill{display:flex;flex-direction:column;gap:3px;text-align:left;padding:10px;border:3px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;font:inherit}.rdrill small{color:#444}.rdrill.on{background:#c8f7d0}
 .ccgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:8px}.cc{border:3px solid var(--line);border-radius:16px;padding:10px;background:#fff}.cc.ok{background:#e6f9e9}
 .loop3{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}.loop3>div{border:3px solid var(--line);border-radius:16px;padding:10px;background:#fffbe6;text-align:center}.ideaask{background:#fffbe6;border:3px solid var(--line);border-radius:14px;padding:10px}.ideabtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;justify-content:center}.ideajudge{margin-top:6px;padding:6px 10px;border-radius:12px;border:2px solid var(--line);font-size:15px}.ideajudge.g{background:#d9f7de}.ideajudge.b{background:#ffe6cc}
+.dlrow{display:flex;align-items:center;gap:10px;padding:8px;border:2px solid var(--line);border-radius:12px;margin:6px 0;background:#fff}.dlrow.on{background:#e6f9e9}.dlbox{font-size:26px;background:none;border:none;cursor:pointer;padding:0 4px}.dlbox:disabled{cursor:default}
 </style>
 </head>
 <body>
@@ -449,6 +450,7 @@ body.duelfocus main{padding-top:6px}
 <section id="home" class="on">
   <div class="hoot" style="margin-top:6px"><div class="owl">🦉</div><div class="say"><b>Hi Ellis!</b> What do you want to do today?</div></div>
   <div id="coachBanner"></div>
+  <div id="dailyThink"></div>
   <div class="hgroup"><h3>▶️ Play</h3><div class="tiles">
     <button class="tile big t-play" data-go="duel"><span class="ti">⚔️</span><b>Piste Duel</b><small>You make every decision</small></button>
     <button class="tile big t-play" data-go="boss"><span class="ti">👹</span><b>Boss Bouts</b><small>Find each boss's weakness</small></button>
@@ -760,6 +762,7 @@ body.duelfocus main{padding-top:6px}
 
 <!-- THINK HABIT -->
 <section id="think">
+  <div id="dailyThink2"></div>
   <div class="card">
     <h2>💡 Think Like a Fencer</h2>
     <div class="hoot"><div class="owl">🦉</div><div class="say"><b>Coach Hoot:</b> Coach said you fence with "no ideas". Great fencers have a thinking loop that runs between EVERY touch. It takes 5 seconds, and it becomes automatic if you practise it every day.</div></div>
@@ -2929,6 +2932,7 @@ function pdIdeaJudge(w){
     followed=done.length?used/done.length>=.5:false;
   PD.ideas=PD.ideas||[];PD.ideas.push({idea:PD.idea,followed,won:w==='E'});
   const st=state.ideaStats||(state.ideaStats={touches:0,followed:0,wonF:0,wonNF:0,nf:0});
+  {const t=evoToday(),it=store.get('ideaToday',null),c=it&&it.d===t?it.n:0;store.set('ideaToday',{d:t,n:c+1})}
   st.touches++;if(followed){st.followed++;if(w==='E')st.wonF++;pdGain(3)}else{st.nf++;if(w==='E')st.wonNF++}
   PD.idea=null;
   return `<div class="ideajudge ${followed?'g':'b'}">💡 Idea: ${I.i} ${I.n} → ${followed?'✅ you stuck to your idea':'↪️ you drifted away from it'} · ${w==='E'?'touch for you!':'touch for him.'} ${followed&&w!=='E'?'Good thinking! Did he do something new? Change ONE thing.':!followed&&w!=='E'?'Next touch: pick an idea AND stick to it.':followed?'Your idea worked, use it again!':'Lucky touch! Next time make it a planned one.'}</div>`;
@@ -2943,7 +2947,7 @@ function pdIdeaJudge(w){
   const drawIdeas=()=>{const cur=store.get('thIdeaToday',null);
     $('thIdeas').innerHTML=TH_IDEAS.map(x=>`<button class="tile t-me ${cur&&cur.d===today()&&cur.id===x.id?'on':''}" data-thi="${x.id}" style="${cur&&cur.d===today()&&cur.id===x.id?'outline:4px solid #2a9d4b':''}"><span class="ti">${x.i}</span><b>${x.n}</b><small class="small">${x.d}</small></button>`).join('');
     $('thToday').innerHTML=cur&&cur.d===today()?`✅ Today's idea: <b>${E(cur.txt||thIdea(cur.id).n)}</b>`:'No idea picked for today yet.';
-    $('thIdeas').querySelectorAll('[data-thi]').forEach(b=>b.onclick=()=>{store.set('thIdeaToday',{d:today(),id:b.dataset.thi,txt:''});$('thMine').value='';drawIdeas();toast('💡 Idea set for today!')})};
+    $('thIdeas').querySelectorAll('[data-thi]').forEach(b=>b.onclick=()=>{store.set('thIdeaToday',{d:today(),id:b.dataset.thi,txt:''});$('thMine').value='';drawIdeas();try{dlRender()}catch(e){}toast('💡 Idea set for today!')})};
   $('thMine').onchange=()=>{const t=$('thMine').value.trim();if(t){store.set('thIdeaToday',{d:today(),id:'own',txt:t});drawIdeas()}};
   const pick=(id,opts,key)=>{$(id).innerHTML=opts.map(([v,l])=>`<button class="btn ghost" data-v="${v}" style="margin:2px;padding:6px 10px;font-size:15px">${l}</button>`).join('');
     $(id).onclick=e=>{const b=e.target.closest('[data-v]');if(!b)return;sel[key]=key==='how'?+b.dataset.v:b.dataset.v;[...$(id).children].forEach(x=>x.style.background=x===b?'#ffe08a':'')}};
@@ -2963,7 +2967,7 @@ function pdIdeaJudge(w){
   $('thSave').onclick=()=>{if(!sel.kind||sel.how<0){toast('Pick what it was and how many touches had an idea');return}
     const L=log();L.push({d:today(),at:Date.now(),kind:sel.kind,how:sel.how,saw:$('thSaw').value.trim(),worked:$('thWorked').value.trim()});store.set('thinkLog',L.slice(-200));
     try{perfLog({type:'ideaCheck',kind:sel.kind,how:sel.how})}catch(e){}
-    addXP(10,'Idea Check');if(sel.how>=2)confetti(50);toast(sel.how>=3?'🌟 An idea every touch, that\'s how champions think!':sel.how>=2?'👍 Thinking in most touches!':'💪 Checking in builds the habit. Aim for a few more ideas next time!');
+    addXP(10,'Idea Check');setTimeout(()=>{try{dlRender()}catch(e){}},50);if(sel.how>=2)confetti(50);toast(sel.how>=3?'🌟 An idea every touch, that\'s how champions think!':sel.how>=2?'👍 Thinking in most touches!':'💪 Checking in builds the habit. Aim for a few more ideas next time!');
     $('thSaw').value='';$('thWorked').value='';Object.assign(sel,{kind:'',how:-1});['thKind','thHow'].forEach(i=>[...$(i).children].forEach(x=>x.style.background=''));stats()};
   $('thPrint').onclick=()=>{const cur=store.get('thIdeaToday',null),idea=cur&&cur.d===today()?(cur.txt||thIdea(cur.id).n):'________________';
     const w=window.open('','_blank');if(!w){toast('Allow pop-ups to print');return}
@@ -2974,6 +2978,38 @@ function pdIdeaJudge(w){
   document.querySelector('#nav [data-s="think"]').addEventListener('click',()=>{drawIdeas();stats()});
   drawIdeas();stats();
 })();
+// ---------- ✅ My Daily Think List: Ellis checks it off every day (habit for the one-idea-per-touch loop) ----------
+function dlToday(){return evoToday()}
+function dlState(){let r=store.get('dailyList',null);if(!r||r.d!==dlToday())r={d:dlToday(),done:{},bonus:false};return r}
+function dlItems(){
+  const t=dlToday(),r=dlState(),idea=store.get('thIdeaToday',null),it=store.get('ideaToday',null),dr=store.get('rematchDrills',null),tl=store.get('thinkLog',[]);
+  const drillToday=!!(dr&&dr.done&&Object.keys(dr.done).some(k=>k.startsWith(t+'|'))),checkToday=Array.isArray(tl)&&tl.some(x=>x.d===t),duelIdeas=it&&it.d===t?it.n:0;
+  return [
+   {id:'idea',i:'💡',n:'Pick today\'s idea',s:'Think page',go:'think',auto:!!(idea&&idea.d===t)},
+   {id:'play',i:'🎮',n:'Play 3 touches with an idea',s:duelIdeas?`${Math.min(duelIdeas,3)}/3 in Piste Duel`:'Piste Duel, or a 2-min home game',go:'duel',auto:duelIdeas>=3,manual:true},
+   {id:'drill',i:'🏋️',n:'Do one real-life drill',s:'Tap it in the drills list',go:'duel',auto:drillToday},
+   {id:'tell',i:'🗣️',n:'Tell Mom or Dad my idea (and if it worked)',s:'Tap when you did it',manual:true},
+   {id:'check',i:'📝',n:'Do my Idea Check',s:'After practice, or about today\'s game',go:'think',auto:checkToday}
+  ].map(x=>Object.assign(x,{on:x.auto||!!r.done[x.id]}));
+}
+function dlRender(){
+  const items=dlItems(),n=items.filter(x=>x.on).length,r=dlState(),sk=store.get('dailyStreak',{last:'',n:0});
+  if(n===items.length&&!r.bonus){r.bonus=true;store.set('dailyList',r);const y=new Date(dlToday()+'T12:00:00');y.setDate(y.getDate()-1);
+    const yd=y.toISOString().slice(0,10),ns={last:dlToday(),n:sk.last===yd?sk.n+1:sk.last===dlToday()?sk.n:1};store.set('dailyStreak',ns);
+    addXP(20,'Daily Think List done!');confetti(160);toast(`🌟 All done! ${ns.n}-day streak. Your brain is getting stronger every day!`)}
+  const s2=store.get('dailyStreak',{last:'',n:0}),streak=(s2.last===dlToday()||(()=>{const y=new Date(dlToday()+'T12:00:00');y.setDate(y.getDate()-1);return s2.last===y.toISOString().slice(0,10)})())?s2.n:0;
+  const html=`<div class="card dlcard"><h2>✅ My Daily Think List <span class="small">${n}/${items.length} · 🔥 ${streak} day${streak===1?'':'s'}</span></h2>
+    <div class="bar" style="height:10px;margin:4px 0 8px"><i style="width:${n/items.length*100}%"></i></div>
+    ${items.map(x=>`<div class="dlrow ${x.on?'on':''}"><button class="dlbox" data-dl="${x.id}" ${x.auto?'disabled':''} title="${x.auto?'Checked automatically':'Tap to check'}">${x.on?'✅':'⬜'}</button>
+      <div style="flex:1"><b>${x.i} ${x.n}</b><div class="small">${x.on&&x.auto?'Done!':x.s}</div></div>${x.go&&!x.on?`<button class="btn ghost sm" data-dlgo="${x.go}">Go ➜</button>`:''}</div>`).join('')}
+    <div class="small" style="margin-top:6px">${n===items.length?'🌟 All done today. +20 XP!':'Finish all 5 for +20 XP and keep your streak going.'}</div></div>`;
+  ['dailyThink','dailyThink2'].forEach(id=>{const b=document.getElementById(id);if(!b)return;b.innerHTML=html;
+    b.querySelectorAll('[data-dl]').forEach(x=>x.onclick=()=>{const r=dlState(),k=x.dataset.dl;r.done[k]=!r.done[k];store.set('dailyList',r);if(r.done[k])beep(880,.08);dlRender()});
+    b.querySelectorAll('[data-dlgo]').forEach(x=>x.onclick=()=>goTo(x.dataset.dlgo))});
+}
+document.querySelectorAll('#nav button').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.s==='home'||b.dataset.s==='think')setTimeout(dlRender,30)}));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)dlRender()});
+dlRender();
 </script>
 </body>
 </html>
