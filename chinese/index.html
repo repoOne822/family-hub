@@ -198,7 +198,9 @@ const SETS=[["数字 Numbers",[["一","yī","one","1️⃣","一个"],["二","è
 const ALL=SETS.flatMap((s,i)=>s[1].map(c=>({c:c[0],py:c[1],en:c[2],e:c[3],w:c[4],set:i})));
 const CH=Object.fromEntries(ALL.map(x=>[x.c,x]));
 function pool(L){const top=Math.min(L,SETS.length)-1,cur=ALL.filter(x=>x.set===top),old=ALL.filter(x=>x.set<top);return {cur,old,all:[...cur,...old]}}
-function pickChar(L){const P=pool(L);const weak=P.all.filter(x=>{const s=S.ch[x.c];return s&&s.miss>0&&(s.ok||0)<3});if(weak.length&&Math.random()<.25)return pick(weak);return (P.old.length&&Math.random()<.35)?pick(P.old):pick(P.cur)}
+function pickChar(L){const P=pool(L);const weak=P.all.filter(x=>{const s=S.ch[x.c];return s&&s.miss>0&&(s.ok||0)<3});if(weak.length&&Math.random()<.4)return pick(weak);return (P.old.length&&Math.random()<.35)?pick(P.old):pick(P.cur)}
+function seenZ(id){S.seenZ=S.seenZ||{};return S.seenZ[id]||(S.seenZ[id]=[])}
+function markZ(id,k){const a=seenZ(id);a.push(k);while(a.length>8)a.shift()}
 function chStat(c,ok){const s=S.ch[c]||(S.ch[c]={n:0,ok:0,miss:0});s.n++;if(ok)s.ok++;else{s.miss++;s.ok=Math.max(0,s.ok-1)}}
 const mastered=()=>ALL.filter(x=>(S.ch[x.c]||{}).ok>=3).length;
 const TONESETS=[[["妈","mā"],["麻","má"],["马","mǎ"],["骂","mà"]],[["八","bā"],["拔","bá"],["把","bǎ"],["爸","bà"]],[["一","yī"],["姨","yí"],["椅","yǐ"],["亿","yì"]],[["汤","tāng"],["糖","táng"],["躺","tǎng"],["烫","tàng"]],[["屋","wū"],["无","wú"],["五","wǔ"],["雾","wù"]],[["师","shī"],["十","shí"],["使","shǐ"],["是","shì"]]];
@@ -273,31 +275,34 @@ async function mcRound(tk,items,label,opts={}){let right=0;const missed=[];
     await new Promise(res=>document.querySelectorAll(".ch").forEach(b=>b.onclick=async()=>{if(tk!==token||busy)return;const o=it.opts[+b.dataset.i];
       if(o.v===it.ans){b.classList.add("good");sfx.good();if(first&&scored)right++;if(it.c)chStat(it.c,first);fb(first?pick(["对了！Yes!","真棒！Great!","没错！Right!"]):"现在会了！Now you know it! 🧠","good");if(it.after)await speakDone(it.after);setTimeout(res,500)}
       else{busy=true;b.classList.add("bad");sfx.bad();if(first&&scored)missed.push(it);if(first&&it.c)chStat(it.c,false);first=false;const w=it.why(o);
-        await gate({emoji:"🐼",title:"Let's learn from this",html:w.html,say:w.say,zh:w.zh,btn:"Try again 💪"});if(tk!==token)return;busy=false;fb("")}}))};
+        await gate({emoji:"🐼",title:"Let's learn from this",html:w.html,say:w.say,zh:w.zh,btn:"Try again 💪"});if(tk!==token)return;busy=false;fb("")}}));return first};
   for(let i=0;i<items.length&&tk===token;i++)await ask(items[i],`${label} ${i+1}/${items.length}`,true);
-  for(const it of missed){if(tk!==token)return null;fb("");await ask({...it,opts:shuffle(it.opts)},`<span class="tag">🔁 Again</span> ${label}`,false)}
+  for(const it of missed){for(let a=0;a<3;a++){if(tk!==token)return null;fb("");const nx=it.mk?it.mk(a):{...it,opts:shuffle(it.opts)};if(await ask(nx,`<span class="tag">🔁 One more like it</span> ${label}`,false))break}}
   window._again=null;return {right,n:items.length,missed:missed.length}}
 const chOpt=x=>({h:`<span style="font-size:46px">${x.e}</span>`,v:x.c});
+/* similar-item builders: the same character comes back in a different way (hear it / read it / pick the character), never the identical screen */
+function itListen(x,L,first){const ds=shuffle(pool(L).all.filter(y=>y.c!==x.c&&y.e!==x.e)).slice(0,L<=2?2:3);
+  return {c:x.c,en:first?"Listen, and tap the picture.":"",zh:x.w,html:`<div style="font-size:60px">🔊</div><div class="note">Tap 🔊 at the top to hear it again</div>`,opts:shuffle([x,...ds]).map(chOpt),ans:x.c,after:`${x.w}`,
+    why:o=>{const p=CH[o.v];return {html:`<div class="wp">You picked <span class="big">${p.e}</span> — that's <b>${p.w}</b> (${p.en})</div><div class="wa">You heard <b>${x.w}</b> ${x.e} — ${x.en} ✅</div>`,say:`You picked ${p.en}. The word was ${x.en}.`,zh:`${x.w}。${p.w}。`}},mk:a=>a%2?itListen(x,L):itRead(x,L,false)}}
+function itRead(x,L,rev){const ds=shuffle(pool(L).all.filter(y=>y.c!==x.c&&y.e!==x.e)).slice(0,L<=2?2:3);
+  if(!rev)return {c:x.c,en:"",zh:"",html:`<div class="hz">${x.c}</div>`,opts:shuffle([x,...ds]).map(chOpt),ans:x.c,after:`${x.c}，${x.w}`,
+      why:o=>{const p=CH[o.v];return {html:`<div class="wp">You picked <span class="big">${p.e}</span> — that's <b>${p.c}</b> ${p.py}</div><div class="wa"><span class="hz sm">${x.c}</span> ${x.py} means <b>${x.en}</b> ${x.e} ✅</div><div>Word: ${x.w}</div>`,say:`This character means ${x.en}.`,zh:`${x.c}，${x.w}。`}},mk:a=>a%2?itRead(x,L,false):itRead(x,L,true)};
+  return {c:x.c,en:"Which character is",zh:x.c+"，"+x.w,html:`<div style="font-size:64px">${x.e}</div>`,opts:shuffle([x,...ds]).map(y=>({h:`<span class="hz sm">${y.c}</span>`,v:y.c})),ans:x.c,
+      why:o=>{const p=CH[o.v];return {html:`<div class="wp">You picked <span class="hz sm">${p.c}</span> ${p.py} — ${p.en} ${p.e}</div><div class="wa">${x.e} is <span class="hz sm">${x.c}</span> ${x.py} ✅</div>`,say:`That one means ${p.en}. ${x.en} is this one.`,zh:`${x.c}，${x.w}。`}},mk:a=>a%2?itRead(x,L,true):itListen(x,L)}}
 /* ---------- 1. Listen & Tap ---------- */
-async function playListen(tk){const L=lv("listen"),items=[];const used=new Set();
-  for(let i=0;i<6;i++){let x;do{x=pickChar(L)}while(used.has(x.c)&&used.size<pool(L).all.length);used.add(x.c);const ds=shuffle(pool(L).all.filter(y=>y.c!==x.c&&y.e!==x.e)).slice(0,L<=2?2:3);
-    items.push({c:x.c,en:i===0?"Listen, and tap the picture.":"",zh:x.w,html:`<div style="font-size:60px">🔊</div><div class="note">Tap 🔊 at the top to hear it again</div>`,opts:shuffle([x,...ds]).map(chOpt),ans:x.c,after:`${x.w}`,
-      why:o=>{const p=CH[o.v];return {html:`<div class="wp">You picked <span class="big">${p.e}</span> — that's <b>${p.w}</b> (${p.en})</div><div class="wa">You heard <b>${x.w}</b> ${x.e} — ${x.en} ✅</div>`,say:`You picked ${p.en}. The word was ${x.en}.`,zh:`${x.w}。${p.w}。`}}})}
+async function playListen(tk){const L=lv("listen"),items=[];const used=new Set(seenZ("listen"));
+  for(let i=0;i<6;i++){let x,t=0;do{x=pickChar(L);t++}while(used.has(x.c)&&t<40);used.add(x.c);markZ("listen",x.c);items.push(itListen(x,L,i===0))}
   const r=await mcRound(tk,items,"🎧");if(r&&tk===token)finish("listen",r.right/r.n,r.right/r.n,r.missed?`Practiced ${r.missed} again`:"")}
 /* ---------- 2. Read Characters ---------- */
-async function playRead(tk){const L=lv("read"),items=[];const used=new Set();
-  for(let i=0;i<6;i++){let x;do{x=pickChar(L)}while(used.has(x.c)&&used.size<pool(L).all.length);used.add(x.c);const ds=shuffle(pool(L).all.filter(y=>y.c!==x.c&&y.e!==x.e)).slice(0,L<=2?2:3);
-    const rev=L>=4&&i%2===1;
-    if(!rev)items.push({c:x.c,en:"",zh:"",html:`<div class="hz">${x.c}</div>`,opts:shuffle([x,...ds]).map(chOpt),ans:x.c,after:`${x.c}，${x.w}`,
-      why:o=>{const p=CH[o.v];return {html:`<div class="wp">You picked <span class="big">${p.e}</span> — that's <b>${p.c}</b> ${p.py}</div><div class="wa"><span class="hz sm">${x.c}</span> ${x.py} means <b>${x.en}</b> ${x.e} ✅</div><div>Word: ${x.w}</div>`,say:`This character means ${x.en}.`,zh:`${x.c}，${x.w}。`}}});
-    else items.push({c:x.c,en:"Which character is",zh:x.c+"，"+x.w,html:`<div style="font-size:64px">${x.e}</div>`,opts:shuffle([x,...ds]).map(y=>({h:`<span class="hz sm">${y.c}</span>`,v:y.c})),ans:x.c,
-      why:o=>{const p=CH[o.v];return {html:`<div class="wp">You picked <span class="hz sm">${p.c}</span> ${p.py} — ${p.en} ${p.e}</div><div class="wa">${x.e} is <span class="hz sm">${x.c}</span> ${x.py} ✅</div>`,say:`That one means ${p.en}. ${x.en} is this one.`,zh:`${x.c}，${x.w}。`}}})}
+async function playRead(tk){const L=lv("read"),items=[];const used=new Set(seenZ("read"));
+  for(let i=0;i<6;i++){let x,t=0;do{x=pickChar(L);t++}while(used.has(x.c)&&t<40);used.add(x.c);markZ("read",x.c);items.push(itRead(x,L,L>=4&&i%2===1))}
   const r=await mcRound(tk,items,"🔤");if(r&&tk===token)finish("read",r.right/r.n,r.right/r.n,r.missed?`Practiced ${r.missed} again`:"")}
 /* ---------- 3. Pinyin & Tones ---------- */
 async function playTones(tk){const L=lv("tones"),items=[];
   for(let i=0;i<6;i++){
     if(L<=3){const set=L===1?TONESETS[0]:L===2?TONESETS[0]:pick(TONESETS);const allowed=L===1?[0,3]:[0,1,2,3];const k=pick(allowed),[c,py]=set[k];
-      items.push({en:i===0?"Listen to the tone.":"",zh:c,html:`<div style="font-size:54px">🔊</div><div class="note">${L>=3?"":"Hint: watch the lines"}</div>`,opts:allowed.map(t=>({h:`${toneSvg(t+1)}<br><b>${withTone(plain(py).s,t+1)}</b><br><small>${TONE_UI[t][0]}声</small>`,v:String(t+1)})),ans:String(k+1),after:c,
+      const mkT=(kk)=>{const set2=pick(TONESETS.filter(z=>z!==set)),[c2,py2]=set2[kk];return {en:"Listen to the tone.",zh:c2,html:`<div style="font-size:54px">🔊</div>`,opts:allowed.map(t=>({h:`${toneSvg(t+1)}<br><b>${withTone(plain(py2).s,t+1)}</b><br><small>${TONE_UI[t][0]}声</small>`,v:String(t+1)})),ans:String(kk+1),after:c2,why:o=>({html:`<div class="wp">You picked tone ${o.v} ${toneSvg(+o.v)}</div><div class="wa">${c2} <b>${py2}</b> is tone ${kk+1}: ${TONE_UI[kk][2]} ${toneSvg(kk+1)} ✅</div>`,say:`This one is tone ${kk+1}. Its voice is ${TONE_UI[kk][2]}.`,zh:c2})}};
+      items.push({mk:()=>mkT(k),en:i===0?"Listen to the tone.":"",zh:c,html:`<div style="font-size:54px">🔊</div><div class="note">${L>=3?"":"Hint: watch the lines"}</div>`,opts:allowed.map(t=>({h:`${toneSvg(t+1)}<br><b>${withTone(plain(py).s,t+1)}</b><br><small>${TONE_UI[t][0]}声</small>`,v:String(t+1)})),ans:String(k+1),after:c,
         why:o=>({html:`<div class="wp">You picked tone ${o.v} ${toneSvg(+o.v)}</div><div class="wa">${c} <b>${py}</b> is tone ${k+1}: ${TONE_UI[k][2]} ${toneSvg(k+1)} ✅</div>`,say:`This one is tone ${k+1}. Its voice is ${TONE_UI[k][2]}. Listen again.`,zh:c})})}
     else{const x=pickChar(Math.min(12,6+L*2)),p=plain(x.py),opts=new Set([x.py]);[1,2,3,4].filter(t=>t!==p.t).forEach(t=>opts.add(withTone(p.s,t)));
       const ol=shuffle([...opts]).slice(0,L===4?3:4);if(!ol.includes(x.py))ol[0]=x.py;

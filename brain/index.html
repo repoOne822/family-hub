@@ -223,6 +223,9 @@ function renderHome(){setCoins();let html="",cur="";GAMES.forEach(g=>{if(g.sec!=
   const m=mixT(),lc=ckLast();$("tiles").innerHTML=(S.chkEvery===0?"":ckDue()?`<button class="tile" id="ckGo" style="width:100%;display:flex;align-items:center;gap:14px;justify-content:center;background:linear-gradient(135deg,#fff3c4,#ffd6e8);margin:6px 0 4px"><span class="ic">🧪</span><span style="text-align:left"><b style="font-size:22px">Brain Check is ready (optional)</b><small style="display:block">8 quick brain games · about 8 minutes · +30 coins · games stay open</small></span></button>`:`<div class="note" style="text-align:center">🧪 Last Brain Check ${lc?lc.d:"–"} · next in ${ckIn()} day${ckIn()===1?"":"s"}</div>`)+(MIXON()?`<div class="mixbar">${IQ.map(a=>`<span class="mx ${m.rest[a]>0?"rest":""}">${AREA_N[a].split(" ")[0]} ${m.n[a]||0}${m.rest[a]>0?" 💤":""}</span>`).join("")}<span class="mx">🎟️ ${m.tix||0}</span></div>`:"")+html+"</div>";document.querySelectorAll(".tile[data-g]").forEach(b=>b.onclick=()=>{A();openGame(b.dataset.g)});const cg=document.getElementById("ckGo");if(cg)cg.onclick=()=>{A();openCheck()}}
 function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));window.scrollTo(0,0)}
 let curG=null;
+/* 🔁 Similar, never identical (Bobby 2026-11-24): no item repeats inside a round or across the last rounds; a miss comes back as a NEW item of the same kind, again and again (up to 3) until he gets one right first try. */
+function seenB(id){S.seenB=S.seenB||{};return S.seenB[id]||(S.seenB[id]=[])}
+function markSeen(id,k){const a=seenB(id);a.push(k);while(a.length>20)a.shift()}
 /* ---------- mix-it-up rule (Bobby 2026-11-21): no grinding one type of game ---------- */
 const AREA={feel:"feel",match:"mem",simon:"mem",odd:"mem",gonogo:"exec",switch:"exec",pattern:"logic",shapes:"logic",robot:"logic",draw:"create",music:"create"};
 const AREA_N={feel:"💛 Feelings",mem:"🧩 Memory & focus",exec:"🧠 Brain builders",logic:"🧮 Puzzles & logic",create:"🎨 Create & music"},AREA_S={feel:"feelings games",mem:"memory games",exec:"brain builder games",logic:"puzzle games",create:"art and music"};
@@ -296,9 +299,10 @@ async function playOdd(tk){const L=lv("odd"),n=[3,4,4,5,5,6][L-1],trials=5;let r
       if(+c.dataset.i===k){c.classList.add("good");sfx.good();if(first&&scored){right++;tsum+=Date.now()-t0}fb(scored||first?"You spotted it!":"Now you've got it! 🧠","good");setTimeout(res,600)}
       else{busy=true;c.classList.add("bad");sfx.bad();if(first&&scored)missed.push(pr);first=false;
         await gate({emoji:"🔍",title:"Look closely",html:`<div class="wp">You tapped <span class="big">${a}</span> ❌</div><div>All of these are <span class="big">${a}</span>.</div><div class="wa">The different one is <span class="big">${b}</span> ✅</div>`,say:`You tapped one that is the same as the others. Look closely. They are all the same, except one. Find the different one.`,btn:"Find it 🔍"});
-        if(tk!==token)return;const g=document.querySelector(`.oc[data-i="${k}"]`);g.style.outline="5px solid #ffd166";busy=false;fb("Tap the different one","bad")}}))};
-  for(let t=0;t<trials&&tk===token;t++)await round(shuffle(pick(pairs)),`Find the different one! (${t+1}/${trials})`,true);
-  for(const pr of missed){if(tk!==token)return;fb("");await round(pr,`<span class="tag">🔁 Again</span> Find the different one!`,false)}
+        if(tk!==token)return;const g=document.querySelector(`.oc[data-i="${k}"]`);g.style.outline="5px solid #ffd166";busy=false;fb("Tap the different one","bad")}}));return first};
+  const used=new Set();const nextPair=()=>{let c=shuffle(pairs).find(p=>!used.has(p.join()))||pick(pairs);used.add(c.join());return shuffle(c)};
+  for(let t=0;t<trials&&tk===token;t++)await round(nextPair(),`Find the different one! (${t+1}/${trials})`,true);
+  for(const pr of missed){for(let a=0;a<3;a++){if(tk!==token)return;fb("");if(await round(nextPair(),`<span class="tag">🔁 One more like it</span> Find the different one!`,false))break}}
   if(tk===token)finish("odd",right/trials,right?Math.round(tsum/right):0,(right?`Average find time: ${(tsum/right/1000).toFixed(1)} s`:"")+(missed.length?` · practiced ${missed.length} again`:""))}
 /* ---------- 4. Stop & Go (go/no-go) ---------- */
 async function playGoNo(tk){const L=lv("gonogo"),N=16,show=Math.max(650,1300-L*110);let hit=0,miss=0,impulse=0,okStop=0,rts=[];
@@ -325,7 +329,7 @@ async function playSwitch(tk){const L=lv("switch"),N=10;const [s1,s2]=shuffle(Ob
   const play=async(cs,cc,sw,scored,label)=>{showRule();$("cc").innerHTML=svgS(cs,cc);$("instr").innerHTML=label;
     const ans=rule==="color"?(cc===c1?0:1):(cs===s1?0:1);let first=true;
     while(tk===token){const pickB=await new Promise(res=>document.querySelectorAll(".bin").forEach(b=>b.onclick=()=>{if(tk!==token)return;document.querySelectorAll(".bin").forEach(x=>x.onclick=null);res(+b.dataset.b)}));
-      if(pickB===ans){sfx.good();fb(first?"Yes!":"Now you've got it! 🧠","good");if(scored&&first){right++}if(scored&&sw){swN++;if(first)swR++}await delay(650);return}
+      if(pickB===ans){sfx.good();fb(first?"Yes!":"Now you've got it! 🧠","good");if(scored&&first){right++}if(scored&&sw){swN++;if(first)swR++}await delay(650);return first}
       sfx.bad();if(first&&scored)missed.push({cs,cc,rule});first=false;
       const tgt=ans===0?[s1,c1]:[s2,c2];
       await gate({emoji:"🔀",title:"Check the rule",html:`<div>The rule is <b>${rule==="color"?"🎨 COLOR":"🔷 SHAPE"}</b>.</div><div class="wp">This card is <b>${rule==="color"?cc:cs}</b>.</div><div class="wa">So it goes with the <b>${rule==="color"?tgt[1]:tgt[0]}</b> one ✅</div>`,
@@ -334,14 +338,15 @@ async function playSwitch(tk){const L=lv("switch"),N=10;const [s1,s2]=shuffle(Ob
   for(let i=0;i<N&&tk===token;i++){let sw=false;if(L===3&&i===5){rule=rule==="color"?"shape":"color";sw=true}if(L>=4&&i>0&&Math.random()<(L===4?.3:.45)){rule=rule==="color"?"shape":"color";sw=true}
     showRule();if(sw||i===0){speak(rule==="color"?"Sort by color!":"Sort by shape!");if(sw){fb("🔀 The rule changed!","");await delay(900)}}
     const cs=Math.random()<.5?s1:s2,cc=cs===s1?c2:c1;await play(cs,cc,sw,true,`Card ${i+1} of ${N}`)}
-  for(const m of missed){if(tk!==token)return;rule=m.rule;speak(`Let's try that card again. Sort by ${rule}.`);await play(m.cs,m.cc,false,false,`<span class="tag">🔁 Again</span> Sort by ${rule.toUpperCase()}`)}
+  for(const m of missed){rule=m.rule;let flip=true;for(let a=0;a<3;a++){if(tk!==token)return;const cs=flip?(m.cs===s1?s2:s1):m.cs,cc=cs===s1?c2:c1;flip=!flip;speak(`Another card. Sort by ${rule}.`);if(await play(cs,cc,false,false,`<span class="tag">🔁 One more like it</span> Sort by ${rule.toUpperCase()}`))break}}
   if(tk===token)finish("switch",right/N,{acc:right/N,sw:swN?swR/swN:null},[swN?`Right after a rule change: ${swR}/${swN}`:"",missed.length?`practiced ${missed.length} again`:""].filter(Boolean).join(" · "))}
 /* ---------- 6. Pattern Train ---------- */
 const PE=[["🔴","🔵","🟢","🟡"],["🐶","🐱","🐰","🐸"],["⭐","🌙","☀️","☁️"],["🍎","🍌","🍇","🍓"]];
-function makePattern(L){const s=pick(PE);const [a,b,c]=shuffle(s);const T=L<=1?["AB"]:L===2?["AB","AAB"]:L===3?["AAB","ABB","ABC"]:L===4?["ABC","AABB","ABB"]:["AABB","ABBC","ABAC","NUM"];const t=pick(T);
-  if(t==="NUM"){const st=rnd(1,4),stp=rnd(1,3);const seq=[0,1,2,3].map(i=>String(st+i*stp));return {show:seq,num:true,step:stp,unit:seq.slice(0,2),ans:String(st+4*stp),opts:shuffle([String(st+4*stp),String(st+4*stp+1),String(st+3*stp)])}}
+function makePattern(L,force,avoid){for(let i=0;i<20;i++){const p=makePattern1(L,force);const key=p.show.join("")+p.ans;if(!(avoid||[]).includes(key)){p.key=key;return p}}const p=makePattern1(L,force);p.key=p.show.join("")+p.ans;return p}
+function makePattern1(L,force){const s=pick(PE);const [a,b,c]=shuffle(s);const T=L<=1?["AB"]:L===2?["AB","AAB"]:L===3?["AAB","ABB","ABC"]:L===4?["ABC","AABB","ABB"]:["AABB","ABBC","ABAC","NUM"];const t=force||pick(T);
+  if(t==="NUM"){const st=rnd(1,4),stp=rnd(1,3);const seq=[0,1,2,3].map(i=>String(st+i*stp));return {t,show:seq,num:true,step:stp,unit:seq.slice(0,2),ans:String(st+4*stp),opts:shuffle([String(st+4*stp),String(st+4*stp+1),String(st+3*stp)])}}
   const map={A:a,B:b,C:c};const unit=t.split("").map(x=>map[x]);const full=[];while(full.length<unit.length*2+2)full.push(...unit);const k=Math.max(unit.length*2,5);
-  return {show:full.slice(0,k),unit,ans:full[k],opts:shuffle([...new Set([full[k],a,b,c])]).slice(0,3).concat([]).filter((v,i,ar)=>ar.indexOf(v)===i)}}
+  return {t,show:full.slice(0,k),unit,ans:full[k],opts:shuffle([...new Set([full[k],a,b,c])]).slice(0,3).concat([]).filter((v,i,ar)=>ar.indexOf(v)===i)}}
 async function playPattern(tk){const L=lv("pattern"),N=5;let right=0;const missed=[];
   const ask=async(p,label,scored)=>{const opts=shuffle(p.opts);$("instr").innerHTML=label;
     $("area").innerHTML=`<div class="train">🚂${p.show.map(x=>`<div class="car">${x}</div>`).join("")}<div class="car q">?</div></div><div class="choices">${opts.map(o=>`<button class="ch">${o}</button>`).join("")}</div>`;let first=true,busy=false;
@@ -350,9 +355,9 @@ async function playPattern(tk){const L=lv("pattern"),N=5;let right=0;const misse
       else{busy=true;b.classList.add("bad");sfx.bad();if(first&&scored)missed.push(p);first=false;const unit=p.unit||p.show.slice(0,2);
         await gate({emoji:"🚂",title:"Say the pattern",html:`<div class="wp">You picked <span class="big">${b.textContent}</span> ❌</div><div>The pattern goes: <span class="big">${unit.join(" ")}</span>, then again <span class="big">${unit.join(" ")}</span>…</div><div class="wa">So next is <span class="big">${p.ans}</span> ✅</div>`,
           say:p.num?`The numbers go up by ${p.step} each time. So next is ${p.ans}.`:`Say the pattern out loud. It repeats the same group again and again. So the next one is ${p.ans}.`,btn:"Try again 💪"});
-        if(tk!==token)return;busy=false;fb("Tap the one that comes next","")}}))};
-  for(let i=0;i<N&&tk===token;i++){const p=makePattern(L);if(!p.opts.includes(p.ans))p.opts[0]=p.ans;await ask(p,`What comes next? (${i+1}/${N})`,true)}
-  for(const p of missed){if(tk!==token)return;fb("");speak("Let's try that pattern again.");await ask(p,`<span class="tag">🔁 Again</span> What comes next?`,false)}
+        if(tk!==token)return;busy=false;fb("Tap the one that comes next","")}}));return first};
+  for(let i=0;i<N&&tk===token;i++){const p=makePattern(L,null,seenB("pattern"));markSeen("pattern",p.key);if(!p.opts.includes(p.ans))p.opts[0]=p.ans;await ask(p,`What comes next? (${i+1}/${N})`,true)}
+  for(const p0 of missed){for(let a=0;a<3;a++){if(tk!==token)return;fb("");const p=makePattern(L,p0.t,seenB("pattern"));markSeen("pattern",p.key);if(!p.opts.includes(p.ans))p.opts[0]=p.ans;speak("Here's one like it.");if(await ask(p,`<span class="tag">🔁 One more like it</span> What comes next?`,false))break}}
   if(tk===token)finish("pattern",right/N,right/N,missed.length?`Practiced ${missed.length} again`:"")}
 /* ---------- 7. Shape Puzzle (drag) ---------- */
 const PZ={circle:'<circle cx="50" cy="50" r="44"/>',square:'<rect x="8" y="8" width="84" height="84" rx="6"/>',triangle:'<polygon points="50,6 94,92 6,92"/>',star:SHP.star,heart:SHP.heart,hexagon:'<polygon points="27,8 73,8 96,50 73,92 27,92 4,50"/>',moon:'<path d="M70 10 A42 42 0 1 0 70 90 A32 32 0 1 1 70 10Z"/>',diamond:'<polygon points="50,4 94,50 50,96 6,50"/>'};
@@ -418,12 +423,13 @@ const FCALM=[
  ["You lost a game and feel upset.",["🤝","Say good game and try again"],[["😤","Throw the pieces"],["🚫","Never play again"]],"Everyone loses sometimes. Trying again is how we get better."],
  ["You feel frustrated because a puzzle is hard.",["⏸️","Take a break, then try again"],[["🗑️","Throw it away"],["😭","Cry and give up"]],"A short break helps your brain find new ideas."],
  ["You feel scared of the dark at bedtime.",["🔦","Ask for a night light and hug your teddy"],[["😱","Scream all night"],["🚪","Run out of the house"]],"Small things like a light or a hug help us feel safe."]];
-function feelQ(L){const fl=L<=1?["happy","sad","angry","scared"]:Object.keys(FEELS).slice(0,L===2?8:14);
-  const type=L<=2?"face":L===3?pick(["face","story","story"]):L===4?pick(["story","kind","kind"]):pick(["story","kind","calm","calm"]);
-  if(type==="face"){const f=pick(fl),others=shuffle(fl.filter(x=>x!==f)).slice(0,L<=1?2:3);return {say:`Tap the ${f} face.`,text:`Tap the <b>${f}</b> face`,opts:shuffle([f,...others]).map(x=>({k:x,e:FEELS[x]})),ans:f,why:`This is the ${f} face ${FEELS[f]}. Look at the eyes and the mouth.`,ansE:FEELS[f]}}
-  if(type==="story"){const s=pick(FSC);return {say:`${s[0]} How might they feel?`,text:`${s[0]}<br><b>How might they feel?</b>`,opts:shuffle([s[1],...s[2]]).map(x=>({k:x,e:FEELS[x],w:x})),ans:s[1],why:s[3],ansE:FEELS[s[1]]+" "+s[1]}}
+function feelQ(L,force,avoid){for(let i=0;i<25;i++){const q=feelQ1(L,force);if(!(avoid||[]).includes(q.say))return q}return feelQ1(L,force)}
+function feelQ1(L,force){const fl=L<=1?["happy","sad","angry","scared"]:Object.keys(FEELS).slice(0,L===2?8:14);
+  const type=force||(L<=2?"face":L===3?pick(["face","story","story"]):L===4?pick(["story","kind","kind"]):pick(["story","kind","calm","calm"]));
+  if(type==="face"){const f=pick(fl),others=shuffle(fl.filter(x=>x!==f)).slice(0,L<=1?2:3);return {type,say:`Tap the ${f} face.`,text:`Tap the <b>${f}</b> face`,opts:shuffle([f,...others]).map(x=>({k:x,e:FEELS[x]})),ans:f,why:`This is the ${f} face ${FEELS[f]}. Look at the eyes and the mouth.`,ansE:FEELS[f]}}
+  if(type==="story"){const s=pick(FSC);return {type,say:`${s[0]} How might they feel?`,text:`${s[0]}<br><b>How might they feel?</b>`,opts:shuffle([s[1],...s[2]]).map(x=>({k:x,e:FEELS[x],w:x})),ans:s[1],why:s[3],ansE:FEELS[s[1]]+" "+s[1]}}
   const s=pick(type==="kind"?FKIND:FCALM),all=shuffle([s[1],...s[2]]);
-  return {say:`${s[0]} What is a good thing to do? ${all.map(o=>o[1]).join(", or ")}?`,text:`${s[0]}<br><b>What is a good thing to do?</b>`,opts:all.map(o=>({k:o[1],e:o[0],w:o[1]})),ans:s[1][1],why:s[3],ansE:s[1][0]+" "+s[1][1],kind:type}}
+  return {type,say:`${s[0]} What is a good thing to do? ${all.map(o=>o[1]).join(", or ")}?`,text:`${s[0]}<br><b>What is a good thing to do?</b>`,opts:all.map(o=>({k:o[1],e:o[0],w:o[1]})),ans:s[1][1],why:s[3],ansE:s[1][0]+" "+s[1][1],kind:type}}
 async function breathe(tk){$("instr").textContent="🎈 Calm balloon: breathe with the balloon";$("area").innerHTML=`<div style="height:300px;display:flex;align-items:center;justify-content:center"><div id="bal" style="font-size:90px;transition:transform 4s ease-in-out;transform:scale(.8)">🎈</div></div><div class="fb" id="btx"></div>`;
   speak("Let's breathe with the calm balloon.");await delay(2200);
   for(let i=0;i<3&&tk===token;i++){$("btx").textContent=`Breathe in… 👃 (${i+1}/3)`;$("bal").style.transform="scale(1.9)";speak("Breathe in");await delay(4000);if(tk!==token)return;$("btx").textContent="Breathe out… 🌬️";$("bal").style.transform="scale(.8)";speak("And breathe out");await delay(4200)}
@@ -436,9 +442,9 @@ async function playFeel(tk){const L=lv("feel"),N=5;let right=0,kindR=0,kindN=0;c
       if(o.k===q.ans){b.classList.add("good");sfx.good();if(first&&scored){right++;if(q.kind){kindN++;kindR++}}fb(first?pick(["Yes! You understand feelings!","That's right!","Kind thinking!"]):"Now you've got it! 💛","good");speak(q.why);setTimeout(res,Math.min(5000,Math.max(1600,estRead(q.why)*.8)))}
       else{busy=true;b.classList.add("bad");sfx.bad();if(first&&scored){missed.push(q);if(q.kind)kindN++}first=false;
         await gate({emoji:"💛",title:"Let's think about it",html:`<div class="wp">You picked <span class="big">${o.e}</span> ${o.w||o.k} ❌</div><div class="wa">A better answer: <span class="big">${q.ansE.split(" ")[0]}</span> ${q.ansE.split(" ").slice(1).join(" ")||q.ans} ✅</div><div>${q.why}</div>`,say:`You picked ${o.w||o.k}. A better answer is ${q.ans}. ${q.why}`,btn:"Try again 💪"});
-        if(tk!==token)return;busy=false;fb("")}}))};
-  for(let i=0;i<N&&tk===token;i++){fb("");await ask(feelQ(L),`Feelings ${i+1}/${N}`,true)}
-  for(const q of missed){if(tk!==token)return;fb("");await ask({...q,opts:shuffle(q.opts)},`<span class="tag">🔁 Again</span>`,false)}
+        if(tk!==token)return;busy=false;fb("")}}));return first};
+  for(let i=0;i<N&&tk===token;i++){fb("");const q=feelQ(L,null,seenB("feel"));markSeen("feel",q.say);await ask(q,`Feelings ${i+1}/${N}`,true)}
+  for(const q0 of missed){for(let a=0;a<3;a++){if(tk!==token)return;fb("");const q=feelQ(L,q0.type,[...seenB("feel"),q0.say]);markSeen("feel",q.say);if(await ask(q,`<span class="tag">🔁 One more like it</span>`,false))break}}
   if(tk!==token)return;fb("");await breathe(tk);
   if(tk===token)finish("feel",right/N,right/N,[kindN?`Kind & calm choices: ${kindR}/${kindN}`:"",missed.length?`practiced ${missed.length} again`:""].filter(Boolean).join(" · "))}
 /* ---------- 9. Color Pad ---------- */
