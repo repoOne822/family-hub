@@ -11,7 +11,7 @@ if (!C) { app.textContent = "Unknown class."; return; }
 const zh = (() => { try { return (localStorage.getItem("fh_lang") || "").includes("zh"); } catch (e) { return false; } })();
 const LS = `${KID}_study_${SUBJ}`;
 let P; try { P = JSON.parse(localStorage.getItem(LS)) || {}; } catch (e) { P = {}; }
-P.seen = P.seen || {}; P.tests = P.tests || []; P.log = P.log || []; P.days = P.days || {};
+P.seen = P.seen || {}; P.tests = P.tests || []; P.log = P.log || []; P.days = P.days || {}; P.learn = P.learn || {};
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(P)); } catch (e) {} };
 const today = new Date().toLocaleDateString("en-CA");
 const addDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString("en-CA"); };
@@ -71,18 +71,72 @@ function home() {
   <div class="card"><b>⚡ ${L("Quick 10", "快速10题")}</b> <span class="sub">${L("what you're learning now + your weakest units", "正在学的 + 最弱的单元")}</span><br><button class="btn go" id="quick" style="margin-top:10px">${L("Start", "开始")} ▶</button></div>
   <div class="units">${C.units.map(u => { const s = unitStats(u); return `<div class="unit ${u.st}"><div class="uh"><b>${esc(zh ? u.zh : u.name)}</b><span class="chip ${u.st}">${ST[u.st]}</span></div>
     <div class="bar"><i style="width:${s.pct}%"></i></div><div class="sub">${s.m}/${s.n} ⭐${s.acc != null ? ` · ${s.acc}% ${L("first-try", "一次答对")}` : ""}${s.last ? ` · ${L("last check", "上次单元测")} ${s.last.score}/${s.last.n}` : ""}</div>
-    <div class="ub"><button class="btn sm" data-prac="${u.id}">${L("Practice", "练习")}</button><button class="btn sm" data-test="${u.id}">${L("Unit check", "单元测")}</button></div></div>`; }).join("")}</div>
+    <div class="ub">${LES[u.id] ? `<button class="btn sm ${P.learn[u.id] && P.learn[u.id].done ? "" : "go"}" data-learn="${u.id}">📖 ${P.learn[u.id] && P.learn[u.id].done ? L("Learned ✓", "已学 ✓") : L("Learn", "学习")}</button>` : ""}<button class="btn sm" data-prac="${u.id}">${L("Practice", "练习")}</button><button class="btn sm" data-test="${u.id}">${L("Unit check", "单元测")}</button></div></div>`; }).join("")}</div>
   ${PARENT ? parentView() : ""}`;
   $("#quick").onclick = () => run(quickSet(), { kind: "quick" });
+  app.querySelectorAll("[data-learn]").forEach(b => b.onclick = () => learn(b.dataset.learn, 0));
   app.querySelectorAll("[data-prac]").forEach(b => b.onclick = () => run(pick([b.dataset.prac], 10), { kind: "prac", u: b.dataset.prac }));
   app.querySelectorAll("[data-test]").forEach(b => b.onclick = () => run(pick([b.dataset.test], 10), { kind: "test", u: b.dataset.test }));
 }
 function parentView() {
   const days = Object.keys(P.days).filter(d => d >= addDays(-13)).length;
   return `<div class="card parent"><h3>👪 ${L("Parent corner", "家长角")}</h3><p>${L(`Practiced on ${days} of the last 14 days.`, `最近14天练习了 ${days} 天。`)}</p>
-  <table><tr><th>${L("Unit", "单元")}</th><th>${L("First-try right (30 d)", "一次答对（30天）")}</th><th>⭐</th><th>${L("Unit checks", "单元测")}</th></tr>
-  ${C.units.map(u => { const s = unitStats(u), ts = P.tests.filter(t => t.u === u.id).slice(-3); return `<tr><td>${esc(u.name)}</td><td>${s.acc != null ? `${s.acc}% (${s.tries})` : "—"}</td><td>${s.m}/${s.n}</td><td>${ts.map(t => `${t.score}/${t.n} <span class="sub">${t.d.slice(5)}</span>`).join(", ") || "—"}</td></tr>`; }).join("")}</table></div>`;
+  <table><tr><th>${L("Unit", "单元")}</th><th>${L("First-try right (30 d)", "一次答对（30天）")}</th><th>📖</th><th>⭐</th><th>${L("Unit checks", "单元测")}</th></tr>
+  ${C.units.map(u => { const s = unitStats(u), ts = P.tests.filter(t => t.u === u.id).slice(-3); return `<tr><td>${esc(u.name)}</td><td>${s.acc != null ? `${s.acc}% (${s.tries})` : "—"}</td><td>${P.learn[u.id] && P.learn[u.id].done ? "✓ " + P.learn[u.id].done.slice(5) : "—"}</td><td>${s.m}/${s.n}</td><td>${ts.map(t => `${t.score}/${t.n} <span class="sub">${t.d.slice(5)}</span>`).join(", ") || "—"}</td></tr>`; }).join("")}</table></div>`;
 }
+// ---------- 📖 Learn: same 4 steps as the AMC app (explain simply → key words → power moves with WHY → worked examples), then practice ----------
+const LES = window.STUDY_LESSONS || {};
+const readSecs = txt => Math.min(40, Math.max(5, Math.round(String(txt).split(/\s+/).length / 3.2))); // ~190 words/min, so he actually reads
+function gateBtn(btn, secs) { // the Next button wakes up after a short read time (parents skip it)
+  if (PARENT || !btn) return; const label = btn.textContent; btn.disabled = true; let left = secs;
+  const t = setInterval(() => { left--; if (left <= 0) { clearInterval(t); btn.disabled = false; btn.textContent = label; } else btn.textContent = `⏳ ${left}s · ${label}`; }, 1000);
+  btn.textContent = `⏳ ${left}s · ${label}`;
+}
+function learn(uid, step) {
+  const les = LES[uid], unit = C.units.find(u => u.id === uid); if (!les) return home();
+  const rec = P.learn[uid] = P.learn[uid] || {}; rec.read = Math.max(rec.read ?? -1, step - 1); save();
+  const STEPS = [L("Explain it simply", "简单讲讲"), L("Key words", "关键词"), L("Power moves", "关键方法"), L("Worked examples", "例题")];
+  const head = `<div class="top"><button class="btn" id="back">← ${L("Units", "单元")}</button><h1 style="font-size:22px">${C.icon} ${esc(zh ? unit.zh : unit.name)}</h1></div>
+    <div class="steps">${STEPS.map((x, i) => `<span class="${i === step ? "on" : i < step ? "done" : ""}">${i < step ? "✓" : i + 1} ${x}</span>`).join("")}</div>`;
+  const nav = (txt, secs) => `<div style="text-align:right;margin-top:14px"><button class="btn go" id="next">${txt}</button></div>`;
+  let body = "", text = "";
+  if (step === 0) { text = les.six.join(" "); body = `<div class="card six">${les.six.map(p => `<p>${esc(p)}</p>`).join("")}</div>${nav(L("Got it! →", "懂了！→"))}`; }
+  if (step === 1) { text = les.words.map(w => w[2] + " " + w[3]).join(" ");
+    body = `<div class="card"><div class="q">📘 ${L("Key words: know these first", "关键词：先弄懂这些")}</div><p class="sub">${L("Tests use these exact words. Tap ✓ when you could explain each one to a friend.", "考试就用这些词。能给朋友讲清楚就点 ✓。")}</p>
+      ${les.words.map(w => `<div class="word"><div class="wt">${esc(w[0])} <span class="zh">${esc(w[1])}</span></div><div>${esc(w[2])}</div><div class="eg">${L("e.g.", "例")} ${esc(w[3])}</div>${PARENT ? "" : `<button class="tick" data-tick>✓ ${L("Got it", "懂了")}</button>`}</div>`).join("")}</div>${nav(L("Next →", "下一步 →"))}`; }
+  if (step === 2) { text = les.moves.map(m => m.m + " " + m.why).join(" ");
+    body = `<div class="card"><div class="q">⚡ ${L("Power moves", "关键方法")}</div><p class="sub">${L("Each move comes with WHY it works. Know the why and you'll remember it on test day.", "每个方法都有“为什么”。懂了为什么，考试时就记得住。")}</p>
+      ${les.moves.map((m, k) => `<div class="move"><b>${k + 1}</b><div style="flex:1;min-width:0"><div class="mm">${esc(m.m)}</div><div class="why"><span>🤔 ${L("Why it works:", "为什么：")}</span> ${esc(m.why)}</div>${PARENT ? "" : `<button class="tick" data-tick>✓ ${L("Got it", "懂了")}</button>`}</div></div>`).join("")}</div>${nav(L("See examples →", "看例题 →"))}`; }
+  if (step === 3) return examples(uid, 0, 1);
+  app.innerHTML = head + body; window.scrollTo(0, 0);
+  $("#back").onclick = home;
+  const nx = $("#next"), ticks = [...app.querySelectorAll("[data-tick]")];
+  const ready = () => ticks.every(t => t.classList.contains("on"));
+  ticks.forEach(t => t.onclick = () => { t.classList.toggle("on"); if (nx.dataset.timed === "1") nx.disabled = !ready(); });
+  gateBtn(nx, readSecs(text));
+  if (ticks.length && !PARENT) { const iv = setInterval(() => { if (!document.body.contains(nx)) return clearInterval(iv); if (!nx.textContent.startsWith("⏳")) { clearInterval(iv); nx.dataset.timed = "1"; nx.disabled = !ready(); if (!ready()) nx.title = L("Tap every ✓ first", "先把每个 ✓ 点上"); } }, 300); }
+  nx.onclick = () => { track(uid, step); learn(uid, step + 1); };
+}
+function track(uid, step) { const r = P.learn[uid] = P.learn[uid] || {}; r.read = Math.max(r.read ?? -1, step); save(); }
+function examples(uid, e, shown) {
+  const les = LES[uid], unit = C.units.find(u => u.id === uid), x = les.ex[e];
+  const STEPS = [L("Explain it simply", "简单讲讲"), L("Key words", "关键词"), L("Power moves", "关键方法"), L("Worked examples", "例题")];
+  app.innerHTML = `<div class="top"><button class="btn" id="back">← ${L("Units", "单元")}</button><h1 style="font-size:22px">${C.icon} ${esc(zh ? unit.zh : unit.name)}</h1></div>
+    <div class="steps">${STEPS.map((s, i) => `<span class="${i === 3 ? "on" : "done"}">${i < 3 ? "✓" : 4} ${s}</span>`).join("")}</div>
+    <div class="card"><div class="sub">${L("Example", "例题")} ${e + 1} / ${les.ex.length}</div><div class="q">${esc(x.q)}</div>
+    <p class="sub">${L("Before each step, guess what comes next. Then check.", "每一步之前先猜下一步，再看答案。")}</p>
+    ${x.steps.slice(0, shown).map((st, k) => `<div class="step"><b>${k + 1}</b><span>${esc(st)}</span></div>`).join("")}
+    <div style="text-align:right;margin-top:12px">${shown < x.steps.length ? `<button class="btn" id="more">${L("Show next step", "显示下一步")} (${shown}/${x.steps.length})</button>` : e < les.ex.length - 1 ? `<button class="btn go" id="nx">${L("Next example →", "下一个例题 →")}</button>` : `<button class="btn go" id="nx">${L("My turn! Practice →", "轮到我了！去练习 →")}</button>`}</div></div>`;
+  $("#back").onclick = home;
+  if ($("#more")) { gateBtn($("#more"), Math.max(4, readSecs(shown ? x.steps[shown - 1] : x.q))); $("#more").onclick = () => examples(uid, e, shown + 1); }
+  if ($("#nx")) $("#nx").onclick = () => {
+    if (e < les.ex.length - 1) return examples(uid, e + 1, 1);
+    const r = P.learn[uid] = P.learn[uid] || {}; r.read = 3; const first = !r.done; r.done = r.done || today; save();
+    if (!PARENT && first) award(`learn:${uid}`, 10, `${C.name}: lesson learned`, `${C.zh}：学完一课`);
+    run(pick([uid], 10), { kind: "prac", u: uid });
+  };
+}
+
 function run(set, mode) {
   if (!set.length) return home();
   const n1 = set.length, again = []; let i = 0, ok1 = 0;

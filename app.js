@@ -81,6 +81,7 @@ async function loadAll() {
   S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); S.subjects.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
   if (!coachKid || !S.kids.some(k => k.id === coachKid)) coachKid = S.kids[0]?.id || null;
   try { await lnLoad(); } catch (e) { S.skill_state = S.skill_state || []; S.learn_days = S.learn_days || []; } // 📚 nightly learning model
+  try { const r = await sb.from("app_time").select("*").gte("date", daysAgo(60)); S.app_time = r.data || []; } catch (e) { S.app_time = []; } // ⏱️ time per app per day
 }
 async function upsert(table, row, onConflict) { const { error } = await sb.from(table).upsert(row, onConflict ? { onConflict } : undefined); if (error) throw error; }
 async function del(table, match) { let q = sb.from(table).delete(); for (const [k, v] of Object.entries(match)) q = q.eq(k, v); const { error } = await q; if (error) throw error; }
@@ -707,6 +708,7 @@ function viewDash() {
           <span class="chip">${t.hisMood} <b>${avg == null ? "—" : FACES[Math.round(avg) - 1] + " " + avg.toFixed(1)}</b></span>
           <span class="chip">${t.hisWins} <b>${wn}</b></span><span class="chip">${t.hisJournal} <b>${jn}</b></span>
           <span class="chip">${t.hisTaps} <b>${tp}</b></span>${gp ? `<a class="chip" href="#family" style="text-decoration:none;background:var(--pos-bg)">${t.hisIdeas} <b>${gp}</b></a>` : ""}</div></div>`; })()}
+      ${timePanel(k.id)}
       ${behaviorPanel(k.id)}
       <div class="goals"><h4>${t.goals}</h4>${kg.length ? kg.map(g => `<div class="goal ${g.done ? "done" : ""}"><input type="checkbox" ${g.done ? "checked" : ""} data-goal="${g.id}"><span>${esc(g.text)}</span><button class="x" data-delgoal="${g.id}">✕</button></div>`).join("") : `<div class="meta empty">${t.noGoals}</div>`}
         <div class="addgoal"><input placeholder="${t.addGoal}" maxlength="120" data-goalin="${esc(k.id)}"><button class="btn sm" data-addgoal="${esc(k.id)}">${t.add}</button></div></div>
@@ -1473,12 +1475,50 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261123fz1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261123tm1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
-  appOpen = async () => { stopCoach(); stopMix(); window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
+  const stopTime = appTimeTrack(kid, cfg, fs);
+  appOpen = async () => { stopCoach(); stopMix(); stopTime(); window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
   fs.querySelector(".appclose").onclick = () => appOpen();
+}
+/* ---- ⏱️ Time per subject (Bobby 2026-11-23): the hub measures every app the same way. A second counts when the app is open,
+   the page is visible, and he touched, typed or scrolled in the last 90 s. Kid sessions only (not parent previews). Saved via log_app_time → app_time. ---- */
+function appTimeTrack(kid, cfg, fs) {
+  if (!isKid() || preview) return () => {};
+  let last = Date.now(), pend = 0;
+  const poke = () => { last = Date.now(); };
+  const EV = ["pointerdown", "keydown", "wheel", "touchstart", "input", "scroll"];
+  const hook = w => { try { EV.forEach(e => w.addEventListener(e, poke, { passive: true, capture: true })); } catch (e) {} };
+  const ifr = fs.querySelector("iframe"); hook(window);
+  if (ifr) { ifr.addEventListener("load", () => { try { hook(ifr.contentWindow); } catch (e) {} }); try { if (ifr.contentWindow) hook(ifr.contentWindow); } catch (e) {} }
+  const flush = () => { const n = pend; pend = 0; if (n > 0) sb.rpc("log_app_time", { p_app: cfg.id, p_secs: n }).then(r => { if (r.error) pend += n; }); };
+  const tick = setInterval(() => { if (!document.hidden && Date.now() - last < 90000) pend += 5; }, 5000);
+  const fl = setInterval(flush, 60000);
+  return () => { clearInterval(tick); clearInterval(fl); EV.forEach(e => { try { window.removeEventListener(e, poke, true); } catch (x) {} }); flush(); };
+}
+const APP_NAMES = { amc: ["🏆 AMC 8", "🏆 AMC 8"], quest: ["⚔️ Realm of Forces", "⚔️ 力之境"], review: ["🔁 Look Back", "🔁 回顾"], space: ["🚀 Space Quest", "🚀 太空探险"], brain: ["🧠 Brain Park", "🧠 大脑乐园"], chinese: ["🐼 Panda Chinese", "🐼 熊猫中文"] };
+function appSubjName(kid, id) {
+  const sj = S.subjects.find(x => x.kid === kid && x.app_url && APPS[x.app_url] && APPS[x.app_url].id === id);
+  if (sj) return `${sj.icon || ""} ${lang === "zh" && sj.name_zh ? sj.name_zh : sj.name}`;
+  const n = APP_NAMES[id]; return n ? n[lang === "zh" ? 1 : 0] : id;
+}
+const hm = s => { const m = Math.round(s / 60); return m < 1 ? (s > 0 ? "<1m" : "") : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
+function timePanel(kid) {
+  const zh = lang === "zh", days = []; for (let i = 6; i >= 0; i--) days.push(daysAgo(i));
+  const cell = {}; // app -> date -> secs. app_time (hub-measured) wins; older days fall back to the apps' own logs (learn_days)
+  (S.learn_days || []).filter(x => x.kid === kid && days.includes(x.date) && x.active_secs > 0).forEach(x => { (cell[x.app] = cell[x.app] || {})[x.date] = x.active_secs; });
+  (S.app_time || []).filter(x => x.kid === kid && days.includes(x.date)).forEach(x => { (cell[x.app] = cell[x.app] || {})[x.date] = x.secs; });
+  const apps = Object.keys(cell).sort((a, b) => Object.values(cell[b]).reduce((s, v) => s + v, 0) - Object.values(cell[a]).reduce((s, v) => s + v, 0));
+  const dl = d => { const x = new Date(d + "T12:00"); return d === today() ? (zh ? "今天" : "Today") : x.toLocaleDateString(zh ? "zh-CN" : "en-US", { weekday: "short" }); };
+  const tot = d => apps.reduce((s, a) => s + (cell[a][d] || 0), 0), wk = a => days.reduce((s, d) => s + (cell[a][d] || 0), 0);
+  const th = `<th style="text-align:left;padding:4px 6px">${zh ? "科目" : "Subject"}</th>${days.map(d => `<th style="padding:4px 5px;${d === today() ? "background:var(--line);border-radius:6px" : ""}">${dl(d)}</th>`).join("")}<th style="padding:4px 6px">${zh ? "7天" : "7 days"}</th>`;
+  const rows = apps.map(a => `<tr><td style="padding:4px 6px;white-space:nowrap">${esc(appSubjName(kid, a))}</td>${days.map(d => `<td style="text-align:center;padding:4px 5px;${d === today() ? "font-weight:700" : ""}">${hm(cell[a][d] || 0)}</td>`).join("")}<td style="text-align:center;font-weight:700">${hm(wk(a))}</td></tr>`).join("");
+  const foot = `<tr style="border-top:2px solid var(--line)"><td style="padding:4px 6px;font-weight:700">${zh ? "合计" : "Total"}</td>${days.map(d => `<td style="text-align:center;font-weight:700;padding:4px 5px">${hm(tot(d))}</td>`).join("")}<td style="text-align:center;font-weight:800">${hm(days.reduce((s, d) => s + tot(d), 0))}</td></tr>`;
+  return `<div class="goals"><h4>⏱️ ${zh ? "每天各科学习时间" : "Time by subject, per day"}</h4>
+    ${apps.length ? `<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:13.5px;width:100%"><tr>${th}</tr>${rows}${foot}</table></div>
+    <div class="meta" style="margin-top:4px">${zh ? "只计算真正在用的时间（90秒内有点击或输入）。11/23 之前只有部分应用有记录。" : "Counts only active time (touched or typed in the last 90 s). Before 11/23 only some apps kept time."}</div>` : `<div class="meta">${zh ? "还没有记录。" : "No time recorded yet."}</div>`}</div>`;
 }
 /* ---- 🔀 Game mix (Bobby 2026-11-21): don't spend all the time on one game. Once he has played 15+ min today,
    no single game may take more than 65% of today's game time; it rests until he plays his other games a bit. Kids only, not previews. ---- */
