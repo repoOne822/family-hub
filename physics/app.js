@@ -19,7 +19,8 @@ const LVN = ["", "Warm-up", "Building", "Solid", "Strong", "Challenge"];
 // ⭐ Hub points for correct first-try answers (the hub caps points per day)
 const hubAward = (ref, pts, label, zh) => { try { if (window.parent !== window && window.parent.fhAward) window.parent.fhAward("physics", ref, pts, label, zh); } catch (e) {} };
 const track = ev => { const e = Object.assign({ ts: Date.now(), d: today }, ev); P.events.push(e); if (P.events.length > 1500) P.events = P.events.slice(-1500); save();
-  if (e.ok && e.m !== "read") { const test = e.m === "test" || e.m === "quiz" || e.m === "exam"; hubAward(`${e.m}:${e.t}:${e.ts}:${(e.q || "").length}`, test ? 4 : 3, `Physics ${test ? "test" : "practice"} ✓`, `物理${test ? "测验" : "练习"} ✓`); } };
+ };
+// 🏁 Points come ONLY from passing a unit checkpoint (Bobby 11/23): 30 per unit, +5 for 10/10. Practice, tests and quizzes are for learning.
 
 // active time on the app (only counts while he's actually interacting)
 let lastInput = Date.now();
@@ -140,6 +141,7 @@ function lesson(i, step, mode) {
     body = `<div class="modes" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important">
       <button data-m="practice" class="${mode === "practice" ? "on" : ""}">⭐ Practice (6)<span>${r.pBest != null ? `best ${r.pBest}/6` : "hints allowed"}</span></button>
       <button data-m="challenge" class="${mode === "challenge" ? "on" : ""}"${chOpen ? "" : " disabled"}>⬆️ Challenge (3)<span>${chOpen ? (r.chBest != null ? `best ${r.chBest}/3` : "multi-step") : "🔒 get 4/6 in Practice"}</span></button>
+      <button data-m="checkpoint" class="${mode === "checkpoint" ? "on" : ""}">🏁 Checkpoint<span>${cpPassed(l.id) ? `passed ${P.cp[l.id].score}/10` : "10 new · 30 pts"}</span></button>
       <button data-m="test" class="${mode === "test" ? "on" : ""}">📝 Unit test (10)<span>${t ? `best ${t.best}/${t.of}` : "15 min, no hints"}</span></button>
       ${AD && window.PHY_GEN ? `<button data-m="endless" class="${mode === "endless" ? "on" : ""}">♾️ Endless<span>Level ${AD.level(l.id)}/5 · ${LVN[AD.level(l.id)]}</span></button>` : ""}
       ${wsKinds(l.id).length ? `<button data-m="worksheet" class="${mode === "worksheet" ? "on" : ""}">✍️ Worksheet<span>type it · show work${(P.flags || []).filter(f => f.u === l.id && !f.done).length ? ` · 🚩 ${(P.flags || []).filter(f => f.u === l.id && !f.done).length}` : ""}</span></button>` : ""}</div><div id="play"></div>`;
@@ -160,13 +162,63 @@ function lesson(i, step, mode) {
   if (step === 3) examples(i, 0);
   if (step === 4) {
     app.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { if (!b.disabled) lesson(i, 4, b.dataset.m); });
-    if (mode === "test") testRun({ title: `📝 Unit ${l.unit} test: ${l.title}`, qs: (() => { const fixed = shuffle([...l.pr, ...l.ch, ...l.tq]); if (!window.PHY_GEN || !PHY_GEN.setSeen) return fixed.slice(0, 10).map(q => mix(Object.assign({ t: l.id }, q))); const seen = {}, gen = [], used = new Set(); for (let k = 0; k < 30 && gen.length < 5; k++) { PHY_GEN.setSeen(seen); const g = PHY_GEN.make(l.id, Math.max(3, AD ? AD.level(l.id) : 3)); if (g && !used.has(g.q)) { used.add(g.q); seen[g.angle] = (seen[g.angle] || 0) + 1; gen.push(g); } } return shuffle([...fixed.slice(0, 10 - gen.length), ...gen]).map(q => mix(Object.assign({ t: l.id }, q))); })(), secs: 15 * 60, box: $("#play"), done: res => {
+    if (mode === "checkpoint") cpRun(i);
+    else if (mode === "test") testRun({ title: `📝 Unit ${l.unit} test: ${l.title}`, qs: (() => { const fixed = shuffle([...l.pr, ...l.ch, ...l.tq]); if (!window.PHY_GEN || !PHY_GEN.setSeen) return fixed.slice(0, 10).map(q => mix(Object.assign({ t: l.id }, q))); const seen = {}, gen = [], used = new Set(); for (let k = 0; k < 30 && gen.length < 5; k++) { PHY_GEN.setSeen(seen); const g = PHY_GEN.make(l.id, Math.max(3, AD ? AD.level(l.id) : 3)); if (g && !used.has(g.q)) { used.add(g.q); seen[g.angle] = (seen[g.angle] || 0) + 1; gen.push(g); } } return shuffle([...fixed.slice(0, 10 - gen.length), ...gen]).map(q => mix(Object.assign({ t: l.id }, q))); })(), secs: 15 * 60, box: $("#play"), done: res => {
       const t = P.tests[l.id] = P.tests[l.id] || { best: 0, of: res.of, log: [] }; t.last = res.score; t.of = res.of; t.date = today; t.best = Math.max(t.best, res.score); t.log.push({ date: today, score: res.score, secs: res.secs }); save(); } });
     else if (mode === "endless") endless(i);
     else if (mode === "worksheet") worksheet(i);
     else practice(i, mode);
   }
 }
+
+// ---- 🏁 Checkpoint (Bobby 11/23): 10 questions, never the same: all different, and nothing asked in an earlier checkpoint comes back ----
+// 1 key word + 1 WHY (each with a reverse form) + 6 apply (unit questions not right in the last 3 days, or freshly generated, different angles) + 2 deep.
+// Pass = 8/10 with at least 1 deep → 30 points (+5 for 10/10). Finish lesson steps 1–4 first. A miss: full review, 1-hour wait, all-new questions.
+P.cp = P.cp || {}; P.cpAsked = P.cpAsked || [];
+const cpPassed = id => !!(P.cp[id] && P.cp[id].passed);
+const cpWait = id => { const c = P.cp[id]; return c && !c.passed && c.failAt ? Math.max(0, c.failAt + 3600e3 - Date.now()) : 0; };
+const keyQ = t => String(t).replace(/\s+/g, " ").trim().toLowerCase().slice(0, 140);
+const rightRecently = q => { const since = new Date(Date.now() - 3 * 864e5).toLocaleDateString("en-CA"); return P.events.some(e => e.ok && e.q === q && e.d >= since); };
+function cpBuild(l) {
+  const out = [], used = new Set(), asked = new Set(P.cpAsked), angles = {};
+  const ok = q => { const k = keyQ(q); return !used.has(k) && !asked.has(k); };
+  const add = (q, extra) => { used.add(keyQ(q.q)); out.push(Object.assign({ t: l.id }, mix(q), extra)); return true; };
+  const gen = (lv, extra) => { if (!window.PHY_GEN) return false; for (let pass = 0; pass < 2; pass++) for (let k = 0; k < 40; k++) { if (PHY_GEN.setSeen) PHY_GEN.setSeen(pass ? {} : angles);
+      const g = PHY_GEN.make(l.id, lv); if (g && g.c && ok(g.q) && (pass || !g.angle || !angles[g.angle])) { if (g.angle) angles[g.angle] = 1; return add(g, extra); } } return false; };
+  const allW = LES.flatMap(x => x.words), allM = LES.flatMap(x => x.moves);
+  const wq = shuffle(l.words).flatMap(w => { const d = shuffle(allW.filter(x => x[2] !== w[2])).slice(0, 3);
+    return [{ q: `What does "${w[0]}" mean?`, c: [w[2], ...d.map(x => x[2])], a: 0, why: `${w[0]}: ${w[2]} (e.g. ${w[3]})` }, { q: `Which word means: ${w[2]}`, c: [w[0], ...d.map(x => x[0])], a: 0, why: `${w[0]}: ${w[2]}` }]; }).find(x => ok(x.q));
+  if (wq) add(wq, { kind: "word" }); else gen(2, { kind: "apply" });
+  const mq = shuffle(l.moves).flatMap(m => { const d = shuffle(allM.filter(x => x.why !== m.why)).slice(0, 3);
+    return [{ q: `"${m.m}"\nWhy does this work?`, c: [m.why, ...d.map(x => x.why)], a: 0, why: m.why }, { q: `Which formula or move does this reason explain?\n"${m.why}"`, c: [m.m, ...d.map(x => x.m)], a: 0, why: `${m.m}: ${m.why}` }]; }).find(x => ok(x.q));
+  if (mq) add(mq, { kind: "why" }); else gen(3, { kind: "apply" });
+  const own = shuffle([...(l.pr || []), ...(l.tq || [])]).filter(q => ok(q.q) && !rightRecently(q.q));
+  for (let k = 0; k < 6; k++) { if (k % 2 === 0 && own.length) { const q = own.shift(); if (ok(q.q)) { add(q, { kind: "apply" }); continue; } } if (!gen(Math.max(2, Math.min(5, (AD ? AD.level(l.id) : 3) + [-1, 0, 0, 0, 1, 1][k])), { kind: "apply" }) && own.length) add(own.shift(), { kind: "apply" }); }
+  const ch = shuffle(l.ch || []).find(q => ok(q.q) && !rightRecently(q.q)); if (ch) add(ch, { kind: "deep" }); else gen(5, { kind: "deep" });
+  gen(5, { kind: "deep" }) || (() => { const q = shuffle(l.ch || []).find(x => ok(x.q)); if (q) add(q, { kind: "deep" }); })();
+  for (let k = 0; out.length < 10 && k < 6; k++) gen(4, { kind: "apply" });
+  return out.slice(0, 10);
+}
+function cpRun(i) {
+  const l = LES[i], box = $("#play"), c = P.cp[l.id] || {};
+  if (cpPassed(l.id)) { box.innerHTML = `<div class="card done"><div class="big">🏁</div><div class="q">Checkpoint passed on ${c.passed} (${c.score}/10)</div><p class="sub">Keep it fresh in ♾️ Endless and the unit test.</p></div>`; return; }
+  if (!PARENT && readOf(l.id) < 3) { box.innerHTML = `<div class="card"><div class="q">📖 Learn it first</div><p class="sub">Finish steps 1–4 of this unit, then take the checkpoint.</p></div>`; return; }
+  const w = cpWait(l.id); if (!PARENT && w) { box.innerHTML = `<div class="card"><div class="q">⏳ Review first</div><p class="sub">Read your mistakes, practice in ♾️ Endless, and try again in ${Math.ceil(w / 60000)} min with all-new questions.</p></div>`; return; }
+  box.innerHTML = `<div class="card"><div class="q">🏁 Checkpoint · ${esc(l.title)}</div><p class="sub">10 questions you've never had in a checkpoint: 2 on what words and formulas <b>mean</b>, 6 to apply it, 2 🔥 deep ones. No hints. Pass with 8/10 (including 1 deep) to earn <b>30 points</b>.</p><div class="row"><span class="spacer"></span><button class="btn go" id="cpGo">Start →</button></div></div>`;
+  $("#cpGo").onclick = () => {
+    const qs = cpBuild(l); if (qs.length < 10) { box.innerHTML = `<div class="card"><div class="q">Not enough new questions yet</div><p class="sub">This unit has run out of questions you haven't had in a checkpoint. Keep practicing; parents can add more.</p></div>`; return; }
+    P.cpAsked.push(...qs.map(q => keyQ(q.q))); if (P.cpAsked.length > 4000) P.cpAsked = P.cpAsked.slice(-4000); save(); window.__lastCP = qs;
+    testRun({ title: `🏁 Checkpoint · ${l.title}`, qs, secs: 20 * 60, box, mode: "checkpoint", done: res => {
+      const score = res.score, deepOk = qs.some((q, j) => q.kind === "deep" && res.ans[j] === q.a), pass = score >= 8 && deepOk;
+      const r = P.cp[l.id] = P.cp[l.id] || { tries: [] }; r.tries = r.tries || []; r.tries.push({ d: today, score, secs: res.secs }); r.best = Math.max(r.best || 0, score);
+      if (pass) { r.passed = today; r.score = score; delete r.failAt; if (!PARENT) { hubAward(`cp:${l.id}`, 30, `Physics checkpoint passed: ${l.title}`, `物理关卡通过：${l.zh}`); if (score === 10) hubAward(`cp10:${l.id}`, 5, `Physics checkpoint perfect: ${l.title}`, `物理关卡满分：${l.zh}`); } }
+      else r.failAt = Date.now();
+      save();
+      setTimeout(() => { const h = box.querySelector(".card.done .q"); if (h) h.insertAdjacentHTML("afterend", `<p><b>${pass ? `🏁 Checkpoint passed! +30 points${score === 10 ? " +5 perfect" : ""}` : `Not yet: you need 8/10${deepOk ? "" : " and at least one 🔥 deep question"}. Read every solution below, then try again in 1 hour with all-new questions.`}</b></p>`); }, 0);
+    } });
+  };
+}
+window.__phyCP = { cpBuild, LES };
 
 // ---- ♾️ Endless: one problem after another at his level; level moves up/down, misses come back, no recent repeats ----
 function endless(i) {
@@ -342,7 +394,7 @@ function testRun(o) {
     if (over) return; over = true; clearInterval(iv);
     const secs = Math.round((Date.now() - t0) / 1000), score = qs.filter((q, j) => ans[j] === q.a).length;
     qs.forEach((q, j) => track({ t: q.t, m: o.mode || "test", ok: ans[j] === q.a, blank: ans[j] == null, q: q.q }));
-    o.done({ score, of: qs.length, secs });
+    o.done({ score, of: qs.length, secs, ans });
     if (score / qs.length >= 0.8) confetti();
     box.innerHTML = `<div class="card done"><div class="big">${score / qs.length >= 0.8 ? "🏆" : score / qs.length >= 0.6 ? "👍" : "💪"}</div><div class="q">${score} / ${qs.length} · ${Math.round(score / qs.length * 100)}%</div><p class="sub">Time used: ${fmt(secs)}</p></div>
       <div class="card"><div class="q">Review</div>${qs.map((q, j) => `<details class="rev ${ans[j] === q.a ? "ok" : "no"}"${ans[j] === q.a ? "" : " open"}><summary>${j + 1}. ${esc(q.q)}</summary><p>Your answer: <b>${ans[j] == null ? "blank" : LET[ans[j]] + " · " + esc(q.c[ans[j]])}</b> · Right answer: <b>${LET[q.a]} · ${esc(q.c[q.a])}</b></p><p class="why">${esc(q.why)}</p></details>`).join("")}

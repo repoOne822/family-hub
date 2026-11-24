@@ -82,6 +82,7 @@ async function loadAll() {
   if (!coachKid || !S.kids.some(k => k.id === coachKid)) coachKid = S.kids[0]?.id || null;
   try { await lnLoad(); } catch (e) { S.skill_state = S.skill_state || []; S.learn_days = S.learn_days || []; } // 📚 nightly learning model
   try { const r = await sb.from("app_time").select("*").gte("date", daysAgo(60)); S.app_time = r.data || []; } catch (e) { S.app_time = []; } // ⏱️ time per app per day
+  S.app_idle = []; if (!isKid()) try { const r = await sb.from("app_idle").select("*").gte("date", daysAgo(14)).order("started_at"); S.app_idle = r.data || []; } catch (e) {} // 😴 drift log (parents only)
 }
 async function upsert(table, row, onConflict) { const { error } = await sb.from(table).upsert(row, onConflict ? { onConflict } : undefined); if (error) throw error; }
 async function del(table, match) { let q = sb.from(table).delete(); for (const [k, v] of Object.entries(match)) q = q.eq(k, v); const { error } = await q; if (error) throw error; }
@@ -1483,7 +1484,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261123nr1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261123ad1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
@@ -1493,10 +1494,51 @@ async function openApp(url, kid) {
 }
 /* ---- ⏱️ Time per subject (Bobby 2026-11-23): the hub measures every app the same way. A second counts when the app is open,
    the page is visible, and he touched, typed or scrolled in the last 90 s. Kid sessions only (not parent previews). Saved via log_app_time → app_time. ---- */
+/* ---- 😴 Idle log (Bobby 2026-11-23: "he tends to drift away when both my wife and I are away"). Kid logins only.
+   Any stretch of 2+ min is saved with its start time and the app he was in:
+   idle = the Hub is on screen but nothing was touched, typed or scrolled; away = he left the Family Hub tab or app (another tab, another app, screen off).
+   A stretch still open when the page closes is kept in localStorage and saved on the next visit. Parents read it (app_idle); kids can't. ---- */
+const IDLE = { app: "hub", last: Date.now(), from: null, hidAt: null };
+const idleSave = (app, kind, startMs, endMs) => { const secs = Math.round((endMs - startMs) / 1000); if (secs < 120 || !isKid()) return;
+  sb.rpc("log_idle", { p_app: app, p_kind: kind, p_start: new Date(startMs).toISOString(), p_secs: secs }).then(r => { if (r.error) console.warn("idle", r.error.message); }); };
+const idlePend = () => { try { if (IDLE.hidAt) localStorage.setItem("fh_idle_pend", JSON.stringify({ app: IDLE.app, kind: "away", start: IDLE.hidAt, end: Date.now() })); else if (IDLE.from) localStorage.setItem("fh_idle_pend", JSON.stringify({ app: IDLE.app, kind: "idle", start: IDLE.from, end: Date.now() })); else localStorage.removeItem("fh_idle_pend"); } catch (e) {} };
+const idlePoke = () => { const now = Date.now(); if (IDLE.from) { idleSave(IDLE.app, "idle", IDLE.from, now); IDLE.from = null; idlePend(); } IDLE.last = now; };
+const idleSetApp = id => { idlePoke(); IDLE.app = id || "hub"; };
+(() => {
+  ["pointerdown", "keydown", "wheel", "touchstart", "input", "scroll", "pointermove"].forEach(e => window.addEventListener(e, () => { if (e !== "pointermove" || Date.now() - IDLE.last > 3000) idlePoke(); }, { passive: true, capture: true }));
+  document.addEventListener("visibilitychange", () => { const now = Date.now();
+    if (document.hidden) { if (IDLE.from) { idleSave(IDLE.app, "idle", IDLE.from, now); IDLE.from = null; } IDLE.hidAt = now; }
+    else { if (IDLE.hidAt) idleSave(IDLE.app, "away", IDLE.hidAt, now); IDLE.hidAt = null; IDLE.last = now; }
+    idlePend(); });
+  addEventListener("pagehide", idlePend);
+  setInterval(() => { if (!isKid()) { IDLE.from = null; IDLE.last = Date.now(); return; }
+    if (!document.hidden && !IDLE.from && Date.now() - IDLE.last >= 120000) IDLE.from = IDLE.last;
+    if (IDLE.from || IDLE.hidAt) idlePend(); }, 15000);
+  // a stretch left open last time (page closed while idle or away): save it now
+  const flushOld = () => { try { const x = JSON.parse(localStorage.getItem("fh_idle_pend") || "null"); if (x && isKid()) { localStorage.removeItem("fh_idle_pend"); idleSave(x.app, x.kind, x.start, x.end); } } catch (e) {} };
+  setTimeout(flushOld, 8000);
+})();
+function idlePanel(kid) {
+  if (isKid()) return "";
+  const zh = lang === "zh", rows = (S.app_idle || []).filter(x => x.kid === kid && x.date >= daysAgo(6));
+  if (!rows.length) return `<div class="meta" style="margin-top:6px">😴 ${zh ? "过去 7 天没有记录到 2 分钟以上的发呆或离开（11/23 起开始记录）。" : "No idle or away stretches of 2+ min in the last 7 days (logging started 11/23)."}</div>`;
+  const days = []; for (let i = 6; i >= 0; i--) days.push(daysAgo(i));
+  const sum = (d, k) => rows.filter(x => x.date === d && x.kind === k).reduce((a, x) => a + x.secs, 0);
+  const tm = ts => new Date(ts).toLocaleTimeString(zh ? "zh-CN" : "en-US", { hour: "numeric", minute: "2-digit" });
+  const dl = d => { const x = new Date(d + "T12:00"); return d === today() ? (zh ? "今天" : "Today") : x.toLocaleDateString(zh ? "zh-CN" : "en-US", { weekday: "short" }); };
+  const long = rows.filter(x => x.secs >= 300).slice(-12).reverse();
+  return `<div style="margin-top:10px"><b>😴 ${zh ? "发呆 / 离开（仅家长可见）" : "Idle & away (parents only)"}</b>
+    <div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:13px;width:100%"><tr><th></th>${days.map(d => `<th style="padding:3px 5px">${dl(d)}</th>`).join("")}</tr>
+    <tr><td style="padding:3px 6px;white-space:nowrap">😴 ${zh ? "屏幕开着没动" : "Idle (screen on, no touch)"}</td>${days.map(d => `<td style="text-align:center">${hm(sum(d, "idle"))}</td>`).join("")}</tr>
+    <tr><td style="padding:3px 6px;white-space:nowrap">🚪 ${zh ? "离开了 Hub" : "Away (left the Hub)"}</td>${days.map(d => `<td style="text-align:center">${hm(sum(d, "away"))}</td>`).join("")}</tr></table></div>
+    ${long.length ? `<div class="meta" style="margin-top:4px">${zh ? "5 分钟以上：" : "Stretches of 5+ min:"} ${long.map(x => `${dl(x.date)} ${tm(x.started_at)} · ${hm(x.secs)} ${x.kind === "away" ? "🚪" : "😴"} ${esc(x.app === "hub" ? (zh ? "主页" : "Hub home") : appSubjName(kid, x.app))}`).join(" · ")}</div>` : ""}
+    <div class="meta">${zh ? "2 分钟以上才记录。关掉浏览器或平板睡眠算“离开”，从离开那一刻算起。" : "Only stretches of 2+ min count. Closing the browser or the tablet going to sleep counts as away, from the moment he left."}</div></div>`;
+}
 function appTimeTrack(kid, cfg, fs) {
   if (!isKid() || preview) return () => {};
+  idleSetApp(cfg.id);
   let last = Date.now(), pend = 0;
-  const poke = () => { last = Date.now(); };
+  const poke = () => { last = Date.now(); idlePoke(); };
   const EV = ["pointerdown", "keydown", "wheel", "touchstart", "input", "scroll"];
   const hook = w => { try { EV.forEach(e => w.addEventListener(e, poke, { passive: true, capture: true })); } catch (e) {} };
   const ifr = fs.querySelector("iframe"); hook(window);
@@ -1504,7 +1546,7 @@ function appTimeTrack(kid, cfg, fs) {
   const flush = () => { const n = pend; pend = 0; if (n > 0) sb.rpc("log_app_time", { p_app: cfg.id, p_secs: n }).then(r => { if (r.error) pend += n; }); };
   const tick = setInterval(() => { if (!document.hidden && Date.now() - last < 90000) pend += 5; }, 5000);
   const fl = setInterval(flush, 60000);
-  return () => { clearInterval(tick); clearInterval(fl); EV.forEach(e => { try { window.removeEventListener(e, poke, true); } catch (x) {} }); flush(); };
+  return () => { clearInterval(tick); clearInterval(fl); EV.forEach(e => { try { window.removeEventListener(e, poke, true); } catch (x) {} }); flush(); idleSetApp("hub"); };
 }
 const APP_NAMES = { amc: ["🏆 AMC 8", "🏆 AMC 8"], quest: ["⚔️ Realm of Forces", "⚔️ 力之境"], review: ["🔁 Look Back", "🔁 回顾"], space: ["🚀 Space Quest", "🚀 太空探险"], brain: ["🧠 Brain Park", "🧠 大脑乐园"], chinese: ["🐼 Panda Chinese", "🐼 熊猫中文"] };
 function appSubjName(kid, id) {
@@ -1526,7 +1568,7 @@ function timePanel(kid) {
   const foot = `<tr style="border-top:2px solid var(--line)"><td style="padding:4px 6px;font-weight:700">${zh ? "合计" : "Total"}</td>${days.map(d => `<td style="text-align:center;font-weight:700;padding:4px 5px">${hm(tot(d))}</td>`).join("")}<td style="text-align:center;font-weight:800">${hm(days.reduce((s, d) => s + tot(d), 0))}</td></tr>`;
   return `<div class="goals"><h4>⏱️ ${zh ? "每天各科学习时间" : "Time by subject, per day"}</h4>
     ${apps.length ? `<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:13.5px;width:100%"><tr>${th}</tr>${rows}${foot}</table></div>
-    <div class="meta" style="margin-top:4px">${zh ? "只计算真正在用的时间（90秒内有点击或输入）。11/23 之前只有部分应用有记录。" : "Counts only active time (touched or typed in the last 90 s). Before 11/23 only some apps kept time."}</div>` : `<div class="meta">${zh ? "还没有记录。" : "No time recorded yet."}</div>`}</div>`;
+    <div class="meta" style="margin-top:4px">${zh ? "只计算真正在用的时间（90秒内有点击或输入）。11/23 之前只有部分应用有记录。" : "Counts only active time (touched or typed in the last 90 s). Before 11/23 only some apps kept time."}</div>` : `<div class="meta">${zh ? "还没有记录。" : "No time recorded yet."}</div>`}${idlePanel(kid)}</div>`;
 }
 /* ---- 🔀 Game mix (Bobby 2026-11-21): don't spend all the time on one game. Once he has played 15+ min today,
    no single game may take more than 65% of today's game time; it rests until he plays his other games a bit. Kids only, not previews. ---- */

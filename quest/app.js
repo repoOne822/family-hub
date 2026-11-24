@@ -92,7 +92,14 @@ function pickKey(act) {
   const keys = actSkills(act), w = keys.map(k => (4 - skillLvl(k)) * (FOCUS.includes(k) && skillLvl(k) < 3 ? 2 : 1)); let x = Math.random() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < keys.length; i++) if ((x -= w[i]) < 0) return keys[i]; return keys[0];
 }
+// 🏁 Boss fights are the checkpoint (Bobby 11/23): every boss question is new: never asked in this fight or any earlier boss fight.
+const keyQ = t => String(t).replace(/\s+/g, " ").trim().toLowerCase().slice(0, 140);
 function makeQ(act, level, purpose) {
+  if (purpose === "boss" && !makeQ.inner) { P.bossAsked = P.bossAsked || []; const asked = new Set(P.bossAsked); F.usedQ = F.usedQ || new Set();
+    makeQ.inner = true; let q = null;
+    try { for (let t = 0; t < 40; t++) { const c = makeQ(act, level, "boss"); const k = keyQ(c.q); if (!asked.has(k) && !F.usedQ.has(k)) { q = c; break; } } if (!q) { q = makeQ(act, level, "boss"); F.stale = true; } }
+    finally { makeQ.inner = false; }
+    const k = keyQ(q.q); F.usedQ.add(k); P.bossAsked.push(k); if (P.bossAsked.length > 3000) P.bossAsked = P.bossAsked.slice(-3000); return q; }
   // purpose: normal | hard | boss | train:<key> | trial:<key>:<d>
   let key, d0 = null;
   if (purpose.startsWith("train:")) key = purpose.slice(6);
@@ -100,7 +107,7 @@ function makeQ(act, level, purpose) {
   else key = pickKey(act);
   const lv = d0 || skillLvl(key);
   if (!key.startsWith("g:")) {
-    const L = LMAP[key]; const bank = purpose === "boss" ? L.tq : (purpose === "hard" || lv >= 3) ? [...L.ch, ...L.pr] : lv <= 1 && !d0 ? L.pr.slice(0, 4).concat(L.pr) : d0 === 3 ? L.ch : L.pr;
+    const L = LMAP[key]; const bank = purpose === "boss" ? [...(L.tq || []), ...L.ch, ...L.pr] : (purpose === "hard" || lv >= 3) ? [...L.ch, ...L.pr] : lv <= 1 && !d0 ? L.pr.slice(0, 4).concat(L.pr) : d0 === 3 ? L.ch : L.pr;
     let q; for (let i = 0; i < 8; i++) { q = pick(bank); if (!recentQ.includes(q.q)) break; }
     recentQ.push(q.q); if (recentQ.length > 12) recentQ.shift();
     const o = shuffle(q.c.map((c, j) => [c, j]));
@@ -332,7 +339,7 @@ function fight(kind, opts = {}) {
   const hits = boss ? 8 : elite ? 4 : train ? 999 : floor <= 2 ? 2 : 3; // correct answers needed to win (keeps learning per fight steady no matter the gear)
   const hp = Math.round(s.dmg * RUN.buff * hits * (train ? 1 : .95 + Math.random() * .1));
   const atkPct = boss ? .15 : elite ? .14 : .1 + floor * .007;
-  F = { kind, icon, name, hp, max: hp, atk: Math.round(s.hp * atkPct), stun: false, turn: 0, clarity: s.clarity, level: floor <= 2 ? 1 : floor <= 4 ? 2 : 3, purpose: train ? "train:" + opts.key : boss ? "boss" : elite ? "hard" : "normal", log: [], qs: 0, right: 0, first: !boss };
+  F = { kind, icon, name, hp, max: hp, atk: Math.round(s.hp * atkPct), stun: false, turn: 0, clarity: boss ? 0 : s.clarity, level: floor <= 2 ? 1 : floor <= 4 ? 2 : 3, purpose: train ? "train:" + opts.key : boss ? "boss" : elite ? "hard" : "normal", log: [], qs: 0, right: 0, first: !boss };
   if (train) { F.hp = F.max = 9999; F.atk = 0; F.trainLeft = 10; }
   combatView(boss ? `${icon} ${name} rises! ${act.boss[2]}` : `A ${name} blocks your path!`);
 }
@@ -384,7 +391,6 @@ function ask(q, skill) {
   const resolve = (ok, ans, why) => {
     const secs = Math.round((Date.now() - t0) / 1000), fast = ok && secs <= swift;
     record(q, ok, secs, ans); F.qs++; if (ok) F.right++;
-    if (ok && F.first && F.kind !== "train") award(`${today()}:${P.stats.q}`, 2, "Realm of Forces: correct answer", "力之境：答对");
     save();
     if (F.kind === "train") { F.trainLeft--; return feedback(q, ok, ans, why, () => { if (F.trainLeft <= 0) return trainDone(); combatView(ok ? "🎯 Bullseye!" : "❌ Missed. Read it and try the next one."); }); }
     if (!ok) { SFX.miss(); window.QA ? QA.heroMiss(H().cls, skill) : shake("#me"); return feedback(q, ok, ans, why, () => enemyTurn(`❌ Your ${skill ? CLS().skill.name : "strike"} misses!`)); }
@@ -452,8 +458,11 @@ function victory() {
   if (boss) {
     const st = actState(act.id), pct = Math.round(F.right / F.qs * 100), first = !st.cleared;
     st.cleared = true; st.bossWins++; st.bossBest = Math.max(st.bossBest || 0, pct);
-    award(`boss:${act.id}:${today()}`, 15, `Realm of Forces: defeated ${act.boss[1]}`, `力之境：击败 ${act.zh} 首领`);
-    bossHtml = `<div class="bosswin"><h2>👑 ${esc(act.boss[1])} is defeated!</h2><p>Mastery check: <b>${F.right} of ${F.qs}</b> answered correctly (${pct}%).${pct >= 80 ? " ⭐ That's mastery-level!" : " Keep training this unit in the Codex."}</p>${first && !act.side && act.n < 5 ? `<p>🌀 A new waypoint opens: <b>${esc(D.acts[act.n].name)}</b>!</p>` : ""}</div>`;
+    // checkpoint: ≥ 80% first-try, all questions fresh, no hints → 30 points once per act (+5 for 100%). Points come only from this.
+    P.cp = P.cp || {}; const cpPass = pct >= 80 && !F.stale, firstPass = cpPass && !P.cp[act.id];
+    if (cpPass && !P.cp[act.id]) { P.cp[act.id] = { passed: today(), pct }; award(`cp:${act.id}`, 30, `Realm of Forces checkpoint passed: ${act.boss[1]}`, `力之境关卡通过：${act.zh}`); if (pct === 100) award(`cp10:${act.id}`, 5, `Realm of Forces checkpoint perfect: ${act.boss[1]}`, `力之境关卡满分：${act.zh}`); }
+    F.cpMsg = P.cp[act.id] ? (firstPass ? `🏁 Checkpoint passed! +30 points${pct === 100 ? " +5 perfect" : ""}.` : `🏁 Checkpoint already passed on ${P.cp[act.id].passed}.`) : F.stale ? "🏁 Not a checkpoint this time: this act ran out of brand-new boss questions." : `🏁 Checkpoint not passed yet: it needs 80% right with no hints. Train in the Codex and face the boss again (new questions every time).`;
+    bossHtml = `<div class="bosswin"><h2>👑 ${esc(act.boss[1])} is defeated!</h2><p><b>${esc(F.cpMsg || "")}</b><br>Mastery check: <b>${F.right} of ${F.qs}</b> answered correctly (${pct}%).${pct >= 80 ? " ⭐ That's mastery-level!" : " Keep training this unit in the Codex."}</p>${first && !act.side && act.n < 5 ? `<p>🌀 A new waypoint opens: <b>${esc(D.acts[act.n].name)}</b>!</p>` : ""}</div>`;
   }
   save();
   app.innerHTML = top("🏆 Victory!") + runBar() + `<div class="panel center">${bossHtml}<p>${F.icon} ${esc(F.name)} is defeated. +${xp} XP · 🪙 ${gold}</p>${lv ? `<div class="lvup">⬆️ LEVEL UP! You are now level ${h.lvl}. You have ${h.sp} skill point${h.sp > 1 ? "s" : ""}.</div>` : ""}
@@ -465,7 +474,7 @@ function victory() {
 }
 function gainXp(x) {
   const h = H(); h.xp += x; let up = false;
-  while (h.xp >= xpNeed(h.lvl)) { h.xp -= xpNeed(h.lvl); h.lvl++; h.sp++; up = true; award(`lvl:${h.lvl}`, 5, `Realm of Forces: reached level ${h.lvl}`, `力之境：升到 ${h.lvl} 级`); }
+  while (h.xp >= xpNeed(h.lvl)) { h.xp -= xpNeed(h.lvl); h.lvl++; h.sp++; up = true; }
   if (up) { SFX.lvl(); if (RUN) RUN.hp = stats().hp; }
   return up;
 }

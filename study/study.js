@@ -40,18 +40,41 @@ C.units.forEach(u => { const ls = LESX[u.id]; if (!ls) return;
   ls.words.forEach((w, k) => { const d = shuffle(allDef.filter(x => x !== w[2])).slice(0, 3); if (d.length < 3) return; const c = shuffle([w[2], ...d]);
     POOL.push({ kind: "mc", id: `lw:${u.id}:${k}`, u: u.id, q: `What does "${w[0]}" mean?`, c, a: c.indexOf(w[2]), why: `${w[0]}: ${w[2]} (e.g. ${w[3]})` }); });
 });
+// 🔀 Live deck questions (Bobby 11/23: keep the bank dynamic): every term deck also feeds questions built fresh on each ask,
+// with new distractor mixes, at three difficulty levels: 1 term → meaning, 2 meaning → term, 3 four pairs, only one matched right.
+const DECKS = (window.STUDY_DECKS || []).filter(d => d.subj === SUBJ && d.pairs.length >= 5);
+DECKS.forEach((d, di) => { for (let r = 0; r < 3; r++) POOL.push({ kind: "dyn", id: `d:${di}:${r}`, u: d.u, deck: di }); });
+function dynQ(it, lv) {
+  const d = DECKS[it.deck], P4 = shuffle(d.pairs), [t, df] = P4[0], o = P4.slice(1, 4), why = d.whyf ? d.whyf(t, df) : `${t}: ${df}.`;
+  let q, c, right;
+  if (lv <= 1) { q = d.fq(t); right = df; c = shuffle([df, ...o.map(x => x[1])]); }
+  else if (lv === 2) { q = d.rq(df); right = t; c = shuffle([t, ...o.map(x => x[0])]); }
+  else { const ts = [t, ...o.map(x => x[0])], ds = [df, ...o.map(x => x[1])]; // each wrong pair = a term with some OTHER term's meaning
+    right = `${t} → ${df}`; c = [right, ...o.map(x => `${x[0]} → ${shuffle(ds.filter(y => y !== x[1]))[0]}`)]; c = shuffle(c);
+    q = `Only ONE of these pairs is matched correctly. Which one?\n(${shuffle(ts).join(" · ")})`; }
+  return { it, q, c, a: c.indexOf(right), why, right };
+}
+// 🎚️ Adaptive level per unit (Bobby 11/23): first-try right → up a third of a level, wrong → down half. 1 Warm-up · 2 Building · 3 Strong.
+P.lv = P.lv || {};
+const LVN = ["", "Warm-up", "Building", "Strong"];
+const unitLv = uid => P.lv[uid] || 1.5;
+const lvNow = uid => Math.max(1, Math.min(3, Math.round(unitLv(uid))));
+const bumpLv = (uid, ok) => { P.lv[uid] = Math.max(1, Math.min(3.4, unitLv(uid) + (ok ? 0.34 : -0.5))); };
+const lvOf = it => it.lv || (it.kind === "num" || it.kind === "dyn" ? lvNow(it.u) : it.id.startsWith("why:") ? 3 : it.id.startsWith("lw:") || /:f$/.test(it.id) ? 1 : /:r$/.test(it.id) ? 2 : 2);
 const unitItems = uid => POOL.filter(x => x.u === uid);
 const S = id => P.seen[id];
 const mastered = it => (S(it.id) || {}).streak >= 2;
 const unitStats = u => { const its = unitItems(u.id), m = its.filter(mastered).length, since = addDays(-30), lg = P.log.filter(l => l.u === u.id && l.first && l.d >= since);
   const last = P.tests.filter(t => t.u === u.id).slice(-1)[0];
   return { n: its.length, m, pct: its.length ? Math.round(100 * m / its.length) : 0, acc: lg.length ? Math.round(100 * lg.filter(l => l.ok).length / lg.length) : null, tries: lg.length, last }; };
-const prio = it => { const s = S(it.id); return (it.f && !mastered(it) ? -2 : 0) + (!s ? 0 : s.streak >= 2 ? 3 : s.streak === 0 && s.n ? -1 : 1) + Math.random(); };
+// Pick order: test misses first, then questions at his level, never-seen before seen; anything answered in the last day waits (a miss comes back the next day).
+const seenToday = it => { const s = S(it.id); return s && s.last === today && it.kind === "mc"; };
+const prio = it => { const s = S(it.id), u = it.u; return (it.f && !mastered(it) ? -3 : 0) + Math.abs(lvOf(it) - unitLv(u)) * 1.5 + (seenToday(it) ? 8 : 0) + (!s ? -1 : s.streak >= 2 ? 3 : s.streak === 0 && s.n ? -0.5 : 1) + Math.random() * 1.2; };
 
 function pick(uids, n) {
   const pool = POOL.filter(x => uids.includes(x.u)).sort((a, b) => prio(a) - prio(b));
   const out = [], gensUsed = {};
-  for (const it of pool) { if (out.length >= n) break; if (it.kind === "num") { if ((gensUsed[it.gen] || 0) >= 2) continue; gensUsed[it.gen] = (gensUsed[it.gen] || 0) + 1; } out.push(it); }
+  for (const it of pool) { if (out.length >= n) break; if (it.kind === "num" || it.kind === "dyn") { const g = it.gen || "d" + it.deck; if ((gensUsed[g] || 0) >= 2) continue; gensUsed[g] = (gensUsed[g] || 0) + 1; } out.push(it); }
   return shuffle(out);
 }
 function quickSet() {
@@ -60,9 +83,11 @@ function quickSet() {
   const a = pick(now, 4), b = pick(weak.length ? weak : now, 10 - a.length);
   return shuffle([...a, ...b.filter(x => !a.includes(x))]).slice(0, 10);
 }
+ask.recent = [];
 function ask(it) {
   if (it.pre) return it.pre;
-  if (it.kind === "num") { const lvl = Math.min(3, 1 + Math.floor(((S(it.id) || {}).streak || 0))); return Object.assign({ it, num: true }, G[it.gen].gen(lvl)); }
+  if (it.kind === "dyn") { for (let t = 0; t < 6; t++) { const q = dynQ(it, lvNow(it.u)); if (q.a >= 0 && new Set(q.c).size === 4 && !ask.recent.includes(q.q)) { ask.recent.push(q.q); ask.recent = ask.recent.slice(-40); return q; } } return dynQ(it, 1); }
+  if (it.kind === "num") return Object.assign({ it, num: true }, G[it.gen].gen(lvNow(it.u)));
   const o = shuffle(it.c.map((c, j) => [c, j]));
   return { it, q: it.q, c: o.map(x => x[0]), a: o.findIndex(x => x[1] === it.a), why: it.why, right: it.c[it.a] };
 }
@@ -71,6 +96,7 @@ const recentRight = it => { const s = S(it.id); return !!(s && s.okDay && s.okDa
 function record(it, ok, first) {
   const s = P.seen[it.id] = P.seen[it.id] || { n: 0, ok: 0, streak: 0 };
   s.n++; if (ok) { s.ok++; if (s.okDay !== today) s.streak++; s.okDay = today; } else s.streak = 0; s.last = today;
+  if (first) bumpLv(it.u, ok);
   P.log.push({ d: today, u: it.u, id: it.id, ok: ok ? 1 : 0, first: first ? 1 : 0 }); if (P.log.length > 3000) P.log = P.log.slice(-3000);
   save();
 }
@@ -83,7 +109,7 @@ function home() {
   <div class="card"><b>⚡ ${L("Quick 10", "快速10题")}</b> <span class="sub">${L("what you're learning now + your weakest units", "正在学的 + 最弱的单元")}</span><br><button class="btn go" id="quick" style="margin-top:10px">${L("Start", "开始")} ▶</button></div>
   <div class="units">${C.units.map(u => { const s = unitStats(u); return `<div class="unit ${u.st}"><div class="uh"><b>${esc(zh ? u.zh : u.name)}</b><span class="chip ${u.st}">${ST[u.st]}</span></div>
     <div class="bar"><i style="width:${s.pct}%"></i></div><div class="sub">${s.m}/${s.n} ⭐${s.acc != null ? ` · ${s.acc}% ${L("first-try", "一次答对")}` : ""}${s.last ? ` · ${L("last check", "上次单元测")} ${s.last.score}/${s.last.n}` : ""}</div>
-    <div class="ub">${LES[u.id] ? `<button class="btn sm ${P.learn[u.id] && P.learn[u.id].done ? "" : "go"}" data-learn="${u.id}">📖 ${P.learn[u.id] && P.learn[u.id].done ? L("Learned ✓", "已学 ✓") : L("Learn", "学习")}</button>` : ""}<button class="btn sm" data-prac="${u.id}">${L("Practice", "练习")}</button>${cpOk(u.id) ? `<span class="chip done">🏁 ${L("Passed", "已通过")} ${P.cp[u.id].score}/10</span>` : `<button class="btn sm" data-test="${u.id}">🏁 ${L("Checkpoint", "关卡")}</button>`}</div></div>`; }).join("")}</div>
+    <div class="ub">${LES[u.id] ? `<button class="btn sm ${P.learn[u.id] && P.learn[u.id].done ? "" : "go"}" data-learn="${u.id}">📖 ${P.learn[u.id] && P.learn[u.id].done ? L("Learned ✓", "已学 ✓") : L("Learn", "学习")}</button>` : ""}<button class="btn sm" data-prac="${u.id}">${L("Practice", "练习")}</button><span class="chip" title="Moves up with right answers, down with misses">🎚️ ${zh ? ["", "热身", "进阶", "强"][lvNow(u.id)] : LVN[lvNow(u.id)]}</span>${cpOk(u.id) ? `<span class="chip done">🏁 ${L("Passed", "已通过")} ${P.cp[u.id].score}/10</span>` : `<button class="btn sm" data-test="${u.id}">🏁 ${L("Checkpoint", "关卡")}</button>`}</div></div>`; }).join("")}</div>
   ${PARENT ? parentView() : ""}`;
   $("#quick").onclick = () => run(quickSet(), { kind: "quick" });
   app.querySelectorAll("[data-learn]").forEach(b => b.onclick = () => learn(b.dataset.learn, 0));
@@ -153,6 +179,7 @@ P.cp = P.cp || {};
 const cpOk = uid => !!(P.cp[uid] && P.cp[uid].passed);
 const cpWait = uid => { const c = P.cp[uid]; return c && !c.passed && c.failAt ? Math.max(0, c.failAt + 3600e3 - Date.now()) : 0; };
 window.__cpStart = uid => cpStart(uid);
+window.__study = { ask: it => ask(it), POOL, pick: (u, n) => pick(u, n), lvNow: u => lvNow(u), bump: (u, ok) => bumpLv(u, ok) };
 function cpStart(uid) {
   const unit = C.units.find(u => u.id === uid), w = cpWait(uid);
   if (!PARENT && LES[uid] && !(P.learn[uid] && P.learn[uid].done)) { app.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:50px">📖</div><h2>${L("Learn it first", "先学习")}</h2><p>${L("Finish the 📖 lesson for this unit, then take the checkpoint.", "先学完这个单元的 📖 课，再挑战关卡。")}</p><button class="btn go" id="gl">📖 ${L("Start the lesson", "开始学习")}</button> <button class="btn" id="hm">${L("Back", "返回")}</button></div>`; $("#gl").onclick = () => learn(uid, 0); $("#hm").onclick = home; return; }
@@ -161,14 +188,15 @@ function cpStart(uid) {
   const asked = new Set((P.cpAsked = P.cpAsked || {})[uid] || []), keyQ = t => String(t).replace(/\s+/g, " ").trim().toLowerCase().slice(0, 140);
   const notRecent = x => !(S(x.id) && S(x.id).okDay && S(x.id).okDay >= addDays(-3));
   const set = [], texts = new Set();
-  const take = it => { if (it.kind === "num") { for (let t = 0; t < 40; t++) { const q = t < 10 ? ask(it) : Object.assign({ it, num: true }, G[it.gen].gen(1 + (t % 3))), k = keyQ(q.q); if (!texts.has(k) && !asked.has(k)) { texts.add(k); set.push(Object.assign({}, it, { pre: q })); return true; } } return false; }
+  const take = it => { if (it.kind === "dyn") { for (let t = 0; t < 20; t++) { const q = dynQ(it, 1 + (t % 3)), k = keyQ(q.q); if (q.a >= 0 && new Set(q.c).size === 4 && !texts.has(k) && !asked.has(k)) { texts.add(k); set.push(Object.assign({}, it, { pre: q })); return true; } } return false; }
+    if (it.kind === "num") { for (let t = 0; t < 40; t++) { const q = t < 10 ? ask(it) : Object.assign({ it, num: true }, G[it.gen].gen(1 + (t % 3))), k = keyQ(q.q); if (!texts.has(k) && !asked.has(k)) { texts.add(k); set.push(Object.assign({}, it, { pre: q })); return true; } } return false; }
     const k = keyQ(it.q); if (asked.has(it.id) || asked.has(k) || texts.has(k)) return false; texts.add(k); set.push(it); return true; };
   const fromPre = (pre, n) => { let got = 0; for (const it of shuffle(POOL.filter(x => x.u === uid && x.id.startsWith(pre)))) { if (got >= n) break; if (notRecent(it) && take(it)) got++; } };
   fromPre("why:", 2); fromPre("lw:", 1);
-  const rest = shuffle(POOL.filter(x => x.u === uid && !x.id.startsWith("why:") && !x.id.startsWith("lw:") && (x.kind === "num" || notRecent(x))));
-  const g = {}; for (const it of rest) { if (set.length >= 10) break; if (it.kind === "num" && (g[it.gen] || 0) >= 2) continue; if (take(it) && it.kind === "num") g[it.gen] = (g[it.gen] || 0) + 1; }
+  const rest = shuffle(POOL.filter(x => x.u === uid && !x.id.startsWith("why:") && !x.id.startsWith("lw:") && (x.kind === "num" || x.kind === "dyn" || notRecent(x))));
+  const g = {}; for (const it of rest) { if (set.length >= 10) break; const gk = it.gen || (it.kind === "dyn" ? "d" + it.deck : null); if (gk && (g[gk] || 0) >= 2) continue; if (take(it) && gk) g[gk] = (g[gk] || 0) + 1; }
   // still short? top up with more brand-new number problems (always fresh), then any never-checkpointed item
-  for (const it of shuffle(rest.filter(x => x.kind === "num"))) { if (set.length >= 10) break; take(it); }
+  for (const it of shuffle(rest.filter(x => x.kind === "num" || x.kind === "dyn"))) { if (set.length >= 10) break; take(it); }
   for (const it of shuffle(POOL.filter(x => x.u === uid && x.kind === "mc"))) { if (set.length >= 10) break; take(it); }
   if (set.length < 10) { app.innerHTML = `<div class="card" style="text-align:center"><h2>${L("Not enough new questions yet", "新题还不够")}</h2><p>${L("Every checkpoint uses 10 questions you have never seen in a checkpoint before, and this unit has run out for now. Keep practicing; parents can ask for more questions.", "每次关卡都用10道以前关卡没出过的新题，这个单元暂时用完了。继续练习，家长可以加新题。")}</p><button class="btn" id="hm">${L("Back", "返回")}</button></div>`; $("#hm").onclick = home; return; }
   const rec = P.cpAsked[uid] = P.cpAsked[uid] || []; set.forEach(it => { rec.push(keyQ(it.pre ? it.pre.q : it.q)); if (it.kind === "mc") rec.push(it.id); }); if (rec.length > 1500) P.cpAsked[uid] = rec.slice(-1500); save();
@@ -197,12 +225,14 @@ function examples(uid, e, shown) {
 
 function run(set, mode) {
   if (!set.length) return home();
-  const n1 = set.length, again = []; let i = 0, ok1 = 0;
+  const again = [], shownQ = new Set(), first0 = () => i < n1; let n1 = set.length, i = 0, ok1 = 0;
   const test = mode.kind === "test";
   const next = () => {
     if (i >= set.length && again.length && !test) set.push(...again.splice(0));
     if (i >= set.length) return finish();
-    const it = set[i], first = i < n1, q = ask(it), rep = it.kind === "mc" && recentRight(it), shownAt = Date.now(); i++;
+    let it = set[i], q = ask(it); for (let t = 0; t < 6 && shownQ.has(q.q) && first0(); t++) q = ask(it); // never the same wording twice in one set
+    if (first0() && shownQ.has(q.q) && it.kind === "mc" && i + 1 < n1) { set.splice(i, 1); n1--; return next(); } shownQ.add(q.q);
+    const first = i < n1, rep = it.kind === "mc" && recentRight(it), shownAt = Date.now(); i++;
     const unit = C.units.find(u => u.id === it.u);
     const needUnit = q.num && q.unit && q.units && q.units.length > 1;
     app.innerHTML = `<div class="top"><h1>${test ? "📝" : "✏️"} ${Math.min(i, n1)}/${n1}${first ? "" : " · " + L("again", "再来")}</h1><button class="btn" id="quit">✕</button></div>

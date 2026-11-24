@@ -551,7 +551,9 @@ function cpBuild(l) {
     return [{ q: `Power move: "${m.m}"\nWhy does it work?`, c: c1, a: c1.indexOf(m.why), steps: [m.why] }, { q: `Which power move does this reason explain?\n"${m.why}"`, c: c2, a: c2.indexOf(m.m), steps: [`${m.m}: ${m.why}`] }]; });
   const mq = moveQs.find(x => ok(x.q)); if (mq) add(mq, { level: "medium", kind: "why" }); else fresh(3, { level: "medium", kind: "apply" });
   // apply: 6 brand-new problems, easy → hard
-  [2, 3, 3, 3, 4, 4].forEach(lv => fresh(lv, { level: lv >= 4 ? "hard" : lv >= 3 ? "medium" : "easy", kind: "apply" }));
+  // 🎚️ levels follow his adaptive level for this chapter (right answers push it up, misses pull it down); never below 2, deep stays 5
+  const base = (typeof AD !== "undefined" && AD && AD.level) ? AD.level(l.id) : 3, cl = v => Math.max(2, Math.min(5, v));
+  [base - 1, base, base, base, base + 1, base + 1].map(cl).forEach(lv => fresh(lv, { level: lv >= 4 ? "hard" : lv >= 3 ? "medium" : "easy", kind: "apply" }));
   // deep: a challenge problem never seen + a top-level generated one
   const ch = shuffle((l.ch || []).filter(p => p.c && ok(p.q)))[0];
   if (ch) add(ch, { level: "hard", kind: "deep" }); else fresh(5, { level: "hard", kind: "deep" });

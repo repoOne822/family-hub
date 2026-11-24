@@ -19,6 +19,7 @@ function mc(subj, id, u, q, ans, pool, why) {
 }
 // term ↔ definition deck: forward (term → meaning) and reverse (meaning → term)
 function deck(subj, did, u, pairs, fq, rq, whyf) {
+  (window.STUDY_DECKS = window.STUDY_DECKS || []).push({ subj, u, pairs, fq, rq, whyf }); // study.js builds fresh, level-based questions from these on every ask
   pairs.forEach(([t, d], i) => {
     mc(subj, `${did}:${i}:f`, u, fq(t), d, pairs.map(p => p[1]), whyf ? whyf(t, d) : `${t}: ${d}.`);
     mc(subj, `${did}:${i}:r`, u, rq(d), t, pairs.map(p => p[0]), whyf ? whyf(t, d) : `${t}: ${d}.`);
