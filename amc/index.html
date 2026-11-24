@@ -532,24 +532,34 @@ function cpBanner(i) {
     ${!read ? `<span class="sub">Finish steps 1–4 of the lesson first.</span>` : w ? `<span class="sub">⏳ Review your mistakes, then try again in ${Math.ceil(w / 60000)} min (with new problems).</span>` : `<button class="btn go" id="cpGo" style="margin-top:8px">🏁 Take the checkpoint</button>`}</div>`;
 }
 const seenQ = q => P.events.some(e => e.q === String(q).slice(0, 90));
+// 🚫 Never the same (Bobby 11/23): the 10 questions are all different (different wording AND, where possible, different problem types),
+// and nothing asked in any earlier checkpoint, or already seen in practice, is ever reused.
+const keyQ = t => String(t).replace(/\s+/g, " ").trim().toLowerCase().slice(0, 140);
 function cpBuild(l) {
-  const items = [], used = new Set();
-  const fresh = make => { for (let t = 0; t < 14; t++) { const p = make(); if (p && !used.has(p.q) && !seenQ(p.q)) { used.add(p.q); return p; } } const p = make(); if (p) used.add(p.q); return p; };
-  // understanding 1: a key word
-  const w = shuffle(l.words.slice())[0], wd = shuffle(LES.flatMap(x => x.words).filter(x => x[2] !== w[2]).map(x => x[2])).slice(0, 4);
-  const wc = shuffle([w[2], ...wd]);
-  items.push({ q: `What does "${w[0]}" mean?`, c: wc, a: wc.indexOf(w[2]), steps: [`${w[0]}: ${w[2]}`, `Example: ${w[3]}`], level: "easy", kind: "word" });
-  // understanding 2: WHY a power move works
-  const m = shuffle(l.moves.slice())[0], md = shuffle(LES.flatMap(x => x.moves).filter(x => x.why !== m.why).map(x => x.why)).slice(0, 4);
-  const mc = shuffle([m.why, ...md]);
-  items.push({ q: `Power move: "${m.m}"\nWhy does it work?`, c: mc, a: mc.indexOf(m.why), steps: [m.why], level: "medium", kind: "why" });
-  // apply: 6 new problems
-  [2, 3, 3, 3, 4, 4].forEach(lv => { const p = fresh(() => GYM.makeAt ? GYM.makeAt(l.id, lv) : GYM.make(l.id)); if (p) items.push({ ...p, level: lv >= 4 ? "hard" : lv >= 3 ? "medium" : "easy", kind: "apply" }); });
-  // deep: a challenge problem he hasn't seen + a top-level generated one
-  const ch = shuffle((l.ch || []).filter(p => !seenQ(p.q)))[0];
-  items.push({ ...(ch || fresh(() => GYM.makeAt ? GYM.makeAt(l.id, 5) : GYM.make(l.id))), level: "hard", kind: "deep" });
-  items.push({ ...fresh(() => GYM.makeAt ? GYM.makeAt(l.id, 5) : GYM.make(l.id)), level: "hard", kind: "deep" });
-  return items.filter(x => x && x.c && x.c.length);
+  const items = [], used = new Set(), tids = new Set(), asked = new Set(P.cpAsked = P.cpAsked || []);
+  const ok = q => { const k = keyQ(q); return !used.has(k) && !asked.has(k) && !seenQ(q); };
+  const add = (p, extra) => { used.add(keyQ(p.q)); if (p.tid) tids.add(p.tid); items.push({ ...p, ...extra }); return true; };
+  const fresh = (lv, extra) => { for (let pass = 0; pass < 2; pass++) for (let t = 0; t < 40; t++) { const p = GYM.makeAt ? GYM.makeAt(l.id, lv) : GYM.make(l.id);
+      if (p && p.c && ok(p.q) && (pass || !p.tid || !tids.has(p.tid))) return add(p, extra); } return false; };
+  const allWords = LES.flatMap(x => x.words), allMoves = LES.flatMap(x => x.moves);
+  // understanding 1: a key word (two question forms, so a word can come back once in the other direction)
+  const wordQs = shuffle(l.words.slice()).flatMap(w => { const d = shuffle(allWords.filter(x => x[2] !== w[2])).slice(0, 4), c1 = shuffle([w[2], ...d.map(x => x[2])]), c2 = shuffle([w[0], ...d.map(x => x[0])]);
+    return [{ q: `What does "${w[0]}" mean?`, c: c1, a: c1.indexOf(w[2]), steps: [`${w[0]}: ${w[2]}`, `Example: ${w[3]}`] }, { q: `Which word means: ${w[2]}?`, c: c2, a: c2.indexOf(w[0]), steps: [`${w[0]}: ${w[2]}`, `Example: ${w[3]}`] }]; });
+  const wq = wordQs.find(x => ok(x.q)); if (wq) add(wq, { level: "easy", kind: "word" }); else fresh(2, { level: "easy", kind: "apply" });
+  // understanding 2: WHY a power move works (or, once those are used up, which move fits a reason)
+  const moveQs = shuffle(l.moves.slice()).flatMap(m => { const d = shuffle(allMoves.filter(x => x.why !== m.why)).slice(0, 4), c1 = shuffle([m.why, ...d.map(x => x.why)]), c2 = shuffle([m.m, ...d.map(x => x.m)]);
+    return [{ q: `Power move: "${m.m}"\nWhy does it work?`, c: c1, a: c1.indexOf(m.why), steps: [m.why] }, { q: `Which power move does this reason explain?\n"${m.why}"`, c: c2, a: c2.indexOf(m.m), steps: [`${m.m}: ${m.why}`] }]; });
+  const mq = moveQs.find(x => ok(x.q)); if (mq) add(mq, { level: "medium", kind: "why" }); else fresh(3, { level: "medium", kind: "apply" });
+  // apply: 6 brand-new problems, easy → hard
+  [2, 3, 3, 3, 4, 4].forEach(lv => fresh(lv, { level: lv >= 4 ? "hard" : lv >= 3 ? "medium" : "easy", kind: "apply" }));
+  // deep: a challenge problem never seen + a top-level generated one
+  const ch = shuffle((l.ch || []).filter(p => p.c && ok(p.q)))[0];
+  if (ch) add(ch, { level: "hard", kind: "deep" }); else fresh(5, { level: "hard", kind: "deep" });
+  fresh(5, { level: "hard", kind: "deep" });
+  for (let t = 0; items.length < 10 && t < 6; t++) fresh(4, { level: "hard", kind: "apply" }); // top up if any slot came back empty
+  const out = items.filter(x => x && x.c && x.c.length).slice(0, 10);
+  P.cpAsked.push(...out.map(x => keyQ(x.q))); if (P.cpAsked.length > 4000) P.cpAsked = P.cpAsked.slice(-4000); save();
+  return out;
 }
 function checkpoint(i) {
   const l = LES[i], list = cpBuild(l), ans = []; let k = 0; const t0 = Date.now();

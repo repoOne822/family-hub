@@ -61,6 +61,7 @@ function quickSet() {
   return shuffle([...a, ...b.filter(x => !a.includes(x))]).slice(0, 10);
 }
 function ask(it) {
+  if (it.pre) return it.pre;
   if (it.kind === "num") { const lvl = Math.min(3, 1 + Math.floor(((S(it.id) || {}).streak || 0))); return Object.assign({ it, num: true }, G[it.gen].gen(lvl)); }
   const o = shuffle(it.c.map((c, j) => [c, j]));
   return { it, q: it.q, c: o.map(x => x[0]), a: o.findIndex(x => x[1] === it.a), why: it.why, right: it.c[it.a] };
@@ -151,16 +152,27 @@ function quickCheck(uid, kind, n, back, onPass) {
 P.cp = P.cp || {};
 const cpOk = uid => !!(P.cp[uid] && P.cp[uid].passed);
 const cpWait = uid => { const c = P.cp[uid]; return c && !c.passed && c.failAt ? Math.max(0, c.failAt + 3600e3 - Date.now()) : 0; };
+window.__cpStart = uid => cpStart(uid);
 function cpStart(uid) {
   const unit = C.units.find(u => u.id === uid), w = cpWait(uid);
   if (!PARENT && LES[uid] && !(P.learn[uid] && P.learn[uid].done)) { app.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:50px">📖</div><h2>${L("Learn it first", "先学习")}</h2><p>${L("Finish the 📖 lesson for this unit, then take the checkpoint.", "先学完这个单元的 📖 课，再挑战关卡。")}</p><button class="btn go" id="gl">📖 ${L("Start the lesson", "开始学习")}</button> <button class="btn" id="hm">${L("Back", "返回")}</button></div>`; $("#gl").onclick = () => learn(uid, 0); $("#hm").onclick = home; return; }
   if (!PARENT && w) { app.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:50px">⏳</div><h2>${L("Review first", "先复习")}</h2><p>${L(`Practice this unit and re-read the lesson. You can retake the checkpoint in ${Math.ceil(w / 60000)} min, with different questions.`, `练习这个单元、重读课文。${Math.ceil(w / 60000)} 分钟后可以重新挑战（换新题）。`)}</p><button class="btn go" id="pr">${L("Practice", "练习")}</button> <button class="btn" id="hm">${L("Back", "返回")}</button></div>`; $("#pr").onclick = () => run(pick([uid], 10), { kind: "prac", u: uid }); $("#hm").onclick = home; return; }
+  // 🚫 Never the same (Bobby 11/23): no two of the 10 alike, and nothing asked in ANY earlier checkpoint of this unit comes back.
+  const asked = new Set((P.cpAsked = P.cpAsked || {})[uid] || []), keyQ = t => String(t).replace(/\s+/g, " ").trim().toLowerCase().slice(0, 140);
   const notRecent = x => !(S(x.id) && S(x.id).okDay && S(x.id).okDay >= addDays(-3));
-  const fromPre = (pre, n) => shuffle(POOL.filter(x => x.u === uid && x.id.startsWith(pre) && notRecent(x))).slice(0, n);
-  const set = [...fromPre("why:", 2), ...fromPre("lw:", 1)];
+  const set = [], texts = new Set();
+  const take = it => { if (it.kind === "num") { for (let t = 0; t < 40; t++) { const q = t < 10 ? ask(it) : Object.assign({ it, num: true }, G[it.gen].gen(1 + (t % 3))), k = keyQ(q.q); if (!texts.has(k) && !asked.has(k)) { texts.add(k); set.push(Object.assign({}, it, { pre: q })); return true; } } return false; }
+    const k = keyQ(it.q); if (asked.has(it.id) || asked.has(k) || texts.has(k)) return false; texts.add(k); set.push(it); return true; };
+  const fromPre = (pre, n) => { let got = 0; for (const it of shuffle(POOL.filter(x => x.u === uid && x.id.startsWith(pre)))) { if (got >= n) break; if (notRecent(it) && take(it)) got++; } };
+  fromPre("why:", 2); fromPre("lw:", 1);
   const rest = shuffle(POOL.filter(x => x.u === uid && !x.id.startsWith("why:") && !x.id.startsWith("lw:") && (x.kind === "num" || notRecent(x))));
-  const g = {}; for (const it of rest) { if (set.length >= 10) break; if (it.kind === "num") { if ((g[it.gen] || 0) >= 2) continue; g[it.gen] = (g[it.gen] || 0) + 1; } set.push(it); }
-  if (set.length < 6) { app.innerHTML = `<div class="card" style="text-align:center"><h2>${L("Not enough new questions yet", "新题还不够")}</h2><p>${L("You've recently answered most of this unit's questions. Come back in a day or two.", "这个单元的题最近大多答过了，过一两天再来。")}</p><button class="btn" id="hm">${L("Back", "返回")}</button></div>`; $("#hm").onclick = home; return; }
+  const g = {}; for (const it of rest) { if (set.length >= 10) break; if (it.kind === "num" && (g[it.gen] || 0) >= 2) continue; if (take(it) && it.kind === "num") g[it.gen] = (g[it.gen] || 0) + 1; }
+  // still short? top up with more brand-new number problems (always fresh), then any never-checkpointed item
+  for (const it of shuffle(rest.filter(x => x.kind === "num"))) { if (set.length >= 10) break; take(it); }
+  for (const it of shuffle(POOL.filter(x => x.u === uid && x.kind === "mc"))) { if (set.length >= 10) break; take(it); }
+  if (set.length < 10) { app.innerHTML = `<div class="card" style="text-align:center"><h2>${L("Not enough new questions yet", "新题还不够")}</h2><p>${L("Every checkpoint uses 10 questions you have never seen in a checkpoint before, and this unit has run out for now. Keep practicing; parents can ask for more questions.", "每次关卡都用10道以前关卡没出过的新题，这个单元暂时用完了。继续练习，家长可以加新题。")}</p><button class="btn" id="hm">${L("Back", "返回")}</button></div>`; $("#hm").onclick = home; return; }
+  const rec = P.cpAsked[uid] = P.cpAsked[uid] || []; set.forEach(it => { rec.push(keyQ(it.pre ? it.pre.q : it.q)); if (it.kind === "mc") rec.push(it.id); }); if (rec.length > 1500) P.cpAsked[uid] = rec.slice(-1500); save();
+  window.__lastCP = set; // for automated checks
   run(shuffle(set), { kind: "test", u: uid, cp: true });
 }
 
