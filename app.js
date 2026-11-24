@@ -1027,10 +1027,10 @@ function amcStats(P) {
 /* ---- 📈 Same measurement framework for every school subject (Bobby 2026-11-23): AMC, Physics and the six class rooms.
    Each subject shows the AMC panels: time, tries, fresh first-try accuracy, median speed, by unit (with flags), by level, checkpoints/tests,
    slowest questions, lessons read, plus the unit table (level, nightly-model status, checkpoint) and the school grade goal. ---- */
-const PF_APPS = ["amc", "physics", "chem", "bio", "prealg", "english", "latin", "history"];
+const PF_APPS = ["amc", "physics", "chem", "bio", "prealg", "english", "latin", "history", "robot"];
 const PF_ROOMS = ["chem", "bio", "prealg", "english", "latin", "history"];
 const PF_GRADE = { physics: "physics", bio: "bio", english: "english", latin: "latin", history: "history" };
-const pfKey = (kid, app) => app === "amc" ? `${kid}_amc_progress` : app === "physics" ? `${kid}_physics_progress` : `${kid}_study_${app}`;
+const pfKey = (kid, app) => app === "robot" ? `${kid}_robot_state` : app === "amc" ? `${kid}_amc_progress` : app === "physics" ? `${kid}_physics_progress` : `${kid}_study_${app}`;
 let pfApp = "amc";
 function pfDays(kid, app, sessions) {
   const days = [...Array(7)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d.toLocaleDateString("en-CA"); });
@@ -1070,6 +1070,21 @@ function phyStats(P, kid) {
     return { u, name: ss.label || u, lv: ss.difficulty, status: ss.status, mastery: ss.mastery, n: r ? r.n : 0, acc: r ? r.acc : null, cp: c.passed ? `🏁 ${c.score}/10` : c.failAt ? "❌" : "", learned: (P.lessons[u].read ?? -1) >= 3 }; });
   return { all: sum(ev), topics, levels, ...pfDays(kid, "physics", P.sessions), slow: [], exams: exams.slice(-12), readN: units.filter(x => x.learned).length, readSec: 0, units, nm: u => ((S.skill_state || []).find(x => x.kid === kid && x.app === "physics" && x.skill === u) || {}).label || u, pace: 90 };
 }
+// 🤖 Robot Lab (coding): attempts = code runs and answers per chapter; checkpoints = 🏁 code checks (Ellis light version, 11/23)
+function robotStats(P, kid) {
+  const log = P.log || [], chOf = id => (String(id).match(/^c\d+/) || [""])[0];
+  const ev = log.filter(e => chOf(e.id)).map(e => ({ t: chOf(e.id), ok: !!e.ok, s: e.secs || null, lv: e.cp ? "hard" : "medium", d: e.d, q: e.cp ? "Code check question" : e.id, cp: !!e.cp }));
+  const sum = list => { const ss = list.map(e => e.s).filter(x => x); return { n: list.length, acc: list.length ? Math.round(list.filter(e => e.ok).length / list.length * 100) : null, med: ss.length ? median(ss) : null }; };
+  const grp = {}; ev.forEach(e => (grp[e.t] = grp[e.t] || []).push(e));
+  const topics = Object.entries(grp).map(([t, l]) => ({ t, ...sum(l), flag: "" })).sort((a, b) => a.t.localeCompare(b.t, undefined, { numeric: true }));
+  const ss = (S.skill_state || []).filter(x => x.kid === kid && x.app === "robot"), nm = u => (ss.find(x => x.skill === u) || {}).label || u;
+  const exams = []; Object.entries(P.cp || {}).forEach(([u, c]) => (c.tries || []).forEach(x => exams.push({ date: x.d, score: x.score, of: 5, kind: "weekly", label: `🏁 ${nm(u)}` })));
+  exams.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const chs = [...new Set([...Object.keys(grp), ...ss.map(x => x.skill)])].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const units = chs.map(u => { const s1 = ss.find(x => x.skill === u) || {}, c = (P.cp || {})[u] || {}, r = topics.find(x => x.t === u), solved = Object.keys(P.done || {}).filter(id => id.startsWith(u) && !/^c\d+\d/.test(id.slice(u.length)) && (P.done[id].stars || 0) > 0).length;
+    return { u, name: `${nm(u)} · ${solved} solved`, lv: null, status: s1.status, mastery: s1.mastery, n: r ? r.n : 0, acc: r ? r.acc : null, cp: c.passed ? `🏁 ${c.score}/5` : c.failAt ? "❌" : "", learned: !!(P.seen || {})[u] }; });
+  return { all: sum(ev.filter(e => !e.cp)), topics, levels: [], ...pfDays(kid, "robot", null), slow: [], exams: exams.slice(-12), readN: Object.keys(P.seen || {}).length, readSec: 0, units, nm, pace: 120 };
+}
 function pfExtra(st, app, kid) {
   const zh = lang === "zh", gm = PF_GRADE[app] && (S.metrics || []).find(m => m.id === `${kid}-${PF_GRADE[app]}-grade`);
   let g = "";
@@ -1091,14 +1106,14 @@ function viewPerformance() {
   const save = (S.app_saves || []).find(a => a.kid === pfKid && a.app === pfApp);
   const P = save && save.data ? save.data[pfKey(pfKid, pfApp)] : null;
   const subj = S.subjects.find(x => x.kid === pfKid && x.app_url === pfApp + "/");
-  if (pfApp !== "amc") { const zh = lang === "zh", nmA = lnApp(pfApp), pace = pfApp === "physics" ? 90 : 40;
+  if (pfApp !== "amc") { const zh = lang === "zh", nmA = lnApp(pfApp), pace = pfApp === "physics" ? 90 : pfApp === "robot" ? 120 : 40;
     L = Object.assign({}, L, { noData: n => zh ? `${n} 还没有用过${nmA}。` : `${n} hasn't used ${nmA} yet.`, attempts: zh ? "新题首答数" : "Fresh questions tried",
-      pace: zh ? `${nmA}：每题约 ${pace} 秒算正常节奏；只算新题第一次作答。` : `${nmA}: about ${pace} s per question is a normal pace. Only first tries on fresh questions count.`,
+      pace: pfApp === "robot" ? (zh ? "机器人实验室：每次运行代码都算一次尝试（失败的运行也算，这是编程的正常过程）；🏁 代码检查才是真正的测验。" : "Robot Lab: every code run counts as a try (failed runs are a normal part of coding); the 🏁 code checks are the real test.") : zh ? `${nmA}：每题约 ${pace} 秒算正常节奏；只算新题第一次作答。` : `${nmA}: about ${pace} s per question is a normal pace. Only first tries on fresh questions count.`,
       byTopic: zh ? "按单元" : "By unit", topic: zh ? "单元" : "Unit", exams: zh ? "关卡和单元测" : "Checkpoints & unit tests",
       readTxt: n => zh ? `已学完 ${n} 个单元的课` : `${n} unit lesson${n === 1 ? "" : "s"} finished` }); }
   const tp = id => pfApp === "amc" ? amcTopic(id) : esc(st && st.nm ? st.nm(id) : id);
   const asses = (S.assessments || []).filter(a => a.kid === pfKid).sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
-  const st = P ? (pfApp === "amc" ? amcStats(P) : pfApp === "physics" ? phyStats(P, pfKid) : roomStats(P, pfApp, pfKid)) : null;
+  const st = P ? (pfApp === "amc" ? amcStats(P) : pfApp === "physics" ? phyStats(P, pfKid) : pfApp === "robot" ? robotStats(P, pfKid) : roomStats(P, pfApp, pfKid)) : null;
   const mins = s => Math.round((s || 0) / 60);
   const pct = v => v == null ? "—" : v + "%";
   const sec = v => v == null ? "—" : v + " s";
@@ -1554,7 +1569,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261123pf1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261123el1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);

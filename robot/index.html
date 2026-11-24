@@ -77,6 +77,7 @@ button{font:inherit;cursor:pointer}
 <script src="engine.js?v=1"></script>
 <script src="levels1.js?v=1"></script>
 <script src="levels2.js?v=1"></script>
+<script src="cpgen.js?v=20261123el1"></script>
 <script>
 (function () {
 "use strict";
@@ -93,7 +94,16 @@ const stars = id => (S.done[id] && S.done[id].stars) || 0, totalStars = () => Ob
 const today = () => new Date().toLocaleDateString("en-CA");
 // unlocks: a chapter opens when the one before has every item solved; inside a chapter, items open in order
 const chDone = c => c.items.every(it => stars(it.id) > 0);
-const chOpen = (c, i) => PARENT || i === 0 || chDone(CH[i - 1]);
+// 🏁 Light checkpoints (Bobby 11/23): after every puzzle in a chapter is solved, a 5-question "Code check" (read the code, never the same
+// questions twice) must be passed (4/5) to open the next chapter. Chapters he had already opened stay open; nothing is taken away.
+// Points come only from code checks: 20 (+5 for 5/5). A miss: see every answer, try again in 30 min with new questions.
+S.cp = S.cp || {}; S.cpAsked = S.cpAsked || [];
+const RCP = { n: 5, pass: 4, cool: 30, pts: 20, bonus: 5 };
+const cpOk = c => !!(S.cp[c.id] && S.cp[c.id].passed);
+const cpWait = c => { const x = S.cp[c.id]; return x && !x.passed && x.failAt ? Math.max(0, x.failAt + RCP.cool * 60e3 - Date.now()) : 0; };
+const wasOpen = c => !!S.seen[c.id] || c.items.some(it => stars(it.id) > 0);
+const chOpen = (c, i) => PARENT || i === 0 || wasOpen(c) || (chDone(CH[i - 1]) && cpOk(CH[i - 1]));
+const hubAward = (ref, pts, label, zh) => { try { if (window.parent !== window && window.parent.fhAward) window.parent.fhAward("robot", ref, pts, label, zh); } catch (e) {} };
 const itemOpen = (c, k) => PARENT || k === 0 || stars(c.items[k - 1].id) > 0;
 // ---------- sound ----------
 let AC = null; const beep = (f, d, type, vol) => { if (!S.sound) return; try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); const o = AC.createOscillator(), g = AC.createGain(); o.type = type || "square"; o.frequency.value = f; g.gain.value = vol || .04; o.connect(g); g.connect(AC.destination); o.start(); g.gain.exponentialRampToValueAtTime(.0001, AC.currentTime + (d || .08)); o.stop(AC.currentTime + (d || .08)); } catch (e) {} };
@@ -135,7 +145,7 @@ function home() {
     <div class="card"><b style="font-size:20px">🛰️ Mission: rescue Mars Base!</b><p class="sub" style="margin:4px 0">You're learning <b>Python</b>, the real programming language used by NASA, robotics engineers and MIT students. Every level teaches one idea. Read the lesson cards, write the code, and watch your robot do it.</p>
     ${next ? `<button class="btn go" id="cont">▶ Continue: ${esc(next.ch.emoji)} ${esc(next.title)}</button>` : `<b>🏆 Every mission complete! You're a real robot programmer.</b>`}</div>
     <div class="map">${CH.map((c, i) => { const open = chOpen(c, i), got = c.items.filter(it => stars(it.id)).length, st = c.items.reduce((a, it) => a + stars(it.id), 0);
-      return `<button class="planet ${open ? "" : "lock"}" data-c="${i}" ${open ? "" : "disabled"}><span class="tag">${open ? (got === c.items.length ? "✅ done" : `${got}/${c.items.length}`) : "🔒"}</span><div class="em">${c.emoji}</div><h3>${c.n}. ${esc(c.title)}</h3>
+      return `<button class="planet ${open ? "" : "lock"}" data-c="${i}" ${open ? "" : "disabled"}><span class="tag">${open ? (got === c.items.length ? (cpOk(c) ? "🏁 passed" : "🏁 code check") : `${got}/${c.items.length}`) : "🔒"}</span><div class="em">${c.emoji}</div><h3>${c.n}. ${esc(c.title)}</h3>
         <div class="sub">${esc(c.story.split(". ")[0])}.</div><div class="sub">⭐ ${st} / ${c.items.length * 3}</div><div class="prog"><i style="width:${Math.round(got / c.items.length * 100)}%"></i></div></button>`; }).join("")}</div>
     <p class="sub" style="margin-top:14px">🎓 Robots at MIT, at NASA and in FIRST robotics all run on these same ideas: commands, loops, functions, sensors, decisions, variables and algorithms.</p>`;
   wireHeader();
@@ -150,11 +160,51 @@ function chapter(c) {
     <div class="items">${c.items.map((it, k) => { const open = itemOpen(c, k), st = stars(it.id);
       return `<button class="item ${open ? "" : "lock"} ${it.boss ? "boss" : ""}" data-i="${esc(it.id)}" ${open ? "" : "disabled"}><span class="ic">${it.type === "predict" ? "🔮" : it.type === "debug" ? "🐞" : it.boss ? "🌟" : "🛠️"}</span>
         <span><b>${esc(it.title)}</b><br><span class="sub">${it.type === "predict" ? "Predict: read the code" : it.type === "debug" ? "Debug: fix the code" : "Build: write the code"}</span></span>
-        <span class="st">${open ? "★".repeat(st) + "☆".repeat(3 - st) : "🔒"}</span></button>`; }).join("")}</div>`;
+        <span class="st">${open ? "★".repeat(st) + "☆".repeat(3 - st) : "🔒"}</span></button>`; }).join("")}</div>
+    ${cpCard(c)}`;
   wireHeader(home);
+  if ($("#cpGo")) $("#cpGo").onclick = () => codeCheck(c);
   $("#les").onclick = () => lessons(c, 0);
   app.querySelectorAll("[data-i]").forEach(b => b.onclick = () => play(b.dataset.i));
 }
+function cpCard(c) {
+  const x = S.cp[c.id] || {}, w = cpWait(c), i = CH.indexOf(c), nx = CH[i + 1];
+  if (cpOk(c)) return `<div class="card" style="margin-top:12px;background:#e3fbe9">🏁 <b>Code check passed</b> on ${x.passed} (${x.score}/${RCP.n}).${nx ? ` Chapter ${nx.n} is open.` : ""}</div>`;
+  return `<div class="card" style="margin-top:12px;border:2px solid #ff5ccb">🏁 <b>Code check</b>: ${RCP.n} brand-new "read the code" questions. No running the code! Pass with ${RCP.pass}/${RCP.n} to ${nx ? `open Chapter ${nx.n} and ` : ""}earn <b>${RCP.pts} points</b>.${x.best != null ? ` Best so far: ${x.best}/${RCP.n}.` : ""}<br>
+    ${!chDone(c) && !PARENT ? `<span class="sub">Solve every puzzle in this chapter first.</span>` : w && !PARENT ? `<span class="sub">⏳ Look at your answers, then try again in ${Math.ceil(w / 60000)} min with new questions.</span>` : `<button class="btn go" id="cpGo" style="margin-top:8px">🏁 Start the code check</button>`}</div>`;
+}
+function codeCheck(c) {
+  const qs = window.ROBO_CP ? ROBO_CP.make(c.id, RCP.n, new Set(S.cpAsked)) : [];
+  if (qs.length < RCP.n) { app.innerHTML = header("🏁 Code check", c.title) + `<div class="card">Couldn't make enough new questions right now. Try again later.</div>`; wireHeader(() => chapter(c)); return; }
+  S.cpAsked.push(...qs.map(q => q.key)); if (S.cpAsked.length > 3000) S.cpAsked = S.cpAsked.slice(-3000); save(); window.__lastCP = qs;
+  const res = []; let k = 0; const t0 = Date.now();
+  const draw = () => {
+    const q = qs[k], shown = Date.now();
+    app.innerHTML = header(`🏁 Code check · ${esc(c.title)} · ${k + 1}/${qs.length}`, c.title) + `
+      <div class="goal">🔮 Read the code. Don't run it! Think like the robot, one line at a time.</div>
+      <div class="lvl"><div><div style="overflow-x:auto"><div id="wv"></div></div></div>
+      <div><div class="codebox">${hlCode(q.code)}</div><h3 style="margin:12px 0 4px">${esc(q.q)}</h3>
+        <div class="choices">${q.c.map((t, i) => `<button data-a="${i}">${String.fromCharCode(65 + i)}. ${esc(t)}</button>`).join("")}</div></div></div>`;
+    wireHeader(() => chapter(c)); makeView($("#wv"), q.map, 34);
+    app.querySelectorAll("[data-a]").forEach(b => b.onclick = () => { const j = +b.dataset.a, ok = j === q.a, secs = Math.round((Date.now() - shown) / 1000);
+      res.push({ j, ok }); S.log.push({ ts: Date.now(), d: today(), id: c.id + "cp", ok, secs, cp: 1 }); save(); k++; k < qs.length ? draw() : finish(); });
+  };
+  const finish = () => {
+    const score = res.filter(r => r.ok).length, pass = score >= RCP.pass, x = S.cp[c.id] = S.cp[c.id] || { tries: [] }, nx = CH[CH.indexOf(c) + 1];
+    x.tries = x.tries || []; x.tries.push({ d: today(), score, secs: Math.round((Date.now() - t0) / 1000) }); x.best = Math.max(x.best || 0, score);
+    if (pass) { x.passed = today(); x.score = score; delete x.failAt; if (!PARENT) { hubAward(`cp:${c.id}`, RCP.pts, `Robot Lab code check passed: ${c.title}`, `机器人实验室关卡通过：${c.title}`); if (score === RCP.n) hubAward(`cp10:${c.id}`, RCP.bonus, `Robot Lab code check perfect: ${c.title}`, `机器人实验室关卡满分：${c.title}`); } confetti(); }
+    else if (!x.passed) x.failAt = Date.now();
+    save();
+    app.innerHTML = header(`🏁 Code check · ${esc(c.title)}`, c.title) + `<div class="card" style="text-align:center"><div style="font-size:56px">${pass ? "🏁" : "🌱"}</div><h2>${score}/${qs.length}${pass ? " · Passed!" : ""}</h2>
+      <p>${pass ? `+${RCP.pts} points${score === RCP.n ? ` +${RCP.bonus} perfect` : ""}. ${nx ? `Chapter ${nx.n}: ${esc(nx.title)} is open!` : "You finished the last chapter!"}` : `You need ${RCP.pass}/${RCP.n}. Read every answer below, then try again in ${RCP.cool} minutes with brand-new questions.`}</p></div>
+      <div class="card">${qs.map((q, n) => `<div style="border-top:2px dashed #ddd;padding:10px 0"><b>${res[n].ok ? "✅" : "❌"} ${esc(q.q)}</b><div class="codebox" style="margin:6px 0">${hlCode(q.code)}</div>
+        <div class="sub">You: ${esc(q.c[res[n].j])} · Answer: <b>${esc(q.c[q.a])}</b></div>${res[n].ok ? "" : `<div class="sub">💡 ${esc(q.why)}</div>`}</div>`).join("")}
+        <div class="row"><button class="btn go" id="cpBack">${pass && nx ? `Go to Chapter ${nx.n} →` : "← Back to the chapter"}</button></div></div>`;
+    wireHeader(() => chapter(c)); $("#cpBack").onclick = () => pass && nx ? chapter(nx) : chapter(c);
+  };
+  draw();
+}
+window.__robotCP = { codeCheck, CH };
 // lesson cards, with "see it run" for examples that drive the robot
 const SANDBOX = "##########\n#>.......#\n#........#\n#....b...#\n##########";
 function lessons(c, k) {
