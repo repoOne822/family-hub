@@ -1339,6 +1339,13 @@ const APPS = { "fencing/": { id: "fencing", prefix: "ellis_", skip: ["ellis_pin"
   "brain/": { id: "brain", prefix: kid => `${kid}_brain_`, skip: [], perKid: true, label: { en: "Play Brain Park", zh: "进入大脑乐园" } },
   "physics/": { id: "physics", prefix: kid => `${kid}_physics_`, skip: [], perKid: true, label: { en: "Open my Physics lessons", zh: "打开我的物理课程" } },
   "robot/": { id: "robot", prefix: kid => `${kid}_robot_`, skip: [], perKid: true, label: { en: "Open Robot Lab", zh: "进入机器人实验室" } },
+  // 📚 Class Practice rooms (study/study.js), one per class, units from each syllabus
+  "chem/": { id: "chem", prefix: kid => `${kid}_study_chem`, skip: [], perKid: true, label: { en: "Practice Chemistry", zh: "练习化学" } },
+  "bio/": { id: "bio", prefix: kid => `${kid}_study_bio`, skip: [], perKid: true, label: { en: "Practice Biology", zh: "练习生物" } },
+  "prealg/": { id: "prealg", prefix: kid => `${kid}_study_prealg`, skip: [], perKid: true, label: { en: "Practice Pre-Algebra", zh: "练习代数" } },
+  "english/": { id: "english", prefix: kid => `${kid}_study_english`, skip: [], perKid: true, label: { en: "Practice English", zh: "练习英语" } },
+  "latin/": { id: "latin", prefix: kid => `${kid}_study_latin`, skip: [], perKid: true, label: { en: "Practice Latin", zh: "练习拉丁语" } },
+  "history/": { id: "history", prefix: kid => `${kid}_study_history`, skip: [], perKid: true, label: { en: "Practice History", zh: "练习历史" } },
   "review/": { id: "review", prefix: kid => `${kid}_review_`, skip: [], perKid: true, label: { en: "Start today's Look Back", zh: "开始今日回顾" } },
   "quest/": { id: "quest", prefix: kid => `${kid}_quest_`, skip: [], perKid: true, label: { en: "Play Realm of Forces", zh: "进入力之境" } } };
 // 🤖 Ask Buddy bridge: the AMC app (same-origin iframe) calls window.parent.fhAsk(...) to reach the amc-tutor edge function.
@@ -1417,7 +1424,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261123cl2${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261123st1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
