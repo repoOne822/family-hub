@@ -2057,7 +2057,7 @@ function pdStart(id){
   if(!pdAmcOk()){toast('🔒 Do 60 minutes of AMC first');pdLevels();return}
   if(pdLeft()<=0){toast('🌙 Piste Duel is resting until tomorrow');pdMenu();return}
   if(id==='rival')ALLOPP.rival=rivalOpp();
-  const L=ALLOPP[id];PD={M:{},raw:[],t0:Date.now(),id,L,tgtHist:[],guard:null,steps:[],paused:false,score:[0,0],hist:[],step:0,over:false,combo:0,gained:0,streakE:0,style:L.style,spun:0};
+  const L=ALLOPP[id];PD={M:{},raw:[],t0:Date.now(),start:Date.now(),id,L,tgtHist:[],guard:null,steps:[],paused:false,score:[0,0],hist:[],step:0,over:false,combo:0,gained:0,streakE:0,style:L.style,spun:0};
   $('pdPick').style.display='none';$('pdGame').style.display='block';$('pdOver').style.display='none';document.body.classList.add('duelfocus');window.scrollTo(0,0);
   $('pdName').textContent=`${PTIERS[L.tier].n} · ${L.e} ${L.n}`;$('pdHoot').innerHTML='📋 <b>Scouting:</b> '+L.tips.join(' ');$('pdSteps').innerHTML='';$('pdPauseOv').style.display='none';$('pdPauseBtn').textContent='⏸️ Pause';
   $('fOp').textContent=L.e;
@@ -2492,20 +2492,24 @@ function pdEnd(){
     addXP(first?20+10*tierMul:6+2*tierMul,'Duel won!');practice(4+3*tierMul,'Piste Duel');
     if(o.final&&first)setTimeout(()=>toast(`🏆 ${PTIERS[o.tier].n} CHAMPION!`),900)}
   else{pdGain(6*tierMul);addXP(4,'Good fight!');practice(3,'Piste Duel')}
+  const rematch=won&&pdLossRun.id===o.id&&pdLossRun.n>=1?pdLossRun.n:0,close=!won&&PD.score[0]===o.win-1;
   if(won)pdLossRun={id:null,n:0};else pdLossRun=pdLossRun.id===o.id?{id:o.id,n:pdLossRun.n+1}:{id:o.id,n:1};
   const frz=PD.hist.filter(h=>h.e==='freeze').length,pw=(()=>{try{return store.get('powerWord','')||'Next touch'}catch(e){return 'Next touch'}})();
   const brave=won?'':`<div class="hoot" style="text-align:left;margin:8px 0"><div class="owl">🦉</div><div class="say">${pdLossRun.n>=3?`<b>${pdLossRun.n} tries in a row against ${o.n}. That's brave!</b> Every try teaches you how he fences.`:`<b>Tough bout, and you kept fencing to the end.</b>`}
     ${frz>=3?`<div style="margin-top:4px">❄️ You froze ${frz} times. Next time pick ANY move, even a small step back. A choice beats waiting.</div>`:''}
     <div style="margin-top:4px">🔁 Before the next bout: turn away, one big breath, say "<b>${esc(pw)}</b>", pick ONE thing to change (distance, speed or a fake).</div>
+    ${close?`<div style="margin-top:4px">🎯 So close: ${PD.score[0]}–${PD.score[1]}! Close scores are where a calm plan wins. <a href="#" id="pdClose">Open the "It's close" Worry Buster</a></div>`:''}
     <div style="margin-top:6px"><a href="#" id="pdBrave">💪 Open Brave Mind</a></div></div></div>`;
+  const comeback=rematch?`<div class="hoot" style="text-align:left;margin:8px 0"><div class="owl">🦉</div><div class="say"><b>You lost to ${o.n}, then came back and won!</b> You didn't give up. What did you change? Remember it and use it again. That's how real fencers improve. 🧠</div></div>`:'';
   const nx=won?pdNextOpp(o.id):null;
   $('pdOver').style.display='block';
-  $('pdOver').innerHTML=`<h2>${won?(o.final?'🏆 '+PTIERS[o.tier].n+' CHAMPION! You beat '+o.n+'!':'🏆 You beat '+o.n+'!'):'💪 '+o.n+' won this time'}</h2><p>${PD.score[0]} : ${PD.score[1]} · <b>+${PD.gained} fencer XP</b></p>${brave}
+  $('pdOver').innerHTML=`<h2>${won?(o.final?'🏆 '+PTIERS[o.tier].n+' CHAMPION! You beat '+o.n+'!':'🏆 You beat '+o.n+'!'):'💪 '+o.n+' won this time'}</h2><p>${PD.score[0]} : ${PD.score[1]} · <b>+${PD.gained} fencer XP</b></p>${brave}${comeback}
     ${pdInsights(3).length?`<div class="pbox" style="text-align:left;margin:8px 0"><b>🧠 What ${o.n} figured out about you:</b><ul>${pdInsights(3).map(x=>`<li>${x.txt}</li>`).join('')}</ul><div class="small">Change these habits and he can't predict you!</div></div>`:''}
     ${fav?`<p class="small">Your most-used move: ${PD_ACTS[fav].i} ${PD_ACTS[fav].n} (${favPct}%). ${favPct>=40?'Opponents can predict that. Mix it up!':'Nice variety!'}</p>`:''}
     <div class="row" style="justify-content:center"><button class="btn" id="pdNext">${nx?'Next: '+nx.e+' '+nx.n+' ➜':'Play again'}</button><button class="btn ghost" id="pdMenuB">Menu</button></div>`;
   $('pdNext').onclick=()=>pdScout(nx?nx.id:o.id);$('pdMenuB').onclick=pdMenu;
   if($('pdBrave'))$('pdBrave').onclick=ev=>{ev.preventDefault();pdMenu();goTo('brave')};
+  if($('pdClose'))$('pdClose').onclick=ev=>{ev.preventDefault();pdMenu();const k=[...document.querySelectorAll('#bvWorries [data-wq]')].findIndex(b=>/close/i.test(b.textContent));window.bvOpenWorry?window.bvOpenWorry(k<0?0:k):goTo('brave')};
   if(pdLeft()<=0){$('pdNext').textContent='🌙 Done for today';$('pdNext').onclick=pdMenu}
 }
 function pdMenu(){if(PD&&!PD.over&&PD.raw&&PD.raw.length>=3)perfDuel(false);document.body.classList.remove('duelfocus');clearInterval(pdTimerI);clearTimeout(pdLaterT);if(PD)PD.over=true;$('pdGame').style.display='none';$('pdPick').style.display='block';pdLevels()}
@@ -2684,7 +2688,7 @@ function perfLog(rec){
 function perfDuel(finished){
   if(!PD||PD.logged)return;PD.logged=true;
   perfLog({type:'duel',opp:PD.id,oppName:PD.L.n,tier:PTIERS[PD.L.tier].n,final:!!PD.L.final,finished,
-    won:finished&&PD.score[0]>=PD.L.win,score:PD.score.slice(),toWin:PD.L.win,fencerLevel:pdLv(),secs:Math.round((Date.now()-PD.t0)/1000),steps:PD.raw,ideas:PD.ideas||[]});
+    won:finished&&PD.score[0]>=PD.L.win,score:PD.score.slice(),toWin:PD.L.win,fencerLevel:pdLv(),secs:Math.round((Date.now()-(PD.start||Date.now()))/1000),steps:PD.raw,ideas:PD.ideas||[]});
 }
 let perfBusy=false;
 async function perfFlush(){
@@ -2808,7 +2812,8 @@ try{pdLevels()}catch(e){console.warn('pdLevels',e)}
     {i:'🦵',w:'My legs are shaking',t:'Shaky legs mean my body is getting ready with extra energy. That energy makes me FAST.',d:'Sink low into en garde, then 3 calm breaths. Use the energy for a fast first push from your feet.'},
     {i:'❄️',w:'I freeze when he\'s ready to counter',t:'Freezing is my brain asking "what\'s the plan?". A counter-attacker WANTS me to come straight in. If I don\'t go straight in, his plan has nothing to hit.',d:'Decide before "Allez": when he gets set to counter, take one small step back so his counter falls short, OR show a fake to pull it out, then hit. Any move beats standing still.'},
     {i:'😞',w:'I lost my last bout',t:'That bout is finished. This is a brand-new bout with a brand-new score: 0–0.',d:'Do a 30-second Real Bout Check, write one fix, then let it go.'},
-    {i:'💭',w:'What if Mom and Dad are disappointed?',t:'Mom and Dad are proud of me for trying hard and being brave, not for the score.',d:'Give your best effort. That\'s the only thing anyone is asking for.'}
+    {i:'💭',w:'What if Mom and Dad are disappointed?',t:'Mom and Dad are proud of me for trying hard and being brave, not for the score.',d:'Give your best effort. That\'s the only thing anyone is asking for.'},
+    {i:'🎯',w:'It\'s close (like 9–9) and I get tight',t:'A close score means I\'m fencing well enough to be right there. The last touch is just one more touch, the same as the first one.',d:'Turn away, one big breath, say your word. Then choose ONE plan you trust (get closer first, then attack FAST). No wild flèche from far away.'}
   ];
   const WORDS=['Next touch','Patient','I\'ve got this','Breathe & read','Brave'];
   const OPP=[['attack','⚡ Attacked a lot'],['retreat','🔙 Retreated / ran away'],['wait','🧍 Waited for me'],['counter','🛡️ Parried / counter-attacked'],['mix','🎭 Mixed it up']];
