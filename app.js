@@ -1363,6 +1363,106 @@ const CHECKS = [["one_on_one", "1:1 time", "一对一时间", true], ["praise", 
 const RM_STAGES = ["now", "spring27", "summer27", "fall27", "later"];
 let rmKid = null;
 const mondayISO = (off = 0) => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7 * off); return d.toLocaleDateString("en-CA"); };
+/* ---- 🛤️ Roadmap: track & forecast + insights (Bobby 2026-11-26: "under roadmap, build a roadmap visual to track and forecast;
+   also add the insights based on the performance"). Timeline of his road with today's marker, progress per stage, simple
+   trend forecasts (straight line through his own recent data; shown only with 7+ days, labelled early until 14+), and
+   plain-language insights from scores, time, stars, journal, brain checks, sleep and mood. Only his own past, never brothers. ---- */
+const RM_END = { now: "2027-01-27", spring27: "2027-05-31", summer27: "2027-08-31", fall27: "2027-12-31", later: "2028-06-30" };
+const RM_BEG = { now: "2026-11-01", spring27: "2027-01-28", summer27: "2027-06-01", fall27: "2027-09-01", later: "2028-01-01" };
+function rmFit(ser, n = 28) { // least squares on the last n days that have values → {slope/day, at(date), days}
+  const ks = Object.keys(ser || {}).sort().filter(d => d >= daysAgo(n - 1)); if (ks.length < 2) return { days: ks.length };
+  const t0 = new Date(ks[0] + "T12:00"), xs = ks.map(d => (new Date(d + "T12:00") - t0) / 864e5), ys = ks.map(d => +ser[d]);
+  const mx = xs.reduce((a, b) => a + b, 0) / xs.length, my = ys.reduce((a, b) => a + b, 0) / ys.length;
+  let sxy = 0, sxx = 0; xs.forEach((x, i) => { sxy += (x - mx) * (ys[i] - my); sxx += (x - mx) ** 2; }); const b = sxx ? sxy / sxx : 0, a = my - b * mx;
+  return { days: ks.length, slope: b, last: ys[ys.length - 1], at: d => Math.max(0, Math.min(100, Math.round(a + b * ((new Date(d + "T12:00") - t0) / 864e5)))) }; }
+async function rmTrackRender(kid) {
+  const box = document.getElementById("rmTrack"); if (!box) return;
+  const zh = lang === "zh", L = (en, z) => zh ? z : en, k = S.kids.find(x => x.id === kid); if (!k) return;
+  box.innerHTML = `<div class="card"><p class="meta">${L("Building the forecast…", "正在生成预测…")}</p></div>`;
+  let D = { hist: [] }, JD = []; try { D = await scLoad(kid); } catch (e) {} try { JD = await jScores(k); } catch (e) {}
+  if (rmKid !== kid || !document.getElementById("rmTrack")) return;
+  const td = today(), days = []; for (let i = 59; i >= 0; i--) days.push(daysAgo(i));
+  // per-subject app score series (same definition as At a glance)
+  const subs = (S.subjects || []).filter(x => x.kid === kid && x.active !== false && x.app_url && APPS[x.app_url]);
+  const rowsBy = {}; D.hist.forEach(r => (rowsBy[r.app] = rowsBy[r.app] || []).push(r));
+  const serOf = app => { const rs = (rowsBy[app] || []).slice().sort((a, b) => a.date.localeCompare(b.date)); if (!rs.length) return null; const last = {}, o = {}; let i = 0;
+    days.forEach(d => { while (i < rs.length && rs[i].date <= d) { if (rs[i].mastery != null) last[rs[i].skill] = +rs[i].mastery; i++; } const v = Object.values(last); if (v.length) o[d] = Math.round(100 * v.reduce((a, b) => a + b, 0) / v.length); }); return o; };
+  const sj = subs.map(x => ({ x, app: APPS[x.app_url].id, name: `${x.icon || ""} ${zh && x.name_zh ? x.name_zh : x.name}`.trim(), ser: serOf(APPS[x.app_url].id) })).filter(x => x.ser && Object.keys(x.ser).length);
+  const overall = {}; days.forEach(d => { const v = sj.map(s => s.ser[d]).filter(v => v != null); if (v.length) overall[d] = Math.round(v.reduce((a, b) => a + b, 0) / v.length); });
+  const fit = rmFit(overall), conf = fit.days >= 14 ? "ok" : fit.days >= 7 ? "early" : "none";
+  // roadmap items
+  const items = (S.roadmap_items || []).filter(r => r.kid === kid && r.kind !== "focus");
+  const stageStat = st => { const l = items.filter(r => r.stage === st && r.status !== "skipped"); return { n: l.length, done: l.filter(r => r.status === "done").length, act: l.filter(r => r.status === "active").length }; };
+  const doneDates = items.filter(r => r.status === "done").map(r => String(r.updated_at || "").slice(0, 10)).filter(Boolean).sort();
+  const curStage = RM_STAGES.find(st => td <= RM_END[st]) || "later", cs = stageStat(curStage), daysLeft = Math.max(0, Math.round((new Date(RM_END[curStage] + "T12:00") - new Date(td + "T12:00")) / 864e5));
+  const pace = doneDates.length >= 2 ? doneDates.length / Math.max(7, (new Date(td) - new Date(doneDates[0])) / 864e5) * 7 : null; // items per week
+  const remain = cs.n - cs.done, needWk = remain > 0 ? remain / Math.max(1, daysLeft / 7) : 0;
+  // ---- timeline SVG ----
+  const T0 = "2026-11-01", T1 = "2028-04-30", W = 900, H = 190, PL = 10, PR = 10, tx = d => PL + (new Date(d + "T12:00") - new Date(T0 + "T12:00")) / (new Date(T1 + "T12:00") - new Date(T0 + "T12:00")) * (W - PL - PR);
+  const sc = { planned: "#cbd5e1", active: "#f59e0b", done: "#16a34a", skipped: "#e5e7eb" }, kc = ({ eric: "#4d7c0f", ellis: "#c2410c", jonah: "#be185d" })[kid] || "#6d4aff";
+  const bands = RM_STAGES.map((st, i) => { const x0 = tx(RM_BEG[st]), x1 = tx(st === "later" ? T1 : RM_END[st]), ss = stageStat(st), pct = ss.n ? ss.done / ss.n : 0, cur = st === curStage;
+    const its = items.filter(r => r.stage === st);
+    return `<g><rect x="${x0 + 2}" y="30" width="${x1 - x0 - 4}" height="56" rx="10" fill="${cur ? "#f5f3ff" : "#f8fafc"}" stroke="${cur ? kc : "#e2e8f0"}" stroke-width="${cur ? 2 : 1}"/>
+      <text x="${x0 + 10}" y="48" font-size="12" font-weight="700" fill="#334155">${esc((RMS[lang] || RMS.en).stages[st])}</text>
+      <rect x="${x0 + 10}" y="70" width="${x1 - x0 - 24}" height="8" rx="4" fill="#e2e8f0"/><rect x="${x0 + 10}" y="70" width="${(x1 - x0 - 24) * pct}" height="8" rx="4" fill="#16a34a"/>
+      <text x="${x1 - 12}" y="48" font-size="11" text-anchor="end" fill="#64748b">${ss.done}/${ss.n}</text>
+      ${its.map((r, j) => `<circle cx="${x0 + 14 + j * 14}" cy="104" r="5.5" fill="${sc[r.status] || "#cbd5e1"}"><title>${esc(zh && r.title_zh ? r.title_zh : r.title)} · ${(RMS[lang] || RMS.en).status[r.status]}</title></circle>`).join("")}</g>`; }).join("");
+  const months = []; for (let d = new Date("2026-12-01T12:00"); d <= new Date(T1 + "T12:00"); d.setMonth(d.getMonth() + 2)) months.push(d.toISOString().slice(0, 10));
+  const mTicks = months.map(m => `<text x="${tx(m)}" y="${H - 8}" font-size="11" text-anchor="middle" fill="#94a3b8">${new Date(m + "T12:00").toLocaleDateString(zh ? "zh-CN" : "en-US", { month: "short", year: "2-digit" })}</text>`).join("");
+  // forecast line under the bands: overall learning score now → projected at each stage end
+  const fpts = conf !== "none" ? ["now", "spring27"].map(st => ({ d: RM_END[st], v: fit.at(RM_END[st]) })) : [];
+  const fy = v => 175 - v * 0.5; // tiny sparkline band 125..175
+  const fLine = conf !== "none" ? `<line x1="${tx(td)}" y1="${fy(fit.last)}" x2="${tx(fpts[0].d)}" y2="${fy(fpts[0].v)}" stroke="${kc}" stroke-width="2.5" stroke-dasharray="6 5"/><line x1="${tx(fpts[0].d)}" y1="${fy(fpts[0].v)}" x2="${tx(fpts[1].d)}" y2="${fy(fpts[1].v)}" stroke="${kc}" stroke-width="2" stroke-dasharray="2 6" opacity=".6"/>
+    <circle cx="${tx(td)}" cy="${fy(fit.last)}" r="5" fill="${kc}"/><text x="${tx(td) + 8}" y="${fy(fit.last) - 6}" font-size="11" fill="#334155">${fit.last}</text>
+    ${fpts.map(p => `<circle cx="${tx(p.d)}" cy="${fy(p.v)}" r="4" fill="#fff" stroke="${kc}" stroke-width="2"/><text x="${tx(p.d)}" y="${fy(p.v) - 8}" font-size="11" text-anchor="middle" fill="#334155">${p.v}</text>`).join("")}` : "";
+  const svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${bands}${fLine}<line x1="${tx(td)}" x2="${tx(td)}" y1="20" y2="${H - 20}" stroke="#ef4444" stroke-width="2"/><text x="${tx(td)}" y="16" font-size="11" text-anchor="middle" fill="#ef4444" font-weight="700">${L("Today", "今天")}</text>${mTicks}</svg>`;
+  // ---- forecast cards ----
+  const wkGoal = k.weekly_goal || 500, wk = mondayOf(td), stars = weekStars(kid, wk), dow = ((new Date(td + "T12:00").getDay() + 6) % 7) + 1;
+  const recent = []; for (let i = 1; i <= 4; i++) recent.push(weekStars(kid, addDays(wk, -7 * i)));
+  const perDay14 = (S.point_ledger || []).filter(r => r.kid === kid && r.date > daysAgo(14) && r.date < td && !["spend", "carryover", "win", "idea"].includes(r.source)).reduce((a, r) => a + r.points, 0) / 13;
+  const projWk = Math.round(stars + perDay14 * (7 - dow));
+  const card = (ic, t, v, sub, col) => `<div style="flex:1;min-width:200px;background:#fff;border:1.5px solid #0000000f;border-radius:14px;padding:12px 14px"><div style="font-size:14px;color:#64748b">${ic} ${t}</div><div style="font-size:24px;font-weight:800;color:${col || "inherit"}">${v}</div><div style="font-size:13px;color:#64748b">${sub}</div></div>`;
+  const onTrack = remain <= 0 ? ["#16a34a", L("Stage complete ✓", "本阶段完成 ✓")] : pace == null ? ["#64748b", L(`${remain} to go`, `还剩 ${remain} 项`)] : pace >= needWk ? ["#16a34a", L("On track", "按计划进行")] : ["#dc2626", L("Behind pace", "进度落后")];
+  const amcSj = sj.find(s => s.app === "amc"), amcFit = amcSj ? rmFit(amcSj.ser) : null;
+  const cards = [
+    card("🛤️", L(`This stage: ${(RMS[lang] || RMS.en).stages[curStage]}`, `本阶段：${(RMS[lang] || RMS.en).stages[curStage]}`), onTrack[1], L(`${cs.done}/${cs.n} done · ${cs.act} in progress · ${daysLeft} days left${pace != null ? ` · pace ${pace.toFixed(1)}/wk, needs ${needWk.toFixed(1)}/wk` : ""}`, `完成 ${cs.done}/${cs.n} · 进行中 ${cs.act} · 剩 ${daysLeft} 天${pace != null ? ` · 速度 ${pace.toFixed(1)}/周，需要 ${needWk.toFixed(1)}/周` : ""}`), onTrack[0]),
+    card("📈", L("Overall learning score", "整体学习分数"), conf === "none" ? (fit.last ?? "–") : `${fit.last} → ${fpts[0].v}`, conf === "none" ? L("Forecast after 7 days of data", "有 7 天数据后显示预测") : L(`by ${RM_END.now.slice(5).replace("-", "/")} at his current pace (${fit.slope >= 0 ? "+" : ""}${(fit.slope * 7).toFixed(1)}/wk)${conf === "early" ? " · early estimate" : ""}`, `按目前速度到 ${RM_END.now.slice(5).replace("-", "/")}（每周 ${fit.slope >= 0 ? "+" : ""}${(fit.slope * 7).toFixed(1)}）${conf === "early" ? " · 初步估计" : ""}`)),
+    ...(amcFit && amcFit.days >= 7 ? [card("🏆", L("AMC 8 readiness (Jan 2027)", "AMC 8 准备度（2027 年 1 月）"), `${amcFit.last} → ${amcFit.at(RM_END.now)}`, L(`average mastery of practiced AMC skills, forecast for late January${amcFit.days < 14 ? " · early estimate" : ""}`, `已练 AMC 技能的平均掌握度，预测到 1 月下旬${amcFit.days < 14 ? " · 初步估计" : ""}`))] : []),
+    card("⭐", L("Weekly stars", "每周星星"), `${stars} → ~${projWk} / ${wkGoal}`, projWk >= wkGoal ? L("on pace to reach this week's goal ($20 exam)", "按目前速度本周能达标（$20 考试）") : L(`about ${Math.max(0, wkGoal - projWk)} short at his recent pace`, `按最近速度大约差 ${Math.max(0, wkGoal - projWk)}`), projWk >= wkGoal ? "#16a34a" : "#ca8a04")];
+  // ---- insights ----
+  const ins = [], add = (ic, en, z, doEn, doZh, tone = "info") => ins.push({ ic, t: zh ? z : en, d: zh ? doZh : doEn, tone });
+  const wkCh = s => { const ks = Object.keys(s.ser).sort(), now = s.ser[ks[ks.length - 1]], b = ks.filter(d => d <= daysAgo(7)).pop(); return b ? now - s.ser[b] : null; };
+  const ch = sj.map(s => ({ s, c: wkCh(s) })).filter(x => x.c != null).sort((a, b) => b.c - a.c);
+  if (ch.length && ch[0].c >= 5) add("🚀", `${ch[0].s.name} is his fastest-growing subject (+${ch[0].c} this week).`, `${ch[0].s.name} 是他进步最快的科目（本周 +${ch[0].c}）。`, "Tell him specifically what he did differently there; it's a strategy he can reuse.", "具体告诉他在这一科做对了什么，这个方法可以用到别的科目。", "good");
+  const dn = ch.filter(x => x.c <= -5).pop(); if (dn) add("📉", `${dn.s.name} slipped ${dn.c} this week.`, `${dn.s.name} 本周下降 ${dn.c}。`, "Ask him what got harder; a 10-minute review of the newest skill usually fixes it.", "问问他哪里变难了；花 10 分钟复习最新的技能通常就能补上。", "warn");
+  (() => { const m = {}; (S.learn_days || []).filter(x => x.kid === kid && x.date > daysAgo(7)).forEach(x => { const a = (m[x.app] = m[x.app] || [0, 0]); a[0] += +x.attempts || 0; a[1] += +x.correct || 0; });
+    Object.entries(m).filter(([a, v]) => v[0] >= 20 && v[1] / v[0] < 0.55).slice(0, 2).forEach(([a, v]) => add("🧩", `${appSubjName(kid, a)}: only ${Math.round(100 * v[1] / v[0])}% correct this week (${v[0]} answers).`, `${appSubjName(kid, a)}：本周正确率只有 ${Math.round(100 * v[1] / v[0])}%（${v[0]} 题）。`, "That's above his comfortable level: slow down, learn-first lessons before more problems.", "难度高于他目前的舒适区：放慢速度，先学课程再做题。", "warn")); })();
+  const goalMin = GL_AMC[kid]; if (goalMin) { let met = 0; for (let i = 1; i <= 7; i++) { const d = daysAgo(i), s = (S.app_time || []).filter(x => x.kid === kid && x.date === d && x.app === "amc").reduce((a, x) => a + (+x.secs || 0), 0); if (s / 60 >= goalMin) met++; }
+    add(met >= 5 ? "✅" : "⏱️", `Met his ${goalMin}-min AMC goal on ${met} of the last 7 days.`, `最近 7 天有 ${met} 天达到 ${goalMin} 分钟 AMC 目标。`, met >= 5 ? "Consistency is the main driver of his AMC forecast. Keep the same time slot." : "Fix a daily time slot (same time every day); consistency moves the forecast more than long sessions.", met >= 5 ? "坚持是 AMC 预测上升的主要原因，保持同一时间段。" : "固定每天同一个时间段；坚持比偶尔长时间学习更能提高预测。", met >= 5 ? "good" : "warn"); }
+  const avgWk = recent.filter(x => x > 0); if (avgWk.length) { const a = Math.round(avgWk.reduce((x, y) => x + y, 0) / avgWk.length), hit = recent.filter(x => x >= wkGoal).length;
+    add("⭐", `Star goal reached ${hit} of the last 4 weeks (average ${a} of ${wkGoal}).`, `最近 4 周有 ${hit} 周达到星星目标（平均 ${a} / ${wkGoal}）。`, hit >= 3 ? "Consider raising his goal a little; he's ready for more stretch." : hit === 0 ? "The goal may be too far right now; agree a smaller step-up with him." : "He's close; a plan for the two weakest days usually closes the gap.", hit >= 3 ? "可以考虑稍微提高目标，他准备好接受更多挑战了。" : hit === 0 ? "目前目标可能太远，和他商量一个小一点的阶梯目标。" : "差不多了；针对最弱的两天做个计划通常就能补上。", hit >= 3 ? "good" : "info"); }
+  if (JD.length >= 3) { const ok = JD.filter(j => j.ai?.level !== "high"), a = ok.slice(-3), b = ok.slice(-6, -3), av = x => x.length ? Math.round(x.reduce((p, q) => p + q.score, 0) / x.length) : null, va = av(a), vb = av(b);
+    if (va != null && vb != null && Math.abs(va - vb) >= 5) add("📝", `Journal score ${va > vb ? "up" : "down"} ${Math.abs(va - vb)} (${vb} → ${va}).`, `日记分数${va > vb ? "上升" : "下降"} ${Math.abs(va - vb)}（${vb} → ${va}）。`, va > vb ? "Name the skill that improved when you praise him." : "Look at the 🎯 Next focus on At a glance and practice just that one thing.", va > vb ? "表扬时说出具体进步的写作能力。" : "看“一眼看懂”里的 🎯 下一个重点，只练这一项。", va > vb ? "good" : "warn");
+    const hi = JD.filter(j => j.ai?.level === "high" && j.date > daysAgo(14)).length; if (hi) add("🤖", `${hi} journal entr${hi > 1 ? "ies" : "y"} in 2 weeks look${hi > 1 ? "" : "s"} AI-written.`, `两周内有 ${hi} 篇日记疑似 AI 代写。`, "Talk calmly about why we write ourselves; sit with him for one entry.", "平静地聊聊为什么要自己写；陪他写一篇。", "warn"); }
+  const bc = (S.brain_checks || []).filter(c => c.kid === kid).map(scBrain).sort((a, b) => a.date.localeCompare(b.date)); if (bc.length >= 2) { const a = bc[bc.length - 1], b = bc[bc.length - 2];
+    if (a.think != null && b.think != null && Math.abs(a.think - b.think) >= 5) add("🧮", `Thinking score ${a.think > b.think ? "rose" : "fell"} ${b.think} → ${a.think} since the last brain check.`, `思维分数从上次 ${b.think} ${a.think > b.think ? "升到" : "降到"} ${a.think}。`, a.think > b.think ? "Growth in thinking often shows in harder subjects a few weeks later." : "One check can be an off day (sleep, mood). Watch the next one before acting.", a.think > b.think ? "思维进步通常几周后会体现在较难的科目上。" : "一次测评可能只是状态不好（睡眠、情绪），先看下一次再说。", a.think > b.think ? "good" : "info"); }
+  const bl = (S.body_log || []).filter(x => x.kid === kid && x.date > daysAgo(7) && x.sleep_min), need = sleepNeed(+k.age || 10);
+  if (bl.length >= 3) { const sl = bl.reduce((a, x) => a + x.sleep_min, 0) / bl.length / 60; if (sl < need[0]) add("😴", `Sleep averaged ${sl.toFixed(1)} h (needs ${need[0]}–${need[1]} h).`, `平均睡眠 ${sl.toFixed(1)} 小时（需要 ${need[0]}–${need[1]} 小时）。`, "Short sleep lowers focus and memory scores; move bedtime 20 minutes earlier this week.", "睡眠不足会降低专注和记忆分数；本周把睡觉时间提前 20 分钟。", "warn"); }
+  const mood = (S.checkins || []).filter(c => c.kid === kid && c.kid_mood && c.date > daysAgo(14)), m1 = mood.filter(c => c.date > daysAgo(7)), m0 = mood.filter(c => c.date <= daysAgo(7));
+  if (m1.length >= 3 && m0.length >= 3) { const a = m1.reduce((p, c) => p + c.kid_mood, 0) / m1.length, b = m0.reduce((p, c) => p + c.kid_mood, 0) / m0.length; if (a - b <= -0.7) add("💛", `His mood dipped this week (${b.toFixed(1)} → ${a.toFixed(1)} of 5).`, `他本周情绪下降（${b.toFixed(1)} → ${a.toFixed(1)} / 5）。`, "Make space for 1:1 time before pushing harder on goals.", "在加压之前，先安排一对一时间。", "warn"); }
+  const overdue = items.filter(r => r.status !== "done" && r.status !== "skipped" && RM_END[r.stage] && RM_END[r.stage] < td); if (overdue.length) add("🗓️", `${overdue.length} roadmap item${overdue.length > 1 ? "s are" : " is"} past its stage.`, `有 ${overdue.length} 项路线已过阶段时间。`, "Mark it done, move it to the next stage, or skip it, so the road stays honest.", "标记完成、移到下一阶段或跳过，让路线保持真实。", "warn");
+  if (remain > 0 && pace != null && pace < needWk) add("🛤️", `At ${pace.toFixed(1)} items/week, ${remain} item${remain > 1 ? "s" : ""} won't all finish by ${RM_END[curStage].slice(5).replace("-", "/")}.`, `按每周 ${pace.toFixed(1)} 项的速度，${remain} 项到 ${RM_END[curStage].slice(5).replace("-", "/")} 前完成不了。`, "Pick the one that matters most and move the rest to the next stage.", "选最重要的一项，其余移到下一阶段。", "warn");
+  if (!ins.length) add("🌱", "Not enough data yet for insights. They appear as the week fills in.", "数据还不够生成洞察，本周数据多了就会出现。", "", "");
+  const tc = { good: ["#ecfdf5", "#047857"], warn: ["#fff7ed", "#b45309"], info: ["#f1f5f9", "#334155"] };
+  box.innerHTML = `<div class="card" style="padding:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h3 style="margin:0;font-size:20px">🗺️ ${L(`${kidName(kid)}'s road: track & forecast`, `${kidName(kid)} 的路线：进度和预测`)}</h3>
+      <span class="meta" style="font-size:13px"><span style="color:#16a34a">● ${L("done", "完成")}</span> <span style="color:#f59e0b">● ${L("in progress", "进行中")}</span> <span style="color:#94a3b8">● ${L("planned", "计划")}</span> · <span style="color:${kc}">┅ ${L("forecast", "预测")}</span></span></div>
+    ${svg}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">${cards.join("")}</div>
+    <h3 style="margin:16px 0 6px;font-size:18px">💡 ${L("Insights from his performance", "根据表现的洞察")}</h3>
+    <div style="display:grid;gap:8px">${ins.slice(0, 8).map(i => `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:${tc[i.tone][0]}"><span style="font-size:22px">${i.ic}</span><div><b style="color:${tc[i.tone][1]}">${esc(i.t)}</b>${i.d ? `<div style="font-size:14px;color:#475569;margin-top:2px">${esc(i.d)}</div>` : ""}</div></div>`).join("")}</div>
+    <p class="meta" style="font-size:12px;margin-top:8px">${L("Forecasts draw a straight line through his own recent days; they show after 7 days of data and are marked early until 14. They show direction, not a promise.", "预测是用他自己最近的数据画一条直线；有 7 天数据后显示，14 天以前标为初步估计。只表示方向，不是承诺。")}</p></div>`;
+}
 function viewRoadmap() {
   const t = T(), L = RMS[lang] || RMS.en, zh = lang === "zh";
   rmKid = rmKid && S.kids.some(k => k.id === rmKid) ? rmKid : S.kids[0]?.id; if (!rmKid) return;
@@ -1383,10 +1483,12 @@ function viewRoadmap() {
     <div class="rmhist"><span class="meta">${L.last8}:</span>${[7, 6, 5, 4, 3, 2, 1, 0].map(o => { const w = mondayISO(o), n = weekCount(w); return `<span class="rmh" title="${esc(w)}: ${n}/${maxPer}" style="opacity:${0.25 + 0.75 * n / maxPer}"></span>`; }).join("")}</div></div>
   <div class="section-h" style="margin-top:20px"><h3 style="font-size:18px">🛤️ ${L.mapH(name)}</h3><div class="tabs" id="rmTabs">${S.kids.map(x => `<button class="${x.id === rmKid ? "on" : ""}" data-rk="${esc(x.id)}">${esc(kidName(x.id))}</button>`).join("")}</div></div>
   <p class="meta">${L.mapSub} ${L.tap} <b>${L.progress(doneN, path.length)}</b></p>
+  <div id="rmTrack" style="margin:10px 0 16px"></div>
   <div class="rmroad" style="--kc:${KC[ki % 3]}">${RM_STAGES.map((st, i) => { const list = path.filter(r => r.stage === st); return `<div class="rmstage"><div class="rmsh"><span class="rmdot">${i + 1}</span>${L.stages[st]}</div>
     ${list.map(r => `<div class="rmi ${r.status}"><div class="rmik">${L.kinds[r.kind]}</div><b>${tx(r, "title")}</b>${r.why ? `<div class="meta">${tx(r, "why")}</div>` : ""}<div class="rmia"><button class="rmst ${r.status}" data-rst="${r.id}">${L.status[r.status]}</button><button class="x" data-rdel="${r.id}" title="${L.del}">×</button></div></div>`).join("")}
     <details class="rmadd"><summary>+ ${L.add}</summary><input data-rat="${st}" placeholder="${esc(L.addTitle)}" maxlength="120"><input data-raw="${st}" placeholder="${esc(L.addWhy)}" maxlength="200"><select data-rak="${st}">${["activity", "habit", "milestone"].map(k => `<option value="${k}">${L.kinds[k]}</option>`).join("")}</select><button class="btn sm primary" data-radd="${st}">${L.save}</button></details></div>${i < RM_STAGES.length - 1 ? `<div class="rmarrow">→</div>` : ""}`; }).join("")}</div>
   ${focus.length ? `<div class="coach rmfocus" style="--kc:${KC[ki % 3]}"><h4>🎯 ${L.focusH}</h4>${focus.map(r => `<div class="rmf"><b>${tx(r, "title")}</b>${r.why ? ` — <span class="meta">${tx(r, "why")}</span>` : ""}</div>`).join("")}</div>` : ""}`;
+  rmTrackRender(rmKid);
   const pr = $("#view").querySelector(".rmprin"); pr.ontoggle = () => { try { localStorage.setItem("fh_rm_prin", pr.open ? "1" : "0"); } catch (e) {} };
   $("#rmTabs").onclick = e => { const b = e.target.closest("[data-rk]"); if (b) { rmKid = b.dataset.rk; viewRoadmap(); } };
   $("#view").onclick = async e => {
