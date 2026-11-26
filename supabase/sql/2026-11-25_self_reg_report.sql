@@ -1,0 +1,5 @@
+-- 🧭 Self-control tracker (Bobby 11/25/26): compares a boy ONLY with his own past. Read-only; applied as migration self_reg_report.
+-- Used by the nightly learning audit ("Eric vs Eric" block) and the monthly reports/eric-self-control-YYYY-MM.md.
+-- Fields: fresh_answers, median_secs, under4s_pct, acc_fast_under8s_pct, acc_slow_15s_plus_pct, checkpoint_tries,
+-- checkpoint_left_page, repeat_mistake_charges, habit_taps, habit_taps_flagged, fairplay_flags_med_high, lookback_days_done,
+-- late_days_after_10pm, mood_avg, self_ratings_avg. See the live definition: select pg_get_functiondef('private.self_reg_report(text,date,date)'::regprocedure);
