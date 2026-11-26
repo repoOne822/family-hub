@@ -917,3 +917,10 @@ button:focus:not(:focus-visible),a:focus:not(:focus-visible){outline:none}
 .jread-h,.jread-f{font-size:13px;line-height:1.4;opacity:.8;margin-bottom:6px}
 .jread-f{margin:8px 0 0}
 .jhear-row{margin-top:4px;white-space:normal}
+
+/* 🎯 Done well? self-check card */
+.dwcrit { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; padding: 6px 0; border-top: 1px dashed rgba(0,0,0,.12); }
+.dwrate { display: flex; gap: 4px; }
+.dwrate .chip.on { outline: 2px solid currentColor; font-weight: 700; }
+.dwchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dwtask { font-size: 16px; margin-bottom: 4px; }

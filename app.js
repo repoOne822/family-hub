@@ -86,6 +86,7 @@ async function loadAll() {
   try { const r = await sb.from("app_time").select("*").gte("date", daysAgo(60)); S.app_time = r.data || []; } catch (e) { S.app_time = []; } // ⏱️ time per app per day
   try { const r = await sb.from("integrity_flags").select("*").gte("date", daysAgo(21)).order("date", { ascending: false }); S.integrity_flags = r.data || []; } catch (e) { S.integrity_flags = []; } // 🛡️ fair play
   try { const r = await sb.from("integrity_settings").select("*"); S.integrity_settings = r.data || []; } catch (e) { S.integrity_settings = []; }
+  try { const r = await sb.from("app_saves").select("kid,data").eq("app", "donewell"); S.donewell = r.data || []; } catch (e) { S.donewell = []; } // 🎯 done-well self-checks
   S.app_idle = []; if (!isKid()) try { const r = await sb.from("app_idle").select("*").gte("date", daysAgo(14)).order("started_at"); S.app_idle = r.data || []; } catch (e) {} // 😴 drift log (parents only)
 }
 async function upsert(table, row, onConflict) { const { error } = await sb.from(table).upsert(row, onConflict ? { onConflict } : undefined); if (error) throw error; }
@@ -716,6 +717,8 @@ function viewDash() {
           <span class="chip">${t.hisTaps} <b>${tp}</b></span>${gp ? `<a class="chip" href="#family" style="text-decoration:none;background:var(--pos-bg)">${t.hisIdeas} <b>${gp}</b></a>` : ""}</div></div>`; })()}
       ${timePanel(k.id)}
       ${fairPanel(k.id)}
+      ${doneWellParentHtml(k.id)}
+      ${watchGuideHtml(k.id)}
       ${behaviorPanel(k.id)}
       <div class="goals"><h4>${t.goals}</h4>${kg.length ? kg.map(g => `<div class="goal ${g.done ? "done" : ""}"><input type="checkbox" ${g.done ? "checked" : ""} data-goal="${g.id}"><span>${esc(g.text)}</span><button class="x" data-delgoal="${g.id}">✕</button></div>`).join("") : `<div class="meta empty">${t.noGoals}</div>`}
         <div class="addgoal"><input placeholder="${t.addGoal}" maxlength="120" data-goalin="${esc(k.id)}"><button class="btn sm" data-addgoal="${esc(k.id)}">${t.add}</button></div></div>
@@ -1574,7 +1577,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261125fd1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261126dw1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && (cfg.id !== "space" || kid === "jonah")) ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
@@ -1674,7 +1677,7 @@ function fairPanel(kid) {
   return `<div class="fp" style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>🛡️ ${zh ? "公平检查" : "Fair play"}</b><button class="btn sm ghost" data-iscan>↻ ${zh ? "现在检查" : "Scan now"}</button></div>
     ${open.length ? `<div class="meta">${zh ? `${held} 分暂不计入每周 $20 目标，等你确认：` : `${held} points held from the $20 goal until you decide:`}</div>
       ${open.map(f => `<div style="display:flex;gap:8px;align-items:flex-start;border-top:1px dashed #ddd;padding:6px 0"><span>${nm(f.rule)[0]}</span><div style="flex:1;min-width:0"><div style="font-size:13px"><b>${fmtDate(f.date)}</b> · ${esc(f.detail && f.detail.msg ? f.detail.msg : (zh ? nm(f.rule)[2] : nm(f.rule)[1]))}</div>
-        <div class="meta">${f.points} ${zh ? "分" : "pts"} · ${f.severity === "high" ? "🔴" : "🟠"}</div></div>
+        <div class="meta">${f.points} ${zh ? "分" : "pts"} · ${f.severity === "high" ? "🔴" : "🟠"}${(w => w ? ` · 💬 ${esc(zh ? w.q[1] : w.q[0])}` : "")(watchFor(f.rule))}</div></div>
         <button class="btn sm" data-ifl="${f.id}" data-act="clear" title="${zh ? "没问题，分数照算" : "It's fine: the points count"}">✓ ${zh ? "照算" : "OK"}</button><button class="btn sm" data-ifl="${f.id}" data-act="confirm" title="${zh ? "扣掉这些分（记一笔调整）" : "Remove these points (dated correction)"}">✗ ${zh ? "扣分" : "Remove"}</button></div>`).join("")}`
       : `<div class="meta">${zh ? "没有被暂扣的分数。" : "No points on hold."}</div>`}
     ${Object.keys(byRule).length ? `<details style="margin-top:6px"><summary class="meta">${zh ? "本周提醒" : "This week's notes"}: ${Object.entries(byRule).map(([r, n]) => `${nm(r)[0]} ${n}`).join(" · ")}</summary>
@@ -1689,6 +1692,140 @@ document.addEventListener("click", async e => {
     if (t.dataset.ifl) { if (t.dataset.act === "confirm" && !confirm(lang === "zh" ? "扣掉这些分？会记一笔带日期的调整。" : "Remove these points? A dated correction is added to the history.")) return; const { error } = await sb.rpc("parent_resolve_flag", { p_id: t.dataset.ifl, p_action: t.dataset.act }); if (error) throw error; }
     else if (t.dataset.ifs) { const { error } = await sb.rpc("parent_set_integrity", { p_kid: t.dataset.kid, p_key: t.dataset.ifs, p_on: t.dataset.on === "1" }); if (error) throw error; }
     else { t.disabled = true; const { error } = await sb.rpc("integrity_scan", { p_day: today() }); if (error) throw error; }
+    await loadAll(); route();
+  } catch (err) { setStatus(err.message, true); }
+});
+/* ---- 🎯 Done well? (Bobby 2026-11-26: "Eric always does things mindlessly; he doesn't seem to care how things should be unless adults ask").
+   Builds SELF-MONITORING: before a task he writes what "done well" means (2–3 points, his own words); after it he checks himself against each.
+   A parent spot-checks: 👍 agree (+5 ⭐, so points reward HONEST self-checking, not high self-scores) or 〽️ not quite.
+   Stored in app_saves (app "donewell", key <kid>_donewell); no points for writing or rating, only for a parent agreeing. ---- */
+const DW_KIDS = ["eric"];
+const DW_TASKS = [["📚", "Homework", "作业"], ["🎒", "Launch pad", "出门准备"], ["🧹", "Room / chore", "房间/家务"], ["🤖", "Onshape build", "Onshape 建模"], ["🏁", "Checkpoint", "关卡"], ["✏️", "Other", "其他"]];
+const DW_HINT = { "Homework": "e.g. every question answered, work shown, name on it, in my folder", "Launch pad": "e.g. bag zipped by the door, homework inside, water bottle filled", "Room / chore": "e.g. floor clear, clothes in the hamper, bed made",
+  "Onshape build": "e.g. parts fit, measurements checked twice, saved with a clear name", "Checkpoint": "e.g. read every question twice, checked the units, no guessing", "Other": "what will it look like when it's done well?" };
+const dwSave = kid => { const r = (S.donewell || []).find(x => x.kid === kid); return (r && r.data && r.data[`${kid}_donewell`]) || { items: [] }; };
+async function dwWrite(kid, P) { const { error } = await sb.from("app_saves").upsert({ kid, app: "donewell", data: { [`${kid}_donewell`]: P }, updated_at: new Date().toISOString() }); if (error) throw error;
+  const r = (S.donewell || []).find(x => x.kid === kid); if (r) r.data = { [`${kid}_donewell`]: P }; else (S.donewell = S.donewell || []).push({ kid, data: { [`${kid}_donewell`]: P } }); }
+const dwWords = t => String(t || "").trim().split(/\s+/).filter(Boolean).length;
+const RATE = [["❌", "No", "没有"], ["〽️", "Partly", "部分"], ["✅", "Yes", "做到了"]];
+function doneWellKidHtml(k) {
+  const zh = lang === "zh", P = dwSave(k.id), d = today(), open = P.items.find(x => !x.done), todayN = P.items.filter(x => x.d === d).length;
+  const recent = P.items.filter(x => x.done).slice(-3).reverse();
+  let body;
+  if (open) { const mins = Math.floor((Date.now() - open.at) / 60000), ready = mins >= 5;
+    body = `<div class="dwtask"><b>${esc(open.task)}</b> <span class="meta">${zh ? "开始于" : "started"} ${new Date(open.at).toLocaleTimeString(zh ? "zh-CN" : "en-US", { hour: "numeric", minute: "2-digit" })}</span></div>
+      <p class="meta">${zh ? "做完后，诚实地检查每一条：" : "When you're done, check each one honestly:"}</p>
+      ${open.crit.map((c, i) => `<div class="dwcrit"><span>${i + 1}. ${esc(c)}</span><span class="dwrate">${RATE.map((r, j) => `<button class="chip" data-dwr="${i}" data-v="${j}">${r[0]} ${zh ? r[2] : r[1]}</button>`).join("")}</span></div>`).join("")}
+      <input id="dwNext" placeholder="${zh ? "下次我会先检查……（至少 3 个词）" : "Next time I'll check… (3+ words)"}" style="width:100%;margin-top:8px">
+      <div class="row" style="margin-top:8px;gap:8px">${ready ? `<button class="btn primary" id="dwDone">${zh ? "保存我的自查" : "Save my self-check"}</button>` : `<span class="meta">⏳ ${zh ? `做完任务再来（${5 - mins} 分钟后可以自查）` : `Do the task first (self-check opens in ${5 - mins} min)`}</span>`}<button class="btn sm ghost" id="dwDrop">${zh ? "取消" : "Cancel"}</button></div>`; }
+  else if (todayN >= 3) body = `<p class="meta">${zh ? "今天已经做了 3 次自查，明天继续！" : "3 self-checks today, nice. More tomorrow!"}</p>`;
+  else body = `<div class="dwchips">${DW_TASKS.map(t => `<button class="chip" data-dwt="${t[1]}">${t[0]} ${zh ? t[2] : t[1]}</button>`).join("")}</div>
+      <input id="dwTask" placeholder="${zh ? "我要做的事" : "What I'm about to do"}" style="width:100%;margin-top:8px">
+      <p class="meta" style="margin:8px 0 4px">${zh ? "做得好是什么样子？写 2–3 条，用你自己的话：" : "What does DONE WELL look like? Write 2–3 things, in your own words:"}</p>
+      ${[0, 1, 2].map(i => `<input class="dwc" data-i="${i}" placeholder="${i < 2 ? (zh ? "必填" : "required") : (zh ? "可选" : "optional")}" style="width:100%;margin-top:4px">`).join("")}
+      <p class="meta" id="dwHint" style="margin-top:4px"></p>
+      <button class="btn primary" id="dwStart" style="margin-top:6px">${zh ? "开始" : "Start"}</button>`;
+  return `<div class="kw-h"><span class="kw-ht">🎯 ${zh ? "做得好吗？" : "Done well?"}</span></div><div class="kw-card">
+    <p class="meta" style="margin-top:0">${zh ? "先想好“做得好”是什么样，做完自己检查。爸爸妈妈抽查时如果同意你的自查，+5 ⭐。诚实最重要。" : "Decide what \"done well\" looks like before you start, then check yourself. When Mom or Dad spot-checks and agrees with your self-check, +5 ⭐. Honest beats perfect."}</p>
+    ${body}
+    ${recent.length ? `<div style="margin-top:10px">${recent.map(x => `<div class="meta">${x.parent ? (x.parent.agree ? "👍" : "〽️") : "⏳"} ${esc(x.task)} · ${x.done.rates.map(v => RATE[v][0]).join("")}${x.parent && !x.parent.agree && x.parent.note ? ` · ${esc(x.parent.note)}` : ""}</div>`).join("")}</div>` : ""}</div>`;
+}
+document.addEventListener("click", async e => {
+  const t = e.target.closest("[data-dwt],[data-dwr],#dwStart,#dwDone,#dwDrop"); if (!t || !isKid()) return;
+  const k = S.kids[0], zh = lang === "zh", P = dwSave(k.id);
+  try {
+    if (t.dataset.dwt) { const inp = $("#dwTask"); if (inp) inp.value = t.dataset.dwt === "Other" ? "" : t.dataset.dwt; const h = $("#dwHint"); if (h) h.textContent = "💡 " + (DW_HINT[t.dataset.dwt] || ""); return; }
+    if (t.dataset.dwr != null) { const row = t.closest(".dwrate"); row.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === t)); return; }
+    if (t.id === "dwStart") { const task = ($("#dwTask").value || "").trim(), crit = [...document.querySelectorAll(".dwc")].map(x => x.value.trim()).filter(Boolean);
+      if (!task) return setStatus(zh ? "先写你要做什么" : "Write what you're about to do", true);
+      if (crit.length < 2 || crit.some(c => dwWords(c) < 3 && !/[\u4e00-\u9fff]{4,}/.test(c))) return setStatus(zh ? "至少写 2 条，每条至少 3 个词" : "Write at least 2 points, 3+ words each", true);
+      P.items.push({ id: Date.now().toString(36), d: today(), task: task.slice(0, 80), crit: crit.slice(0, 3).map(c => c.slice(0, 120)), at: Date.now() }); P.items = P.items.slice(-200); await dwWrite(k.id, P); kidRender(); return; }
+    const open = P.items.find(x => !x.done); if (!open) return;
+    if (t.id === "dwDrop") { P.items = P.items.filter(x => x !== open); await dwWrite(k.id, P); kidRender(); return; }
+    if (t.id === "dwDone") { const rates = [...document.querySelectorAll(".dwrate")].map(r => { const b = r.querySelector("button.on"); return b ? +b.dataset.v : null; }), next = ($("#dwNext").value || "").trim();
+      if (rates.some(v => v == null)) return setStatus(zh ? "每一条都要检查" : "Check every point", true);
+      if (dwWords(next) < 3 && !/[\u4e00-\u9fff]{4,}/.test(next)) return setStatus(zh ? "写下下次你会先检查什么（至少 3 个词）" : "Write what you'll check next time (3+ words)", true);
+      open.done = { rates, next: next.slice(0, 140), at: Date.now() }; await dwWrite(k.id, P); kidRender(); setStatus(zh ? "已保存。诚实地检查自己，就是在长本事！" : "Saved. Checking your own work honestly is a real skill!"); }
+  } catch (err) { setStatus(err.message, true); }
+});
+/* ---- 🧭 Watch-for guide for parents (Bobby 2026-11-26): signs → what it usually means → what to do → what to say. Child-counselor framing:
+   name the behavior calmly, stay curious, let small consequences teach, praise effort and honesty, never compare brothers. ---- */
+const WATCH = [
+  { k: "rush", i: "⚡", rules: ["rushing", "away_in_checkpoint"], s: ["Answers in 1–3 seconds; many fast wrong answers; checkpoints rushed, then retaken", "1–3 秒就答题；很多快速答错；关卡赶着做然后重考"],
+    m: ["He's racing to finish or to get the reward, not to understand. It's often impulsivity, not laziness.", "他在赶着完成或拿奖励，而不是想弄懂。常常是冲动，不是懒。"],
+    d: ["Sit nearby for the first 2–3 questions. Ask him to read each question aloud and say his plan before answering. Praise slowing down, even when the answer is wrong.", "前 2–3 题坐在旁边。让他把题读出来、先说思路再作答。即使答错，也表扬他放慢了。"],
+    q: ["“Show me how you'd figure this out. I care more about the thinking than the answer.”", "“说说你会怎么想。我更在意你的思考，不是答案。”"] },
+  { k: "farm", i: "♻️", rules: ["repeat_answers", "burst_taps"], s: ["The same easy problem again and again; points jumping without new learning; tapping a button many times", "同一道简单题反复做；分数涨得快但没学新东西；连续狂点按钮"],
+    m: ["He's found that the system pays for repetition. That's smart, aimed the wrong way. The system's job is to stop paying for it; yours is to name it calmly.", "他发现系统会为重复付分。这是聪明，但用错了方向。系统负责不再为此付分；你负责平静地点出来。"],
+    d: ["Don't shame. Tell him what you saw, what the points are for, and that the rule has changed. Let the held points decide themselves: remove them with him there, explaining why.", "不要羞辱。告诉他你看到了什么、分数是为了什么、规则已经改了。被暂扣的分，当着他的面决定并说明原因。"],
+    q: ["“I noticed the same question 50 times. Points are for learning something new. What's a harder one you could try?”", "“我看到同一道题做了 50 次。分数是给学到新东西的。你可以挑一道更难的试试吗？”"] },
+  { k: "claim", i: "🧾", rules: ["habit_no_evidence", "habit_over_weekly", "weekly_bonus_unsupported", "win_before_exam", "cp_reward_no_pass"], s: ["Habits tapped that the apps show weren't done; all habits tapped at once in the morning; a win logged right before the $20 exam", "应用显示没做的习惯也打了卡；早上一次性全打卡；考$20前刚记一个成就"],
+    m: ["Claiming credit he didn't earn. At 10–11 this is usually wishful thinking plus a test of whether anyone checks, not a character flaw. It's the most important one to handle well.", "领了不该得的分。10–11 岁时通常是一厢情愿加上试探有没有人查，不是品格问题。但这是最需要处理好的一项。"],
+    d: ["Raise it privately, with the evidence, without a lecture. Separate the act from him: you're honest, and this tap wasn't. Remove those points; don't add a punishment on top. Praise any honest correction loudly.", "私下谈，拿出证据，不说教。把行为和他本人分开：你是诚实的孩子，但这次打卡不是。扣掉那些分，不要再额外惩罚。他主动改正时大声表扬。"],
+    q: ["“The app shows no Physics on Wednesday, but it's tapped. What happened? … Telling me the truth matters more to me than any points.”", "“应用显示周三没做物理，但打卡了。怎么回事？……对我来说，说实话比任何分数都重要。”"] },
+  { k: "mindless", i: "🙈", rules: [], s: ["Does things carelessly unless an adult checks; doesn't notice his own mistakes; 'done' means 'stopped'", "没人检查就马虎；看不到自己的错误；“做完”就是“停了”"],
+    m: ["Self-monitoring (the inner checker) develops late, often mid-teens, later in some boys. He borrows yours. The more you check, the less he needs to.", "自我监控（内心的检查员）发育得晚，常到青春期中期，有些男孩更晚。他在借用你的检查。你查得越多，他越不需要自己查。"],
+    d: ["Use 🎯 Done well? before tasks: he sets the standard, he checks it, you spot-check. Ask instead of correcting. Fade reminders on purpose (full reminder → one-word cue → a look → nothing), and tell him you're doing it.", "任务前用 🎯“做得好吗？”：他定标准、他自查、你抽查。用提问代替纠正。有计划地减少提醒（完整提醒 → 一个词 → 一个眼神 → 不提醒），并告诉他你在这样做。"],
+    q: ["“Before you start: what does done well look like?” · after: “Did you hit your three?”", "开始前：“做得好是什么样子？”· 做完后：“你那三条做到了吗？”"] },
+  { k: "forget", i: "🧠", rules: [], s: ["Forgets belongings and chores; loses the first task when a new one comes in", "忘带东西、忘做家务；新任务一来就忘了上一个"],
+    m: ["Working memory. It's a capacity, not a choice. Nagging doesn't grow it; outside systems do.", "工作记忆。这是能力，不是选择。唠叨不会让它变强，外部系统会。"],
+    d: ["One instruction at a time; have him repeat it back. Use the launch-pad spot by the door and a checklist he made himself. Let small natural consequences happen (a forgotten water bottle on a cool day). Rescue only when it really matters.", "一次只说一件事，让他复述。用门口的出门准备区和他自己写的清单。让小的自然后果发生（凉天忘带水瓶）。只在真正重要时才救场。"],
+    q: ["“Say it back to me: what are the two things?”", "“复述给我听：是哪两件事？”"] },
+  { k: "impulse", i: "💥", rules: [], s: ["Acts before thinking about consequences; asks or says things without thinking", "做事不想后果；想都不想就问或说"],
+    m: ["Impulse control is still under construction; the brakes come in after the engine. Normal at 11, but stronger in some kids.", "冲动控制还在发育中，刹车比油门来得晚。11 岁正常，但有些孩子更明显。"],
+    d: ["Teach a pause routine: stop → think “what happens next?” → choose. Practice it when calm. Afterward, ask what happened and what he'd do next time instead of scolding.", "教一个暂停流程：停 → 想“接下来会怎样？” → 再选。平静时练习。事后问发生了什么、下次怎么做，而不是责骂。"],
+    q: ["“Pause. What happens if you do that? What's another way?”", "“停一下。这么做会怎样？还有别的办法吗？”"] },
+  { k: "drift", i: "😴", rules: ["drift"], s: ["Apps open for hours while he's away or idle; drifts off when both parents are out", "应用开着几个小时但人不在；父母都不在时就走神"],
+    m: ["Not enough structure without an adult, plus easier rewards nearby (other tabs, games). Sometimes tiredness or boredom with work that's too easy or too hard.", "没有大人在时缺少结构，加上旁边有更容易的奖励（别的网页、游戏）。有时是累了，或者题太简单或太难而无聊。"],
+    d: ["Before leaving, agree on a short plan: what, how long, and when you'll check in. Use short blocks (20–25 min) with a break. Look at the idle log together without blame.", "出门前约好一个简短计划：做什么、多久、几点联系。用短时段（20–25 分钟）加休息。一起看发呆记录，不责怪。"],
+    q: ["“While we're out: AMC checkpoint, then a break, then Look Back. I'll call at 4.”", "“我们出去时：先做 AMC 关卡，休息一下，再做回顾。我 4 点打给你。”"] },
+  { k: "minimum", i: "✍️", rules: ["journal_minimum"], s: ["Journal or writing stops right at the minimum; filler sentences", "日记或作文刚好写到最低字数；凑字的句子"],
+    m: ["He's meeting the rule, not the purpose. Usually it means he doesn't see the point yet, or doesn't know what to say.", "他在满足规则，不是目的。通常是还不明白意义，或者不知道写什么。"],
+    d: ["Give him a question to answer instead of a word count: what was hard today and what did you do about it? Read one entry together and ask a follow-up that shows you care.", "给他一个要回答的问题，而不是字数：今天什么难，你怎么处理的？一起读一篇，问一个表示你在乎的追问。"],
+    q: ["“Tell me more about the part where…”", "“再多跟我说说……那部分。”"] },
+  { k: "quit", i: "🌧️", rules: [], s: ["Gives up or gets upset after failing a checkpoint; says “I'm bad at this”", "关卡没过就放弃或生气；说“我就是不行”"],
+    m: ["A failed test feels like a verdict on him. That's a fixed mindset, and it's more likely now that points depend on passing.", "没通过像是在评判他这个人。这是固定型思维，现在分数取决于通过，更容易出现。"],
+    d: ["Sit with him for the review screen. Name one specific thing he did well. Make the retake about one thing to change. Praise effort and strategy, never “you're smart.”", "陪他看错题回顾。说出一件他做得好的具体事情。重考只专注改一件事。表扬努力和方法，不说“你真聪明”。"],
+    q: ["“Not yet isn't never. Which one surprised you? What will you try differently?”", "“还没做到不等于做不到。哪题让你意外？下次换什么方法？”"] },
+  { k: "mood", i: "💛", rules: [], s: ["“So tired,” low mood check-ins, withdrawing, irritable for days, sleep or appetite changes", "说“好累”，心情打卡低，退缩，连续几天烦躁，睡眠或胃口变化"],
+    m: ["Could be tiredness, too much load, a social or school worry, or something more. Days of it matter more than one bad evening.", "可能是累、任务太多、社交或学校的烦恼，或者更多。连续几天比一个糟糕的晚上更值得注意。"],
+    d: ["Lighten the load for a day. Check in one-on-one doing something side by side (a walk, the car). Listen more than you fix. If it lasts 2+ weeks, or he talks about hurting himself, call his pediatrician.", "减轻一天的任务。一对一在并肩做事时聊（散步、开车）。多听少给办法。如果持续 2 周以上，或说到伤害自己，联系儿科医生。"],
+    q: ["“You seem tired lately. What's been the hardest part of your week?”", "“你最近好像很累。这周最难的是什么？”"] },
+  { k: "compare", i: "⚖️", rules: [], s: ["You notice yourself comparing him with his brother or with classmates", "你发现自己拿他和弟弟或同学比较"],
+    m: ["Comparison makes kids feel ranked, not motivated. Brothers develop on different timelines.", "比较让孩子觉得被排名，而不是被激励。兄弟发育的时间表不一样。"],
+    d: ["Compare him only with himself last month. Point to his own progress numbers (checkpoints passed, self-check agreement).", "只拿他和上个月的自己比。用他自己的进步数据（通过的关卡、自查一致率）。"],
+    q: ["“Last month you couldn't do this. Look at you now.”", "“上个月你还做不到这个。看看你现在。”"] } ];
+const WATCH_HELP = ["When to ask his pediatrician: forgetfulness, losing track of tasks, acting before thinking and needing adults to check his work keep showing up together, at home and at school, for 6+ months, and they get in the way of grades or friendships. That isn't a diagnosis. Asking about an attention evaluation helps you choose strategies that fit.", "什么时候问儿科医生：健忘、做事丢三落四、不经思考就行动、需要大人检查，这些在家和学校同时出现 6 个月以上，并影响成绩或交友。这不是诊断；问一问注意力评估，能帮你选更合适的方法。"];
+const watchFor = rule => WATCH.find(w => w.rules.includes(rule));
+function watchGuideHtml(kid) {
+  if (isKid() || !["eric", "ellis"].includes(kid)) return "";
+  const zh = lang === "zh", L = a => esc(zh ? a[1] : a[0]);
+  return `<details style="margin-top:12px"><summary><b>🧭 ${zh ? "家长观察指南：信号与应对" : "Watch-for guide: signs and how to respond"}</b></summary>
+    <div class="meta" style="margin:6px 0">${zh ? "原则：平静地说出看到的行为，保持好奇，让小后果教他，表扬努力和诚实，绝不拿兄弟比较。" : "Ground rules: name the behavior calmly, stay curious, let small consequences teach, praise effort and honesty, never compare brothers."}</div>
+    ${WATCH.map(w => `<details style="border-top:1px dashed #ddd;padding:6px 0"><summary>${w.i} ${L(w.s)}</summary>
+      <div style="font-size:13px;margin:6px 0 0 4px"><div><b>${zh ? "可能意味着" : "What it usually means"}:</b> ${L(w.m)}</div><div style="margin-top:4px"><b>${zh ? "怎么做" : "What to do"}:</b> ${L(w.d)}</div><div style="margin-top:4px"><b>💬 ${zh ? "可以这样说" : "Try saying"}:</b> ${L(w.q)}</div></div></details>`).join("")}
+    <div class="meta" style="margin-top:8px">🩺 ${L(WATCH_HELP)}</div></details>`;
+}
+function doneWellParentHtml(kid) {
+  if (isKid() || !DW_KIDS.includes(kid)) return "";
+  const zh = lang === "zh", P = dwSave(kid), wk = P.items.filter(x => x.d >= daysAgo(6)), done = wk.filter(x => x.done), pending = P.items.filter(x => x.done && !x.parent).slice(-5).reverse();
+  const checked = P.items.filter(x => x.parent).slice(-20), agreeRate = checked.length ? Math.round(100 * checked.filter(x => x.parent.agree).length / checked.length) : null;
+  const self = done.length ? Math.round(100 * done.reduce((a, x) => a + x.done.rates.reduce((b, v) => b + v, 0) / (2 * x.done.rates.length), 0) / done.length) : null;
+  return `<div style="margin-top:12px"><b>🎯 ${zh ? "做得好吗？（自查）" : "Done well? (self-checks)"}</b>
+    <div class="meta">${zh ? `本周 ${wk.length} 次计划，${done.length} 次完成自查` : `This week: ${wk.length} planned, ${done.length} self-checked`}${self != null ? ` · ${zh ? "自评" : "self-rating"} ${self}%` : ""}${agreeRate != null ? ` · ${zh ? "你同意他的自查" : "you agreed"} ${agreeRate}% ${zh ? "（越高说明他越会检查自己）" : "(higher = better self-judgment)"}` : ""}</div>
+    ${pending.length ? pending.map(x => `<div style="border-top:1px dashed #ddd;padding:6px 0;font-size:13px"><b>${esc(x.task)}</b> <span class="meta">${fmtDate(x.d)}</span>
+      ${x.crit.map((c, i) => `<div>${RATE[x.done.rates[i]][0]} ${esc(c)}</div>`).join("")}<div class="meta">${zh ? "下次：" : "Next time:"} ${esc(x.done.next)}</div>
+      <div class="row" style="gap:6px;margin-top:4px"><button class="btn sm" data-dwp="${x.id}" data-kid="${kid}" data-agree="1">👍 ${zh ? "同意 (+5)" : "Agree (+5)"}</button><button class="btn sm" data-dwp="${x.id}" data-kid="${kid}" data-agree="0">〽️ ${zh ? "不太对" : "Not quite"}</button></div></div>`).join("")
+      : `<div class="meta">${zh ? "没有等你查看的自查。" : "Nothing waiting for your spot-check."}</div>`}
+    <div class="meta" style="margin-top:4px">${zh ? "抽查时看实际结果：他说做到了，真的做到了吗？同意才给分，奖励的是诚实的自我检查。" : "Spot-check the real result: did it match what he said? Points come only when you agree, so they reward honest self-checking."}</div></div>`;
+}
+document.addEventListener("click", async e => {
+  const t = e.target.closest("[data-dwp]"); if (!t || isKid()) return;
+  const kid = t.dataset.kid, P = dwSave(kid), x = P.items.find(i => i.id === t.dataset.dwp); if (!x) return; const agree = t.dataset.agree === "1";
+  try {
+    const note = agree ? "" : (prompt(lang === "zh" ? "哪里不太对？（他会看到，可以不写）" : "What wasn't quite right? (he'll see this; optional)") || "").slice(0, 120);
+    x.parent = { agree, note, at: Date.now() }; await dwWrite(kid, P);
+    if (agree) await sb.from("point_ledger").insert({ kid, date: today(), points: 5, source: "habit", ref: "donewell:" + x.id, label: "🎯 Done-well self-check (parent agreed)", label_zh: "🎯 自查做得好（家长同意）" });
     await loadAll(); route();
   } catch (err) { setStatus(err.message, true); }
 });
@@ -2150,6 +2287,7 @@ function kidRender() {
       <div class="kw-layout"><div class="kw-main"><section id="ks-home" class="kw-sec">
       ${little ? "" : kidPlanHtml(k)}
       <section id="ks-money" class="kw-sec">${kidChallengeHtml(k)}</section>
+      ${DW_KIDS.includes(k.id) ? `<section id="ks-dw" class="kw-sec">${doneWellKidHtml(k)}</section>` : ""}
       ${S.subjects.filter(x => x.active && x.app_url === "space/").map(x => `<button class="kw-spacegame" data-app="space/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#fff;font:inherit;background:radial-gradient(circle at 85% 30%,#9b5de5 0,transparent 45%),linear-gradient(135deg,#1b1f4b,#3a2f7a);box-shadow:0 8px 0 #0003,0 10px 30px #3a2f7a66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.4s ease-in-out infinite">🚀</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "太空探险" : "Space Quest"}</b><span style="opacity:.9;font-size:17px">${lang === "zh" ? "一至三年级数学和单词：打陨石、救外星人、打败大怪兽！" : "Grade 1–3 math + words: blast asteroids, rescue aliens, beat bosses!"}</span></span><span style="background:linear-gradient(#ffd166,#f4a300);color:#3b2400;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0004">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
       ${S.subjects.filter(x => x.active && x.app_url === "robot/").map(x => `<button class="kw-spacegame" data-app="robot/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#fff;font:inherit;background:radial-gradient(circle at 85% 30%,#e2683c 0,transparent 45%),linear-gradient(135deg,#120c24,#3b1d5e);box-shadow:0 8px 0 #0003,0 10px 30px #3b1d5e66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.6s ease-in-out infinite">🤖</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "机器人实验室" : "Robot Lab"}</b><span style="opacity:.9;font-size:17px">${lang === "zh" ? "用真正的 Python 编程，救援火星基地！" : "Code a Mars rover in real Python. Rescue the base!"}</span></span><span style="background:linear-gradient(#b8f34a,#7fc61c);color:#122000;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0004">▶ ${lang === "zh" ? "开始" : "Code"}</span></button>`).join("")}
       ${S.subjects.filter(x => x.active && x.app_url === "brain/").map(x => `<button class="kw-spacegame" data-app="brain/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#2b2d42;font:inherit;background:radial-gradient(circle at 85% 30%,#ffd6e8 0,transparent 45%),linear-gradient(135deg,#caffbf,#a0c4ff);box-shadow:0 8px 0 #0002,0 10px 30px #a0c4ff66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.8s ease-in-out infinite">🧠</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "大脑乐园" : "Brain Park"}</b><span style="opacity:.85;font-size:17px">${lang === "zh" ? "记忆、拼图、机器人编程、画画和音乐！" : "Memory games, puzzles, robot coding, drawing and music!"}</span></span><span style="background:#fff;color:#2b2d42;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0002">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
