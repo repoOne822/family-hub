@@ -530,7 +530,7 @@ function lockedCard(i) {
 const cpWait = id => { const c = P.cp[id]; if (!c || c.passed || !c.failAt) return 0; return Math.max(0, c.failAt + CPC.cool * 60e3 - Date.now()); };
 // ✍️ Bobby 11/25: a retake needs one line on what went wrong (at least 4 words), saved with the try
 const cpNeedsWhy = id => { if (PARENT) return false; const c = P.cp[id]; return !!(c && !c.passed && (c.tries || []).length && !(c.tries[c.tries.length - 1] || {}).why); };
-const CP_MIN_SECS = 4; // ⏱️ Bobby 11/25: checkpoint answers faster than this don't count ("Read it again")
+const CP_MIN_SECS = (() => { try { const v = window.parent !== window && window.parent.fhSetting && window.parent.fhSetting(KID, "min_answer_secs"); return v ? Math.max(4, +v) : 4; } catch (e) { return 4; } })(); // 🛡️ fair play can raise it to 6; // ⏱️ Bobby 11/25: checkpoint answers faster than this don't count ("Read it again")
 function cpBanner(i) {
   const l = LES[i], c = P.cp[l.id] || {}, w = cpWait(l.id), read = readOf(l.id) >= 3 || PARENT;
   const best = c.best != null ? ` · best ${c.best}/${CPC.n}` : "";

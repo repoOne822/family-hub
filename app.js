@@ -82,6 +82,8 @@ async function loadAll() {
   if (!coachKid || !S.kids.some(k => k.id === coachKid)) coachKid = S.kids[0]?.id || null;
   try { await lnLoad(); } catch (e) { S.skill_state = S.skill_state || []; S.learn_days = S.learn_days || []; } // 📚 nightly learning model
   try { const r = await sb.from("app_time").select("*").gte("date", daysAgo(60)); S.app_time = r.data || []; } catch (e) { S.app_time = []; } // ⏱️ time per app per day
+  try { const r = await sb.from("integrity_flags").select("*").gte("date", daysAgo(21)).order("date", { ascending: false }); S.integrity_flags = r.data || []; } catch (e) { S.integrity_flags = []; } // 🛡️ fair play
+  try { const r = await sb.from("integrity_settings").select("*"); S.integrity_settings = r.data || []; } catch (e) { S.integrity_settings = []; }
   S.app_idle = []; if (!isKid()) try { const r = await sb.from("app_idle").select("*").gte("date", daysAgo(14)).order("started_at"); S.app_idle = r.data || []; } catch (e) {} // 😴 drift log (parents only)
 }
 async function upsert(table, row, onConflict) { const { error } = await sb.from(table).upsert(row, onConflict ? { onConflict } : undefined); if (error) throw error; }
@@ -711,6 +713,7 @@ function viewDash() {
           <span class="chip">${t.hisWins} <b>${wn}</b></span><span class="chip">${t.hisJournal} <b>${jn}</b></span>
           <span class="chip">${t.hisTaps} <b>${tp}</b></span>${gp ? `<a class="chip" href="#family" style="text-decoration:none;background:var(--pos-bg)">${t.hisIdeas} <b>${gp}</b></a>` : ""}</div></div>`; })()}
       ${timePanel(k.id)}
+      ${fairPanel(k.id)}
       ${behaviorPanel(k.id)}
       <div class="goals"><h4>${t.goals}</h4>${kg.length ? kg.map(g => `<div class="goal ${g.done ? "done" : ""}"><input type="checkbox" ${g.done ? "checked" : ""} data-goal="${g.id}"><span>${esc(g.text)}</span><button class="x" data-delgoal="${g.id}">✕</button></div>`).join("") : `<div class="meta empty">${t.noGoals}</div>`}
         <div class="addgoal"><input placeholder="${t.addGoal}" maxlength="120" data-goalin="${esc(k.id)}"><button class="btn sm" data-addgoal="${esc(k.id)}">${t.add}</button></div></div>
@@ -1651,6 +1654,42 @@ function appSubjName(kid, id) {
   const n = APP_NAMES[id]; return n ? n[lang === "zh" ? 1 : 0] : id;
 }
 const hm = s => { const m = Math.round(s / 60); return m < 1 ? (s > 0 ? "<1m" : "") : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
+/* ---- 🛡️ Fair play (Bobby 2026-11-25): the nightly integrity scan (public.integrity_scan) flags gaming patterns and HOLDS the points involved;
+   held points don't count toward the $20 goal until a parent clears them. Repeated patterns tighten settings automatically for 14 days. ---- */
+const FP_RULE = {
+  habit_no_evidence: ["🧾", "Habit tapped, apps show no such work", "打卡了，但应用里没有记录"], habit_over_weekly: ["🔁", "Once-a-week habit tapped again", "每周一次的习惯又打卡了"],
+  weekly_bonus_unsupported: ["🎯", "Weekly bonus without backed taps", "每周奖励缺少真实打卡"], away_in_checkpoint: ["🚪", "Left the page during a checkpoint", "关卡中离开了页面"],
+  checkpoint_review: ["👀", "Checkpoint points waiting for a parent look", "关卡分数等家长查看"], win_before_exam: ["⏱️", "Win logged right before the $20 exam", "考试前刚记了一个成就"],
+  repeat_answers: ["♻️", "Same problem answered again and again", "同一道题反复做"], rushing: ["⚡", "Answering faster than reading", "答题快到来不及读题"],
+  exam_seen_questions: ["📋", "Exam used questions he had seen", "考试题以前做过"], drift: ["😴", "Apps open, mostly away", "应用开着但人不在"], journal_minimum: ["✍️", "Journal stops at the word minimum", "日记刚好写到最低字数"] };
+const FP_SET = { self_habits_parent_only: ["Self-report habits: parent marks them", "自报习惯由家长打卡"], cp_review: ["Checkpoint points wait for a parent look", "关卡分数等家长查看"], min_answer_secs: ["Checkpoint answers under 6 s don't count", "关卡里 6 秒内的答案不算"] };
+function fairPanel(kid) {
+  if (isKid() || !["eric", "ellis"].includes(kid)) return "";
+  const zh = lang === "zh", fl = (S.integrity_flags || []).filter(f => f.kid === kid), open = fl.filter(f => f.status === "open" && f.points > 0 && f.severity !== "low");
+  const notes = fl.filter(f => f.severity === "low" && f.date >= daysAgo(6)), sets = (S.integrity_settings || []).filter(x => x.kid === kid);
+  const nm = r => (FP_RULE[r] || ["•", r, r]), held = open.reduce((a, f) => a + f.points, 0);
+  const byRule = {}; notes.forEach(f => byRule[f.rule] = (byRule[f.rule] || 0) + 1);
+  return `<div class="fp" style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>🛡️ ${zh ? "公平检查" : "Fair play"}</b><button class="btn sm ghost" data-iscan>↻ ${zh ? "现在检查" : "Scan now"}</button></div>
+    ${open.length ? `<div class="meta">${zh ? `${held} 分暂不计入每周 $20 目标，等你确认：` : `${held} points held from the $20 goal until you decide:`}</div>
+      ${open.map(f => `<div style="display:flex;gap:8px;align-items:flex-start;border-top:1px dashed #ddd;padding:6px 0"><span>${nm(f.rule)[0]}</span><div style="flex:1;min-width:0"><div style="font-size:13px"><b>${fmtDate(f.date)}</b> · ${esc(f.detail && f.detail.msg ? f.detail.msg : (zh ? nm(f.rule)[2] : nm(f.rule)[1]))}</div>
+        <div class="meta">${f.points} ${zh ? "分" : "pts"} · ${f.severity === "high" ? "🔴" : "🟠"}</div></div>
+        <button class="btn sm" data-ifl="${f.id}" data-act="clear" title="${zh ? "没问题，分数照算" : "It's fine: the points count"}">✓ ${zh ? "照算" : "OK"}</button><button class="btn sm" data-ifl="${f.id}" data-act="confirm" title="${zh ? "扣掉这些分（记一笔调整）" : "Remove these points (dated correction)"}">✗ ${zh ? "扣分" : "Remove"}</button></div>`).join("")}`
+      : `<div class="meta">${zh ? "没有被暂扣的分数。" : "No points on hold."}</div>`}
+    ${Object.keys(byRule).length ? `<details style="margin-top:6px"><summary class="meta">${zh ? "本周提醒" : "This week's notes"}: ${Object.entries(byRule).map(([r, n]) => `${nm(r)[0]} ${n}`).join(" · ")}</summary>
+      ${notes.map(f => `<div class="meta" style="padding:2px 0">${nm(f.rule)[0]} ${fmtDate(f.date)} · ${esc(f.detail && f.detail.msg ? f.detail.msg : nm(f.rule)[1])}</div>`).join("")}</details>` : ""}
+    <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${Object.entries(FP_SET).map(([key, lab]) => { const on = sets.find(x => x.key === key);
+      return `<button class="chip ${on ? "on" : ""}" data-ifs="${key}" data-kid="${kid}" data-on="${on ? 0 : 1}" title="${on ? esc(on.reason || "") : ""}">${on ? "🔒" : "○"} ${zh ? lab[1] : lab[0]}${on && on.set_by === "auto" ? (zh ? "（自动）" : " (auto)") : ""}</button>`; }).join("")}</div>
+    <div class="meta" style="margin-top:4px">${zh ? "每晚 9:50 自动检查；同样的问题重复出现时，规则会自动收紧 14 天。" : "Checked automatically every evening; when a pattern repeats, a rule tightens itself for 14 days. Tap a chip to switch it."}</div></div>`;
+}
+document.addEventListener("click", async e => {
+  const t = e.target.closest("[data-ifl],[data-ifs],[data-iscan]"); if (!t || isKid()) return;
+  try {
+    if (t.dataset.ifl) { if (t.dataset.act === "confirm" && !confirm(lang === "zh" ? "扣掉这些分？会记一笔带日期的调整。" : "Remove these points? A dated correction is added to the history.")) return; const { error } = await sb.rpc("parent_resolve_flag", { p_id: t.dataset.ifl, p_action: t.dataset.act }); if (error) throw error; }
+    else if (t.dataset.ifs) { const { error } = await sb.rpc("parent_set_integrity", { p_kid: t.dataset.kid, p_key: t.dataset.ifs, p_on: t.dataset.on === "1" }); if (error) throw error; }
+    else { t.disabled = true; const { error } = await sb.rpc("integrity_scan", { p_day: today() }); if (error) throw error; }
+    await loadAll(); route();
+  } catch (err) { setStatus(err.message, true); }
+});
 function timePanel(kid) {
   const zh = lang === "zh", days = []; for (let i = 6; i >= 0; i--) days.push(daysAgo(i));
   const cell = {}; // app -> date -> secs. app_time (hub-measured) wins; older days fall back to the apps' own logs (learn_days)
@@ -2291,7 +2330,9 @@ function kidTapIn() {
   // ✅ Bobby 11/25: habits the apps can see are checked from the app data (no tapping them on trust); the rest open after 5 PM
   const hv = {}; // metric id -> { ok, why }
   const hvLoad = async () => { const R = HABIT_VERIFY[k.id]; if (!R || preview) return;
+    const po = window.fhSetting && window.fhSetting(k.id, "self_habits_parent_only"); // 🛡️ auto-tightened after taps didn't match the app data
     for (const m of ms) { const r = R[m.id] || (R.selfAfter != null && !R[m.id] ? { kind: "after" } : null); if (!r) continue;
+      if (po && (r.kind === "after" || r.kind === "week")) { hv[m.id] = { ok: false, kind: "parent", why: lang === "zh" ? "这周由爸爸妈妈来打卡" : "A parent marks this one this week" }; kidTap.counts[m.id] = 0; continue; }
       try { hv[m.id] = await habitCheck(k.id, Object.assign({ id: m.id }, r), R); } catch (e) { hv[m.id] = { ok: true }; }
       if (r.kind !== "after") { if (hv[m.id].ok) kidTap.counts[m.id] = Math.max(1, kidTap.counts[m.id] || 0); else if (!(kidTap.counts[m.id] > 0)) kidTap.counts[m.id] = 0; } } };
   const did = () => hvP.then(did0);
@@ -2557,7 +2598,10 @@ document.addEventListener("click", e => { const a = e.target.closest("[data-jump
 /* ---------------- 💵 WEEKLY $20 CHALLENGE: stars → exam → money ---------------- */
 const mondayOf = d => { const t = new Date(d + "T12:00"); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return t.toISOString().slice(0, 10); };
 // ⭐ same rule as private.week_stars: self-logged wins and ideas earn points but don't count toward the $20 goal (Bobby 11/25)
-const weekStars = (kid, wk) => (S.point_ledger || []).filter(r => r.kid === kid && r.date >= wk && r.date <= addDays(wk, 6) && !["spend", "carryover", "win", "idea"].includes(r.source)).reduce((a, r) => a + r.points, 0);
+const heldRefs = kid => new Set((S.integrity_flags || []).filter(f => f.kid === kid && f.status === "open").flatMap(f => f.refs || []));
+const weekStars = (kid, wk) => { const held = heldRefs(kid); return (S.point_ledger || []).filter(r => r.kid === kid && r.date >= wk && r.date <= addDays(wk, 6) && !["spend", "carryover", "win", "idea"].includes(r.source) && !held.has(r.ref)).reduce((a, r) => a + r.points, 0); };
+const heldPts = (kid, wk) => { const held = heldRefs(kid); return (S.point_ledger || []).filter(r => r.kid === kid && r.date >= wk && r.date <= addDays(wk, 6) && held.has(r.ref)).reduce((a, r) => a + r.points, 0); };
+window.fhSetting = (kid, key) => { const x = (S.integrity_settings || []).find(s => s.kid === kid && s.key === key); return x ? x.value : null; }; // read by the apps (e.g. min answer seconds)
 const CH = {
   en: { h: "Weekly $ challenge", stars: "Stars this week", goal: "goal", left: n => `${n} more stars to unlock the exam`, ready: "You reached your goal! Pass the exam to earn", take: "📝 Take the exam", cont: "▶ Continue the exam",
     rules: n => `${n} questions · you need 80% · a hint after every mistake · 2 tries`, passed: amt => `🎉 You passed! You earned $${amt} this week.`, paid: "Paid ✓", waiting: "Mom or Dad will pay you soon.",
@@ -2594,7 +2638,7 @@ function kidChallengeHtml(k) {
   else body = `<p class="meta">${L.left(st.goal - st.stars)} · ${L.days(daysLeft)}</p>`;
   const eb = { voxel: ["Earn it", "赚钱"], pixel: ["Weekly boss", "每周首领"] }[kiTheme()];
   return `<div class="kw-h">${eb ? `<span class="kw-eyebrow">${lang === "zh" ? eb[1] : eb[0]}</span>` : ""}<span class="kw-ht">${KI("coin", 28)} ${L.h.replace("$", "$" + amt)}</span>${st.last ? `<span class="tagc">${L.last}</span>` : ""}</div>
-    <div class="kw-card kch"><div class="chtop"><b>${L.stars}: ${st.stars} / ${st.goal}</b><span>${KI("star", 20)} ${pct}%</span></div><div class="chbar"><i style="width:${pct}%"></i></div>${body}</div>`;
+    <div class="kw-card kch"><div class="chtop"><b>${L.stars}: ${st.stars} / ${st.goal}</b><span>${KI("star", 20)} ${pct}%</span></div><div class="chbar"><i style="width:${pct}%"></i></div>${body}${(h => h > 0 ? `<p class="meta" style="margin-top:8px">⏸️ ${lang === "zh" ? `${h} 分暂时不算，等爸爸妈妈看一下（比如打卡和应用里的记录对不上，或者关卡中离开了页面）。` : `${h} points are on hold until a parent checks them (for example, a habit tap the apps couldn't see, or leaving the page during a checkpoint).`}</p>` : "")(heldPts(k.id, st.wk))}</div>`;
 }
 
 /* ----- the exam screen ----- */
