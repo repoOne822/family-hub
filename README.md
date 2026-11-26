@@ -7,3 +7,6 @@ A private family dashboard: daily check-ins for kids and parents, goals and a ru
 - The Supabase publishable key in `app.js` is designed to be public; it can't read data without an allowlisted, signed-in user.
 
 Static site: `index.html`, `app.js`, `i18n.js`, `style.css`. Served by GitHub Pages.
+
+**Operations:** see [RUNBOOK.md](RUNBOOK.md) — security model, tests (`npm test`), monitoring, backups, restore.
+**License:** proprietary, all rights reserved — see [LICENSE](LICENSE).

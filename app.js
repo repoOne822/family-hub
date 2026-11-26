@@ -7,6 +7,15 @@ import * as Pix from "./pixel.js?v=20261121r1";
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
 const SUPABASE_KEY = "sb_publishable_p10mMjAj6HvAC8lLx8vMlQ_-eaCNwSq"; // publishable key: safe in public code, RLS protects the data
 const sb = window.__SB_MOCK || createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+// 🩺 Error monitoring: uncaught errors (hub and the apps inside it) are saved for parents (public.client_errors; signed-in users only, capped per day)
+const errSeen = new Set();
+window.fhReportError = (page, msg, stack) => { const key = page + "|" + msg; if (!msg || errSeen.has(key) || errSeen.size > 30) return; errSeen.add(key);
+  try { sb.rpc("log_client_error", { p_page: String(page).slice(0, 120), p_msg: String(msg).slice(0, 400), p_stack: stack ? String(stack).slice(0, 2000) : null, p_ua: navigator.userAgent.slice(0, 200) }).then(() => {}, () => {}); } catch (e) {} };
+const errHook = (w, page) => { try {
+  w.addEventListener("error", e => { if (e.message) window.fhReportError(page(), e.message, e.error && e.error.stack); });
+  w.addEventListener("unhandledrejection", e => { const r = e.reason; const m = r && r.message || String(r); if (!/Failed to fetch|NetworkError|Load failed|AbortError/i.test(m)) window.fhReportError(page(), "unhandled: " + m, r && r.stack); });
+} catch (e) {} };
+errHook(window, () => "hub#" + (location.hash || "").slice(1, 40));
 
 /* ---------------- state ---------------- */
 let lang = "en";
@@ -977,7 +986,15 @@ async function viewFamily() {
   const kidUsers = (users || []).filter(u => u.role === "kid");
   const props = S.goals.filter(g => g.status === "proposed");
   const jByKid = id => S.journal.filter(j => j.kid === id).sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
+  // 🩺 System health (parents): app errors from everyone's devices, last 7 days (public.client_errors)
+  let errs = []; try { const r = await sb.from("client_errors").select("day,who,page,msg,n,last_at").gte("day", daysAgo(6)).order("last_at", { ascending: false }).limit(50); errs = r.data || []; } catch (e) {}
+  const zhE = lang === "zh", errTotal = errs.reduce((a, x) => a + x.n, 0);
+  const healthHtml = `<div class="coach" style="margin-bottom:16px"><h4>🩺 ${zhE ? "系统健康（过去 7 天）" : "System health (last 7 days)"}</h4>
+    ${errs.length ? `<p class="meta">${zhE ? `设备上出现了 ${errTotal} 次错误（${errs.length} 种）。截图发给 Claude 就能修。` : `${errTotal} error(s) on family devices (${errs.length} kinds). Send this to Claude to fix.`}</p>
+      <div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:13px;width:100%">${errs.slice(0, 12).map(x => `<tr><td style="padding:3px 6px;white-space:nowrap">${esc(x.day.slice(5))}</td><td style="padding:3px 6px">${esc(x.who.split("@")[0])}</td><td style="padding:3px 6px"><code>${esc(x.page)}</code></td><td style="padding:3px 6px">${esc(x.msg.slice(0, 120))}</td><td style="padding:3px 6px">×${x.n}</td></tr>`).join("")}</table></div>`
+      : `<p class="meta">✅ ${zhE ? "没有记录到错误。" : "No app errors recorded."}</p>`}</div>`;
   $("#view").innerHTML = `<div class="section-h"><h3>${t.familyTitle}</h3></div>
+    ${healthHtml}
     <div class="coach" style="margin-bottom:16px"><h4>👀 ${t.previewTitle}</h4><p class="meta">${t.previewHelp}</p>
       <div class="pvpick">${S.kids.map((k, i) => `<button data-pv="${esc(k.id)}" style="--kc:${KC[i % 3]}"><span class="av">${avatarHtml(k.avatar, 44)}</span><b>${esc(kidName(k.id))}</b><small>${t.viewHisPage}</small></button>`).join("")}</div></div>
     <div class="coach" style="margin-bottom:16px"><h4>🔑 ${t.myPassword}</h4><p class="meta">${t.myPasswordHelp} <b>${esc(S.user?.email || "")}</b></p>
@@ -1766,11 +1783,12 @@ function appTimeTrack(kid, cfg, fs) {
   const EV = ["pointerdown", "keydown", "wheel", "touchstart", "input", "scroll"];
   const hook = w => { try { EV.forEach(e => w.addEventListener(e, poke, { passive: true, capture: true })); } catch (e) {} };
   const ifr = fs.querySelector("iframe"); hook(window);
-  if (ifr) { ifr.addEventListener("load", () => { try { hook(ifr.contentWindow); } catch (e) {} }); try { if (ifr.contentWindow) hook(ifr.contentWindow); } catch (e) {} }
-  const flush = () => { const n = pend; pend = 0; if (n > 0) sb.rpc("log_app_time", { p_app: cfg.id, p_secs: n }).then(r => { if (r.error) pend += n; }); };
+  if (ifr) { ifr.addEventListener("load", () => { try { hook(ifr.contentWindow); errHook(ifr.contentWindow, () => "app:" + cfg.id); } catch (e) {} }); try { if (ifr.contentWindow) hook(ifr.contentWindow); } catch (e) {} }
+  const flush = () => { const n = pend; pend = 0; return n > 0 ? sb.rpc("log_app_time", { p_app: cfg.id, p_secs: n }).then(r => { if (r.error) pend += n; }) : Promise.resolve(); };
+  window.fhFlushTime = flush; // 🛡️ the server only pays app points that are backed by active time, so report time before each award
   const tick = setInterval(() => { if (!document.hidden && Date.now() - last < 90000) pend += 5; }, 5000);
   const fl = setInterval(flush, 60000);
-  return () => { clearInterval(tick); clearInterval(fl); EV.forEach(e => { try { window.removeEventListener(e, poke, true); } catch (x) {} }); flush(); idleSetApp("hub"); };
+  return () => { clearInterval(tick); clearInterval(fl); window.fhFlushTime = null; EV.forEach(e => { try { window.removeEventListener(e, poke, true); } catch (x) {} }); flush(); idleSetApp("hub"); };
 }
 const APP_NAMES = { amc: ["🏆 AMC 8", "🏆 AMC 8"], quest: ["⚔️ Realm of Forces", "⚔️ 力之境"], review: ["🔁 Look Back", "🔁 回顾"], space: ["🚀 Space Quest", "🚀 太空探险"], brain: ["🧠 Brain Park", "🧠 大脑乐园"], chinese: ["🐼 Panda Chinese", "🐼 熊猫中文"] };
 function appSubjName(kid, id) {
@@ -1782,6 +1800,7 @@ const hm = s => { const m = Math.round(s / 60); return m < 1 ? (s > 0 ? "<1m" : 
 /* ---- 🛡️ Fair play (Bobby 2026-11-25): the nightly integrity scan (public.integrity_scan) flags gaming patterns and HOLDS the points involved;
    held points don't count toward the $20 goal until a parent clears them. Repeated patterns tighten settings automatically for 14 days. ---- */
 const FP_RULE = {
+  history_rewritten: ["🧽", "Wrong answers erased from an app's history (older copy kept)", "应用记录里的错题被删掉了（旧版本已保存）"], journal_unchecked: ["🔤", "Journal saved without the spelling check", "日记保存时没有经过拼写检查"],
   habit_no_evidence: ["🧾", "Habit tapped, apps show no such work", "打卡了，但应用里没有记录"], habit_over_weekly: ["🔁", "Once-a-week habit tapped again", "每周一次的习惯又打卡了"],
   weekly_bonus_unsupported: ["🎯", "Weekly bonus without backed taps", "每周奖励缺少真实打卡"], away_in_checkpoint: ["🚪", "Left the page during a checkpoint", "关卡中离开了页面"],
   checkpoint_review: ["👀", "Checkpoint points waiting for a parent look", "关卡分数等家长查看"], win_before_exam: ["⏱️", "Win logged right before the $20 exam", "考试前刚记了一个成就"],
@@ -2660,10 +2679,15 @@ function kidTapIn() {
   const save = async () => { el.innerHTML = `<div class="thanks">⏳</div>`;
     if (preview) { el.innerHTML = `<div class="thanks">👀</div><h2>${t.previewNoSave}</h2>`; setTimeout(() => $("#kidMode").classList.remove("open"), 1600); return; }
     if (kt && Object.keys(kidTap.traits).length) { const r = await sb.rpc("kid_self_rate", { p_date: d, p_traits: kidTap.traits }); if (r.error) console.warn("self-rate", r.error.message); }
-    const { error } = await sb.rpc("kid_tapin", { p_date: d, p_mood: kidTap.mood, p_counts: kidTap.counts });
+    const { data: tapRes, error } = await sb.rpc("kid_tapin", { p_date: d, p_mood: kidTap.mood, p_counts: kidTap.counts });
     if (error) { el.innerHTML = `<h2>${t.cantSave}</h2>`; return; }
-    el.innerHTML = `<div class="thanks">🎉</div><h2>${t.thanks(esc(kidName(k.id)))}</h2>`; confetti();
-    setTimeout(async () => { $("#kidMode").classList.remove("open"); await loadAll(); kidRender(); }, 1400); };
+    // 🛡️ the database holds back habit taps the apps can't back up yet (e.g. AMC minutes not reached); say so kindly
+    const held = (tapRes && tapRes.held) || [], zhH = lang === "zh";
+    const heldHtml = held.length ? `<div class="meta" style="margin-top:10px">🔒 ${held.map(h => { const m = ms.find(x => x.id === h.habit), nm = m ? esc(lang === "zh" && m.kid_label_zh ? m.kid_label_zh : (m.kid_label || m.name)) : esc(h.habit);
+        return h.kind === "time" ? (zhH ? `${nm}：还差 ${Math.max(0, Math.ceil(h.need_min * 0.9 - h.have_min))} 分钟` : `${nm}: ${Math.max(0, Math.ceil(h.need_min * 0.9 - h.have_min))} more min needed`)
+          : h.kind === "weekly" ? (zhH ? `${nm}：这周已经打过卡了` : `${nm}: already done this week`) : (zhH ? `${nm}：先完成今天的回顾` : `${nm}: finish today's round first`); }).join(" · ")}</div>` : "";
+    el.innerHTML = `<div class="thanks">🎉</div><h2>${t.thanks(esc(kidName(k.id)))}</h2>${heldHtml}`; confetti();
+    setTimeout(async () => { $("#kidMode").classList.remove("open"); await loadAll(); kidRender(); }, held.length ? 4200 : 1400); };
   face();
 }
 
@@ -2685,7 +2709,6 @@ const CL = () => CALS[lang] || CALS.en;
 const KCOL = { eric: "var(--k0)", ellis: "var(--k1)", jonah: "var(--k2)" };
 const calCol = kid => kid ? (KCOL[kid] || "var(--sky)") : "var(--famc,#e9e9e4)";
 const calSt = { month: null, kid: "all", day: null, kmonth: null };
-const monthStart = d => d.slice(0, 8) + "01";
 const addMonths = (m, n) => { const [y, mo] = m.split("-").map(Number); const d = new Date(y, mo - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`; };
 const calTitle = e => lang === "zh" && e.title_zh ? e.title_zh : e.title;
 // every occurrence (one per day) of every item between from..to (inclusive), from the calendar table plus fencing history and lessons
@@ -2828,7 +2851,8 @@ window.fhBrainCheck = async (kid, res) => {
 window.fhAward = (app, ref, points, label, label_zh) => {
   if (!isKid() || preview) return;
   awardQ = awardQ.then(async () => {
-    try { const { data } = await sb.rpc("award_app_points", { p_app: app, p_ref: String(ref), p_points: Math.round(points), p_label: label, p_label_zh: label_zh || null });
+    try { if (window.fhFlushTime) await window.fhFlushTime().catch(() => {});
+      const { data } = await sb.rpc("award_app_points", { p_app: app, p_ref: String(ref), p_points: Math.round(points), p_label: label, p_label_zh: label_zh || null });
       if (data > 0) { const chip = document.createElement("div"); chip.className = "ptchip"; chip.textContent = `+${data} ⭐`; document.body.appendChild(chip); setTimeout(() => chip.remove(), 2200); awardsDirty = true; } } catch (e) {}
   });
 };

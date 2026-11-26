@@ -1,0 +1,27 @@
+name: Schema snapshot
+# Weekly: saves the database structure (no data) to supabase/schema.sql so it's versioned with the code.
+# Needs the secret SUPABASE_DB_URL. Refuses to run while the repo is public (the schema holds the scoring logic).
+on:
+  schedule: [{ cron: "23 12 * * 1" }]
+  workflow_dispatch:
+permissions: { contents: write }
+jobs:
+  dump:
+    if: github.event.repository.private == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dump schema
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          [ -n "$DB" ] || { echo "Add the SUPABASE_DB_URL secret first (RUNBOOK.md)"; exit 1; }
+          sudo apt-get -qq install -y postgresql-client-17 >/dev/null 2>&1 || sudo apt-get -qq install -y postgresql-client >/dev/null
+          pg_dump "$DB" --schema-only --no-owner --no-privileges --schema=public --schema=private > supabase/schema.sql
+          pg_dump "$DB" --data-only --table=cron.job --inserts 2>/dev/null | grep -i "insert" > supabase/cron-jobs.sql || true
+      - name: Commit if changed
+        run: |
+          git config user.name "schema-bot"; git config user.email "actions@users.noreply.github.com"
+          git add supabase/schema.sql supabase/cron-jobs.sql
+          git diff --cached --quiet || { git commit -m "Schema snapshot $(date -u +%F)"; git push; }

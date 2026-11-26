@@ -1,0 +1,39 @@
+name: Health check
+# Every 30 min: the site loads, and the database answers. On failure GitHub emails the repo owner
+# (Settings → Notifications → Actions) and an issue labelled "outage" is opened (closed again on recovery).
+on:
+  schedule: [{ cron: "7,37 * * * *" }]
+  workflow_dispatch:
+permissions: { contents: read, issues: write }
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe site and database
+        id: p
+        run: |
+          set +e
+          site=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://repoone822.github.io/family-hub/)
+          url=$(grep -o 'https://[a-z0-9]*\.supabase\.co' app.js | head -1)
+          key=$(grep -oE 'sb_publishable_[A-Za-z0-9_-]+' app.js | head -1)
+          db=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -H "apikey: $key" "$url/auth/v1/health")
+          echo "site=$site db=$db"
+          echo "summary=site HTTP $site · database HTTP $db" >> "$GITHUB_OUTPUT"
+          [ "$site" = "200" ] && [ "$db" = "200" ]
+      - name: Open outage issue
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const open = await github.rest.issues.listForRepo({ ...context.repo, labels: "outage", state: "open" });
+            if (!open.data.length) await github.rest.issues.create({ ...context.repo, title: "Family Hub is down", labels: ["outage"],
+              body: `Health check failed: ${{ steps.p.outputs.summary }}\n\nSee RUNBOOK.md → "Site or database down".` });
+      - name: Close outage issue on recovery
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const open = await github.rest.issues.listForRepo({ ...context.repo, labels: "outage", state: "open" });
+            for (const i of open.data) await github.rest.issues.update({ ...context.repo, issue_number: i.number, state: "closed" });
