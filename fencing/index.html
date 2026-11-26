@@ -2006,7 +2006,11 @@ function realCard(){
 function realWire(){
   document.querySelectorAll('#pdLevels [data-rd]').forEach(b=>b.onclick=()=>{const r=rdState(),k=evoToday()+'|'+b.dataset.rd;
     if(r.done[k]){delete r.done[k];store.set('rematchDrills',r);pdLevels();return}
-    r.done[k]=1;store.set('rematchDrills',r);addXP(10,'Real-life drill');
+    // 🛡️ Bobby 11/25 fair play: drills are self-report, so hub points come once per DAY (stable ref, server dedupes) and re-tapping a drill
+    // off and on pays nothing more. In-game XP once per drill per day. (Found: 6 drills claimed in 5 s at 10:51 PM, each paid.)
+    r.done[k]=1;r.xp=r.xp||{};const first=!r.xp[k];r.xp[k]=1;store.set('rematchDrills',r);
+    if(first){state.xp+=10;save();toast('Real-life drill  +10 XP')}
+    try{if(first&&window.parent!==window&&window.parent.fhAward)window.parent.fhAward('fencing','drill:'+evoToday(),3,'Fencing Brain: Real-life drill (today)','击剑大脑：今天的真实练习')}catch(e){}
     const c=Object.keys(r.done).filter(x=>x.endsWith('|'+b.dataset.rd)).length;toast(c>=3?'🌟 3 days this week: that drill is becoming a habit!':'💪 Drill logged. Real practice builds real skill!');pdLevels()});
 }
 function pdSkip(t){
