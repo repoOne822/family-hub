@@ -575,11 +575,19 @@ function cpBuild(l) {
   return out;
 }
 function checkpoint(i) {
-  const l = LES[i], list = cpBuild(l), ans = []; let k = 0, fast = 0; const t0 = Date.now();
+  const l = LES[i], list = cpBuild(l), ans = []; let k = 0, fast = 0, left = 0, hidAt = 0, over = false; const t0 = Date.now();
   setCtx({ screen: "test", lesson: l.id, test: true });
-  const draw = () => {
+  // 🔒 Bobby 11/25 "make sure there is no loopholes": (1) quitting halfway counts as a try (the cooldown starts now, cleared only by a pass);
+  // (2) leaving the page during a checkpoint (another tab, app, calculator, AI) voids that question; leaving twice ends the checkpoint.
+  const c0 = P.cp[l.id] = P.cp[l.id] || { tries: [] }; if (!PARENT && !c0.passed) { c0.failAt = Date.now(); save(); }
+  const onVis = () => { if (over || PARENT) return; if (document.hidden) { hidAt = Date.now(); return; } if (!hidAt || Date.now() - hidAt < 3000) { hidAt = 0; return; }
+    const away = Math.round((Date.now() - hidAt) / 1000); hidAt = 0; left++;
+    const voidQ = () => { const p = list[k]; ans.push({ j: -1, ok: false, secs: away, left: true }); track({ ts: Date.now(), d: today, m: "checkpoint", t: l.id, lv: p.level, s: away, total: away, ok: false, tr: 1, h: 0, left: 1, q: String(p.q).slice(0, 90) }); k++; };
+    if (left >= 2) { while (k < list.length) voidQ(); save(); finish(); } else { voidQ(); save(); if (k < list.length) draw(true); else finish(); } };
+  document.addEventListener("visibilitychange", onVis);
+  const draw = (warn) => {
     const p = list[k], shown = Date.now();
-    app.innerHTML = `<div class="top"><h1 style="font-size:22px">🏁 Checkpoint · ${esc(l.title)}</h1><span class="pill">${k + 1}/${list.length}</span></div>
+    app.innerHTML = `${warn ? `<div class="card" style="background:#ffe1e1;border-color:#e5484d;padding:10px 14px">🚪 <b>You left the page during the checkpoint</b>, so that question counts as wrong. Stay on this page until you finish. <b>Leaving again ends the checkpoint.</b></div>` : ""}<div class="top"><h1 style="font-size:22px">🏁 Checkpoint · ${esc(l.title)}</h1><span class="pill">${k + 1}/${list.length}</span></div>
       <div class="card"><div class="sub">${p.kind === "word" || p.kind === "why" ? "🧠 Understanding" : p.kind === "deep" ? "🔥 Deep problem" : "✏️ Apply it"} · no hints · think first, then answer</div>
       <p class="q" style="margin-top:12px;white-space:pre-line">${esc(p.q)}</p><div class="ch">${p.c.map((c, j) => `<button data-j="${j}"><span class="L">${LET[j]}</span><span>${esc(c)}</span></button>`).join("")}</div></div>`;
     app.querySelectorAll("[data-j]").forEach(b => b.onclick = () => {
@@ -593,9 +601,10 @@ function checkpoint(i) {
     });
   };
   const finish = () => {
+    over = true; document.removeEventListener("visibilitychange", onVis);
     const score = ans.filter(a => a.ok).length, deepOk = list.some((p, n) => p.kind === "deep" && ans[n].ok), pass = score >= CPC.pass && (!CPC.deep || deepOk);
     const ni = (() => { const k = MYCH.indexOf(l.id); return k >= 0 && k < MYCH.length - 1 ? LES.findIndex(x => x.id === MYCH[k + 1]) : -1; })(); // next chapter in HIS plan
-    const c = P.cp[l.id] = P.cp[l.id] || { tries: [] }; c.tries.push({ d: today, score, of: list.length, secs: Math.round((Date.now() - t0) / 1000), fast });
+    const c = P.cp[l.id] = P.cp[l.id] || { tries: [] }; c.tries.push({ d: today, score, of: list.length, secs: Math.round((Date.now() - t0) / 1000), fast, left });
     c.best = Math.max(c.best || 0, score);
     if (pass) { c.passed = today; c.score = score; c.of = list.length; delete c.failAt; if (!PARENT) { hubAward(`cp:${l.id}`, CPC.pts, `AMC checkpoint passed: ${l.title}`, `AMC 关卡通过：${l.zh}`); if (score === list.length) hubAward(`cp10:${l.id}`, CPC.bonus, `AMC checkpoint perfect: ${l.title}`, `AMC 关卡满分：${l.zh}`); } confetti(); }
     else c.failAt = Date.now();
@@ -603,7 +612,7 @@ function checkpoint(i) {
     app.innerHTML = `<div class="card" style="text-align:center"><div style="font-size:60px">${pass ? "🏁" : "🌱"}</div><h2>${score}/${list.length}${pass ? " · Checkpoint passed!" : ""}</h2>
       <p>${pass ? `+${CPC.pts} points${score === list.length ? ` +${CPC.bonus} perfect bonus` : ""}. ${ni >= 0 ? `Lesson ${LES[ni].n}: ${esc(LES[ni].title)} is now open.` : "That was the last chapter in your plan!"}` : `You need ${CPC.pass}/${list.length}${CPC.deep && !deepOk ? " and at least one 🔥 deep problem" : ""}. Read every solution below, practice in the ♾️ gym, and try again in ${CPC.cool >= 60 ? CPC.cool / 60 + " hour" : CPC.cool + " minutes"} with new problems.`}</p></div>
       <div class="card"><div class="q">Every question, with the full solution</div>${list.map((p, n) => `<div class="move" style="border-top:2px dashed #ddd;padding:10px 0"><b>${ans[n].ok ? "✅" : "❌"}</b><div style="flex:1;min-width:0"><div class="mm" style="white-space:pre-line">${esc(p.q)}</div>
-        <div class="sub">You: ${LET[ans[n].j]}. ${esc(p.c[ans[n].j])} · Answer: ${LET[p.a]}. ${esc(p.c[p.a])}</div>${!ans[n].ok ? `<div class="why">${(p.steps || []).map(st => esc(st)).join("<br>")}${p.trap ? `<br>⚠️ ${esc(p.trap)}` : ""}</div>` : ""}</div></div>`).join("")}
+        <div class="sub">You: ${ans[n].left ? "🚪 left the page" : `${LET[ans[n].j]}. ${esc(p.c[ans[n].j])}`} · Answer: ${LET[p.a]}. ${esc(p.c[p.a])}</div>${!ans[n].ok ? `<div class="why">${(p.steps || []).map(st => esc(st)).join("<br>")}${p.trap ? `<br>⚠️ ${esc(p.trap)}` : ""}</div>` : ""}</div></div>`).join("")}
         <div class="row"><span class="spacer"></span><button class="btn go" id="cpDone">${pass && ni >= 0 ? `Go to Lesson ${LES[ni].n} →` : "← Back to the lesson"}</button></div></div>`;
     $("#cpDone").onclick = () => pass && ni >= 0 ? lesson(ni, 0) : lesson(i, 4);
   };

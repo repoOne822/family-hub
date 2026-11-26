@@ -177,19 +177,26 @@ function codeCheck(c) {
   const qs = window.ROBO_CP ? ROBO_CP.make(c.id, RCP.n, new Set(S.cpAsked)) : [];
   if (qs.length < RCP.n) { app.innerHTML = header("🏁 Code check", c.title) + `<div class="card">Couldn't make enough new questions right now. Try again later.</div>`; wireHeader(() => chapter(c)); return; }
   S.cpAsked.push(...qs.map(q => q.key)); if (S.cpAsked.length > 3000) S.cpAsked = S.cpAsked.slice(-3000); save(); window.__lastCP = qs;
-  const res = []; let k = 0; const t0 = Date.now();
+  const res = []; let k = 0, left = 0, hidAt = 0, over = false, warn = false; const t0 = Date.now();
+  // 🔒 Bobby 11/25: starting counts as a try; leaving the page makes the question on screen wrong, leaving twice ends the check
+  if (!PARENT) { const x0 = S.cp[c.id] = S.cp[c.id] || { tries: [] }; if (!x0.passed) { x0.failAt = Date.now(); save(); } }
+  const onVis = () => { if (over || PARENT) return; if (document.hidden) { hidAt = Date.now(); return; } if (!hidAt || Date.now() - hidAt < 3000) { hidAt = 0; return; } hidAt = 0; left++;
+    const voidOne = () => { res.push({ j: -1, ok: false }); S.log.push({ ts: Date.now(), d: today(), id: c.id + "cp", ok: false, secs: 0, cp: 1, left: 1 }); k++; };
+    if (left >= 2) { while (k < qs.length) voidOne(); save(); finish(); } else { voidOne(); save(); warn = true; k < qs.length ? draw() : finish(); } };
+  document.addEventListener("visibilitychange", onVis);
   const draw = () => {
     const q = qs[k], shown = Date.now();
-    app.innerHTML = header(`🏁 Code check · ${esc(c.title)} · ${k + 1}/${qs.length}`, c.title) + `
+    app.innerHTML = header(`🏁 Code check · ${esc(c.title)} · ${k + 1}/${qs.length}`, c.title) + `${warn ? `<div class="card" style="background:#ffe1e1">🚪 <b>You left the page during the code check</b>, so that question counts as wrong. <b>Leaving again ends it.</b></div>` : ""}
       <div class="goal">🔮 Read the code. Don't run it! Think like the robot, one line at a time.</div>
       <div class="lvl"><div><div style="overflow-x:auto"><div id="wv"></div></div></div>
       <div><div class="codebox">${hlCode(q.code)}</div><h3 style="margin:12px 0 4px">${esc(q.q)}</h3>
         <div class="choices">${q.c.map((t, i) => `<button data-a="${i}">${String.fromCharCode(65 + i)}. ${esc(t)}</button>`).join("")}</div></div></div>`;
-    wireHeader(() => chapter(c)); makeView($("#wv"), q.map, 34);
+    warn = false; wireHeader(() => { over = true; document.removeEventListener("visibilitychange", onVis); chapter(c); }); makeView($("#wv"), q.map, 34);
     app.querySelectorAll("[data-a]").forEach(b => b.onclick = () => { const j = +b.dataset.a, ok = j === q.a, secs = Math.round((Date.now() - shown) / 1000);
       res.push({ j, ok }); S.log.push({ ts: Date.now(), d: today(), id: c.id + "cp", ok, secs, cp: 1 }); save(); k++; k < qs.length ? draw() : finish(); });
   };
   const finish = () => {
+    if (over) return; over = true; document.removeEventListener("visibilitychange", onVis);
     const score = res.filter(r => r.ok).length, pass = score >= RCP.pass, x = S.cp[c.id] = S.cp[c.id] || { tries: [] }, nx = CH[CH.indexOf(c) + 1];
     x.tries = x.tries || []; x.tries.push({ d: today(), score, secs: Math.round((Date.now() - t0) / 1000) }); x.best = Math.max(x.best || 0, score);
     if (pass) { x.passed = today(); x.score = score; delete x.failAt; if (!PARENT) { hubAward(`cp:${c.id}`, RCP.pts, `Robot Lab code check passed: ${c.title}`, `机器人实验室关卡通过：${c.title}`); if (score === RCP.n) hubAward(`cp10:${c.id}`, RCP.bonus, `Robot Lab code check perfect: ${c.title}`, `机器人实验室关卡满分：${c.title}`); } confetti(); }
@@ -198,7 +205,7 @@ function codeCheck(c) {
     app.innerHTML = header(`🏁 Code check · ${esc(c.title)}`, c.title) + `<div class="card" style="text-align:center"><div style="font-size:56px">${pass ? "🏁" : "🌱"}</div><h2>${score}/${qs.length}${pass ? " · Passed!" : ""}</h2>
       <p>${pass ? `+${RCP.pts} points${score === RCP.n ? ` +${RCP.bonus} perfect` : ""}. ${nx ? `Chapter ${nx.n}: ${esc(nx.title)} is open!` : "You finished the last chapter!"}` : `You need ${RCP.pass}/${RCP.n}. Read every answer below, then try again in ${RCP.cool} minutes with brand-new questions.`}</p></div>
       <div class="card">${qs.map((q, n) => `<div style="border-top:2px dashed #ddd;padding:10px 0"><b>${res[n].ok ? "✅" : "❌"} ${esc(q.q)}</b><div class="codebox" style="margin:6px 0">${hlCode(q.code)}</div>
-        <div class="sub">You: ${esc(q.c[res[n].j])} · Answer: <b>${esc(q.c[q.a])}</b></div>${res[n].ok ? "" : `<div class="sub">💡 ${esc(q.why)}</div>`}</div>`).join("")}
+        <div class="sub">You: ${res[n].j < 0 ? "🚪 left the page" : esc(q.c[res[n].j])} · Answer: <b>${esc(q.c[q.a])}</b></div>${res[n].ok ? "" : `<div class="sub">💡 ${esc(q.why)}</div>`}</div>`).join("")}
         <div class="row"><button class="btn go" id="cpBack">${pass && nx ? `Go to Chapter ${nx.n} →` : "← Back to the chapter"}</button></div></div>`;
     wireHeader(() => chapter(c)); $("#cpBack").onclick = () => pass && nx ? chapter(nx) : chapter(c);
   };

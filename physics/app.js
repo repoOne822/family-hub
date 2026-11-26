@@ -208,9 +208,14 @@ function cpRun(i) {
   $("#cpGo").onclick = () => {
     const qs = cpBuild(l); if (qs.length < 10) { box.innerHTML = `<div class="card"><div class="q">Not enough new questions yet</div><p class="sub">This unit has run out of questions you haven't had in a checkpoint. Keep practicing; parents can add more.</p></div>`; return; }
     P.cpAsked.push(...qs.map(q => keyQ(q.q))); if (P.cpAsked.length > 4000) P.cpAsked = P.cpAsked.slice(-4000); save(); window.__lastCP = qs;
+    // 🔒 Bobby 11/25: starting counts as a try (quitting doesn't dodge the wait); each time he leaves the page costs one question; leaving twice fails it
+    if (!PARENT) { const c0 = P.cp[l.id] = P.cp[l.id] || { tries: [] }; c0.failAt = Date.now(); save(); }
+    let left = 0, hidAt = 0, over = false; const onVis = () => { if (over || PARENT) return; if (document.hidden) { hidAt = Date.now(); return; } if (hidAt && Date.now() - hidAt >= 3000) { left++; alert(left >= 2 ? "You left the checkpoint page twice, so this checkpoint won't pass. Finish it to see the answers." : "You left the checkpoint page, so one question counts as wrong. Stay on this page until you finish. Leaving again means it can't pass."); } hidAt = 0; };
+    document.addEventListener("visibilitychange", onVis);
     testRun({ title: `🏁 Checkpoint · ${l.title}`, qs, secs: 20 * 60, box, mode: "checkpoint", done: res => {
-      const score = res.score, deepOk = qs.some((q, j) => q.kind === "deep" && res.ans[j] === q.a), pass = score >= 8 && deepOk;
-      const r = P.cp[l.id] = P.cp[l.id] || { tries: [] }; r.tries = r.tries || []; r.tries.push({ d: today, score, secs: res.secs }); r.best = Math.max(r.best || 0, score);
+      over = true; document.removeEventListener("visibilitychange", onVis);
+      const score = Math.max(0, res.score - left), deepOk = qs.some((q, j) => q.kind === "deep" && res.ans[j] === q.a), pass = score >= 8 && deepOk && left < 2;
+      const r = P.cp[l.id] = P.cp[l.id] || { tries: [] }; r.tries = r.tries || []; r.tries.push({ d: today, score, secs: res.secs, left }); r.best = Math.max(r.best || 0, score);
       if (pass) { r.passed = today; r.score = score; delete r.failAt; if (!PARENT) { hubAward(`cp:${l.id}`, 30, `Physics checkpoint passed: ${l.title}`, `物理关卡通过：${l.zh}`); if (score === 10) hubAward(`cp10:${l.id}`, 5, `Physics checkpoint perfect: ${l.title}`, `物理关卡满分：${l.zh}`); } }
       else r.failAt = Date.now();
       save();

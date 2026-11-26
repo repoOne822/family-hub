@@ -2221,7 +2221,19 @@ const HABIT_VERIFY = {
   ellis: { selfAfter: 17,
     "ellis-amc-practice": { kind: "amc", min: 25 },      // 25+ active AMC minutes today
     "ellis-fencing-game": { kind: "duel", n: 1 },        // 1+ Piste Duel bout today in the fencing app
-    "ellis-journal": { kind: "journal" } }               // today's journal saved
+    "ellis-journal": { kind: "journal" } },
+  // 🔒 Eric (Bobby 11/25 "make sure there is no loopholes"): he was tapping all 9 habits every day, including Physics and Look Back on days
+  // the apps show no Physics or Look Back at all, and once-a-week habits (Sunday planner, chunking, Onshape) every day.
+  eric: { selfAfter: 17,
+    "eric-amc-practice": { kind: "time", apps: ["amc"], min: 30, name: "AMC" },
+    "eric-physics-sessions": { kind: "time", apps: ["physics", "quest"], min: 12, name: "Physics / Realm of Forces" },
+    "eric-lookback": { kind: "lookback" },
+    "eric-review": { kind: "time", apps: ["review", "chem", "bio", "prealg", "english", "latin", "history"], min: 10, name: "Look Back + class practice" },
+    "eric-rehearsal": { kind: "time", apps: ["chem", "bio", "prealg", "english", "latin", "history", "physics"], min: 20, name: "class practice" },
+    "eric-planner": { kind: "week", max: 1, days: [0, 6] },  // once a week, Sat/Sun only
+    "eric-chunk": { kind: "week", max: 1 },
+    "eric-onshape": { kind: "week", max: 1 },
+    "eric-launchpad": { kind: "after" } }               // today's journal saved
 };
 const parseMaybe = x => { if (typeof x === "string") { try { return JSON.parse(x); } catch (e) { return null; } } return x; };
 async function duelsToday(kid) {
@@ -2231,8 +2243,18 @@ async function duelsToday(kid) {
   try { local = n(JSON.parse(localStorage.getItem(`${kid}_perfLog`) || "null")); } catch (e) {}
   return Math.max(db, local);
 }
+async function appMinToday(kid, apps) { try { const { data } = await sb.from("app_time").select("app,secs").eq("kid", kid).eq("date", dayStr()); return Math.floor((data || []).filter(x => apps.includes(x.app)).reduce((a, x) => a + x.secs, 0) / 60); } catch (e) { return 0; } }
+async function lookBackDone(kid) { const d = dayStr(), ok = P => !!(P && P.days && P.days[d] && P.days[d].done); let a = false, b = false;
+  try { const { data } = await sb.from("app_saves").select("data").eq("kid", kid).eq("app", "review").maybeSingle(); a = ok(data && data.data ? data.data[`${kid}_review_progress`] : null); } catch (e) {}
+  try { b = ok(JSON.parse(localStorage.getItem(`${kid}_review_progress`) || "null")); } catch (e) {} return a || b; }
+async function habitWeekCount(kid, id) { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); const mon = d.toLocaleDateString("en-CA");
+  try { const { data } = await sb.from("point_ledger").select("ref,date").eq("kid", kid).eq("source", "habit").gte("date", mon).like("ref", `habit:${id}:%`); return (data || []).filter(x => x.date !== dayStr()).length; } catch (e) { return 0; } }
 async function habitCheck(kid, r, R) {
   const zh = lang === "zh";
+  if (r.kind === "time") { const m = await appMinToday(kid, r.apps); return m >= r.min ? { ok: true, kind: "time", why: zh ? `🤖 今天 ${m} 分钟` : `🤖 ${m} active min today` } : { ok: false, kind: "time", why: zh ? `需要 ${r.min} 分钟（今天 ${m}）` : `Needs ${r.min} active min in ${r.name} (today: ${m})` }; }
+  if (r.kind === "lookback") { const ok = await lookBackDone(kid); return ok ? { ok: true, kind: "lookback", why: zh ? "🤖 今天的回顾已完成" : "🤖 Today's Look Back is done" } : { ok: false, kind: "lookback", why: zh ? "先完成今天的 12 道回顾题" : "Finish today's 12 Look Back questions first" }; }
+  if (r.kind === "week") { const dow = new Date().getDay(); if (r.days && !r.days.includes(dow)) return { ok: false, kind: "week", why: zh ? "只能在周末打卡" : "Only on Saturday or Sunday" };
+    const n = await habitWeekCount(kid, r.id); return n >= r.max ? { ok: false, kind: "week", why: zh ? "这周已经打过卡了" : "Already done this week" } : { ok: true, kind: "after" }; }
   if (r.kind === "amc") { const m = Math.floor(await amcDaySec(kid) / 60); return m >= r.min ? { ok: true, kind: "amc", why: zh ? `🤖 AMC 今天 ${m} 分钟` : `🤖 ${m} active AMC min today` } : { ok: false, kind: "amc", why: zh ? `需要 AMC ${r.min} 分钟（今天 ${m}）` : `Needs ${r.min} active AMC min (today: ${m})` }; }
   if (r.kind === "duel") { const n = await duelsToday(kid); return n >= r.n ? { ok: true, kind: "duel", why: zh ? `🤖 今天 ${n} 场 Piste Duel` : `🤖 ${n} Piste Duel bout${n > 1 ? "s" : ""} today` } : { ok: false, kind: "duel", why: zh ? "在击剑应用里打 1 场 Piste Duel" : "Play 1 Piste Duel bout in the fencing app" }; }
   if (r.kind === "journal") { const j = jToday(kid); return j ? { ok: true, kind: "journal", why: zh ? "🤖 今天的日记已写" : "🤖 Today's journal is saved" } : { ok: false, kind: "journal", why: zh ? "先写今天的日记" : "Write today's journal first" }; }
@@ -2270,7 +2292,7 @@ function kidTapIn() {
   const hv = {}; // metric id -> { ok, why }
   const hvLoad = async () => { const R = HABIT_VERIFY[k.id]; if (!R || preview) return;
     for (const m of ms) { const r = R[m.id] || (R.selfAfter != null && !R[m.id] ? { kind: "after" } : null); if (!r) continue;
-      try { hv[m.id] = await habitCheck(k.id, r, R); } catch (e) { hv[m.id] = { ok: true }; }
+      try { hv[m.id] = await habitCheck(k.id, Object.assign({ id: m.id }, r), R); } catch (e) { hv[m.id] = { ok: true }; }
       if (r.kind !== "after") { if (hv[m.id].ok) kidTap.counts[m.id] = Math.max(1, kidTap.counts[m.id] || 0); else if (!(kidTap.counts[m.id] > 0)) kidTap.counts[m.id] = 0; } } };
   const did = () => hvP.then(did0);
   const did0 = () => { const zh = lang === "zh"; el.innerHTML = `<h2>${t.whatDidYouDo}</h2><div class="meta" style="text-align:center;margin-top:-10px;margin-bottom:12px">${t.tapAll}</div><div class="chips">${ms.map(m => { const n = kidTap.counts[m.id] || 0, mx = m.kid_max || 1, v = hv[m.id], auto = v && v.kind !== "after", lock = v && !v.ok && !n; return `<button class="chipbtn ${n ? "on" : ""}" data-m="${esc(m.id)}" ${auto || lock ? "disabled" : ""} style="${lock ? "opacity:.55" : ""}"><span>${esc(mKidLabel(m))}${v && v.why ? `<small style="display:block;font-weight:400;font-size:12px;opacity:.85">${esc(v.why)}</small>` : ""}</span><span class="ct">${n ? (mx > 1 ? "✓".repeat(n) : "✓") : lock ? "🔒" : ""}</span></button>`; }).join("")}</div>${Object.values(hv).some(v => v.kind !== "after") ? `<div class="meta" style="text-align:center;margin:8px 0">${zh ? "🤖 有的习惯会根据应用里的记录自动打勾。" : "🤖 Some habits check themselves from what you did in the apps."}</div>` : ""}<button class="go" id="kidSave">${t.doneBtn}</button>`;
@@ -2534,7 +2556,8 @@ document.addEventListener("click", e => { const a = e.target.closest("[data-jump
 
 /* ---------------- 💵 WEEKLY $20 CHALLENGE: stars → exam → money ---------------- */
 const mondayOf = d => { const t = new Date(d + "T12:00"); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return t.toISOString().slice(0, 10); };
-const weekStars = (kid, wk) => (S.point_ledger || []).filter(r => r.kid === kid && r.date >= wk && r.date <= addDays(wk, 6) && r.source !== "spend" && r.source !== "carryover").reduce((a, r) => a + r.points, 0);
+// ⭐ same rule as private.week_stars: self-logged wins and ideas earn points but don't count toward the $20 goal (Bobby 11/25)
+const weekStars = (kid, wk) => (S.point_ledger || []).filter(r => r.kid === kid && r.date >= wk && r.date <= addDays(wk, 6) && !["spend", "carryover", "win", "idea"].includes(r.source)).reduce((a, r) => a + r.points, 0);
 const CH = {
   en: { h: "Weekly $ challenge", stars: "Stars this week", goal: "goal", left: n => `${n} more stars to unlock the exam`, ready: "You reached your goal! Pass the exam to earn", take: "📝 Take the exam", cont: "▶ Continue the exam",
     rules: n => `${n} questions · you need 80% · a hint after every mistake · 2 tries`, passed: amt => `🎉 You passed! You earned $${amt} this week.`, paid: "Paid ✓", waiting: "Mom or Dad will pay you soon.",
@@ -2577,7 +2600,7 @@ function kidChallengeHtml(k) {
 /* ----- the exam screen ----- */
 let EXS = null; // {id, attempt, qs, prog, i, kid, wk}
 const loadScript = src => new Promise((res, rej) => { if (document.querySelector(`script[data-src="${src}"]`)) return res(); const s = document.createElement("script"); s.src = src; s.dataset.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
-async function examBanks() { const v = "?v=20261121u1"; await Promise.all(["physics/lessons.js", "quest/gen.js", "amc/lessons.js", "exam/banks.js"].map(s => loadScript(s + v))); await loadScript("exam/exam.js" + v); }
+async function examBanks() { const v = "?v=20261125xl1"; await Promise.all(["physics/lessons.js", "quest/gen.js", "amc/lessons.js", "exam/banks.js", "amc/gym.js", "physics/gen.js"].map(s => loadScript(s + v))); await Promise.all(["amc/gym2.js", "exam/exam.js"].map(s => loadScript(s + v))); }
 const speak = txt => { try { if (!window.speechSynthesis || !txt) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(txt); u.rate = .9; u.lang = "en-US"; speechSynthesis.speak(u); } catch (e) {} };
 async function startExam(attempt) {
   const k = S.kids[0], L = CHL(); if (preview) return setStatus(T().previewNoSave);
@@ -2588,11 +2611,13 @@ async function startExam(attempt) {
     let qs;
     const existing = st.ex.find(e => e.attempt === attempt && e.status === "in_progress");
     if (!existing) {
-      if (attempt === 1) { const { data: saves } = await sb.from("app_saves").select("app,data").eq("kid", k.id); const ph = (saves || []).find(s => s.app === "physics"); qs = EXAM.buildTry1(k.id, saves || [], { physicsClassNow: ph && ph.data && ph.data[`${k.id}_physics_progress`] && ph.data[`${k.id}_physics_progress`].classNow }); }
-      else { const e1 = st.ex.find(e => e.attempt === 1); const missed = e1.questions.filter((q, i) => !(e1.progress[i] || {}).firstOk).map(q => q.topic), passedT = e1.questions.filter((q, i) => (e1.progress[i] || {}).firstOk).map(q => q.topic); qs = EXAM.buildTry2(k.id, missed, passedT); }
+      const { data: saves } = await sb.from("app_saves").select("app,data").eq("kid", k.id); // 🔒 questions he has already seen (apps + every earlier exam) are skipped
+      const prevQs = (S.weekly_exams || []).filter(e => e.kid === k.id).flatMap(e => (e.questions || []).map(q => q.q));
+      if (attempt === 1) { const ph = (saves || []).find(s => s.app === "physics"); qs = EXAM.buildTry1(k.id, saves || [], { prevQs, physicsClassNow: ph && ph.data && ph.data[`${k.id}_physics_progress`] && ph.data[`${k.id}_physics_progress`].classNow }); }
+      else { const e1 = st.ex.find(e => e.attempt === 1); const missed = e1.questions.filter((q, i) => !(e1.progress[i] || {}).firstOk).map(q => q.topic), passedT = e1.questions.filter((q, i) => (e1.progress[i] || {}).firstOk).map(q => q.topic); qs = EXAM.buildTry2(k.id, missed, passedT, saves || [], prevQs); }
     }
     const { data, error } = await sb.rpc("exam_start", { p_week: st.wk, p_attempt: attempt, p_questions: qs || [] }); if (error) throw error;
-    EXS = { id: data.id, attempt, qs: data.questions, prog: data.progress, i: Math.max(0, data.progress.findIndex(p => !p.done)), kid: k.id, ov, fb: null };
+    EXS = { id: data.id, attempt, qs: data.questions, prog: data.progress, i: Math.max(0, data.progress.findIndex(p => !p.done)), kid: k.id, ov, fb: null, left: 0 };
     if (EXS.i < 0) EXS.i = EXS.qs.length; renderExam();
   } catch (err) { ov.remove(); setStatus(err.message, true); }
 }
@@ -2605,13 +2630,22 @@ function renderExam() {
   const fbHtml = !fb ? "" : fb.correct ? `<div class="exfb ok">${L.right}${fb.why ? `<div class="why">${esc(fb.why)}</div>` : ""}</div>`
     : fb.done ? `<div class="exfb no">${L.answerIs} <b>${esc(fb.answer || "")}</b>${fb.why ? `<div class="why">${esc(fb.why)}</div>` : ""}</div>`
     : `<div class="exfb hint">${L.hint}: ${esc(fb.hint)}<div class="meta">${L.again}</div></div>`;
-  box.innerHTML = `<div class="exbox ${little ? "little" : ""}"><div class="exhead"><b>${KI("coin", 22)} ${lang === "zh" ? `第 ${E.attempt} 次` : `Try ${E.attempt}`} · ${L.q(E.i + 1, E.qs.length)}</b><button class="btn sm ghost" data-exclose>${L.close}</button></div>
+  const warn = E.warn ? `<div class="exfb no" style="margin-bottom:10px">🚪 ${lang === "zh" ? "你离开了考试页面，所以那道题算错。请一直留在这个页面直到做完。<b>再离开一次，考试就结束。</b>" : "You left the exam page, so that question counts as wrong. Stay on this page until you finish. <b>Leaving again ends the exam.</b>"}</div>` : ""; E.warn = false;
+  box.innerHTML = `<div class="exbox ${little ? "little" : ""}">${warn}<div class="exhead"><b>${KI("coin", 22)} ${lang === "zh" ? `第 ${E.attempt} 次` : `Try ${E.attempt}`} · ${L.q(E.i + 1, E.qs.length)}</b><button class="btn sm ghost" data-exclose>${L.close}</button></div>
     <div class="exdots">${dots}</div>${q.topicName ? `<div class="extopic">${esc(q.topicName)}</div>` : ""}
     <div class="exq">${esc(q.q)}</div>${little || q.tts ? `<button class="btn sm" data-exsay>${L.listen}</button>` : ""}
     ${input}${fbHtml}${fb && (fb.done || fb.correct) ? `<div class="exnext"><button class="btn primary" data-exnext>${E.i === E.qs.length - 1 ? L.finish : L.next}</button></div>` : ""}</div>`;
   if (!fb && (little || q.tts)) speak(q.tts || q.q);
   const inp = box.querySelector("#exIn"); if (inp && !(fb && fb.done)) { inp.focus(); inp.onkeydown = e => { if (e.key === "Enter") box.querySelector("#exGo").click(); }; }
 }
+/* 🔒 Bobby 11/25 "make sure there is no loopholes": the $20 exam can't be closed or left to look things up.
+   Leaving the page (another tab or app) or closing the exam counts the current question as wrong. Leaving a second time ends the exam. */
+async function examVoid(E) { const p = E.prog[E.i] || {}; if (!E || E.i >= E.qs.length || p.done) return;
+  for (let t = 0; t < 2; t++) { const { data, error } = await sb.rpc("exam_answer", { p_id: E.id, p_idx: E.i, p_answer: "__left__" }); if (error) break; E.prog[E.i] = Object.assign({}, E.prog[E.i], { tries: (E.prog[E.i].tries || 0) + 1, done: data.done, firstOk: (E.prog[E.i].tries || 0) === 0 ? false : E.prog[E.i].firstOk, left: true }); if (data.done) break; } }
+let exHidAt = 0;
+document.addEventListener("visibilitychange", async () => { const E = EXS; if (!E || preview || E.kid === "jonah" || !document.body.contains(E.ov)) return; // Jonah (5) is exempt
+  if (document.hidden) { exHidAt = Date.now(); return; } if (!exHidAt || Date.now() - exHidAt < 3000) { exHidAt = 0; return; } exHidAt = 0; E.left = (E.left || 0) + 1;
+  try { if (E.left >= 2) { while (E.i < E.qs.length) { await examVoid(E); E.i++; } E.fb = null; renderExam(); return; } await examVoid(E); E.i++; E.fb = null; E.warn = true; renderExam(); } catch (e) { setStatus(e.message, true); } });
 async function examAnswer(ans) {
   const E = EXS; try {
     const { data, error } = await sb.rpc("exam_answer", { p_id: E.id, p_idx: E.i, p_answer: String(ans) }); if (error) throw error;
@@ -2646,7 +2680,9 @@ document.addEventListener("click", e => {
   const rv = t.closest("[data-exreview]"); if (rv) return examReview(rv.dataset.exreview);
   if (t.closest("[data-exdone]")) { document.querySelectorAll(".exov").forEach(o => o.remove()); EXS = null; try { speechSynthesis.cancel(); } catch (x) {} if (document.body.classList.contains("kidmode")) kidRender(); return; }
   if (!EXS) return;
-  if (t.closest("[data-exclose]")) { EXS.ov.remove(); EXS = null; try { speechSynthesis.cancel(); } catch (x) {} loadAll().then(kidRender); return; }
+  if (t.closest("[data-exclose]")) { const E = EXS, open = E && E.kid !== "jonah" && E.i < E.qs.length && !(E.prog[E.i] || {}).done && !preview;
+    if (open && !confirm(lang === "zh" ? "现在关闭，这道题会算错。确定关闭吗？" : "If you close now, this question counts as wrong. Close anyway?")) return;
+    (open ? examVoid(E) : Promise.resolve()).finally(() => { E.ov.remove(); EXS = null; try { speechSynthesis.cancel(); } catch (x) {} loadAll().then(kidRender); }); return; }
   if (t.closest("[data-exsay]")) { const q = EXS.qs[EXS.i]; return speak(q.tts || q.q); }
   if (t.closest("[data-exnext]")) { EXS.i++; EXS.fb = null; return renderExam(); }
   const c = t.closest("[data-exc]"); if (c) return examAnswer(c.dataset.exc);

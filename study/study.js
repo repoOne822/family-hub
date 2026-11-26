@@ -229,20 +229,31 @@ function run(set, mode) {
   if (!set.length) return home();
   const again = [], shownQ = new Set(), first0 = () => i < n1; let n1 = set.length, i = 0, ok1 = 0;
   const test = mode.kind === "test";
+  // 🔒 Bobby 11/25 "make sure there is no loopholes": in a checkpoint, quitting counts as a try (the 1-hour wait starts now; a pass clears it),
+  // and leaving the page (another tab, app, AI, calculator) makes the question on screen wrong. Leaving twice ends the checkpoint.
+  let cur = null, left = 0, hidAt = 0, over = false, warn = false;
+  if (mode.cp && !PARENT) { const c0 = P.cp[mode.u] = P.cp[mode.u] || {}; if (!c0.passed) { c0.failAt = Date.now(); save(); } }
+  const onVis = () => { if (!mode.cp || over || PARENT) return; if (document.hidden) { hidAt = Date.now(); return; } if (!hidAt || Date.now() - hidAt < 3000) { hidAt = 0; return; }
+    hidAt = 0; left++; const voidOne = (it, first) => record(it, false, first, { m: "cp", left: 1 });
+    if (cur && !cur.done) { cur.done = true; voidOne(cur.it, cur.first); }
+    if (left >= 2) { while (i < n1) { voidOne(set[i], true); i++; } finish(); } else { warn = true; next(); } };
+  if (mode.cp) document.addEventListener("visibilitychange", onVis);
   const next = () => {
     if (i >= set.length && again.length && !test) set.push(...again.splice(0));
     if (i >= set.length) return finish();
     let it = set[i], q = ask(it); for (let t = 0; t < 6 && shownQ.has(q.q) && first0(); t++) q = ask(it); // never the same wording twice in one set
     if (first0() && shownQ.has(q.q) && it.kind === "mc" && i + 1 < n1) { set.splice(i, 1); n1--; return next(); } shownQ.add(q.q);
-    const first = i < n1, rep = it.kind === "mc" && recentRight(it), shownAt = Date.now(); i++;
+    const first = i < n1, rep = it.kind === "mc" && recentRight(it), shownAt = Date.now(); i++; cur = { it, first, done: false };
     const unit = C.units.find(u => u.id === it.u);
     const needUnit = q.num && q.unit && q.units && q.units.length > 1;
-    app.innerHTML = `<div class="top"><h1>${test ? "📝" : "✏️"} ${Math.min(i, n1)}/${n1}${first ? "" : " · " + L("again", "再来")}</h1><button class="btn" id="quit">✕</button></div>
+    const warnHtml = warn ? `<div class="card" style="background:#ffe1e1;border-color:#e5484d;padding:10px 14px">🚪 ${L("<b>You left the page during the checkpoint</b>, so that question counts as wrong. Stay here until you finish. <b>Leaving again ends the checkpoint.</b>", "<b>你在关卡中离开了页面</b>，那道题算错。请留在这里直到做完。<b>再离开一次，关卡就结束。</b>")}</div>` : ""; warn = false;
+    app.innerHTML = warnHtml + `<div class="top"><h1>${test ? "📝" : "✏️"} ${Math.min(i, n1)}/${n1}${first ? "" : " · " + L("again", "再来")}</h1><button class="btn" id="quit">✕</button></div>
       <div class="card"><div class="sub">${esc(unit ? (zh ? unit.zh : unit.name) : "")}${it.f ? " · 🎯 " + L("from a test", "考试错题") : ""}${mode.cp ? " · 🏁 " + L("Checkpoint", "关卡") : ""}</div><div class="q" style="white-space:pre-line">${esc(q.q)}</div>
       ${q.num ? `<div class="numrow"><input id="ans" inputmode="decimal" autocomplete="off" placeholder="${L("answer", "答案")}">${needUnit ? `<select id="unit">${shuffle(q.units).map(u => `<option>${esc(u)}</option>`).join("")}</select>` : ""}<button class="btn go" id="sub">${L("Check", "检查")}</button></div>` :
         `<div class="opts">${q.c.map((c, j) => `<button class="opt" data-j="${j}">${"ABCD"[j]}. ${esc(c)}</button>`).join("")}</div>`}<div id="fb"></div></div>`;
-    $("#quit").onclick = home;
+    $("#quit").onclick = () => { over = true; document.removeEventListener("visibilitychange", onVis); home(); };
     const resolve = (ok, why) => {
+      if (cur && cur.done) return; if (cur) cur.done = true;
       const fast = Date.now() - shownAt < 4000;
       record(it, ok, first, { s: Math.round((Date.now() - shownAt) / 1000), rep: rep || (it.kind === "mc" && !first), m: mode.cp ? "cp" : mode.kind === "test" ? "test" : "prac", q: q.q }); if (first && ok) { ok1++; /* no per-question points: points only from 🏁 checkpoints */ void rep; void fast; }
       if (!ok && first && !test) again.push(it);
@@ -255,6 +266,7 @@ function run(set, mode) {
     else app.querySelectorAll(".opt").forEach(b => b.onclick = () => { const j = +b.dataset.j; app.querySelectorAll(".opt").forEach(x => { x.disabled = true; if (+x.dataset.j === q.a) x.classList.add("right"); }); if (j !== q.a) b.classList.add("wrong"); resolve(j === q.a); });
   };
   const finish = () => {
+    if (over) return; over = true; document.removeEventListener("visibilitychange", onVis);
     P.days[today] = (P.days[today] || 0) + 1;
     if (test) P.tests.push({ u: mode.u, d: today, score: ok1, n: n1, cp: mode.cp ? 1 : 0 });
     let cpMsg = "";

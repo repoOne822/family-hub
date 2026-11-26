@@ -106,7 +106,7 @@ function run(scored) {
     const needUnit = q.num && q.unit && q.units && q.units.length > 1;
     app.innerHTML = `<div class="top"><h1>🔁 ${Math.min(i, n1)}/${n1}${first ? "" : " · again"}</h1><button class="btn" id="quit">✕</button></div>
       <div class="card"><div class="sub">${esc(name)}${it.f ? " · 🎯 from a test" : ""}</div><div class="q">${esc(q.q)}</div>
-      ${q.num ? `<div class="numrow"><input id="ans" inputmode="decimal" autocomplete="off" placeholder="answer">${needUnit ? `<select id="unit">${shuffle(q.units).map(u => `<option>${esc(u)}</option>`).join("")}</select>` : ""}<button class="btn go" id="sub">Check</button></div>` :
+      ${(warn = false, "")}${q.num ? `<div class="numrow"><input id="ans" inputmode="decimal" autocomplete="off" placeholder="answer">${needUnit ? `<select id="unit">${shuffle(q.units).map(u => `<option>${esc(u)}</option>`).join("")}</select>` : ""}<button class="btn go" id="sub">Check</button></div>` :
         `<div class="opts">${q.c.map((c, j) => `<button class="opt" data-j="${j}">${"ABCD"[j]}. ${esc(c)}</button>`).join("")}</div>`}<div id="fb"></div></div>`;
     $("#quit").onclick = home;
     const resolve = (ok, why) => {
@@ -153,11 +153,17 @@ function cpRun() {
   const qs = cpBuild();
   if (qs.length < 10) { app.innerHTML = `<div class="card"><h2>Not enough new questions yet</h2><p class="sub">You've had almost every question in a checkpoint already. Parents can add more.</p><button class="btn" id="hm">Back</button></div>`; $("#hm").onclick = home; return; }
   P.cpAsked.push(...qs.map(q => keyQ(q.q))); if (P.cpAsked.length > 4000) P.cpAsked = P.cpAsked.slice(-4000); save(); window.__lastCP = qs;
-  const res = []; let i = 0;
+  const res = []; let i = 0, left = 0, hidAt = 0, over = false, warn = false;
+  // 🔒 Bobby 11/25: starting counts as a try; leaving the page makes the question on screen wrong, leaving twice ends the checkpoint
+  if (!PARENT) { const c0 = P.cp[weekOf()] = P.cp[weekOf()] || {}; if (!c0.passed) { c0.failAt = Date.now(); save(); } }
+  const onVis = () => { if (over || PARENT) return; if (document.hidden) { hidAt = Date.now(); return; } if (!hidAt || Date.now() - hidAt < 3000) { hidAt = 0; return; } hidAt = 0; left++;
+    const voidOne = () => { const q = qs[i]; record(q.it, false, true); res.push({ ok: false, given: "🚪 left the page" }); i++; };
+    if (left >= 2) { while (i < qs.length) voidOne(); finish(); } else { voidOne(); warn = true; i < qs.length ? draw() : finish(); } };
+  document.addEventListener("visibilitychange", onVis);
   const draw = () => {
     const q = qs[i], it = q.it, name = TOPICS[it.t] ? `${ICON[subjOf(it)]} ${subjOf(it)} · ${TOPICS[it.t][1]}` : "";
     const needUnit = q.num && q.unit && q.units && q.units.length > 1;
-    app.innerHTML = `<div class="top"><h1>🏁 ${i + 1}/10</h1></div><div class="card"><div class="sub">${esc(name)} · no hints</div><div class="q">${esc(q.q)}</div>
+    app.innerHTML = `${warn ? `<div class="card" style="background:#ffe1e1">🚪 <b>You left the page during the checkpoint</b>, so that question counts as wrong. <b>Leaving again ends it.</b></div>` : ""}<div class="top"><h1>🏁 ${i + 1}/10</h1></div><div class="card"><div class="sub">${esc(name)} · no hints</div><div class="q">${esc(q.q)}</div>
       ${q.num ? `<div class="numrow"><input id="ans" inputmode="decimal" autocomplete="off" placeholder="answer">${needUnit ? `<select id="unit">${shuffle(q.units).map(u => `<option>${esc(u)}</option>`).join("")}</select>` : ""}<button class="btn go" id="sub">Next</button></div>`
         : `<div class="opts">${q.c.map((c, j) => `<button class="opt" data-j="${j}">${"ABCD"[j]}. ${esc(c)}</button>`).join("")}</div>`}</div>`;
     const done = (ok, given) => { record(it, ok, true); res.push({ ok, given }); i++; i < qs.length ? draw() : finish(); };
@@ -165,6 +171,7 @@ function cpRun() {
     else document.querySelectorAll(".opt").forEach(b => b.onclick = () => done(+b.dataset.j === q.a, q.c[+b.dataset.j]));
   };
   const finish = () => {
+    if (over) return; over = true; document.removeEventListener("visibilitychange", onVis);
     const score = res.filter(r => r.ok).length, pass = score >= 8, c = P.cp[weekOf()] = P.cp[weekOf()] || {}; c.best = Math.max(c.best || 0, score);
     if (pass) { c.passed = today; c.score = score; delete c.failAt; if (!PARENT) { award(`cp:wk:${weekOf()}`, 30, "Look Back weekly checkpoint passed", "回顾每周关卡通过"); if (score === 10) award(`cp10:wk:${weekOf()}`, 5, "Look Back checkpoint perfect", "回顾关卡满分"); } }
     else c.failAt = Date.now();

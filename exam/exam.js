@@ -54,6 +54,19 @@ function jonahQ(topic) {
 }
 const JONAH_TOPICS = ["add", "sub", "count", "compare", "tens", "time", "coins", "shape", "rhyme", "first"];
 
+/* ---------- 🔒 never-seen questions (Bobby 11/25: Eric's $20 exam had 5 of 12 questions he had already answered, up to 11 times) ---------- */
+const keyQ = q => String(q || "").replace(/\s+/g, " ").trim().toLowerCase().slice(0, 80);
+function seenKeys(saves, kid, prevQs) {
+  const out = new Set(), get = (app, key) => { const r = saves.find(s => s.app === app); return r && r.data ? r.data[key] : null; };
+  const a = get("amc", `${kid}_amc_progress`); if (a && a.events) a.events.forEach(x => x.q && out.add(keyQ(x.q)));
+  const p = get("physics", `${kid}_physics_progress`); if (p && p.events) p.events.forEach(x => x.q && out.add(keyQ(x.q)));
+  const qz = get("quest", `${kid}_quest_save`); if (qz && qz.log) qz.log.forEach(x => x.q && out.add(keyQ(x.q)));
+  (prevQs || []).forEach(q => out.add(keyQ(q)));
+  return out;
+}
+let SEEN = new Set();
+const fresh = q => !SEEN.has(keyQ(q));
+
 /* ---------- what he practiced this week (from his app saves) ---------- */
 function practiced(saves, kid) {
   const wk = weekStart(), out = {};
@@ -71,17 +84,23 @@ function forTopic(topic, level, used) {
   for (let tries = 0; tries < 6; tries++) {
     let q;
     if (topic.startsWith("g:") && window.QGEN && window.QGEN.GEN[topic.slice(2)]) q = genQ(topic.slice(2), Math.min(3, level));
-    else if (topic.startsWith("phy:")) { const b = phyBank(topic.slice(4), level >= 3).filter(x => !used.has(x.q)); if (b.length) q = mcFrom(pick(b), topic, phyName(topic.slice(4))); }
-    else if (topic.startsWith("amc:")) { const b = amcBank(topic.slice(4), level >= 3).filter(x => !used.has(x.q)); if (b.length) q = mcFrom(pick(b), topic, amcName(topic.slice(4))); }
+    else if (topic.startsWith("phy:")) { const id = topic.slice(4), b = phyBank(id, level >= 3).filter(x => !used.has(x.q) && fresh(x.q));
+      if (b.length && Math.random() < .5) q = mcFrom(pick(b), topic, phyName(id));
+      else if (window.PHY_GEN) { const g = PHY_GEN.make(id, Math.min(5, level + 1)); if (g && g.c && g.c.length >= 3) q = mcFrom(g, topic, phyName(id)); }
+      if (!q && b.length) q = mcFrom(pick(b), topic, phyName(id)); }
+    else if (topic.startsWith("amc:")) { const id = topic.slice(4); // freshly generated AMC problems (never memorized warm-ups); the fixed bank only if a problem is new to him
+      if (window.AMC_GYM && AMC_GYM.makeAt) { const g = AMC_GYM.makeAt(id, level >= 3 ? 4 : level + 1); if (g && g.c && g.c.length >= 4) q = mcFrom(g, topic, amcName(id)); }
+      if (!q) { const b = amcBank(id, level >= 3).filter(x => !used.has(x.q) && fresh(x.q)); if (b.length) q = mcFrom(pick(b), topic, amcName(id)); } }
     else if (topic.startsWith("fen:")) q = fenQ(topic.slice(4), used);
     else if (topic.startsWith("j:")) q = jonahQ(topic.slice(2));
-    if (q && !used.has(q.q)) { used.add(q.q); return q; }
+    if (q && !used.has(q.q) && (fresh(q.q) || tries >= 5)) { used.add(q.q); return q; }
   }
   return null;
 }
 
 /* ---------- try 1 ---------- */
 function buildTry1(kid, saves, cfg) {
+  SEEN = seenKeys(saves, kid, cfg && cfg.prevQs);
   const used = new Set(), out = [], add = q => q && out.push(q);
   if (kid === "jonah") { shuffle(JONAH_TOPICS).concat(shuffle(JONAH_TOPICS)).slice(0, 8).forEach(t => add(forTopic("j:" + t, 1, used))); return out; }
   const w = practiced(saves, kid);
@@ -93,7 +112,7 @@ function buildTry1(kid, saves, cfg) {
     const pw = k => Object.fromEntries(Object.entries(w).filter(([t]) => k(t)));
     weighted(pw(t => t.startsWith("phy:")), 3, phyMC).forEach(t => add(forTopic(t, 2, used)));
     weighted(pw(t => t.startsWith("g:")), 5, gens).forEach(t => add(forTopic(t, 2, used)));
-    weighted(pw(t => t.startsWith("amc:")), 4, amc).forEach(t => add(forTopic(t, 2, used)));
+    weighted(pw(t => t.startsWith("amc:")), 4, amc).forEach(t => add(forTopic(t, 3, used)));
   } else { // ellis: his AMC chapters + fencing knowledge
     const mine = [1, 2, 4, 5, 7, 9, 12, 13, 14], amc = (window.AMC_LESSONS || []).filter(l => mine.includes(l.n)).map(l => "amc:" + l.id);
     weighted(Object.fromEntries(Object.entries(w).filter(([t]) => t.startsWith("amc:"))), 6, amc).forEach(t => add(forTopic(t, 1, used)));
@@ -104,7 +123,8 @@ function buildTry1(kid, saves, cfg) {
 }
 
 /* ---------- try 2: built from the mistakes, in depth ---------- */
-function buildTry2(kid, missed, passedTopics) {
+function buildTry2(kid, missed, passedTopics, saves, prevQs) {
+  if (saves) SEEN = seenKeys(saves, kid, prevQs);
   const used = new Set(), out = [], topics = [...new Set(missed)].slice(0, 5), per = topics.length <= 2 ? 4 : 3;
   topics.forEach(t => { for (let i = 0; i < per; i++) { const q = forTopic(t, kid === "jonah" ? 1 : Math.min(3, 1 + i), used); if (q) out.push(Object.assign(q, { focus: true })); } }); // easy → hard within each missed topic
   shuffle([...new Set(passedTopics)]).slice(0, 2).forEach(t => { const q = forTopic(t, 2, used); if (q) out.push(q); });
