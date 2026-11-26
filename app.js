@@ -1569,9 +1569,9 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261124s2${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261125b1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
-  const stopCoach = (isKid() && !preview && cfg.id !== "space") ? playCoach(kid, fs) : () => {};
+  const stopCoach = (isKid() && !preview && (cfg.id !== "space" || kid === "jonah")) ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
   const stopTime = appTimeTrack(kid, cfg, fs);
   appOpen = async () => { stopCoach(); stopMix(); stopTime(); window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
@@ -1657,7 +1657,7 @@ function timePanel(kid) {
 }
 /* ---- 🔀 Game mix (Bobby 2026-11-21): don't spend all the time on one game. Once he has played 15+ min today,
    no single game may take more than 65% of today's game time; it rests until he plays his other games a bit. Kids only, not previews. ---- */
-const GAMEMIX = { jonah: { share: 0.65, after: 15 } };
+const GAMEMIX = { jonah: { share: 0.7, after: 25 } };
 const GM_NAME = { space: ["🚀 Space Quest", "🚀 太空探险"], brain: ["🧠 Brain Park", "🧠 大脑乐园"], chinese: ["🐼 Panda Chinese", "🐼 熊猫中文"] };
 const gmName = (kid, id) => { const n = GM_NAME[id]; if (n) return n[lang === "zh" ? 1 : 0]; const s = S.subjects.find(x => x.kid === kid && APPS[x.app_url] && APPS[x.app_url].id === id); return s ? `${s.icon || ""} ${lang === "zh" && s.name_zh ? s.name_zh : s.name}` : id; };
 function gmApps(kid) { return [...new Set(S.subjects.filter(x => x.kid === kid && x.active && x.app_url && APPS[x.app_url]).map(x => x.app_url))]; }
@@ -1701,7 +1701,8 @@ function gameMixTrack(kid, cfg, fs) {
   return () => clearInterval(tick);
 }
 /* ---- 🧘 Play & break coach: wraps every hub game for the boys (Space Quest has its own) ---- */
-const COACH = { jonah: { play: 20, rest: 5, call: true }, eric: { play: 30, rest: 5 }, ellis: { play: 30, rest: 5 } };
+/* Bobby 2026-11-25: fewer breaks for Jonah — one shared timer for ALL his games (Space Quest included), 30 min play then 5 min break. */
+const COACH = { jonah: { play: 30, rest: 5, call: true }, eric: { play: 30, rest: 5 }, ellis: { play: 30, rest: 5 } };
 const COACH_MOVES = { en: ["Do 10 jumping jacks 🤸", "Stretch up to the ceiling 10 times 🙆", "Get a drink of water 💧", "Look out the window at something far away 👀", "Do 5 slow squats 🏋️", "Take 5 big slow breaths 🌬️", "Walk around the house once 🚶", "Shake out your arms and legs 💃"],
   zh: ["做10个开合跳 🤸", "向上伸展10次 🙆", "去喝一杯水 💧", "看看窗外远处的东西 👀", "慢慢做5个深蹲 🏋️", "做5次慢慢的深呼吸 🌬️", "在家里走一圈 🚶", "甩甩胳膊和腿 💃"] };
 /* 📣 Come back after the break (Bobby 2026-11-21): screen stays awake during the break; at the end a chime + voice call,

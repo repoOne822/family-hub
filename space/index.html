@@ -889,7 +889,9 @@ function naturalBreak(){if(S.lastPlay&&Date.now()-S.lastPlay>=(+S.rest||5)*60000
 function timerOff(){if(tick){clearInterval(tick);tick=null;save()}}
 const minutesToday=()=>Math.floor(day().sec/60);
 const onBreak=()=>Date.now()<(S.breakUntil||0);
-const sessionOver=()=>{naturalBreak();return onBreak()||(S.playSec||0)>=(+S.block||20)*60};
+/* Bobby 2026-11-25: too many breaks — inside the Family Hub one shared play/break timer covers all of Jonah's games, so Space Quest's own timer only runs when opened on its own. */
+const IN_HUB=window.top!==window;
+const sessionOver=()=>{if(IN_HUB)return false;naturalBreak();return onBreak()||(S.playSec||0)>=(+S.block||20)*60};
 const BREAKS2=[["🚀","Do 10 rocket jumps"],["🛸","Fly around the room like a spaceship"],["⭐","Stretch up to the stars 10 times"],["🐸","Hop like a frog 10 times"],["💧","Get a drink of water"],["🧑‍🚀","Do 5 astronaut squats"],["👀","Look out the window at something far away"],["🌬️","Take 5 big rocket breaths"],["🦩","Stand on one foot like a flamingo"],["🐻","Walk like a bear across the room"]];
 const BREAKS=["Do 10 rocket jumps 🚀","Fly around the room like a spaceship 🛸","Stretch up to the stars 10 times ⭐","Hop like a frog 10 times 🐸","Get a drink of water 💧","Do 5 astronaut squats 🧑‍🚀"];
 let bkTick=null;
