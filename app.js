@@ -174,7 +174,19 @@ async function boot() {
   if (!S.user) { siStage = "landing"; return renderLanding(); }
   try { await loadMe(); } catch (e) { S.me = null; }
   if (!S.me) { $("#root").innerHTML = `<div class="signin"><p>${T().notListed}</p><button class="btn" id="soBtn">${T().signOut}</button></div>`; $("#soBtn").onclick = () => sb.auth.signOut(); return; }
-  if (S.me.role === "learner") { location.replace("abby/"); return; } // 📖 adult English learner (Abby) has her own page
+  if (S.me.role === "learner") { // 📖 adult English learner (Abby) has her own page
+    // Bobby 2026-11-26: "any link I entered redirects to Abby's page". Only a plain visit goes to her page; a link with #page, or
+    // coming back from her page, shows a choice so a parent can sign out of Abby's account on a shared browser.
+    if (!location.hash && !/[?&]hub=1/.test(location.search)) { location.replace("abby/"); return; }
+    const zh = lang === "zh";
+    $("#root").innerHTML = `<div class="signin" style="max-width:460px;margin:60px auto;text-align:center"><div style="font-size:54px">📖</div>
+      <h2>${zh ? "这台设备现在登录的是 Abby 的英语学习账号" : "This browser is signed in to Abby's English account"}</h2>
+      <p class="meta">${zh ? "家长页面（比如“一眼看懂”）需要用家长账号登录。" : "Parent pages (like At a glance) need a parent account."}</p>
+      <div style="display:grid;gap:10px;margin-top:16px"><a class="btn primary" href="abby/">📖 ${zh ? "去 Abby 的英语" : "Go to Abby's English"}</a>
+      <button class="btn" id="soLearner">🔑 ${zh ? "退出，用家长账号登录" : "Sign out and sign in as a parent"}</button></div></div>`;
+    $("#soLearner").onclick = async () => { try { await sb.auth.signOut(); } catch (e) {} try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {} location.reload(); };
+    return;
+  }
   if (isKid()) return kidBoot();
   renderShell(); setStatus(T().loading);
   try { await loadAll(); setStatus(""); route(); }
@@ -208,6 +220,7 @@ const PICON = {
 const pIcon = n => `<svg class="pico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PICON[n] || ""}</svg>`;
 const NAVGROUPS = [[null, ["glance", "today", "calendar", "rewards"]], [{ en: "Kids", zh: "孩子" }, ["dashboard", "learning", "brain", "subjects", "roadmap", "performance", "feedback"]], [{ en: "Records", zh: "记录" }, ["log", "plans", "reports"]], [{ en: "Home", zh: "家庭" }, ["family"]]];
 const TABS = ["glance", "today", "dashboard", "rewards"];
+const parentHome = () => { try { return localStorage.getItem("fh_parent_home") || "today"; } catch (e) { return "today"; } };
 function renderShell() {
   const t = T(), zh = lang === "zh", lk = (r, cls = "") => `<a href="#${r}" data-r="${r}" class="${cls}">${pIcon(r)}<span>${r === "dashboard" && cls.includes("tab") ? (zh ? "孩子" : "Kids") : navLabel(r)}</span></a>`;
   const tools = `<button class="pside-btn" id="langBtn">${pIcon("globe")}<span>${lang === "en" ? "中文" : "English"}</span></button>
@@ -217,8 +230,8 @@ function renderShell() {
     <aside class="pside"><div class="brand"><span class="dotlogo">✦</span>${t.appTitle}</div>
       <nav class="pnav">${NAVGROUPS.map(([g, rs]) => `${g ? `<div class="pgrp">${zh ? g.zh : g.en}</div>` : ""}${rs.map(r => lk(r)).join("")}`).join("")}</nav>
       <div class="ptools">${tools}</div></aside>
-    <header class="pbar"><div class="brand"><span class="dotlogo">✦</span><span id="pgTitle">${t.appTitle}</span></div><button class="pbar-lang" id="langBtn2">${lang === "en" ? "中文" : "EN"}</button></header>
-    <main class="pmain"><div class="wrap"><div class="status" id="status"></div><div id="view"></div></div></main>
+    <header class="pbar"><a class="pbar-lang" id="homeBtn2" href="#${parentHome()}" style="text-decoration:none;margin-right:6px" aria-label="${zh ? "首页" : "Home"}">🏠</a><div class="brand"><span class="dotlogo">✦</span><span id="pgTitle">${t.appTitle}</span></div><button class="pbar-lang" id="langBtn2">${lang === "en" ? "中文" : "EN"}</button></header>
+    <main class="pmain"><div class="wrap"><a class="phome" href="#${parentHome()}">🏠 ${zh ? "首页" : "Home"}</a><div class="status" id="status"></div><div id="view"></div></div></main>
     <nav class="ptabs">${TABS.map(r => lk(r, "tab")).join("")}<button class="tab" id="moreBtn" aria-expanded="false">${pIcon("more")}<span>${zh ? "更多" : "More"}</span></button></nav>
     <div class="psheet-bg" id="moreSheet" hidden><div class="psheet" role="dialog" aria-label="${zh ? "更多" : "More"}"><div class="psheet-grab"></div>
       <div class="psheet-grid">${ROUTES.filter(r => !TABS.includes(r)).map(r => lk(r, "sheet")).join("")}</div>
@@ -240,6 +253,7 @@ function route() {
   if (!ROUTES.includes(h) && h !== "doc") h = "today";
   const onR = h === "doc" ? (S.docs.find(d => d.slug === doc)?.section === "report" ? "reports" : "plans") : h;
   document.querySelectorAll("[data-r]").forEach(a => a.classList.toggle("on", a.dataset.r === onR));
+  document.querySelectorAll(".phome,#homeBtn2").forEach(a => { a.href = "#" + parentHome(); a.style.visibility = onR === parentHome() ? "hidden" : ""; });
   const mb = $("#moreBtn"); if (mb) mb.classList.toggle("on", !TABS.includes(onR));
   if ($("#pgTitle")) $("#pgTitle").textContent = navLabel(onR); window.scrollTo(0, 0);
   const waiting = (S.redemptions || []).filter(r => r.status === "requested").length; // badge: reward requests waiting for a parent
@@ -1793,7 +1807,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261126bp1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">🏠 ${lang === "zh" ? "首页" : "Home"}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261126hm1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && !cfg.free && (cfg.id !== "space" || kid === "jonah")) ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
