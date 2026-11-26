@@ -506,7 +506,7 @@ function lesson(i, step, mode) {
   if (step === 3) examples(l, i);
   if (step === 4) {
     app.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => lesson(i, 4, b.dataset.mode));
-    if ($("#cpGo")) $("#cpGo").onclick = () => checkpoint(i);
+    if ($("#cpGo")) $("#cpGo").onclick = () => { if ($("#cpWhy")) { const why = $("#cpWhy").value.trim(); if (why.split(/\s+/).filter(Boolean).length < 4) { $("#cpWhyMsg").textContent = " Write at least 4 words about what went wrong."; $("#cpWhy").focus(); return; } const c = P.cp[l.id], t = c.tries[c.tries.length - 1]; t.why = why.slice(0, 200); save(); } checkpoint(i); };
     if (mode === "real") { realList(l); return; }
     if (mode === "gym") practice([gymNext(l)].map(p => ({ ...p, from: l })), i, "gym");
     else practice((mode === "challenge" ? l.ch : l.pr).map(p => ({ ...p, from: l })), i, mode);
@@ -528,12 +528,15 @@ function lockedCard(i) {
   $("#back").onclick = home; if ($("#goPrev")) $("#goPrev").onclick = () => lesson(LES.indexOf(prev), 4);
 }
 const cpWait = id => { const c = P.cp[id]; if (!c || c.passed || !c.failAt) return 0; return Math.max(0, c.failAt + CPC.cool * 60e3 - Date.now()); };
+// ✍️ Bobby 11/25: a retake needs one line on what went wrong (at least 4 words), saved with the try
+const cpNeedsWhy = id => { if (PARENT) return false; const c = P.cp[id]; return !!(c && !c.passed && (c.tries || []).length && !(c.tries[c.tries.length - 1] || {}).why); };
+const CP_MIN_SECS = 4; // ⏱️ Bobby 11/25: checkpoint answers faster than this don't count ("Read it again")
 function cpBanner(i) {
   const l = LES[i], c = P.cp[l.id] || {}, w = cpWait(l.id), read = readOf(l.id) >= 3 || PARENT;
   const best = c.best != null ? ` · best ${c.best}/${CPC.n}` : "";
   if (cpPassed(l.id)) return `<div class="card" style="background:#e3fbe9;padding:12px 16px">🏁 <b>Checkpoint passed</b> on ${c.passed} (${c.score}/${c.of || CPC.n}). ${i < LES.length - 1 ? `Lesson ${LES[i + 1].n} is open.` : ""}</div>`;
   return `<div class="card" style="padding:12px 16px;border-color:#ff5aa5"><b>🏁 Checkpoint</b>: ${CPC.n} new problems, no hints. Pass with ${CPC.pass}/${CPC.n}${CPC.deep ? " (and 1 of the 2 deep problems)" : ""} to unlock the next chapter and earn <b>${CPC.pts} points</b>${best}.<br>
-    ${!read ? `<span class="sub">Finish steps 1–4 of the lesson first.</span>` : w ? `<span class="sub">⏳ Review your mistakes, then try again in ${Math.ceil(w / 60000)} min (with new problems).</span>` : `<button class="btn go" id="cpGo" style="margin-top:8px">🏁 Take the checkpoint</button>`}</div>`;
+    ${!read ? `<span class="sub">Finish steps 1–4 of the lesson first.</span>` : w ? `<span class="sub">⏳ Review your mistakes, then try again in ${Math.ceil(w / 60000)} min (with new problems).</span>` : cpNeedsWhy(l.id) ? `<div style="margin-top:8px"><b>✍️ Before you retake it:</b> what went wrong last time? <span class="sub">(one line, e.g. "I rushed the sequence questions")</span><br><input id="cpWhy" maxlength="200" style="width:100%;padding:8px;margin-top:6px;border-radius:10px;border:2px solid #ddd;font:inherit" placeholder="Last time I..."><button class="btn go" id="cpGo" style="margin-top:8px">🏁 Take the checkpoint</button><span class="sub" id="cpWhyMsg"></span></div>` : `<button class="btn go" id="cpGo" style="margin-top:8px">🏁 Take the checkpoint</button>`}</div>`;
 }
 const seenQ = q => P.events.some(e => e.q === String(q).slice(0, 90));
 // 🚫 Never the same (Bobby 11/23): the 10 questions are all different (different wording AND, where possible, different problem types),
@@ -572,7 +575,7 @@ function cpBuild(l) {
   return out;
 }
 function checkpoint(i) {
-  const l = LES[i], list = cpBuild(l), ans = []; let k = 0; const t0 = Date.now();
+  const l = LES[i], list = cpBuild(l), ans = []; let k = 0, fast = 0; const t0 = Date.now();
   setCtx({ screen: "test", lesson: l.id, test: true });
   const draw = () => {
     const p = list[k], shown = Date.now();
@@ -580,7 +583,11 @@ function checkpoint(i) {
       <div class="card"><div class="sub">${p.kind === "word" || p.kind === "why" ? "🧠 Understanding" : p.kind === "deep" ? "🔥 Deep problem" : "✏️ Apply it"} · no hints · think first, then answer</div>
       <p class="q" style="margin-top:12px;white-space:pre-line">${esc(p.q)}</p><div class="ch">${p.c.map((c, j) => `<button data-j="${j}"><span class="L">${LET[j]}</span><span>${esc(c)}</span></button>`).join("")}</div></div>`;
     app.querySelectorAll("[data-j]").forEach(b => b.onclick = () => {
-      const j = +b.dataset.j, secs = Math.round((Date.now() - shown) / 1000); ans.push({ j, ok: j === p.a, secs });
+      const ms = Date.now() - shown;
+      if (!PARENT && ms < CP_MIN_SECS * 1000) { // too fast to have read it: doesn't count, read again
+        fast++; let tip = app.querySelector("#cpFast"); if (!tip) { tip = document.createElement("div"); tip.id = "cpFast"; tip.className = "card"; tip.style.cssText = "background:#fff4d6;border-color:#f5b800;padding:10px 14px"; app.appendChild(tip); }
+        tip.innerHTML = "👀 <b>Read it again.</b> That was too fast to count. Read the whole question, think, then pick."; return; }
+      const j = +b.dataset.j, secs = Math.round(ms / 1000); ans.push({ j, ok: j === p.a, secs });
       track({ ts: Date.now(), d: today, m: "checkpoint", t: l.id, lv: p.level, s: secs, total: secs, ok: j === p.a, tr: 1, h: 0, q: String(p.q).slice(0, 90) });
       k++; save(); if (k < list.length) draw(); else finish();
     });
@@ -588,7 +595,7 @@ function checkpoint(i) {
   const finish = () => {
     const score = ans.filter(a => a.ok).length, deepOk = list.some((p, n) => p.kind === "deep" && ans[n].ok), pass = score >= CPC.pass && (!CPC.deep || deepOk);
     const ni = (() => { const k = MYCH.indexOf(l.id); return k >= 0 && k < MYCH.length - 1 ? LES.findIndex(x => x.id === MYCH[k + 1]) : -1; })(); // next chapter in HIS plan
-    const c = P.cp[l.id] = P.cp[l.id] || { tries: [] }; c.tries.push({ d: today, score, of: list.length, secs: Math.round((Date.now() - t0) / 1000) });
+    const c = P.cp[l.id] = P.cp[l.id] || { tries: [] }; c.tries.push({ d: today, score, of: list.length, secs: Math.round((Date.now() - t0) / 1000), fast });
     c.best = Math.max(c.best || 0, score);
     if (pass) { c.passed = today; c.score = score; c.of = list.length; delete c.failAt; if (!PARENT) { hubAward(`cp:${l.id}`, CPC.pts, `AMC checkpoint passed: ${l.title}`, `AMC 关卡通过：${l.zh}`); if (score === list.length) hubAward(`cp10:${l.id}`, CPC.bonus, `AMC checkpoint perfect: ${l.title}`, `AMC 关卡满分：${l.zh}`); } confetti(); }
     else c.failAt = Date.now();
@@ -624,7 +631,8 @@ function basicsMenu(i) {
 function basics(i, b0) {
   const l = LES[i], B = SCR[l.id] || [];
   if (b0 === undefined) { if (P.scratch[l.id] || (P.scratchAt[l.id] || 0) > 0) return basicsMenu(i); b0 = 0; }
-  let b = b0, ex = 0, shown = 0, ck = 0, res = [], hintsUsed = {}, sheet = false;
+  let b = b0, ex = 0, shown = 0, ck = 0, res = [], hintsUsed = {}, sheet = false, ckAt = {}, relook = null;
+  const FAST_MS = 5000; // 🔁 Bobby 11/25: a wrong answer faster than 5 s brings the worked example back before he can go on
   const exsOf = x => x.exs || (x.ex ? [x.ex] : []), chksOf = x => Array.isArray(x.chk) ? x.chk : [x.chk];
   const finish = () => {
     P.scratch[l.id] = true; P.scratchAt[l.id] = B.length - 1; save(); track({ ts: Date.now(), d: today, m: "scratch", t: l.id, done: 1 }); confetti();
@@ -656,11 +664,12 @@ function basics(i, b0) {
         ${e.steps.slice(0, n).map((st, j) => `<div class="step s${j % 6}"><span class="lb">Step ${j + 1}</span><div>${esc(st)}</div></div>`).join("")}
         ${!done ? `<div class="row"><span class="spacer"></span><button class="btn alt" id="more">${n ? "Next step" : "Show me how"} (${n}/${e.steps.length})</button></div>` : ""}</div>`;
     };
+    const relookCard = E => { const e = E[E.length - 1]; return `<div class="fb hint" id="relook"><b>👀 Whoa, that was fast.</b> Let's look at the example again first.<div class="sub" style="margin-top:6px">${esc(e.q)}</div><ol style="margin:6px 0 0 18px">${e.steps.map(st => `<li>${esc(st)}</li>`).join("")}</ol><div class="row"><span class="spacer"></span><button class="btn go" id="relookOk">I read it. Let me try again</button></div></div>`; };
     const ckCard = (c, k) => {
       const r = res[k];
       return `<div class="card" id="ck${k}"><div class="sub">✋ Your turn: check ${k + 1} of ${C.length}</div><div class="q" style="font-size:19px">${esc(c.q)}</div>
-        <div class="ch">${c.c.map((t, j) => `<button data-k="${k}" data-j="${j}" class="${r && r.picked.includes(j) ? (j === c.a ? "right" : "wrong") : ""} ${r && r.over && j === c.a ? "right" : ""}" ${r && (r.over || r.picked.includes(j)) ? "disabled" : ""}><span class="L">${LET[j]}</span><span>${esc(t)}</span></button>`).join("")}</div>
-        ${r ? (r.over ? `<div class="fb ${r.ok ? "ok" : "no"}">${r.ok ? (r.picked.length === 1 ? "⭐ Yes! " : "✅ That's it! ") : `The answer is <b>${LET[c.a]}</b>. `}${esc(c.why)}</div>` : `<div class="fb no">Not quite. Try once more. Tap <b>💡 Hints</b> for a nudge. 🙂</div>`) : ""}</div>`;
+        <div class="ch">${c.c.map((t, j) => `<button data-k="${k}" data-j="${j}" ${relook === k ? "disabled" : ""} class="${r && r.picked.includes(j) ? (j === c.a ? "right" : "wrong") : ""} ${r && r.over && j === c.a ? "right" : ""}" ${r && (r.over || r.picked.includes(j)) ? "disabled" : ""}><span class="L">${LET[j]}</span><span>${esc(t)}</span></button>`).join("")}</div>
+        ${relook === k ? relookCard(E) : r ? (r.over ? `<div class="fb ${r.ok ? "ok" : "no"}">${r.ok ? (r.picked.length === 1 ? "⭐ Yes! " : "✅ That's it! ") : `The answer is <b>${LET[c.a]}</b>. `}${esc(c.why)}</div>` : `<div class="fb no">Not quite. Try once more. Tap <b>💡 Hints</b> for a nudge. 🙂</div>`) : ""}</div>`;
     };
     window.scrollTo(0, scrollTo || 0);
     app.innerHTML = `<div class="top"><button class="btn" id="back">← Lessons</button><h1 style="font-size:22px">🌱 Start from zero: ${esc(l.emoji + " " + l.title)}</h1></div>
@@ -691,16 +700,21 @@ function basics(i, b0) {
       };
       if (!PARENT) { const prev = shown ? E[ex].steps[shown - 1] : (ex === 0 ? x.idea.join(" ") + " " + E[0].q : E[ex].q); gate(more, Math.max(4, readSecs(prev))); }
     }
+    if (ex >= E.length && ck < C.length && !ckAt[ck]) ckAt[ck] = Date.now();
+    if ($("#relookOk")) { const ro = $("#relookOk"), k = relook; ro.onclick = () => { relook = null; ckAt[k] = Date.now(); if (res[k] && res[k].over) ck = k + 1; draw(window.scrollY); };
+      if (!PARENT) { const e = E[E.length - 1]; gate(ro, Math.max(5, readSecs(e.q + " " + e.steps.join(" ")))); } }
     app.querySelectorAll("[data-j]").forEach(btn => btn.onclick = () => {
       const k = +btn.dataset.k, j = +btn.dataset.j, c = C[k], r = res[k] || (res[k] = { picked: [], over: false, ok: false });
-      if (r.over || r.picked.includes(j)) return;
+      if (r.over || r.picked.includes(j) || relook === k) return;
+      const fastWrong = !PARENT && j !== c.a && Date.now() - (ckAt[k] || 0) < FAST_MS;
       r.picked.push(j);
       if (j === c.a) { r.over = true; r.ok = true; } else if (r.picked.length >= 2) { r.over = true; }
-      if (r.over) { track({ ts: Date.now(), d: today, m: "scratch", t: l.id, blk: b, ck: k, ok: r.ok && r.picked.length === 1, tr: r.picked.length, h: !!hintsUsed[k] }); ck = k + 1; }
+      if (fastWrong) { relook = k; r.fast = (r.fast || 0) + 1; track({ ts: Date.now(), d: today, m: "scratch", t: l.id, blk: b, ck: k, relook: 1 }); }
+      if (r.over) { track({ ts: Date.now(), d: today, m: "scratch", t: l.id, blk: b, ck: k, ok: r.ok && r.picked.length === 1, tr: r.picked.length, h: !!hintsUsed[k], ...(r.fast ? { fast: r.fast } : {}) }); if (relook !== k) ck = k + 1; }
       draw(window.scrollY);
       if (r.over) setTimeout(() => { const el = app.querySelector(`#ck${k + 1}`) || $("#bnext"); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60);
     });
-    if ($("#bnext")) $("#bnext").onclick = () => { b++; ex = 0; shown = 0; ck = 0; res = []; hintsUsed = {}; sheet = false; draw(); };
+    if ($("#bnext")) $("#bnext").onclick = () => { b++; ex = 0; shown = 0; ck = 0; res = []; hintsUsed = {}; sheet = false; ckAt = {}; relook = null; draw(); };
   };
   draw();
 }

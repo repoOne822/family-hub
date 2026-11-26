@@ -204,7 +204,7 @@ function codeCheck(c) {
   };
   draw();
 }
-window.__robotCP = { codeCheck, CH };
+window.__robotCP = { codeCheck, CH, play: id => play(id) }; // for automated checks
 // lesson cards, with "see it run" for examples that drive the robot
 const SANDBOX = "##########\n#>.......#\n#........#\n#....b...#\n##########";
 function lessons(c, k) {
@@ -383,16 +383,26 @@ function play(id) {
       const nx = nextItem(it);
       document.body.insertAdjacentHTML("beforeend", `<div class="modal" id="win"><div class="card"><div style="font-size:54px">${it.boss ? "🏆" : "🎉"}</div><h2 style="margin:4px 0">${it.boss ? "Boss defeated!" : "Mission complete!"}</h2>
         <div class="stars">${"★".repeat(st)}${"☆".repeat(3 - st)}</div><p class="sub">${lines} line${lines === 1 ? "" : "s"} of code${it.par ? ` · par ${it.par}` : ""}${st < 3 && it.par && lines > it.par ? " · Can you make it shorter? Try a loop or a function!" : ""}</p>
-        ${unlockNote()}<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px"><button class="btn ghost" id="wStay">Keep improving</button>${nx ? `<button class="btn go" id="wNext">Next ▶</button>` : `<button class="btn go" id="wMap">Mission map</button>`}</div></div></div>`);
-      $("#wStay").onclick = () => $("#win").remove();
+        ${unlockNote()}${!PARENT && rec.stars > 0 && replaysToday(it.id) >= 2 ? nudgeHtml() : ""}<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px"><button class="btn ghost" id="wStay">Keep improving</button>${nx ? `<button class="btn go" id="wNext">Next ▶</button>` : `<button class="btn go" id="wMap">Mission map</button>`}</div></div></div>`);
+      $("#wStay").onclick = () => $("#win").remove(); nudgeWire();
       if ($("#wNext")) $("#wNext").onclick = () => { $("#win").remove(); const ch = nx.ch; if (!S.seen[ch.id]) lessons(ch, 0); else play(nx.id); };
       if ($("#wMap")) $("#wMap").onclick = () => { $("#win").remove(); home(); };
     };
-    const log = (ok, st) => { S.log.push({ ts: Date.now(), d: today(), id: it.id, ok, st: st || 0, tries, hints: hintN, lines: chk.lines, secs: Math.round((Date.now() - t0) / 1000) }); if (S.log.length > 800) S.log = S.log.slice(-800); S.days[today()] = (S.days[today()] || 0) + 1; save(); };
+    const log = (ok, st) => { S.log.push({ ts: Date.now(), d: today(), id: it.id, ok, st: st || 0, ...(ok && rec.stars > 0 ? { re: 1 } : {}), tries, hints: hintN, lines: chk.lines, secs: Math.round((Date.now() - t0) / 1000) }); if (S.log.length > 800) S.log = S.log.slice(-800); S.days[today()] = (S.days[today()] || 0) + 1; save(); };
     runOne();
   };
 }
 function unlockNote() { const t = totalStars(), sk = SKINS.find(([e, n]) => n <= t && n > t - 3 && n > 0); return sk ? `<p>🎁 New robot skin unlocked: <span style="font-size:30px">${sk[0]}</span> (tap ${S.skin} Skins)</p>` : ""; }
+// 🆕 Bobby 11/25: almost half his runs were replays of solved levels. After 2 replays of a solved level today, point him to new work:
+// the code check he hasn't passed yet, or the next puzzle he hasn't solved.
+const replaysToday = id => S.log.filter(x => x.d === today() && x.id === id && x.ok && x.re).length;
+function newWork() {
+  for (let i = 0; i < CH.length; i++) { const c = CH[i]; if (!chOpen(c, i)) continue; if (chDone(c) && !cpOk(c)) return { label: `🏁 ${c.title || c.id} code check`, go: () => codeCheck(c), wait: cpWait(c) }; }
+  const n = ALL.find((it, k) => !stars(it.id) && chOpen(it.ch, CH.indexOf(it.ch)) && itemOpen(it.ch, it.ch.items.findIndex(x => x.id === it.id)));
+  return n ? { label: `🆕 ${n.title || n.id}`, go: () => play(n.id) } : null;
+}
+const nudgeHtml = () => { const w = newWork(); if (!w) return ""; return `<div class="msg info" id="nudge" style="margin-top:10px">🧭 You've already solved this one. Your brain grows most on something <b>new</b>.<br>Next up: <b>${esc(w.label)}</b>${w.wait ? ` (opens in ${Math.ceil(w.wait / 60000)} min)` : ""}<div style="margin-top:6px"><button class="btn go sm" id="nudgeGo" ${w.wait ? "disabled" : ""}>Go ▶</button></div></div>`; };
+const nudgeWire = () => { const b = document.getElementById("nudgeGo"); if (b) b.onclick = () => { const m = document.getElementById("win"); if (m) m.remove(); const w = newWork(); if (w) w.go(); }; };
 function nextItem(it) { const i = ALL.findIndex(x => x.id === it.id); return ALL[i + 1] || null; }
 // ---------- predict ----------
 function predict(it) {

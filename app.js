@@ -1,7 +1,7 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261121ln1";
+import { STR } from "./i18n.js?v=20261125fx1";
 import * as Pix from "./pixel.js?v=20261121r1";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
@@ -1569,7 +1569,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261125i1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261125fx1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && (cfg.id !== "space" || kid === "jonah")) ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
@@ -1584,6 +1584,17 @@ async function openApp(url, kid) {
    idle = the Hub is on screen but nothing was touched, typed or scrolled; away = he left the Family Hub tab or app (another tab, another app, screen off).
    A stretch still open when the page closes is kept in localStorage and saved on the next visit. Parents read it (app_idle); kids can't. ---- */
 const IDLE = { app: "hub", last: Date.now(), from: null, hidAt: null };
+// 👋 Bobby 11/25: after 10+ min away (kids only), a friendly "welcome back" so he restarts on purpose instead of drifting
+function welcomeBack(app, ms) {
+  if (!isKid() || preview || document.querySelector(".wbback")) return;
+  const zh = lang === "zh", m = Math.round(ms / 60000), nm = app && app !== "hub" ? appSubjName(S.kids[0]?.id, app) : (zh ? "Family Hub" : "the Family Hub");
+  const ov = document.createElement("div"); ov.className = "amcgate wbback";
+  ov.innerHTML = `<div class="amcgate-box"><div style="font-size:54px">👋</div><h2>${zh ? "欢迎回来！" : "Welcome back!"}</h2>
+    <p>${zh ? `你离开了 ${m} 分钟。` : `You were away for ${m} minutes.`} ${zh ? `接着在 ${esc(nm)} 里做吧？` : `Pick up where you left off in ${esc(nm)}?`}</p>
+    <p class="meta">${zh ? "先想一想：刚才做到哪一步了？" : "First, think: where were you before you left?"}</p>
+    <div class="amcgate-row"><button class="btn primary" data-x="1">${zh ? "▶ 继续" : "▶ Keep going"}</button></div></div>`;
+  document.body.appendChild(ov); ov.querySelector("[data-x]").onclick = () => ov.remove();
+}
 const idleSave = (app, kind, startMs, endMs) => { const secs = Math.round((endMs - startMs) / 1000); if (secs < 120 || !isKid()) return;
   sb.rpc("log_idle", { p_app: app, p_kind: kind, p_start: new Date(startMs).toISOString(), p_secs: secs }).then(r => { if (r.error) console.warn("idle", r.error.message); }); };
 const idlePend = () => { try { if (IDLE.hidAt) localStorage.setItem("fh_idle_pend", JSON.stringify({ app: IDLE.app, kind: "away", start: IDLE.hidAt, end: Date.now() })); else if (IDLE.from) localStorage.setItem("fh_idle_pend", JSON.stringify({ app: IDLE.app, kind: "idle", start: IDLE.from, end: Date.now() })); else localStorage.removeItem("fh_idle_pend"); } catch (e) {} };
@@ -1593,7 +1604,7 @@ const idleSetApp = id => { idlePoke(); IDLE.app = id || "hub"; };
   ["pointerdown", "keydown", "wheel", "touchstart", "input", "scroll", "pointermove"].forEach(e => window.addEventListener(e, () => { if (e !== "pointermove" || Date.now() - IDLE.last > 3000) idlePoke(); }, { passive: true, capture: true }));
   document.addEventListener("visibilitychange", () => { const now = Date.now();
     if (document.hidden) { if (IDLE.from) { idleSave(IDLE.app, "idle", IDLE.from, now); IDLE.from = null; } IDLE.hidAt = now; }
-    else { if (IDLE.hidAt) idleSave(IDLE.app, "away", IDLE.hidAt, now); IDLE.hidAt = null; IDLE.last = now; }
+    else { if (IDLE.hidAt) { idleSave(IDLE.app, "away", IDLE.hidAt, now); if (now - IDLE.hidAt >= 600000) welcomeBack(IDLE.app, now - IDLE.hidAt); } IDLE.hidAt = null; IDLE.last = now; }
     idlePend(); });
   addEventListener("pagehide", idlePend);
   setInterval(() => { if (!isKid()) { IDLE.from = null; IDLE.last = Date.now(); return; }
@@ -2079,13 +2090,14 @@ function kidRender() {
       ${kwH("star", "jar", t.starJar)}
       <div class="kw-card">
         ${little ? `<div class="kw-sub" style="margin:0 0 10px;opacity:1">${t.tapAWin}</div><div class="kw-littlewins">${t.littleWins.map((w, i) => `<button data-lwin="${i}">${KI("star", 20)} ${esc(w)}</button>`).join("")}</div>`
-                 : `<form id="winForm" class="addgoal" style="margin:0"><input id="winIn" maxlength="140" placeholder="⭐ ${t.winPh}" required><button class="btn sm primary">${t.addWin}</button></form>`}
+                 : `<form id="winForm" class="addgoal" style="margin:0"><input id="winIn" maxlength="140" placeholder="⭐ ${t.winPh}" required title="${lang === "zh" ? "用一句话说说你的进步" : "At least 5 words"}"><button class="btn sm primary">${t.addWin}</button></form>`}
         <div class="kw-jar" style="margin-top:14px">${wins.length ? wins.map(w => `<div class="kw-win">${KI("star", 18)} ${esc(w.title)}${w.by_kid ? `<button class="x" style="opacity:.5" data-delwin="${w.id}">✕</button>` : ""}</div>`).join("") : `<div class="meta">${t.noWinsYet}</div>`}</div>
       </div>
       </section><section id="ks-note" class="kw-sec">
       ${little ? "" : `${kwH("book", "note", t.secretNotebook, `<span class="tagc">${KI("lock", 14)}</span>`)}
       <div class="kw-notebook"><div style="font:600 12px var(--kfont);color:#888;line-height:20px">${t.journalPrivate}</div>
-        <form id="jForm"><textarea id="jIn" maxlength="30000" placeholder="${t.journalPh}" required>${jRule(k) && jEditing(k) ? esc(jEditing(k).body) : ""}</textarea>
+        <form id="jForm"><textarea id="jIn" maxlength="30000" placeholder="${t.journalPh}" required>${jRule(k) && jEditing(k) ? esc(jSplit(jEditing(k).body).main) : ""}</textarea>
+          ${jRule(k) && JREFLECT[k.id] ? `<div class="jrefl" style="margin-top:10px"><div style="font-weight:700;margin-bottom:4px">🪞 ${lang === "zh" ? `回答 3 个问题（每个至少 ${JREFLECT_MIN} 个词，算在总字数里）` : `Answer 3 questions (at least ${JREFLECT_MIN} words each; they count toward your total)`}</div>${JREFLECT[k.id].map((q, i) => `<label style="display:block;margin:6px 0"><span style="font-size:14px">${i + 1}. ${esc(lang === "zh" ? q[1] : q[0])}</span><textarea id="jR${i}" rows="2" maxlength="2000" style="width:100%;margin-top:3px">${jEditing(k) ? esc(jSplit(jEditing(k).body).ans[i] || "") : ""}</textarea></label>`).join("")}</div>` : ""}
           <div class="kw-wc" id="jWc">${jMin() ? (lang === "zh" ? `0 / ${jMin()} 字 · 写满 ${jMin()} 字才能得 +12 分` : `0 / ${jMin()} words · write ${jMin()} to earn +12 points`) : (lang === "zh" ? "写完保存就能得 +12 分" : "Save an entry to earn +12 points")}</div><div class="kw-wcbar"><i id="jWcBar"></i></div>
           ${jRule(k) ? `<div id="jChk" class="jchk"></div>` : ""}
           ${jRule(k) && jBad(k) && jBad(k).date !== today() ? `<div class="kw-sub" style="opacity:1;font-weight:700">${lang === "zh" ? `正在改 ${fmtDate(jBad(k).date)} 的日记。改好后再写今天的。` : `You're fixing your journal from ${fmtDate(jBad(k).date)}. After that, write today's.`}</div>` : ""}
@@ -2159,27 +2171,29 @@ function kidRender() {
     const b = e.target.closest("[data-av]"); if (b) saveAv(b.dataset.av);
   };
   if ($("#propBtn")) $("#propBtn").onclick = () => { const v = $("#propIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("goals").insert({ kid: k.id, text: v, status: "proposed", proposed_by_kid: true }); if (error) throw error; }); };
-  if ($("#winForm")) $("#winForm").onsubmit = e => { e.preventDefault(); const v = $("#winIn").value.trim(); if (v) R(async () => { const { error } = await sb.from("entries").insert({ kid: k.id, date: today(), cat: "other", tone: "positive", title: v, by_kid: true }); if (error) throw error; }); };
+  if ($("#winForm")) $("#winForm").onsubmit = e => { e.preventDefault(); const v = $("#winIn").value.trim(); if (v && !winOk(v)) { const zh = lang === "zh"; $("#winIn").setCustomValidity(zh ? "用一句话说说你的进步（至少 8 个字）。" : "Tell it in a sentence: at least 5 words about what you did."); $("#winIn").reportValidity(); $("#winIn").oninput = () => $("#winIn").setCustomValidity(""); return; } if (v) R(async () => { const { error } = await sb.from("entries").insert({ kid: k.id, date: today(), cat: "other", tone: "positive", title: v, by_kid: true }); if (error) throw error; }); };
   const jr = jRule(k), zhJ = lang === "zh";
   let jLast = null, jTimer = null;
   const jShow = (n, r) => { const min = (jr ? jr.min : jMin()) || 1, ok = n >= min;
     $("#jWc").textContent = jr ? (ok ? (zhJ ? `${n} 字 · 字数够了 ✓` : `${n} words · long enough ✓`) : (zhJ ? `${n} / ${min} 字 · 还差 ${min - n} 字` : `${n} / ${min} words · ${min - n} more to go`))
       : (ok ? (zhJ ? `${n} 字 · 太棒了！保存就能得 +12 分 ⭐` : `${n} words · awesome! Save it to earn +12 points ⭐`) : (zhJ ? `${n} / ${min} 字 · 再写 ${min - n} 字就能得 +12 分` : `${n} / ${min} words · ${min - n} more to earn +12 points`));
     $("#jWc").classList.toggle("ok", ok); $("#jWcBar").style.width = Math.min(100, Math.round(100 * n / min)) + "%";
-    if (jr && r && $("#jChk")) { const J = window.JCHECK; $("#jChk").innerHTML = jChkHtml(r, J.verdict(r, jr.min, jr.per), zhJ, $("#jIn").value, +k.age || 10);
+    if (jr && r && $("#jChk")) { const J = window.JCHECK; $("#jChk").innerHTML = jChkHtml(r, J.verdict(r, jr.min, jr.per), zhJ, jFull(k.id), +k.age || 10);
       $("#jChk").querySelectorAll("details[data-jopen]").forEach(d => d.addEventListener("toggle", () => { jOpen[d.dataset.jopen] = d.open; })); } };
-  const jRun = async () => { if (!jr || !$("#jIn")) return; try { const J = await jLoad(), v = $("#jIn").value; const r = await J.check(v); if ($("#jIn") && $("#jIn").value === v) { jLast = r; jShow(r.words, r); } } catch (e) {} };
+  const jRun = async () => { if (!jr || !$("#jIn")) return; try { const J = await jLoad(), v = jFull(k.id); const r = await J.check(v); if ($("#jIn") && jFull(k.id) === v) { jLast = r; jShow(r.words, r); } } catch (e) {} };
   if ($("#jIn")) {
-    $("#jIn").oninput = () => { const v = $("#jIn").value; jShow(window.JCHECK ? window.JCHECK.countWords(v) : wordCount(v), null); if (jr) { clearTimeout(jTimer); jTimer = setTimeout(jRun, 700); } };
+    const jOnIn = () => { const v = jFull(k.id); jShow(window.JCHECK ? window.JCHECK.countWords(v) : wordCount(v), null); if (jr) { clearTimeout(jTimer); jTimer = setTimeout(jRun, 700); } };
+    $("#jIn").oninput = jOnIn; document.querySelectorAll("[id^=jR]").forEach(x => { if (/^jR\d$/.test(x.id)) x.oninput = jOnIn; });
     if (jr) {
       const noPaste = e => { e.preventDefault(); setStatus(zhJ ? "日记要自己打字哦，不能粘贴。" : "Type your journal yourself. Pasting is turned off.", true); };
       $("#jIn").addEventListener("paste", noPaste); $("#jIn").addEventListener("drop", noPaste);
-      if ($("#jIn").value) { jShow(wordCount($("#jIn").value), null); jRun(); }
+      if ($("#jIn").value) { jShow(wordCount(jFull(k.id)), null); jRun(); }
     }
   }
   if ($("#jChk")) $("#jChk").onclick = e => { const b = e.target.closest("[data-ji]"); if (!b || !jLast) return; const x = jLast.issues[+b.dataset.ji], ta = $("#jIn"); if (!x || !ta) return;
     ta.focus(); ta.setSelectionRange(x.start, x.end); const lh = parseFloat(getComputedStyle(ta).lineHeight) || 20; const before = ta.value.slice(0, x.start).split("\n").length; ta.scrollTop = Math.max(0, before * lh - ta.clientHeight / 2); };
-  if ($("#jForm")) $("#jForm").onsubmit = async e => { e.preventDefault(); const v = $("#jIn").value.trim(); if (!v) return;
+  if ($("#jForm")) $("#jForm").onsubmit = async e => { e.preventDefault(); const v = jFull(k.id).trim(); if (!v) return;
+    if (jr) { const g = jReflectGap(k.id); if (g >= 0) { const el2 = document.getElementById("jR" + g); if (el2) el2.focus(); return setStatus(zhJ ? `第 ${g + 1} 个问题至少写 ${JREFLECT_MIN} 个词。` : `Question ${g + 1} needs at least ${JREFLECT_MIN} words.`, true); } }
     if (!jr) { const n = wordCount(v);
       return R(async () => { const { error } = await sb.from("journal").insert({ kid: k.id, date: today(), body: v }); if (error) throw error; })
         .then(() => { const JOURNAL_MIN_WORDS = jMin(); if (!preview && n < JOURNAL_MIN_WORDS) setStatus(zhJ ? `已保存（${n} 字）。写满 ${JOURNAL_MIN_WORDS} 字的日记才能得分哦。` : `Saved (${n} words). Entries with ${JOURNAL_MIN_WORDS}+ words earn points.`); }); }
@@ -2201,6 +2215,41 @@ function kidRender() {
     if (x.dataset.kdoc) { e.preventDefault(); const dc = S.docs.find(y => y.slug === x.dataset.kdoc); const body = lang === "zh" && dc.body_md_zh ? dc.body_md_zh : dc.body_md; $("#kDocView").innerHTML = `<div class="md">${window.marked && window.DOMPurify ? DOMPurify.sanitize(marked.parse(body || "")) : esc(body)}</div>`; $("#kDocView").scrollIntoView({ behavior: "smooth" }); }
   };
 }
+/* ---- ✅ Habit checks (Bobby 2026-11-25, after Ellis's first $20 week): habits the apps can see check themselves from app data,
+   so they can't be tapped on trust. Self-report habits (reading) open after 5 PM, once the day's work is mostly done. ---- */
+const HABIT_VERIFY = {
+  ellis: { selfAfter: 17,
+    "ellis-amc-practice": { kind: "amc", min: 25 },      // 25+ active AMC minutes today
+    "ellis-fencing-game": { kind: "duel", n: 1 },        // 1+ Piste Duel bout today in the fencing app
+    "ellis-journal": { kind: "journal" } }               // today's journal saved
+};
+const parseMaybe = x => { if (typeof x === "string") { try { return JSON.parse(x); } catch (e) { return null; } } return x; };
+async function duelsToday(kid) {
+  const d = dayStr(), n = L => (Array.isArray(L) ? L : []).filter(r => r && r.type === "duel" && r.date === d && (r.finished || (r.steps || []).length >= 3)).length;
+  let db = 0, local = 0;
+  try { const { data } = await sb.from("app_saves").select("data").eq("kid", kid).eq("app", "fencing").maybeSingle(); db = n(parseMaybe(data && data.data ? data.data[`${kid}_perfLog`] : null)); } catch (e) {}
+  try { local = n(JSON.parse(localStorage.getItem(`${kid}_perfLog`) || "null")); } catch (e) {}
+  return Math.max(db, local);
+}
+async function habitCheck(kid, r, R) {
+  const zh = lang === "zh";
+  if (r.kind === "amc") { const m = Math.floor(await amcDaySec(kid) / 60); return m >= r.min ? { ok: true, kind: "amc", why: zh ? `🤖 AMC 今天 ${m} 分钟` : `🤖 ${m} active AMC min today` } : { ok: false, kind: "amc", why: zh ? `需要 AMC ${r.min} 分钟（今天 ${m}）` : `Needs ${r.min} active AMC min (today: ${m})` }; }
+  if (r.kind === "duel") { const n = await duelsToday(kid); return n >= r.n ? { ok: true, kind: "duel", why: zh ? `🤖 今天 ${n} 场 Piste Duel` : `🤖 ${n} Piste Duel bout${n > 1 ? "s" : ""} today` } : { ok: false, kind: "duel", why: zh ? "在击剑应用里打 1 场 Piste Duel" : "Play 1 Piste Duel bout in the fencing app" }; }
+  if (r.kind === "journal") { const j = jToday(kid); return j ? { ok: true, kind: "journal", why: zh ? "🤖 今天的日记已写" : "🤖 Today's journal is saved" } : { ok: false, kind: "journal", why: zh ? "先写今天的日记" : "Write today's journal first" }; }
+  const h = new Date().getHours(), at = R.selfAfter; return h >= at ? { ok: true, kind: "after" } : { ok: false, kind: "after", why: zh ? `下午 ${at - 12} 点后才能打卡` : `Opens after ${at - 12} PM` };
+}
+// ⭐ Bobby 11/25: a win is a sentence, not a number ("67"): at least 5 words (or 8 Chinese characters)
+const winOk = v => { const cjk = (v.match(/[\u4e00-\u9fff]/g) || []).length; return cjk >= 8 || v.split(/\s+/).filter(w => /[a-z0-9]/i.test(w)).length + Math.floor(cjk / 2) >= 5; };
+/* ---- 🪞 Journal reflection (Bobby 2026-11-25): Ellis's entries were written to exactly the 250-word minimum. The minimum stays, but 3 reflection
+   questions (10+ words each) are part of every entry, so the words go into thinking about the day, not padding. Saved at the end of the body. ---- */
+const JREFLECT = { ellis: [["What did I learn or get better at today?", "今天我学会了什么，或者哪里进步了？"], ["What was hard, and what did I do about it?", "什么事情很难？我是怎么做的？"], ["What will I do differently tomorrow?", "明天我要怎么做得不一样？"]] };
+const JREFLECT_MIN = 10, J_MARK = "\n\n🪞 Reflection\n";
+const jSplit = body => { const s = String(body || ""), i = s.indexOf(J_MARK); if (i < 0) return { main: s, ans: [] };
+  const ans = s.slice(i + J_MARK.length).split(/\n(?=\d\. )/).map(x => x.replace(/^\d\. /, "").trim()); return { main: s.slice(0, i), ans }; };
+const jFull = kid => { const ta = document.getElementById("jIn"), main = ta ? ta.value : ""; const Q = JREFLECT[kid]; if (!Q || !document.getElementById("jR0")) return main;
+  const ans = Q.map((q, i) => (document.getElementById("jR" + i) || {}).value || ""); if (!ans.some(a => a.trim())) return main;
+  return main.trimEnd() + J_MARK + Q.map((q, i) => `${i + 1}. ${ans[i].trim().replace(/\n+/g, " ")}`).join("\n"); }; // answers only (question text would add free words)
+const jReflectGap = kid => { const Q = JREFLECT[kid]; if (!Q || !document.getElementById("jR0")) return -1; return Q.findIndex((q, i) => wordCount((document.getElementById("jR" + i) || {}).value || "") < JREFLECT_MIN); };
 function kidTapIn() {
   const t = T(), k = S.kids[0], d = today(), ms = S.metrics.filter(m => m.type === "rate");
   kidTap = { mood: S.moods.find(m => m.date === d)?.kid_mood || null, counts: {}, traits: {} };
@@ -2208,6 +2257,7 @@ function kidTapIn() {
   ms.forEach(m => { const r = S.readings.find(r => r.metric === m.id && r.date === d); kidTap.counts[m.id] = r ? +r.value : 0; });
   $("#kidMode").classList.add("open");
   const el = $("#kidStage");
+  const hvP = hvLoad().catch(() => {});
   const face = () => { el.innerHTML = `<h2>${t.howWasToday(esc(kidName(k.id)))}</h2><div class="bigfaces">${FACES.map((f, i) => `<button data-n="${i + 1}" class="${kidTap.mood === i + 1 ? "on" : ""}" aria-label="${t.faces[i]}">${f}</button>`).join("")}</div>`;
     el.querySelectorAll("[data-n]").forEach(b => b.onclick = () => { kidTap.mood = +b.dataset.n; b.classList.add("on"); setTimeout(kt ? rate : ms.length ? did : save, 180); }); };
   // rate myself: honest answers are the point, so there are no points for picking 😀
@@ -2216,8 +2266,15 @@ function kidTapIn() {
     <div style="text-align:center;margin-top:14px"><button class="btn primary" id="kidRateNext">${zh ? "下一步" : "Next"} →</button></div>`;
     el.querySelectorAll("[data-tr]").forEach(b => b.onclick = () => { const key = b.dataset.tr, n = +b.dataset.n; if (kidTap.traits[key] === n) delete kidTap.traits[key]; else kidTap.traits[key] = n; rate(); });
     $("#kidRateNext").onclick = () => (ms.length ? did() : save()); };
-  const did = () => { el.innerHTML = `<h2>${t.whatDidYouDo}</h2><div class="meta" style="text-align:center;margin-top:-10px;margin-bottom:12px">${t.tapAll}</div><div class="chips">${ms.map(m => { const n = kidTap.counts[m.id] || 0, mx = m.kid_max || 1; return `<button class="chipbtn ${n ? "on" : ""}" data-m="${esc(m.id)}"><span>${esc(mKidLabel(m))}</span><span class="ct">${n ? (mx > 1 ? "✓".repeat(n) : "✓") : ""}</span></button>`; }).join("")}</div><button class="go" id="kidSave">${t.doneBtn}</button>`;
-    el.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { const m = ms.find(x => x.id === b.dataset.m), mx = m.kid_max || 1, n = kidTap.counts[m.id] || 0; kidTap.counts[m.id] = n >= mx ? 0 : n + 1; did(); });
+  // ✅ Bobby 11/25: habits the apps can see are checked from the app data (no tapping them on trust); the rest open after 5 PM
+  const hv = {}; // metric id -> { ok, why }
+  const hvLoad = async () => { const R = HABIT_VERIFY[k.id]; if (!R || preview) return;
+    for (const m of ms) { const r = R[m.id] || (R.selfAfter != null && !R[m.id] ? { kind: "after" } : null); if (!r) continue;
+      try { hv[m.id] = await habitCheck(k.id, r, R); } catch (e) { hv[m.id] = { ok: true }; }
+      if (r.kind !== "after") { if (hv[m.id].ok) kidTap.counts[m.id] = Math.max(1, kidTap.counts[m.id] || 0); else if (!(kidTap.counts[m.id] > 0)) kidTap.counts[m.id] = 0; } } };
+  const did = () => hvP.then(did0);
+  const did0 = () => { const zh = lang === "zh"; el.innerHTML = `<h2>${t.whatDidYouDo}</h2><div class="meta" style="text-align:center;margin-top:-10px;margin-bottom:12px">${t.tapAll}</div><div class="chips">${ms.map(m => { const n = kidTap.counts[m.id] || 0, mx = m.kid_max || 1, v = hv[m.id], auto = v && v.kind !== "after", lock = v && !v.ok && !n; return `<button class="chipbtn ${n ? "on" : ""}" data-m="${esc(m.id)}" ${auto || lock ? "disabled" : ""} style="${lock ? "opacity:.55" : ""}"><span>${esc(mKidLabel(m))}${v && v.why ? `<small style="display:block;font-weight:400;font-size:12px;opacity:.85">${esc(v.why)}</small>` : ""}</span><span class="ct">${n ? (mx > 1 ? "✓".repeat(n) : "✓") : lock ? "🔒" : ""}</span></button>`; }).join("")}</div>${Object.values(hv).some(v => v.kind !== "after") ? `<div class="meta" style="text-align:center;margin:8px 0">${zh ? "🤖 有的习惯会根据应用里的记录自动打勾。" : "🤖 Some habits check themselves from what you did in the apps."}</div>` : ""}<button class="go" id="kidSave">${t.doneBtn}</button>`;
+    el.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { const m = ms.find(x => x.id === b.dataset.m), v = hv[m.id]; if (v && (v.kind !== "after" || !v.ok)) return; const mx = m.kid_max || 1, n = kidTap.counts[m.id] || 0; kidTap.counts[m.id] = n >= mx ? 0 : n + 1; did(); });
     $("#kidSave").onclick = save; };
   const save = async () => { el.innerHTML = `<div class="thanks">⏳</div>`;
     if (preview) { el.innerHTML = `<div class="thanks">👀</div><h2>${t.previewNoSave}</h2>`; setTimeout(() => $("#kidMode").classList.remove("open"), 1600); return; }
