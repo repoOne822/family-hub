@@ -362,6 +362,28 @@ const scBrain = c => { const sc = c.scores || {}, iqK = ["reason", "verbal", "nu
   return { date: c.date, think: sc.thinking != null ? +sc.thinking : iqK.length >= 3 ? avg(iqK) : null, brain: avg(all) }; };
 function scPearson(xs, ys) { const n = xs.length; if (n < 3) return null; const mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
   let sxy = 0, sx = 0, sy = 0; for (let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (ys[i] - my); sx += (xs[i] - mx) ** 2; sy += (ys[i] - my) ** 2; } return sx && sy ? sxy / Math.sqrt(sx * sy) : null; }
+/* 📝 Journal quality (Bobby 2026-11-26: "find a way to measure their journal performance"). Each entry is scored on this device
+   with the same writing coach the boys see (5 traits × 1–4 stars, 6+1 traits model, tuned by age) → 0–100. Parents see scores
+   and trait names only, never the journal text. Cached per entry so it runs once. */
+const JTRAIT = { ideas: ["💡 Ideas & details", "💡 内容和细节"], org: ["🧱 Organization", "🧱 结构"], words: ["🔤 Word choice", "🔤 用词"], flow: ["🌊 Sentence flow", "🌊 句子流畅"], conv: ["✅ Spelling & grammar", "✅ 拼写和语法"] };
+const JTIP = { ideas: ["Ask at dinner: \"How did you feel, and what will you do next time?\" Those two answers make great journal details.", "晚饭时问他：“你当时什么感觉？下次会怎么做？”这两个回答就是很好的日记细节。"],
+  org: ["Suggest 3 paragraphs: what happened → the most important part → what he learned.", "建议写 3 段：发生了什么 → 最重要的部分 → 学到了什么。"],
+  words: ["Play a 1-minute word swap: replace good / fun / very with stronger words.", "玩 1 分钟换词游戏：把 good / fun / very 换成更有力的词。"],
+  flow: ["Have him read one paragraph aloud; where he runs out of breath or it sounds choppy, fix that sentence.", "让他大声读一段；读得喘不过气或太断的地方，就改那一句。"],
+  conv: ["Before saving, have him read it backwards sentence by sentence to catch spelling and capitals.", "保存前让他从最后一句往前读，检查拼写和大写。"] };
+async function jScores(k) {
+  const es = (S.journal || []).filter(j => j.kid === k.id && j.body && j.date >= daysAgo(SC_DAYS)).sort((a, b) => String(a.created_at || a.date).localeCompare(String(b.created_at || b.date)));
+  const byDate = {}; es.forEach(e => { byDate[e.date] = e; }); // latest entry per day
+  const list = Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)); if (!list.length) return [];
+  const J = await jLoad(), out = [];
+  for (const e of list) {
+    const key = `fh_jsc2_${e.id}_${e.body.length}`; let v = null; try { v = JSON.parse(localStorage.getItem(key) || "null"); } catch (x) {}
+    if ((e.words ?? 999) < 60 || e.body.trim().split(/\s+/).length < 60) continue; // too short to judge writing quality
+    if (!v) { const r = await J.check(e.body), c = J.coach(e.body, r.issues || [], +k.age || 10); v = { score: Math.round(100 * c.total / c.max), t: Object.fromEntries(c.traits.map(x => [x.key, x.stars])), words: e.words ?? r.words, mistakes: e.mistakes ?? r.mistakes }; try { localStorage.setItem(key, JSON.stringify(v)); } catch (x) {} }
+    out.push({ date: e.date, ...v });
+  }
+  return out;
+}
 async function scoresRender() {
   const box = document.getElementById("glScores"); if (!box) return;
   const zh = lang === "zh", L = (en, z) => zh ? z : en;
@@ -371,6 +393,7 @@ async function scoresRender() {
     <div class="tabs">${S.kids.map(x => `<button data-sck="${esc(x.id)}" class="${x.id === scKid ? "on" : ""}">${esc(kidName(x.id))}</button>`).join("")}</div></div>`;
   box.innerHTML = head + `<p class="meta">${L("Loading…", "加载中…")}</p></div>`; box.querySelectorAll("[data-sck]").forEach(b => b.onclick = () => { scKid = b.dataset.sck; scoresRender(); });
   let D; try { D = await scLoad(k.id); } catch (e) { box.innerHTML = head + `<p class="meta">⚠️ ${esc(e.message)}</p></div>`; return; }
+  let JD = []; try { JD = await jScores(k); } catch (e) { JD = []; }
   if (scKid !== k.id) return;
   const days = []; for (let i = SC_DAYS - 1; i >= 0; i--) days.push(daysAgo(i));
   const subs = (S.subjects || []).filter(x => x.kid === k.id && x.active !== false).sort((a, b) => (a.sort || 0) - (b.sort || 0));
@@ -393,9 +416,11 @@ async function scoresRender() {
   }).filter(x => x.ser || x.tests.length || x.asV != null || x.app);
   // overall learning score per day = average of subject app scores available that day
   const overall = {}; days.forEach(d => { const v = lines.map(l => l.ser && l.ser[d]).filter(x => x != null); if (v.length) overall[d] = Math.round(v.reduce((a, b) => a + b, 0) / v.length); });
+  const jSer = (() => { if (!JD.length) return null; const o = {}; let i = 0; const seen = [];
+    days.forEach(d => { while (i < JD.length && JD[i].date <= d) seen.push(JD[i++].score); if (seen.length) { const l = seen.slice(-3); o[d] = Math.round(l.reduce((a, b) => a + b, 0) / l.length); } }); return Object.keys(o).length ? o : null; })();
   const brains = (S.brain_checks || []).filter(c => c.kid === k.id).map(scBrain).filter(b => b.date >= days[0]).sort((a, b) => a.date.localeCompare(b.date));
   // chart: start where his data starts (at least a 14-day window)
-  { const firsts = [...lines.flatMap(l => [l.ser ? Object.keys(l.ser).sort()[0] : null, l.tests[0]?.date]), brains[0]?.date].filter(Boolean).sort();
+  { const firsts = [...lines.flatMap(l => [l.ser ? Object.keys(l.ser).sort()[0] : null, l.tests[0]?.date]), brains[0]?.date, JD[0]?.date].filter(Boolean).sort();
     const st = firsts.length ? (firsts[0] < daysAgo(13) ? addDays(firsts[0], -1) : daysAgo(13)) : daysAgo(13); for (let i = days.length - 1; i >= 0; i--) if (days[i] < st) days.splice(i, 1); }
   const W = 760, H = 300, P = { l: 36, r: 12, t: 12, b: 28 }, x = d => P.l + (days.indexOf(d) / (days.length - 1)) * (W - P.l - P.r), y = v => P.t + (1 - v / 100) * (H - P.t - P.b);
   const path = ser => { let dd = "", pen = false; days.forEach(d => { const v = ser[d]; if (v == null) { pen = false; return; } dd += `${pen ? "L" : "M"}${x(d).toFixed(1)},${y(v).toFixed(1)}`; pen = true; }); return dd; };
@@ -407,9 +432,10 @@ async function scoresRender() {
   const bLine = (f, col, dash, lab) => { const pts = brains.filter(b => b[f] != null); if (scHidden["__" + f] || !pts.length) return "";
     return (pts.length > 1 ? `<path d="${pts.map((b, i) => `${i ? "L" : "M"}${x(b.date).toFixed(1)},${y(b[f]).toFixed(1)}`).join("")}" fill="none" stroke="${col}" stroke-width="3" stroke-dasharray="${dash}"/>` : "")
       + pts.map(b => `<circle cx="${x(b.date)}" cy="${y(b[f])}" r="7" fill="${col}" stroke="#fff" stroke-width="2"><title>${lab}: ${b[f]} (${b.date})</title></circle>`).join(""); };
-  const svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${grid}${ticks}${subjLines}${ovLine}${bLine("brain", "#f59e0b", "2 6", L("Brain", "大脑发展"))}${bLine("think", "#e11d48", "8 6", L("Thinking (IQ-style)", "思维（类智商）"))}</svg>`;
+  const jLine = jSer && !scHidden.__journal ? `<path d="${path(jSer)}" fill="none" stroke="#0f766e" stroke-width="3" stroke-dasharray="1 0" stroke-linejoin="round"><title>${L("Journal score", "日记分数")}</title></path>` + JD.filter(j => j.date >= days[0]).map(j => `<circle cx="${x(j.date)}" cy="${y(j.score)}" r="3.5" fill="#0f766e"><title>${L("Journal", "日记")} ${j.date}: ${j.score}</title></circle>`).join("") : "";
+  const svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${grid}${ticks}${subjLines}${ovLine}${jLine}${bLine("brain", "#f59e0b", "2 6", L("Brain", "大脑发展"))}${bLine("think", "#e11d48", "8 6", L("Thinking (IQ-style)", "思维（类智商）"))}</svg>`;
   const chip = (key, col, lab, style = "") => `<button data-sch="${key}" style="display:inline-flex;align-items:center;gap:6px;border:1.5px solid ${scHidden[key] ? "#0002" : col};background:${scHidden[key] ? "#fff" : col + "14"};opacity:${scHidden[key] ? .5 : 1};border-radius:999px;padding:5px 10px;font:inherit;font-size:14px;cursor:pointer"><i style="width:14px;height:4px;border-radius:3px;background:${col};${style}"></i>${lab}</button>`;
-  const legend = [chip("__ov", "#111", `<b>${L("Overall learning", "整体学习")}</b>`), chip("__think", "#e11d48", `🧮 ${L("Thinking (IQ-style)", "思维（类智商）")}`), chip("__brain", "#f59e0b", `🧠 ${L("Brain development", "大脑发展")}`), ...lines.map(l => chip(l.key, l.col, esc(sName(l.sj))))].join("");
+  const legend = [chip("__ov", "#111", `<b>${L("Overall learning", "整体学习")}</b>`), chip("__think", "#e11d48", `🧮 ${L("Thinking (IQ-style)", "思维（类智商）")}`), chip("__brain", "#f59e0b", `🧠 ${L("Brain development", "大脑发展")}`), ...(jSer ? [chip("__journal", "#0f766e", `📝 ${L("Journal", "日记")}`)] : []), ...lines.map(l => chip(l.key, l.col, esc(sName(l.sj))))].join("");
   // correlation (paired: each brain check vs overall learning score on/just before that day)
   const ovAt = d => { const ks = Object.keys(overall).filter(x => x <= d).sort(); return ks.length ? overall[ks[ks.length - 1]] : null; };
   const pairs = brains.filter(b => b.think != null && ovAt(b.date) != null), need = 4;
@@ -417,12 +443,29 @@ async function scoresRender() {
   if (pairs.length >= need) { const r = scPearson(pairs.map(b => b.think), pairs.map(b => ovAt(b.date))), rs = r == null ? "–" : r.toFixed(2);
     const word = r == null ? "" : Math.abs(r) < .3 ? L("little or no link so far", "目前看不出明显关系") : r > 0 ? (r >= .6 ? L("a strong positive link: they rise and fall together", "强正相关：一起上升、一起下降") : L("a moderate positive link", "中等正相关")) : L("they move in opposite directions (worth a look)", "反方向变化（值得看一看）");
     corr = L(`🔗 Thinking vs overall learning, ${pairs.length} checks: r = ${rs}, ${word}. A link is not proof that one causes the other.`, `🔗 思维 vs 整体学习，${pairs.length} 次测评：r = ${rs}，${word}。相关不等于因果。`); }
-  else corr = L(`🔗 Correlation appears after ${need} brain checks (has ${pairs.length}). ${k.id === "jonah" ? "Jonah's Brain Adventure is weekly, so about a month." : "Brain Games run every 2 weeks, so about 2 months."} Until then, read the lines by eye.`, `🔗 有 ${need} 次大脑测评后才显示相关性（现在 ${pairs.length} 次）。${k.id === "jonah" ? "Jonah 每周一次大脑冒险，大约一个月。" : "大脑游戏每 2 周一次，大约两个月。"}在那之前请直接看线条走势。`);
+  if (pairs.length >= need && jSer) { const jAt = d => { const ks = Object.keys(jSer).filter(x => x <= d).sort(); return ks.length ? jSer[ks[ks.length - 1]] : null; }, pj = brains.filter(b => b.think != null && jAt(b.date) != null);
+    if (pj.length >= need) { const r2 = scPearson(pj.map(b => b.think), pj.map(b => jAt(b.date))); if (r2 != null) corr += L(` Thinking vs journal: r = ${r2.toFixed(2)}.`, ` 思维 vs 日记：r = ${r2.toFixed(2)}。`); } }
+  if (pairs.length < need) corr = L(`🔗 Correlation appears after ${need} brain checks (has ${pairs.length}). ${k.id === "jonah" ? "Jonah's Brain Adventure is weekly, so about a month." : "Brain Games run every 2 weeks, so about 2 months."} Until then, read the lines by eye.`, `🔗 有 ${need} 次大脑测评后才显示相关性（现在 ${pairs.length} 次）。${k.id === "jonah" ? "Jonah 每周一次大脑冒险，大约一个月。" : "大脑游戏每 2 周一次，大约两个月。"}在那之前请直接看线条走势。`);
   const lastB = brains[brains.length - 1], prevB = brains[brains.length - 2];
   const dl = (a, b) => a == null || b == null ? "" : ` <span style="color:${a >= b ? "#16a34a" : "#dc2626"};font-weight:700">${a >= b ? "▲" : "▼"}${Math.abs(a - b)}</span>`;
   const ovNow = overall[days[days.length - 1]] ?? ovAt(days[days.length - 1]), ovWk = ovAt(daysAgo(7));
   const big = (lab, v, extra) => `<div style="flex:1;min-width:150px;background:#f8f7ff;border-radius:14px;padding:10px 14px"><div style="font-size:14px;color:#666">${lab}</div><div style="font-size:30px;font-weight:800">${v == null ? "–" : v}${extra || ""}</div></div>`;
   const cell = v => v == null ? `<td class="meta">–</td>` : `<td><b>${v}</b></td>`;
+  const jPanel = () => { if (!JD.length) return k.journal_required ? `<div style="margin-top:16px"><h3 style="margin:0 0 6px">📝 ${L("Journal quality", "日记质量")}</h3><p class="meta">${L("No journal entries in the last 60 days yet.", "最近 60 天还没有日记。")}</p></div>` : "";
+    const avg = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : null, last3 = JD.slice(-3), prev3 = JD.slice(-6, -3), last5 = JD.slice(-5), prev5 = JD.slice(-10, -5), last7 = JD.slice(-7);
+    const sNow = avg(last3.map(j => j.score)), sPrev = prev3.length ? avg(prev3.map(j => j.score)) : null;
+    const wAvg = avg(last7.map(j => j.words || 0)), mPer = (() => { const w = last7.reduce((a, j) => a + (j.words || 0), 0), m = last7.reduce((a, j) => a + (j.mistakes || 0), 0); return w ? (100 * m / w).toFixed(1) : null; })();
+    const req = k.journal_required ? 14 : null, wrote = new Set(JD.filter(j => j.date > daysAgo(14)).map(j => j.date)).size;
+    const tAvg = (arr, key) => arr.length ? arr.reduce((a, j) => a + (j.t?.[key] || 0), 0) / arr.length : null;
+    const trows = Object.keys(JTRAIT).map(key => { const a = tAvg(last5, key), b = tAvg(prev5, key); return { key, a, b }; });
+    const weakest = trows.filter(t => t.a != null).sort((p, q) => p.a - q.a)[0];
+    const stars = v => v == null ? "–" : `<span style="color:#f59e0b;letter-spacing:1px">${"★".repeat(Math.round(v))}</span><span style="color:#0002;letter-spacing:1px">${"★".repeat(4 - Math.round(v))}</span> <span class="meta">${v.toFixed(1)}</span>`;
+    return `<div style="margin-top:18px;padding-top:12px;border-top:2px solid #0000000d"><h3 style="margin:0 0 4px">📝 ${L("Journal quality", "日记质量")}</h3>
+      <p class="meta" style="margin:0 0 8px">${L("Scored with the same writing coach he sees (5 traits, 1–4 stars each, tuned to his age). Parents see scores only, never the text.", "用他自己看到的写作教练打分（5 项，每项 1–4 星，按年龄调整）。家长只看到分数，看不到日记内容。")}</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">${big(L("Journal score (last 3)", "日记分数（最近 3 篇）"), sNow, dl(sNow, sPrev))}${big(L("Avg words (last 7)", "平均字数（最近 7 篇）"), wAvg)}${big(L("Mistakes per 100 words", "每 100 字错误"), mPer)}${req ? big(L("Days written (14)", "写日记天数（14 天）"), `${wrote}/14`) : ""}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:15px;margin-top:10px"><tr class="meta" style="text-align:left"><th style="padding:6px 4px">${L("Writing trait", "写作能力")}</th><th>${L("Last 5 entries", "最近 5 篇")}</th><th>${L("5 before that", "再之前 5 篇")}</th></tr>
+      ${trows.map(t => `<tr style="border-top:1px solid #0000000d"><td style="padding:7px 4px">${JTRAIT[t.key][zh ? 1 : 0]}</td><td>${stars(t.a)}</td><td>${t.b == null ? `<span class="meta">–</span>` : stars(t.b) + (t.a != null && Math.abs(t.a - t.b) >= .3 ? ` <span style="color:${t.a > t.b ? "#16a34a" : "#dc2626"};font-weight:700">${t.a > t.b ? "▲" : "▼"}</span>` : "")}</td></tr>`).join("")}</table>
+      ${weakest ? `<p style="font-size:15px;margin:10px 0 0;padding:10px 12px;border-radius:12px;background:#ecfdf5">🎯 <b>${L("Next focus", "下一个重点")}: ${JTRAIT[weakest.key][zh ? 1 : 0]}</b> — ${JTIP[weakest.key][zh ? 1 : 0]}</p>` : ""}</div>`; };
   const table = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:15px;margin-top:8px"><tr class="meta" style="text-align:left"><th style="padding:6px 4px">${L("Subject", "科目")}</th><th>${L("App score", "App 分数")}</th><th>${L("Accuracy (7d)", "正确率（7天）")}</th><th>${L("Skills mastered", "已掌握技能")}</th><th>${L("Test / grade", "考试 / 成绩")}</th><th>${L("Parent rating", "家长评分")}</th></tr>
     ${lines.map(l => { const ks = l.ser ? Object.keys(l.ser).sort() : [], now = ks.length ? l.ser[ks[ks.length - 1]] : null, wkK = ks.filter(d => d <= daysAgo(7)).pop(), t = l.tests[l.tests.length - 1];
       return `<tr style="border-top:1px solid #0000000d"><td style="padding:8px 4px"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${l.col};margin-right:6px"></span><b style="font-weight:600">${esc(sName(l.sj))}</b></td>
@@ -438,7 +481,7 @@ async function scoresRender() {
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0">${legend}</div>${svg}
     <p style="font-size:15px;margin:8px 0;padding:10px 12px;border-radius:12px;background:#fff7ed">${corr}</p>
     <p class="meta" style="font-size:13px">${L("Lines = app score (average mastery of practiced skills, 0–100). Squares = school/test %. Dots = brain checks. All on his own scale; Thinking is a trend, not a normed IQ. Tap a chip to hide/show a line.", "线 = App 分数（已练技能的平均掌握度，0–100）。方块 = 学校/考试百分比。圆点 = 大脑测评。都是他自己的量表；思维指数看趋势，不是标准智商。点上面的标签可以隐藏/显示线条。")}</p>
-    ${table}${form}</div>`;
+    ${table}${jPanel()}${form}</div>`;
   box.querySelectorAll("[data-sck]").forEach(b => b.onclick = () => { scKid = b.dataset.sck; scoresRender(); });
   box.querySelectorAll("[data-sch]").forEach(b => b.onclick = () => { scHidden[b.dataset.sch] = !scHidden[b.dataset.sch]; scoresRender(); });
   const fillMet = () => { const sid = $("#scSub").value, ms = pctMetrics(sid); $("#scMet").innerHTML = ms.map(m => `<option value="${esc(m.id)}">${esc(zh && m.name_zh ? m.name_zh : m.name)}</option>`).join("") + `<option value="__new">${L("Test score", "考试分数")}</option>`; };
