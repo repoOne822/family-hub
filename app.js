@@ -1569,7 +1569,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261125b1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261125i1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && (cfg.id !== "space" || kid === "jonah")) ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
@@ -1689,7 +1689,7 @@ function gameMixTrack(kid, cfg, fs) {
   fs.style.position = fs.style.position || "fixed"; fs.appendChild(warn);
   let warnAt = 0;
   const tick = setInterval(() => {
-    if (document.hidden) return;
+    if (document.hidden || Date.now() - IDLE.last >= 90000) return; // idle time doesn't count
     try { const c = JSON.parse(localStorage.getItem(`fh_coach_${kid}`) || "{}"); if (c.breakUntil > Date.now()) return;
       if (cfg.id === "space") { const q = JSON.parse(localStorage.getItem(`${kid}_space_state`) || "{}"); if (q.breakUntil > Date.now()) return; } } catch (e) {}
     const s = gmLoad(kid); s.sec[cfg.id] = (s.sec[cfg.id] || 0) + 5; try { localStorage.setItem(key, JSON.stringify(s)); } catch (e) {}
@@ -1745,6 +1745,8 @@ function playCoach(kid, fs) {
   if (st.breakUntil > Date.now()) showBreak();
   tick = setInterval(() => {
     if (document.hidden || ov.style.display === "flex") return;
+    /* Bobby 2026-11-25: idle time doesn't count — only seconds with a touch/tap/key in the last 90 s; 5+ idle minutes count as a break. */
+    const idleMs = Date.now() - IDLE.last; if (idleMs >= L.rest * 60000) { if (st.sec) { st.sec = 0; saveSt(); } return; } if (idleMs >= 90000) return;
     st.sec++; st.last = Date.now();
     if (st.sec === L.play * 60 - 60) { warn.style.display = "block"; setTimeout(() => { warn.style.display = "none"; }, 8000); }
     if (st.sec >= L.play * 60) { st.breakUntil = Date.now() + L.rest * 60000; saveSt(); showBreak(); }

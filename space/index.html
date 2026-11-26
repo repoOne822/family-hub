@@ -884,7 +884,9 @@ function record(first){const d=day();d.q++;if(first)d.c++;const k=G.q.skill;S.sk
 
 /* ================= timer / breaks ================= */
 let tick=null;
-function timerOn(){timerOff();naturalBreak();tick=setInterval(()=>{if(document.hidden)return;const d=day();d.sec++;S.playSec=(S.playSec||0)+1;S.lastPlay=Date.now();if(d.sec%15===0)save()},1000)}
+/* idle time doesn't count (Bobby 2026-11-25): a second counts only if he touched/tapped/typed in the last 90 s */
+let lastAct=Date.now();["pointerdown","keydown","touchstart","wheel"].forEach(e=>addEventListener(e,()=>{lastAct=Date.now()},{passive:true,capture:true}));
+function timerOn(){timerOff();naturalBreak();tick=setInterval(()=>{if(document.hidden||Date.now()-lastAct>=90000)return;const d=day();d.sec++;S.playSec=(S.playSec||0)+1;S.lastPlay=Date.now();if(d.sec%15===0)save()},1000)}
 function naturalBreak(){if(S.lastPlay&&Date.now()-S.lastPlay>=(+S.rest||5)*60000)S.playSec=0}
 function timerOff(){if(tick){clearInterval(tick);tick=null;save()}}
 const minutesToday=()=>Math.floor(day().sec/60);
