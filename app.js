@@ -377,13 +377,44 @@ async function jScores(k) {
   const list = Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)); if (!list.length) return [];
   const J = await jLoad(), out = [];
   for (const e of list) {
-    const key = `fh_jsc2_${e.id}_${e.body.length}`; let v = null; try { v = JSON.parse(localStorage.getItem(key) || "null"); } catch (x) {}
-    if ((e.words ?? 999) < 60 || e.body.trim().split(/\s+/).length < 60) continue; // too short to judge writing quality
-    if (!v) { const r = await J.check(e.body), c = J.coach(e.body, r.issues || [], +k.age || 10); v = { score: Math.round(100 * c.total / c.max), t: Object.fromEntries(c.traits.map(x => [x.key, x.stars])), words: e.words ?? r.words, mistakes: e.mistakes ?? r.mistakes }; try { localStorage.setItem(key, JSON.stringify(v)); } catch (x) {} }
-    out.push({ date: e.date, ...v });
+    const key = `fh_jsc3_${e.id}_${e.body.length}`; let v = null; try { v = JSON.parse(localStorage.getItem(key) || "null"); } catch (x) {}
+    const wN = Math.min(e.words ?? 1e9, e.body.trim().split(/\s+/).length);
+    if (wN < 60) { out.push({ date: e.date, id: e.id, score: Math.round(20 * wN / 60), short: true, t: {}, words: wN, mistakes: e.mistakes, proc: e.process || null }); continue; } // 📉 under 60 words: max 20/100
+    if (!v) { const r = await J.check(e.body), c = J.coach(e.body, r.issues || [], +k.age || 10); v = { score: Math.round(100 * c.total / c.max), t: Object.fromEntries(c.traits.map(x => [x.key, x.stars])), words: e.words ?? r.words, mistakes: e.mistakes ?? r.mistakes, sty: jStyle(e.body) }; try { localStorage.setItem(key, JSON.stringify(v)); } catch (x) {} }
+    if (!v.sty) v.sty = jStyle(e.body);
+    out.push({ date: e.date, id: e.id, ...v, proc: e.process || null });
   }
+  // backfill Buddy's AI opinion for recent entries he already answered (parents only; his note is not changed)
+  if (!isKid()) { const need = out.slice(-10).filter(x => !x.short && (S.jreplies || []).some(r => r.journal_id === x.id && r.ai_score == null)).slice(0, 5);
+    await Promise.all(need.map(async x => { try { const { data } = await sb.functions.invoke("journal-buddy", { body: { journal_id: x.id, ai_only: true } }); if (data && data.ai_score != null) { const r = S.jreplies.find(q => q.journal_id === x.id); if (r) { r.ai_score = data.ai_score; r.ai_reason = data.ai_reason; } } } catch (e) {} })); }
+  // 🤖 AI-writing check: 3 independent signals, each against HIS OWN usual writing → Low / Check / High. Never shown to the boys.
+  const base = out.filter(x => x.sty), med = f => { const a = base.map(x => x.sty[f]).filter(v => v != null).sort((p, q) => p - q); return a.length ? a[Math.floor(a.length / 2)] : null; };
+  const mWl = med("wl"), mLong = med("long"), mErr = med("err"), mSd = med("sd");
+  out.forEach(x => {
+    const why = [], why_zh = []; let pts = 0;
+    const rep = (S.jreplies || []).find(r => r.journal_id === x.id);
+    if (rep && rep.ai_score != null) { if (rep.ai_score >= 70) { pts += 2; why.push(`Buddy (AI reader) thinks it reads like AI (${rep.ai_score}/100)${rep.ai_reason ? ": " + rep.ai_reason : ""}`); why_zh.push(`Buddy（AI 读者）认为像 AI 写的（${rep.ai_score}/100）`); } else if (rep.ai_score >= 45) { pts += 1; why.push(`Buddy is unsure (${rep.ai_score}/100)`); why_zh.push(`Buddy 不确定（${rep.ai_score}/100）`); } }
+    const P = x.proc; if (P) {
+      if (P.typed_ratio != null && P.typed_ratio < 0.6 && (P.big_chars || 0) > 80) { pts += 2; why.push(`only ${Math.round(P.typed_ratio * 100)}% was typed key by key; ${P.big_inserts} big chunks appeared at once`); why_zh.push(`只有 ${Math.round(P.typed_ratio * 100)}% 是一个键一个键打的；有 ${P.big_inserts} 大段文字一次出现`); }
+      if (P.wpm != null && P.wpm > (+k.age >= 11 ? 45 : 38)) { pts += 1; why.push(`typed at ${P.wpm} words/min (very fast for his age)`); why_zh.push(`打字速度 ${P.wpm} 词/分钟（对他的年龄来说很快）`); }
+      if (P.active_min != null && P.active_min < 3 && (x.words || 0) >= 200) { pts += 1; why.push(`${x.words} words in ${P.active_min} active minutes`); why_zh.push(`${P.active_min} 分钟写了 ${x.words} 词`); }
+    }
+    const t = x.sty; if (t && base.length >= 4) { const odd = [];
+      if (mWl && t.wl > mWl * 1.18) odd.push("longer words"); if (mLong != null && t.long > mLong + 6) odd.push("many more fancy words"); if (mErr != null && mErr >= 0.8 && t.err === 0) odd.push("zero mistakes (unusual for him)");
+      if (mSd && t.sd < mSd * 0.55) odd.push("unusually even sentence lengths"); if (t.markers >= 2) odd.push(`${t.markers} typical AI phrases`);
+      if (odd.length >= 2) { pts += 1; why.push(`style unlike his usual writing: ${odd.join(", ")}`); why_zh.push(`文风和他平时不一样：${odd.length} 个异常`); } }
+    else if (t && t.markers >= 3) { pts += 1; why.push(`${t.markers} typical AI phrases`); why_zh.push(`${t.markers} 个典型 AI 用语`); }
+    x.ai = { level: pts >= 3 ? "high" : pts >= 1 ? "check" : "low", why, why_zh, buddy: rep?.ai_score ?? null, proc: !!P };
+  });
   return out;
 }
+// writing-style fingerprint (numbers only; no text kept)
+const AI_MARK = /\b(delve|tapestry|testament|vibrant|embark(ed)?|in conclusion|overall,|moreover|furthermore|additionally|it is important to|it's important to|i couldn't help but|a sense of|truly|profound|invaluable|navigate|journey|showcas(e|ed|ing)|foster(ed|ing)?|intricate|meticulous(ly)?|resilien(ce|t)|unwavering|myriad|plethora|nevertheless|in summary)\b|—/gi;
+function jStyle(body) { const t = String(body || ""), w = t.match(/[A-Za-z']+/g) || [], n = w.length || 1;
+  const sl = t.split(/(?<=[.!?])\s+|\n+/).map(x => (x.match(/[A-Za-z']+/g) || []).length).filter(x => x > 0), m = sl.reduce((a, b) => a + b, 0) / (sl.length || 1);
+  const sd = sl.length > 2 ? Math.sqrt(sl.reduce((a, b) => a + (b - m) ** 2, 0) / sl.length) / (m || 1) : null;
+  const err = (t.match(/\bi\b/g) || []).length + (t.match(/(^|[.!?]\s+)[a-z]/g) || []).length; // lower-case "i" and sentence starts: typical kid slips
+  return { wl: Math.round(100 * w.reduce((a, x) => a + x.length, 0) / n) / 100, long: Math.round(1000 * w.filter(x => x.length >= 9).length / n) / 10, sd: sd == null ? null : Math.round(100 * sd) / 100, err, markers: (t.match(AI_MARK) || []).length }; }
 async function scoresRender() {
   const box = document.getElementById("glScores"); if (!box) return;
   const zh = lang === "zh", L = (en, z) => zh ? z : en;
@@ -417,7 +448,7 @@ async function scoresRender() {
   // overall learning score per day = average of subject app scores available that day
   const overall = {}; days.forEach(d => { const v = lines.map(l => l.ser && l.ser[d]).filter(x => x != null); if (v.length) overall[d] = Math.round(v.reduce((a, b) => a + b, 0) / v.length); });
   const jSer = (() => { if (!JD.length) return null; const o = {}; let i = 0; const seen = [];
-    days.forEach(d => { while (i < JD.length && JD[i].date <= d) seen.push(JD[i++].score); if (seen.length) { const l = seen.slice(-3); o[d] = Math.round(l.reduce((a, b) => a + b, 0) / l.length); } }); return Object.keys(o).length ? o : null; })();
+    days.forEach(d => { while (i < JD.length && JD[i].date <= d) { const e = JD[i++]; if (e.ai?.level !== "high") seen.push(e.score); } if (seen.length) { const l = seen.slice(-3); o[d] = Math.round(l.reduce((a, b) => a + b, 0) / l.length); } }); return Object.keys(o).length ? o : null; })();
   const brains = (S.brain_checks || []).filter(c => c.kid === k.id).map(scBrain).filter(b => b.date >= days[0]).sort((a, b) => a.date.localeCompare(b.date));
   // chart: start where his data starts (at least a 14-day window)
   { const firsts = [...lines.flatMap(l => [l.ser ? Object.keys(l.ser).sort()[0] : null, l.tests[0]?.date]), brains[0]?.date, JD[0]?.date].filter(Boolean).sort();
@@ -452,7 +483,7 @@ async function scoresRender() {
   const big = (lab, v, extra) => `<div style="flex:1;min-width:150px;background:#f8f7ff;border-radius:14px;padding:10px 14px"><div style="font-size:14px;color:#666">${lab}</div><div style="font-size:30px;font-weight:800">${v == null ? "–" : v}${extra || ""}</div></div>`;
   const cell = v => v == null ? `<td class="meta">–</td>` : `<td><b>${v}</b></td>`;
   const jPanel = () => { if (!JD.length) return k.journal_required ? `<div style="margin-top:16px"><h3 style="margin:0 0 6px">📝 ${L("Journal quality", "日记质量")}</h3><p class="meta">${L("No journal entries in the last 60 days yet.", "最近 60 天还没有日记。")}</p></div>` : "";
-    const avg = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : null, last3 = JD.slice(-3), prev3 = JD.slice(-6, -3), last5 = JD.slice(-5), prev5 = JD.slice(-10, -5), last7 = JD.slice(-7);
+    const avg = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : null, JDok = JD.filter(j => j.ai?.level !== "high"), last3 = JDok.slice(-3), prev3 = JDok.slice(-6, -3), last5 = JD.filter(j => !j.short).slice(-5), prev5 = JD.filter(j => !j.short).slice(-10, -5), last7 = JD.slice(-7);
     const sNow = avg(last3.map(j => j.score)), sPrev = prev3.length ? avg(prev3.map(j => j.score)) : null;
     const wAvg = avg(last7.map(j => j.words || 0)), mPer = (() => { const w = last7.reduce((a, j) => a + (j.words || 0), 0), m = last7.reduce((a, j) => a + (j.mistakes || 0), 0); return w ? (100 * m / w).toFixed(1) : null; })();
     const req = k.journal_required ? 14 : null, wrote = new Set(JD.filter(j => j.date > daysAgo(14)).map(j => j.date)).size;
@@ -465,6 +496,14 @@ async function scoresRender() {
       <div style="display:flex;gap:10px;flex-wrap:wrap">${big(L("Journal score (last 3)", "日记分数（最近 3 篇）"), sNow, dl(sNow, sPrev))}${big(L("Avg words (last 7)", "平均字数（最近 7 篇）"), wAvg)}${big(L("Mistakes per 100 words", "每 100 字错误"), mPer)}${req ? big(L("Days written (14)", "写日记天数（14 天）"), `${wrote}/14`) : ""}</div>
       <table style="width:100%;border-collapse:collapse;font-size:15px;margin-top:10px"><tr class="meta" style="text-align:left"><th style="padding:6px 4px">${L("Writing trait", "写作能力")}</th><th>${L("Last 5 entries", "最近 5 篇")}</th><th>${L("5 before that", "再之前 5 篇")}</th></tr>
       ${trows.map(t => `<tr style="border-top:1px solid #0000000d"><td style="padding:7px 4px">${JTRAIT[t.key][zh ? 1 : 0]}</td><td>${stars(t.a)}</td><td>${t.b == null ? `<span class="meta">–</span>` : stars(t.b) + (t.a != null && Math.abs(t.a - t.b) >= .3 ? ` <span style="color:${t.a > t.b ? "#16a34a" : "#dc2626"};font-weight:700">${t.a > t.b ? "▲" : "▼"}</span>` : "")}</td></tr>`).join("")}</table>
+      ${(() => { const sh = JD.filter(j => j.short && j.date > daysAgo(30)).length; return sh ? `<p style="font-size:15px;margin:10px 0 0;padding:10px 12px;border-radius:12px;background:#fef2f2">📉 ${L(`${sh} entr${sh > 1 ? "ies" : "y"} under 60 words in the last 30 days (scored 20 or less).`, `最近 30 天有 ${sh} 篇少于 60 词（最多 20 分）。`)}</p>` : ""; })()}
+      ${(() => { const rec = JD.slice(-10), hi = rec.filter(j => j.ai?.level === "high"), ck = rec.filter(j => j.ai?.level === "check"), noProc = rec.filter(j => !j.proc).length;
+        const lv = hi.length ? ["#fde2e1", "#b42318", L("Please check", "请核实")] : ck.length ? ["#fef3c7", "#92400e", L("A few to look at", "有几篇要看看")] : ["#dcfce7", "#166534", L("Looks like his own writing", "看起来是他自己写的")];
+        return `<div style="margin-top:12px;padding:12px 14px;border-radius:14px;background:#f8fafc;border:1.5px solid #0000000f"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><b style="font-size:17px">🤖 ${L("AI-writing check (last 10 entries)", "AI 代写检查（最近 10 篇）")}</b><span style="background:${lv[0]};color:${lv[1]};font-weight:800;padding:5px 12px;border-radius:999px">${lv[2]}</span></div>
+          <div class="meta" style="margin:4px 0 6px">${L(`${rec.length - hi.length - ck.length} low · ${ck.length} worth a look · ${hi.length} likely`, `${rec.length - hi.length - ck.length} 篇正常 · ${ck.length} 篇值得看看 · ${hi.length} 篇很可能`)}</div>
+          ${[...hi, ...ck].slice(-5).reverse().map(j => `<div style="font-size:15px;padding:6px 0;border-top:1px dashed #0002"><b>${j.date}</b> ${j.ai.level === "high" ? "🔴" : "🟡"} ${esc((zh ? j.ai.why_zh : j.ai.why).join("; "))}</div>`).join("")}
+          ${hi.length ? `<div style="font-size:14px;margin-top:4px">${L("Entries marked 🔴 are left out of his journal score.", "标 🔴 的日记不计入日记分数。")}</div>` : ""}
+          <div class="meta" style="font-size:13px;margin-top:6px">${L("Signals: how it was typed (from his device), whether the style matches his usual writing, and Buddy's opinion. No detector is certain: if one is flagged, ask him calmly to tell you about that day or write a few sentences with you, rather than accusing him.", "依据：他在设备上怎么打的字、文风是否和平时一致、Buddy 的判断。没有任何检测是百分之百准确的：如果有标记，平静地请他讲讲那天的事，或陪他写几句，不要直接指责。")}${noProc ? L(` Typing data starts with entries saved from today (${noProc} older entr${noProc > 1 ? "ies have" : "y has"} none).`, ` 打字数据从今天保存的日记开始（${noProc} 篇旧日记没有）。`) : ""}</div></div>`; })()}
       ${weakest ? `<p style="font-size:15px;margin:10px 0 0;padding:10px 12px;border-radius:12px;background:#ecfdf5">🎯 <b>${L("Next focus", "下一个重点")}: ${JTRAIT[weakest.key][zh ? 1 : 0]}</b> — ${JTIP[weakest.key][zh ? 1 : 0]}</p>` : ""}</div>`; };
   const table = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:15px;margin-top:8px"><tr class="meta" style="text-align:left"><th style="padding:6px 4px">${L("Subject", "科目")}</th><th>${L("App score", "App 分数")}</th><th>${L("Accuracy (7d)", "正确率（7天）")}</th><th>${L("Skills mastered", "已掌握技能")}</th><th>${L("Test / grade", "考试 / 成绩")}</th><th>${L("Parent rating", "家长评分")}</th></tr>
     ${lines.map(l => { const ks = l.ser ? Object.keys(l.ser).sort() : [], now = ks.length ? l.ser[ks[ks.length - 1]] : null, wkK = ks.filter(d => d <= daysAgo(7)).pop(), t = l.tests[l.tests.length - 1];
@@ -2796,6 +2835,9 @@ function kidRender() {
   if ($("#jIn")) {
     const jOnIn = () => { const v = jFull(k.id); jShow(window.JCHECK ? window.JCHECK.countWords(v) : wordCount(v), null); if (jr) { clearTimeout(jTimer); jTimer = setTimeout(jRun, 700); } };
     $("#jIn").oninput = jOnIn; document.querySelectorAll("[id^=jR]").forEach(x => { if (/^jR\d$/.test(x.id)) x.oninput = jOnIn; });
+    // 🤖 how the entry was written (Bobby 2026-11-26: "check to see if they use AI to write"). Counts typing, not content:
+    // active minutes, keystroke-size inserts vs big chunks (autofill/dictation/typing elsewhere), deletions. Saved with the entry.
+    document.querySelectorAll("#jIn,[id^=jR]").forEach(ta => { if (ta.id !== "jIn" && !/^jR\d$/.test(ta.id)) return; ta.addEventListener("beforeinput", ev => jProcNote(k.id, ev)); });
     if (jr) {
       const noPaste = e => { e.preventDefault(); setStatus(zhJ ? "日记要自己打字哦，不能粘贴。" : "Type your journal yourself. Pasting is turned off.", true); };
       $("#jIn").addEventListener("paste", noPaste); $("#jIn").addEventListener("drop", noPaste);
@@ -2816,11 +2858,11 @@ function kidRender() {
   if ($("#jForm")) $("#jForm").onsubmit = async e => { e.preventDefault(); const v = jFull(k.id).trim(); if (!v) return;
     if (jr) { const g = jReflectGap(k.id); if (g >= 0) { const el2 = document.getElementById("jR" + g); if (el2) el2.focus(); return setStatus(zhJ ? `第 ${g + 1} 个问题至少写 ${JREFLECT_MIN} 个词。` : `Question ${g + 1} needs at least ${JREFLECT_MIN} words.`, true); } }
     if (!jr) { const n = wordCount(v); let savedId = null;
-      return R(async () => { const { data, error } = await sb.from("journal").insert({ kid: k.id, date: today(), body: v }).select("id").single(); if (error) throw error; savedId = data && data.id; })
+      return R(async () => { const { data, error } = await sb.from("journal").insert({ kid: k.id, date: today(), body: v, process: jProcSummary(k.id, v) }).select("id").single(); if (error) throw error; savedId = data && data.id; })
         .then(() => { const JOURNAL_MIN_WORDS = jMin(); if (!preview && n < JOURNAL_MIN_WORDS) setStatus(zhJ ? `已保存（${n} 字）。写满 ${JOURNAL_MIN_WORDS} 字的日记才能得分哦。` : `Saved (${n} words). Entries with ${JOURNAL_MIN_WORDS}+ words earn points.`); if (!preview) jBuddyAfterSave(savedId); }); }
     let r; try { const J = await jLoad(); r = await J.check(v); } catch (err) { r = { words: wordCount(v), mistakes: null, issues: [] }; }
     if (r.words < jr.min || wordCount(v) < jr.min) return setStatus(zhJ ? `还差 ${jr.min - Math.min(r.words, wordCount(v))} 字才能保存（至少 ${jr.min} 字）。` : `${jr.min - Math.min(r.words, wordCount(v))} more words before you can save (at least ${jr.min}).`, true);
-    const ex = jEditing(k), row = { body: v, words: r.words, mistakes: r.mistakes };
+    const ex = jEditing(k), row = { body: v, words: r.words, mistakes: r.mistakes, process: jProcSummary(k.id, v) };
     let savedId = ex ? ex.id : null;
     await R(async () => { if (ex) { const { error } = await sb.from("journal").update(row).eq("id", ex.id); if (error) throw error; }
       else { const { data, error } = await sb.from("journal").insert({ kid: k.id, date: today(), ...row }).select("id").single(); if (error) throw error; savedId = data && data.id; } });
@@ -2892,6 +2934,17 @@ const JREFLECT = { ellis: [["What did I learn or get better at today?", "今天�
 const JREFLECT_MIN = 10, J_MARK = "\n\n🪞 Reflection\n";
 const jSplit = body => { const s = String(body || ""), i = s.indexOf(J_MARK); if (i < 0) return { main: s, ans: [] };
   const ans = s.slice(i + J_MARK.length).split(/\n(?=\d\. )/).map(x => x.replace(/^\d\. /, "").trim()); return { main: s.slice(0, i), ans }; };
+function jProcGet(kid) { const key = `fh_jproc_${kid}_${today()}`; let P = null; try { P = JSON.parse(localStorage.getItem(key) || "null"); } catch (e) {} return P || { typed: 0, big: 0, bigChars: 0, maxIns: 0, del: 0, ms: 0, last: 0, events: 0, kinds: {} }; }
+function jProcNote(kid, ev) {
+  const P = jProcGet(kid), now = Date.now(), t = ev.inputType || "", n = (ev.data || "").length || (ev.dataTransfer ? (ev.dataTransfer.getData("text") || "").length : 0);
+  if (P.last && now - P.last < 60000) P.ms += now - P.last; P.last = now; P.events++;
+  if (/^delete/.test(t)) P.del++;
+  else if (t === "insertText" || t === "insertCompositionText") { if (n <= 3) P.typed += n; else { P.big++; P.bigChars += n; P.maxIns = Math.max(P.maxIns, n); } }
+  else if (/^insert/.test(t)) { P.kinds[t] = (P.kinds[t] || 0) + 1; if (n > 3) { P.big++; P.bigChars += n; P.maxIns = Math.max(P.maxIns, n); } else P.typed += n; }
+  try { localStorage.setItem(`fh_jproc_${kid}_${today()}`, JSON.stringify(P)); } catch (e) {}
+}
+function jProcSummary(kid, text) { const P = jProcGet(kid), chars = (text || "").replace(/\s/g, "").length || 1, words = wordCount(text || ""), min = Math.round(P.ms / 6000) / 10;
+  return { v: 1, active_min: min, wpm: min > 0.5 ? Math.round(words / min) : null, typed_ratio: Math.round(100 * Math.min(1, P.typed / chars)) / 100, big_inserts: P.big, big_chars: P.bigChars, max_insert: P.maxIns, deletes: P.del, events: P.events, kinds: P.kinds }; }
 const jFull = kid => { const ta = document.getElementById("jIn"), main = ta ? ta.value : ""; const Q = JREFLECT[kid]; if (!Q || !document.getElementById("jR0")) return main;
   const ans = Q.map((q, i) => (document.getElementById("jR" + i) || {}).value || ""); if (!ans.some(a => a.trim())) return main;
   return main.trimEnd() + J_MARK + Q.map((q, i) => `${i + 1}. ${ans[i].trim().replace(/\n+/g, " ")}`).join("\n"); }; // answers only (question text would add free words)
