@@ -73,6 +73,7 @@ async function loadAll() {
     res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
     const m = await sb.rpc("kid_moods", { p_days: 400 }); S.moods = m.data || []; S.checkins = [];
     try { const jr = await sb.from("my_journal_replies").select("*"); S.jreplies = jr.data || []; } catch (e) { S.jreplies = []; }
+    try { const r = await sb.from("brain_checks").select("*").order("taken_at"); S.brain_checks = r.data || []; } catch (e) { S.brain_checks = []; } // 🧠 his own checks
     S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); S.subjects.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); return;
   }
   const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects", "feedback", "insights", "assessments", "app_saves", "roadmap_items", "parent_checks", "fencing_lessons", "askfred_sync", "fencing_results", "calendar_events", "point_ledger", "rewards", "redemptions", "weekly_exams", "allowance_payouts"];
@@ -87,6 +88,10 @@ async function loadAll() {
   try { const r = await sb.from("integrity_flags").select("*").gte("date", daysAgo(21)).order("date", { ascending: false }); S.integrity_flags = r.data || []; } catch (e) { S.integrity_flags = []; } // 🛡️ fair play
   try { const r = await sb.from("integrity_settings").select("*"); S.integrity_settings = r.data || []; } catch (e) { S.integrity_settings = []; }
   try { const r = await sb.from("app_saves").select("kid,data").eq("app", "donewell"); S.donewell = r.data || []; } catch (e) { S.donewell = []; } // 🎯 done-well self-checks
+  try { const r = await sb.from("brain_checks").select("*").order("taken_at"); S.brain_checks = r.data || []; } catch (e) { S.brain_checks = []; } // 🧠 brain development
+  try { const r = await sb.from("brain_signals").select("*").gte("date", daysAgo(180)).order("date"); S.brain_signals = r.data || []; } catch (e) { S.brain_signals = []; }
+  try { const r = await sb.from("body_log").select("*").gte("date", daysAgo(120)).order("date"); S.body_log = r.data || []; } catch (e) { S.body_log = []; }
+  try { const r = await sb.from("home_ratings").select("*").order("month"); S.home_ratings = r.data || []; } catch (e) { S.home_ratings = []; }
   S.app_idle = []; if (!isKid()) try { const r = await sb.from("app_idle").select("*").gte("date", daysAgo(14)).order("started_at"); S.app_idle = r.data || []; } catch (e) {} // 😴 drift log (parents only)
 }
 async function upsert(table, row, onConflict) { const { error } = await sb.from(table).upsert(row, onConflict ? { onConflict } : undefined); if (error) throw error; }
@@ -168,8 +173,8 @@ async function boot() {
 }
 
 /* ---------------- shell + routing ---------------- */
-const ROUTES = ["today", "calendar", "rewards", "dashboard", "learning", "roadmap", "performance", "feedback", "subjects", "log", "plans", "reports", "family"];
-const NAVKEY = { today: "Today", calendar: "Cal", rewards: "Rewards", dashboard: "Dash", learning: "Learn", roadmap: "Roadmap", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" };
+const ROUTES = ["today", "calendar", "rewards", "dashboard", "learning", "brain", "roadmap", "performance", "feedback", "subjects", "log", "plans", "reports", "family"];
+const NAVKEY = { today: "Today", calendar: "Cal", rewards: "Rewards", dashboard: "Dash", learning: "Learn", brain: "Brain", roadmap: "Roadmap", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" };
 const navLabel = r => T()["nav" + NAVKEY[r]] || r;
 const PICON = {
   today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
@@ -181,6 +186,7 @@ const PICON = {
   performance: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   learning: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5M22 9v6"/>',
   feedback: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
+  brain: '<path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3h1V4z"/><path d="M15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3h-1V4z"/>',
   log: '<path d="M4 6h16M4 12h10M4 18h7"/><path d="M17 14l3 3-4 4h-3v-3z"/>',
   plans: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/>',
   reports: '<path d="M6 3h9l4 4v14H6z"/><path d="M9 17v-3M12 17v-6M15 17v-4"/>',
@@ -190,7 +196,7 @@ const PICON = {
   globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/>',
   out: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/>' };
 const pIcon = n => `<svg class="pico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PICON[n] || ""}</svg>`;
-const NAVGROUPS = [[null, ["today", "calendar", "rewards"]], [{ en: "Kids", zh: "孩子" }, ["dashboard", "learning", "subjects", "roadmap", "performance", "feedback"]], [{ en: "Records", zh: "记录" }, ["log", "plans", "reports"]], [{ en: "Home", zh: "家庭" }, ["family"]]];
+const NAVGROUPS = [[null, ["today", "calendar", "rewards"]], [{ en: "Kids", zh: "孩子" }, ["dashboard", "learning", "brain", "subjects", "roadmap", "performance", "feedback"]], [{ en: "Records", zh: "记录" }, ["log", "plans", "reports"]], [{ en: "Home", zh: "家庭" }, ["family"]]];
 const TABS = ["today", "calendar", "dashboard", "rewards"];
 function renderShell() {
   const t = T(), zh = lang === "zh", lk = (r, cls = "") => `<a href="#${r}" data-r="${r}" class="${cls}">${pIcon(r)}<span>${r === "dashboard" && cls.includes("tab") ? (zh ? "孩子" : "Kids") : navLabel(r)}</span></a>`;
@@ -228,7 +234,118 @@ function route() {
   if ($("#pgTitle")) $("#pgTitle").textContent = navLabel(onR); window.scrollTo(0, 0);
   const waiting = (S.redemptions || []).filter(r => r.status === "requested").length; // badge: reward requests waiting for a parent
   document.querySelectorAll('[data-r="rewards"]').forEach(a => { let b = a.querySelector(".pbadge"); if (!waiting) { b && b.remove(); return; } if (!b) { b = document.createElement("span"); b.className = "pbadge"; a.appendChild(b); } b.textContent = waiting; b.setAttribute("aria-label", waiting + " waiting"); });
-  ({ today: viewToday, calendar: viewCalendar, rewards: viewRewards, dashboard: viewDash, learning: viewLearning, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, roadmap: viewRoadmap, doc: () => viewDoc(doc) })[h]();
+  ({ today: viewToday, calendar: viewCalendar, rewards: viewRewards, dashboard: viewDash, learning: viewLearning, brain: viewBrain, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, roadmap: viewRoadmap, doc: () => viewDoc(doc) })[h]();
+}
+
+/* ---------------- 🧠 BRAIN DEVELOPMENT (2026-11-26) ----------------
+   8 skills per boy from 3 separate sources (Brain Check, app signals, monthly home rating) + foundations (sleep, exercise, outdoor).
+   Each boy is shown on his own tab and compared ONLY with his own past. Not a clinical test. */
+const BRAIN_D = ["wm", "attn", "inhib", "flex", "speed", "reason", "plan", "emo"];
+const BRAIN_N = { wm: ["🧠 Working memory", "🧠 工作记忆"], attn: ["🎯 Focus", "🎯 专注力"], inhib: ["🛑 Impulse control", "🛑 自控力"], flex: ["🔀 Flexible thinking", "🔀 灵活思维"], speed: ["⚡ Processing speed", "⚡ 反应速度"], reason: ["🧩 Reasoning", "🧩 推理"], plan: ["🗺️ Planning & follow-through", "🗺️ 计划与执行"], emo: ["💛 Emotions & social", "💛 情绪与社交"], verbal: ["🗣️ Word smarts", "🗣️ 语言"], number: ["🔢 Number patterns", "🔢 数字规律"] };
+const HOME_Q = { wm: ["Remembers 2–3 step instructions without reminders", "不用提醒就能记住 2–3 步的指令"], attn: ["Stays with a task he doesn't love (10+ min; Jonah 5+)", "能坚持做不太喜欢的事（10 分钟以上；Jonah 5 分钟）"], inhib: ["Stops and thinks before acting or blurting out", "做事或说话前会先停下来想一想"], flex: ["Handles changes in plans calmly", "计划改变时能平静接受"], speed: ["Gets everyday tasks done at a reasonable pace", "日常事情能按合理速度完成"], reason: ["Figures out new problems or puzzles on his own", "能自己想办法解决新问题或谜题"], plan: ["Plans ahead and finishes what he starts", "会提前计划，并把开始的事做完"], emo: ["Calms down and bounces back after frustration", "受挫后能平静下来并恢复"] };
+const HOME_A = [["Rarely", "很少"], ["Sometimes", "有时"], ["Often", "经常"], ["Usually", "通常"], ["Almost always", "几乎总是"]];
+let brainKid = null;
+const bName = d => (BRAIN_N[d] || [d, d])[lang === "zh" ? 1 : 0];
+const monthStart = (d = today()) => d.slice(0, 8) + "01";
+const sleepNeed = age => (age <= 5 ? [10, 13] : age <= 12 ? [9, 12] : [8, 10]);
+function bSpark(vals, w = 110, h = 26) { const v = vals.filter(x => x != null); if (v.length < 2) return ""; const xs = vals.map((_, i) => 4 + i * (w - 8) / Math.max(1, vals.length - 1));
+  const pts = vals.map((x, i) => x == null ? null : `${xs[i].toFixed(1)},${(h - 3 - (x / 100) * (h - 6)).toFixed(1)}`).filter(Boolean).join(" ");
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="vertical-align:middle"><polyline points="${pts}" fill="none" stroke="var(--brand,#6d4aff)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg>`; }
+function bCell(v, delta, note) { if (v == null) return `<td class="meta">–</td>`;
+  const col = v >= 70 ? "#16a34a" : v >= 45 ? "#ca8a04" : "#dc2626";
+  return `<td><div style="display:flex;align-items:center;gap:6px"><b style="min-width:28px">${v}</b><span style="flex:1;max-width:70px;height:8px;border-radius:9px;background:#0001;overflow:hidden"><i style="display:block;height:100%;width:${v}%;background:${col}"></i></span>${delta != null && Math.abs(delta) >= 3 ? `<span style="color:${delta > 0 ? "#16a34a" : "#dc2626"};font-weight:700">${delta > 0 ? "▲" : "▼"}${Math.abs(delta)}</span>` : ""}</div>${note ? `<div class="meta" style="font-size:12px">${note}</div>` : ""}</td>`; }
+function bSigNote(d, src, r) { const zh = lang === "zh"; if (!r) return "";
+  if (src === "games") return (zh ? "大脑乐园等级 " : "Brain Park level ") + Object.entries(r).map(([g, l]) => `${g} ${l}`).join(", ");
+  return { inhib: zh ? `急躁错题 ${r.rushed_mistakes}/${r.answers}（8 秒内答错）` : `${r.rushed_mistakes} rushed mistakes / ${r.answers} answers (wrong in <8 s)`,
+    attn: zh ? `专注 ${r.active_min} 分钟，屏幕前发呆 ${r.onscreen_idle_min} 分钟` : `${r.active_min} min active, ${r.onscreen_idle_min} min idle on screen`,
+    wm: zh ? `重复错误 ${r.repeat_mistakes} 次 / ${r.answers} 题` : `${r.repeat_mistakes} repeated mistakes / ${r.answers} answers`,
+    plan: zh ? `日记 ${r.journal_days}/${r.of} 天` : `journal ${r.journal_days}/${r.of} days`,
+    emo: zh ? `心情均值 ${r.mood_avg}/5（${r.days} 天）` : `mood avg ${r.mood_avg}/5 (${r.days} days)` }[d] || ""; }
+function viewBrain() {
+  const zh = lang === "zh", L = (en, z) => zh ? z : en;
+  if (!brainKid || !S.kids.some(k => k.id === brainKid)) brainKid = S.kids[0]?.id;
+  const k = S.kids.find(x => x.id === brainKid) || {}, age = +k.age || 10;
+  // sources
+  const checks = brainChecksOf(k.id), lastC = checks[checks.length - 1], prevC = checks[checks.length - 2];
+  const sig = (S.brain_signals || []).filter(x => x.kid === k.id);
+  const sigLatest = (d, src) => sig.filter(x => x.domain === d && x.source === src).sort((a, b) => a.date.localeCompare(b.date));
+  const hr = (S.home_ratings || []).filter(x => x.kid === k.id).sort((a, b) => a.month.localeCompare(b.month));
+  const hrMonths = [...new Set(hr.map(x => x.month))]; const hrAvg = m => { const rows = hr.filter(x => x.month === m); if (!rows.length) return null; const o = {}; BRAIN_D.forEach(d => { const v = rows.map(x => +x.answers[d]).filter(Boolean); if (v.length) o[d] = Math.round((v.reduce((a, b) => a + b, 0) / v.length - 1) / 4 * 100); }); return o; };
+  const hrNow = hrMonths.length ? hrAvg(hrMonths[hrMonths.length - 1]) : null, hrPrev = hrMonths.length > 1 ? hrAvg(hrMonths[hrMonths.length - 2]) : null;
+  const doms = [...BRAIN_D, ...(checks.some(c => c.scores.verbal != null || c.scores.number != null) ? ["verbal", "number"] : [])];
+  const tiC = checks.filter(c => c.scores.thinking != null), tiL = tiC[tiC.length - 1], tiP = tiC[tiC.length - 2];
+  const tiHtml = tiL ? `<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:8px 0 4px;padding:10px 12px;border-radius:12px;background:#f3f0ff"><div><div class="meta">🧮 ${L("Thinking index (parents only)", "思维指数（仅家长可见）")}</div><b style="font-size:26px">${tiL.scores.thinking}</b>${tiP ? ` <span style="color:${tiL.scores.thinking >= tiP.scores.thinking ? "#16a34a" : "#dc2626"};font-weight:700">${tiL.scores.thinking >= tiP.scores.thinking ? "▲" : "▼"}${Math.abs(tiL.scores.thinking - tiP.scores.thinking)}</span>` : ""}</div>${bSpark(tiC.map(c => c.scores.thinking), 150, 30)}
+      <div class="meta" style="flex:1;min-width:220px">${L("Average of the IQ-style parts: reasoning, word smarts, number patterns, memory and speed (0–100 on his own scale). A trend for him only, not a normed IQ score; a real IQ needs a psychologist-given test like the WISC-V.", "IQ 类部分的平均：推理、语言、数字规律、记忆、速度（按他自己的 0–100 量表）。只看他自己的趋势，不是标准化智商；真正的智商需要心理学家施测的 WISC-V 等测验。")}</div></div>` : "";
+  const rows = doms.map(d => {
+    const cV = lastC ? lastC.scores[d] : null, cD = cV != null && prevC && prevC.scores[d] != null ? cV - prevC.scores[d] : null, cS = bSpark(checks.map(c => c.scores[d] ?? null));
+    const srcs = ["apps", "games"].map(src => { const a = sigLatest(d, src); if (!a.length) return null; const l = a[a.length - 1], back = a.filter(x => x.date <= addDays(l.date, -14)).pop(); return { src, v: l.score, dl: back ? l.score - back.score : null, note: bSigNote(d, src, l.raw) }; }).filter(Boolean);
+    const sCell = srcs.length ? srcs.map(x => bCell(x.v, x.dl, x.note).replace(/^<td>|<\/td>$/g, "")).join('<div style="height:6px"></div>') : null;
+    return `<tr style="border-top:1px dashed #0002"><td><b>${bName(d)}</b></td>${bCell(cV, cD, cS)}${sCell ? `<td>${sCell}</td>` : `<td class="meta">–</td>`}${bCell(hrNow ? hrNow[d] : null, hrNow && hrPrev && hrPrev[d] != null && hrNow[d] != null ? hrNow[d] - hrPrev[d] : null)}</tr>`; }).join("");
+  // foundations
+  const bl = (S.body_log || []).filter(x => x.kid === k.id), last7 = bl.filter(x => x.date > daysAgo(7)), last30 = bl.filter(x => x.date > daysAgo(30));
+  const avg = (a, f) => { const v = a.map(f).filter(x => x != null && !isNaN(x)); return v.length ? Math.round(v.reduce((s, x) => s + x, 0) / v.length) : null; };
+  const sl = avg(last7, x => x.sleep_min), ex = avg(last7, x => x.exercise_min), od = avg(last7, x => x.outdoor_min), need = sleepNeed(age);
+  const bedMins = last7.map(x => x.bedtime ? ((+x.bedtime.slice(0, 2) + 12) % 24) * 60 + +x.bedtime.slice(3, 5) : null).filter(x => x != null);
+  const bedSpread = bedMins.length > 2 ? Math.round(Math.sqrt(bedMins.reduce((s, x) => s + (x - bedMins.reduce((a, b) => a + b, 0) / bedMins.length) ** 2, 0) / bedMins.length)) : null;
+  const hm = m => m == null ? "–" : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
+  const slOk = sl == null ? null : sl >= need[0] * 60 && sl <= need[1] * 60;
+  // standouts
+  const notes = [];
+  doms.forEach(d => { const a = sigLatest(d, "apps"); if (a.length > 1) { const l = a[a.length - 1], b = a.filter(x => x.date <= addDays(l.date, -14)).pop(); if (b && l.score - b.score <= -10) notes.push(L(`${bName(d)} app signal dropped ${b.score} → ${l.score} in 2 weeks.`, `${bName(d)} 应用信号两周内从 ${b.score} 降到 ${l.score}。`)); } });
+  if (lastC && prevC) doms.forEach(d => { const a = prevC.scores[d], b = lastC.scores[d]; if (a != null && b != null && Math.abs(b - a) >= 15) notes.push(L(`${bName(d)} in Brain Games: ${a} → ${b}.`, `大脑游戏 ${bName(d)}：${a} → ${b}。`)); });
+  if (sl != null && !slOk) notes.push(L(`Sleep averaged ${hm(sl)} last week; age ${age} needs about ${need[0]}–${need[1]} h.`, `上周平均睡眠 ${hm(sl)}；${age} 岁约需 ${need[0]}–${need[1]} 小时。`));
+  if (ex != null && ex < 60) notes.push(L(`Exercise averaged ${ex} min/day; kids need about 60 min a day.`, `每天平均运动 ${ex} 分钟；孩子每天约需 60 分钟。`));
+  const due = brainDue(k.id);
+  const myRating = hr.find(x => x.month === monthStart() && x.rated_by === (S.me?.email || ""));
+  // daily log rows for all boys
+  const dl = window._brainLogDate || today();
+  const logRow = kk => { const b = (S.body_log || []).find(x => x.kid === kk.id && x.date === dl) || {};
+    return `<tr data-blkid="${esc(kk.id)}"><td><b>${esc(kidName(kk.id))}</b></td><td><input type="time" class="bl-bed" value="${b.bedtime ? b.bedtime.slice(0, 5) : ""}" style="width:110px"></td><td><input type="time" class="bl-wake" value="${b.wake ? b.wake.slice(0, 5) : ""}" style="width:110px"></td><td><input type="number" min="0" max="600" class="bl-ex" value="${b.exercise_min ?? ""}" style="width:76px"></td><td><input type="number" min="0" max="900" class="bl-out" value="${b.outdoor_min ?? ""}" style="width:76px"></td><td class="meta bl-sl">${b.sleep_min ? hm(b.sleep_min) : ""}</td></tr>`; };
+  $("#view").innerHTML = `
+    <div class="card"><h2 style="margin:0 0 6px">🧠 ${L("Brain development", "大脑发育")}</h2>
+      <p class="meta">${L("Eight brain skills, each from up to three separate sources. Every boy is compared only with his own past, never with his brothers. Trends need 3+ points; this is not a clinical test.", "八项大脑能力，最多来自三个独立来源。每个孩子只和自己的过去比，绝不和兄弟比较。趋势需要 3 个以上数据点；这不是临床测试。")}</p>
+      <div class="tabs" style="margin-top:8px">${S.kids.map(x => `<button data-bk="${esc(x.id)}" class="${x.id === k.id ? "on" : ""}">${esc(kidName(x.id))}</button>`).join("")}</div></div>
+    <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h3 style="margin:0">📝 ${L("Daily log: sleep & activity", "每日记录：睡眠和运动")}</h3><input type="date" id="blDate" value="${dl}" max="${today()}"></div>
+      <p class="meta">${L("Sleep = the night before this morning. Exercise = active play or sport; outdoor = time outside. Minutes.", "睡眠 = 当天早上之前的那一晚。运动 = 运动或活跃游戏；户外 = 在外面的时间。单位：分钟。")}</p>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><tr class="meta" style="text-align:left"><th></th><th>${L("Bedtime", "上床")}</th><th>${L("Woke", "起床")}</th><th>${L("Exercise", "运动")}</th><th>${L("Outdoor", "户外")}</th><th>${L("Slept", "睡了")}</th></tr>${S.kids.map(logRow).join("")}</table></div>
+      <div class="row" style="margin-top:8px"><button class="btn primary" id="blSave">${L("Save log", "保存记录")}</button><span class="meta" id="blMsg"></span></div></div>
+    <div class="card"><h3 style="margin:0 0 4px">${esc(kidName(k.id))} · ${L("skills", "能力")}</h3>
+      <p class="meta">${lastC ? L(`Last Brain Games ${lastC.date}${lastC.source === "brainpark" ? " (Brain Park)" : ""} · ${checks.length} so far`, `最近一次大脑游戏 ${lastC.date}${lastC.source === "brainpark" ? "（大脑乐园）" : ""} · 共 ${checks.length} 次`) : L("No Brain Games yet.", "还没有大脑游戏记录。")}
+      ${due ? (due.due ? L(" · next one is ready on his page", " · 下一次已在他的页面上") : L(` · next in ${due.days} days`, ` · ${due.days} 天后下一次`)) : k.id === "jonah" ? L(" · Jonah's check lives in Brain Park (weekly, optional)", " · Jonah 的小测在大脑乐园（每周，可选）") : ""}</p>
+      ${tiHtml}<p class="meta">${L("The boys see this only as a points game with personal high scores; skill names and these numbers are never shown to them.", "孩子们只看到一个有个人最高分的积分游戏；能力名称和这些数字不会显示给他们。")}</p>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:6px"><tr class="meta" style="text-align:left"><th>${L("Skill", "能力")}</th><th>🎮 ${L("Brain Games (hidden check)", "大脑游戏（隐性测评）")}</th><th>📱 ${L("App & game signals (14 days)", "应用和游戏信号（14 天）")}</th><th>🏠 ${L("Home rating", "家长评分")}</th></tr>${rows}</table></div>
+      <p class="meta" style="margin-top:8px">${L("▲/▼ = change vs his previous check / 2 weeks earlier / last month. Green 70+, amber 45–69, red under 45 (on his own scale).", "▲/▼ = 与上次小测 / 两周前 / 上个月相比。绿色 70+，黄色 45–69，红色 45 以下（按他自己的量表）。")}</p></div>
+    <div class="card"><h3 style="margin:0 0 6px">🌱 ${L("Foundations (last 7 days)", "基础（最近 7 天）")}</h3>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">
+        <div><div class="meta">😴 ${L("Sleep / night", "每晚睡眠")}</div><b style="font-size:22px;color:${slOk == null ? "inherit" : slOk ? "#16a34a" : "#dc2626"}">${hm(sl)}</b><div class="meta">${L(`needs ${need[0]}–${need[1]} h at ${age}`, `${age} 岁需 ${need[0]}–${need[1]} 小时`)}${bedSpread != null ? L(` · bedtime varies ±${bedSpread} min`, ` · 上床时间浮动 ±${bedSpread} 分钟`) : ""}</div>${bSpark(last30.map(x => x.sleep_min ? Math.min(100, x.sleep_min / (need[1] * 60) * 100) : null), 150, 26)}</div>
+        <div><div class="meta">🏃 ${L("Exercise / day", "每天运动")}</div><b style="font-size:22px;color:${ex == null ? "inherit" : ex >= 60 ? "#16a34a" : "#ca8a04"}">${ex == null ? "–" : ex + " min"}</b><div class="meta">${L("goal: 60 min a day", "目标：每天 60 分钟")}</div></div>
+        <div><div class="meta">🌳 ${L("Outdoor / day", "每天户外")}</div><b style="font-size:22px">${od == null ? "–" : od + " min"}</b><div class="meta">${L(`${last7.length}/7 days logged`, `已记录 ${last7.length}/7 天`)}</div></div>
+      </div></div>
+    ${notes.length ? `<div class="card"><h3 style="margin:0 0 6px">👀 ${L("What stands out", "值得注意")}</h3><ul style="margin:0;padding-left:18px">${notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul></div>` : ""}
+    <div class="card"><h3 style="margin:0 0 6px">🏠 ${L(`Monthly home rating · ${today().slice(0, 7)}`, `每月家长评分 · ${today().slice(0, 7)}`)}</h3>
+      <p class="meta">${L(`How often did you see this in ${esc(kidName(k.id))} this month? Each parent can rate; answers are averaged.`, `这个月你多常看到 ${esc(kidName(k.id))} 这样？每位家长都可以评分，取平均。`)}${myRating ? L(" You've rated this month; you can update it.", " 你本月已评分，可以修改。") : ""}</p>
+      ${BRAIN_D.map(d => `<div style="margin:8px 0"><div><b>${bName(d)}</b> · ${esc(HOME_Q[d][zh ? 1 : 0])}</div><div class="row" style="gap:6px;margin-top:4px">${HOME_A.map((a, i) => `<label style="display:inline-flex;gap:4px;align-items:center;padding:4px 8px;border:1.5px solid #0003;border-radius:10px;cursor:pointer"><input type="radio" name="hr-${d}" value="${i + 1}" ${myRating && +myRating.answers[d] === i + 1 ? "checked" : ""}>${a[zh ? 1 : 0]}</label>`).join("")}</div></div>`).join("")}
+      <textarea id="hrNote" placeholder="${L("Optional note (what you noticed)", "可选：你注意到的事")}" style="width:100%;margin-top:8px">${esc(myRating?.note || "")}</textarea>
+      <div class="row"><button class="btn primary" id="hrSave">${L("Save rating", "保存评分")}</button><span class="meta" id="hrMsg"></span></div>
+      ${hrMonths.length ? `<p class="meta" style="margin-top:8px">${L("Past months", "以往月份")}: ${hrMonths.map(m => m.slice(0, 7)).join(" · ")}</p>` : ""}</div>`;
+  document.querySelectorAll("[data-bk]").forEach(b => b.onclick = () => { brainKid = b.dataset.bk; viewBrain(); });
+  $("#blDate").onchange = e => { window._brainLogDate = e.target.value; viewBrain(); };
+  $("#blSave").onclick = async () => {
+    const out = []; document.querySelectorAll("[data-blkid]").forEach(tr => { const bed = tr.querySelector(".bl-bed").value, wake = tr.querySelector(".bl-wake").value, exv = tr.querySelector(".bl-ex").value, ov = tr.querySelector(".bl-out").value;
+      if (!bed && !wake && exv === "" && ov === "") return;
+      let sm = null; if (bed && wake) { const b = +bed.slice(0, 2) * 60 + +bed.slice(3), w = +wake.slice(0, 2) * 60 + +wake.slice(3); sm = (w - b + 1440) % 1440; if (sm < 180 || sm > 900) sm = null; }
+      out.push({ kid: tr.dataset.blkid, date: dl, bedtime: bed || null, wake: wake || null, sleep_min: sm, exercise_min: exv === "" ? null : +exv, outdoor_min: ov === "" ? null : +ov, updated_by: S.me?.email || null, updated_at: new Date().toISOString() }); });
+    if (!out.length) { $("#blMsg").textContent = L("Nothing to save yet.", "还没有内容。"); return; }
+    const { error } = await sb.from("body_log").upsert(out); if (error) { $("#blMsg").textContent = "⚠️ " + error.message; return; }
+    out.forEach(o => { S.body_log = (S.body_log || []).filter(x => !(x.kid === o.kid && x.date === o.date)); S.body_log.push(o); }); viewBrain(); setStatus("✓");
+  };
+  $("#hrSave").onclick = async () => {
+    const ans = {}; BRAIN_D.forEach(d => { const c = document.querySelector(`input[name="hr-${d}"]:checked`); if (c) ans[d] = +c.value; });
+    if (Object.keys(ans).length < BRAIN_D.length) { $("#hrMsg").textContent = L("Please answer all 8.", "请回答全部 8 题。"); return; }
+    const row = { kid: k.id, month: monthStart(), rated_by: S.me?.email || "parent", answers: ans, note: $("#hrNote").value.trim() || null };
+    const { error } = await sb.from("home_ratings").upsert(row); if (error) { $("#hrMsg").textContent = "⚠️ " + error.message; return; }
+    S.home_ratings = (S.home_ratings || []).filter(x => !(x.kid === row.kid && x.month === row.month && x.rated_by === row.rated_by)); S.home_ratings.push(row); viewBrain(); setStatus("✓");
+  };
 }
 
 /* ---------------- TODAY ---------------- */
@@ -1490,6 +1607,7 @@ const APPS = { "fencing/": { id: "fencing", prefix: "ellis_", skip: ["ellis_pin"
   "space/": { id: "space", prefix: kid => `${kid}_space_`, skip: [], perKid: true, label: { en: "Play Space Quest", zh: "进入太空探险" } },
   "chinese/": { id: "chinese", prefix: kid => `${kid}_chinese_`, skip: [], perKid: true, label: { en: "Play Panda Chinese", zh: "进入熊猫中文" } },
   "brain/": { id: "brain", prefix: kid => `${kid}_brain_`, skip: [], perKid: true, label: { en: "Play Brain Park", zh: "进入大脑乐园" } },
+  "braincheck/": { id: "braincheck", prefix: kid => `${kid}_braincheck_`, skip: [], perKid: true, free: true, label: { en: "Play Brain Games", zh: "玩大脑游戏" } },
   "physics/": { id: "physics", prefix: kid => `${kid}_physics_`, skip: [], perKid: true, label: { en: "Open my Physics lessons", zh: "打开我的物理课程" } },
   "robot/": { id: "robot", prefix: kid => `${kid}_robot_`, skip: [], perKid: true, label: { en: "Open Robot Lab", zh: "进入机器人实验室" } },
   // 📚 Class Practice rooms (study/study.js), one per class, units from each syllabus
@@ -1545,9 +1663,11 @@ async function amcGateOk(cfg, kid) {
 window.fhOpenApp = async (url, kid) => { if (appOpen) await appOpen(); openApp(url, kid); };
 async function openApp(url, kid) {
   const cfg = APPS[url]; if (!cfg) return;
-  if (!(await journalGateOk(kid))) return;
-  if (!(await amcGateOk(cfg, kid))) return;
-  if (!gameMixGate(cfg, kid)) return;
+  if (!cfg.free) { // 🧠 Brain Check is never gated (it's a measurement, not a game)
+    if (!(await journalGateOk(kid))) return;
+    if (!(await amcGateOk(cfg, kid))) return;
+    if (!gameMixGate(cfg, kid)) return;
+  }
   const t = T(), mark = `fh_save_${kid}_${cfg.id}`, pre = typeof cfg.prefix === "function" ? cfg.prefix(kid) : cfg.prefix;
   try {
     const { data } = await sb.from("app_saves").select("data,updated_at").eq("kid", kid).eq("app", cfg.id).maybeSingle();
@@ -1577,9 +1697,9 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261126dw1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261126bg1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
-  const stopCoach = (isKid() && !preview && (cfg.id !== "space" || kid === "jonah")) ? playCoach(kid, fs) : () => {};
+  const stopCoach = (isKid() && !preview && !cfg.free && (cfg.id !== "space" || kid === "jonah")) ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
   const stopTime = appTimeTrack(kid, cfg, fs);
   appOpen = async () => { stopCoach(); stopMix(); stopTime(); window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
@@ -2226,6 +2346,13 @@ const VOXEL_DECO = (() => { const cube = (x, y, c) => `<g transform="translate($
   return `<svg class="kt-deco kt-deco-voxel" viewBox="0 0 120 110" aria-hidden="true">${g}</svg>`; })();
 const PIXEL_DECO = `<div class="kt-deco kt-deco-pixel" aria-hidden="true"><span class="px-hearts">${[1, 2, 3].map(() => `<span class="ki" style="width:14px;height:14px">${kiSvg("heart", "pixel")}</span>`).join("")}</span><span class="ki" style="width:14px;height:14px">${kiSvg("coin", "pixel")}</span></div>`;
 // 📋 Today's plan: habits still to do (ticked when done), today's calendar events, and the study-plan day for his apps
+function brainCardHtml(k) {
+  const due = brainDue(k.id); if (!due || !due.due) return "";
+  const zh = lang === "zh";
+  return `<div class="card" style="border:2.5px solid #6d4aff;background:#f3f0ff"><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="font-size:40px">🎮</div>
+    <div style="flex:1;min-width:200px"><b>${zh ? "新的大脑游戏挑战开放了！" : "New Brain Games challenge is open!"}</b><div class="meta">${zh ? "9 个小游戏，约 12 分钟，挑战你自己的最高分。+15 分" : "9 quick games, about 12 minutes. Beat your own high score! +15 points"}</div></div>
+    <button class="btn primary" data-app="braincheck/" data-appkid="${k.id}">${zh ? "开始 →" : "Start →"}</button></div></div>`;
+}
 function kidPlanHtml(k) {
   const zh = lang === "zh", d = today(), dow = new Date(d + "T12:00").getDay(), items = [];
   S.metrics.filter(m => m.kid === k.id && m.type === "rate").forEach(m => { const r = S.readings.find(x => x.metric === m.id && x.date === d); items.push({ done: !!(r && +r.value), t: mKidLabel(m), ic: "check" }); });
@@ -2285,7 +2412,7 @@ function kidRender() {
         <div class="kw-streak ${g.streak ? "" : "rest"}"><span class="fire">${KI("fire", 44)}</span><div>${g.streak ? t.streak(g.streak) : t.streakRest}<div class="kw-sub" style="opacity:.7">${g.best ? KI("trophy", 16) + " " + g.best : ""}</div></div></div>
       </div>
       <div class="kw-layout"><div class="kw-main"><section id="ks-home" class="kw-sec">
-      ${little ? "" : kidPlanHtml(k)}
+      ${little ? "" : brainCardHtml(k)}${little ? "" : kidPlanHtml(k)}
       <section id="ks-money" class="kw-sec">${kidChallengeHtml(k)}</section>
       ${DW_KIDS.includes(k.id) ? `<section id="ks-dw" class="kw-sec">${doneWellKidHtml(k)}</section>` : ""}
       ${S.subjects.filter(x => x.active && x.app_url === "space/").map(x => `<button class="kw-spacegame" data-app="space/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#fff;font:inherit;background:radial-gradient(circle at 85% 30%,#9b5de5 0,transparent 45%),linear-gradient(135deg,#1b1f4b,#3a2f7a);box-shadow:0 8px 0 #0003,0 10px 30px #3a2f7a66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.4s ease-in-out infinite">🚀</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "太空探险" : "Space Quest"}</b><span style="opacity:.9;font-size:17px">${lang === "zh" ? "一至三年级数学和单词：打陨石、救外星人、打败大怪兽！" : "Grade 1–3 math + words: blast asteroids, rescue aliens, beat bosses!"}</span></span><span style="background:linear-gradient(#ffd166,#f4a300);color:#3b2400;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0004">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
@@ -2686,6 +2813,18 @@ const PLL = () => PL[lang] || PL.en;
 const ledgerLabel = r => lang === "zh" && r.label_zh ? r.label_zh : (r.label || r.source);
 // apps call window.parent.fhAward(app, ref, points, label, label_zh) — only a signed-in boy earns; the database caps it
 let awardQ = Promise.resolve();
+/* ---- 🧠 Brain development (2026-11-26): Brain Check bridge for braincheck/ ---- */
+const BRAIN_EVERY = 14, BRAIN_KIDS = ["eric", "ellis"];
+const brainChecksOf = (kid, src) => (S.brain_checks || []).filter(c => c.kid === kid && (!src || c.source === src)).sort((a, b) => String(a.taken_at).localeCompare(String(b.taken_at)));
+const brainDue = kid => { if (!BRAIN_KIDS.includes(kid)) return null; const l = brainChecksOf(kid, "check").pop(); if (!l) return { due: true, days: 0, first: true }; const d = Math.floor((new Date(today()) - new Date(l.date)) / 864e5); return { due: d >= BRAIN_EVERY, days: BRAIN_EVERY - d, last: l }; };
+window.fhCloseApp = () => { if (appOpen) appOpen(); };
+window.fhBrainLast = kid => { const l = brainChecksOf(kid, "check").pop(); return l ? { date: l.date, scores: l.scores } : null; };
+window.fhBrainCheck = async (kid, res) => {
+  if (preview || !isKid()) return { ok: false, msg: lang === "zh" ? "家长预览：不保存" : "Parent preview: not saved" };
+  const { data, error } = await sb.from("brain_checks").insert({ kid, date: res.date || today(), scores: res.scores, raw: res.raw, minutes: res.minutes }).select().single();
+  if (error) return { ok: false, msg: error.message };
+  (S.brain_checks = S.brain_checks || []).push(data); awardsDirty = true; return { ok: true };
+};
 window.fhAward = (app, ref, points, label, label_zh) => {
   if (!isKid() || preview) return;
   awardQ = awardQ.then(async () => {
