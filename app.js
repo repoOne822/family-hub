@@ -1,7 +1,7 @@
 // Family Hub — static front end. All family data lives in a private Supabase
 // database behind sign-in + row-level security. Nothing personal is in this repo.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import { STR } from "./i18n.js?v=20261125fx1";
+import { STR } from "./i18n.js?v=20261125jb1";
 import * as Pix from "./pixel.js?v=20261121r1";
 
 const SUPABASE_URL = "https://iiplawparuxicjyflhzu.supabase.co";
@@ -72,11 +72,13 @@ async function loadAll() {
     const res = await Promise.all(tables.map(t => sb.from(t).select("*")));
     res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
     const m = await sb.rpc("kid_moods", { p_days: 400 }); S.moods = m.data || []; S.checkins = [];
+    try { const jr = await sb.from("my_journal_replies").select("*"); S.jreplies = jr.data || []; } catch (e) { S.jreplies = []; }
     S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); S.subjects.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); return;
   }
   const tables = ["kids", "entries", "goals", "metrics", "checkins", "readings", "docs", "journal", "subjects", "feedback", "insights", "assessments", "app_saves", "roadmap_items", "parent_checks", "fencing_lessons", "askfred_sync", "fencing_results", "calendar_events", "point_ledger", "rewards", "redemptions", "weekly_exams", "allowance_payouts"];
   const res = await Promise.all(tables.map(t => sb.from(t).select("*")));
   res.forEach((r, i) => { if (r.error) throw r.error; S[tables[i]] = r.data || []; });
+  try { const jr = await sb.from("journal_replies").select("*"); S.jreplies = jr.data || []; } catch (e) { S.jreplies = []; }
   S.kids.sort((a, b) => (a.sort ?? 9) - (b.sort ?? 9));
   S.metrics.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)); S.subjects.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
   if (!coachKid || !S.kids.some(k => k.id === coachKid)) coachKid = S.kids[0]?.id || null;
@@ -241,7 +243,7 @@ function viewToday() {
       const habits = S.metrics.filter(m => m.kid === k.id && m.type === "rate").map(m => { const r = S.readings.find(r => r.metric === m.id && r.date === d); return r && +r.value ? mKidLabel(m) : null; }).filter(Boolean);
       return `<div class="tcard" style="border-top:4px solid ${KC[i % 3]};display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center"><span style="width:52px;height:52px;border-radius:14px;background:#fff;display:grid;place-items:center">${avatarHtml(k.avatar, 46)}</span><div><b>${esc(kidName(k.id))}</b>
         <div class="meta">${c.kid_mood ? `${T().heSaid} ${FACES[c.kid_mood - 1]}` : T().notYet} · ${c.focus ? `${T().parentRated} ✓` : `${T().parentRated} —`}</div>
-        ${habits.length ? `<div class="meta">${esc(habits.join(" · "))}</div>` : ""}${(() => { const q = ptsOf(k.id), td = (S.point_ledger || []).filter(r => r.kid === k.id && r.date === d && r.source !== "spend").reduce((a, r) => a + r.points, 0); return `<div class="meta">⭐ ${lang === "zh" ? `今天 +${td} · 可用 ${q.balance}` : `+${td} today · ${q.balance} to spend`}</div>`; })()}<button class="btn sm" style="margin-top:8px" data-pv="${esc(k.id)}">👀 ${T().viewHisPage}</button></div></div>`; }).join("")}</div>
+        ${habits.length ? `<div class="meta">${esc(habits.join(" · "))}</div>` : ""}${(() => { const q = ptsOf(k.id), td = (S.point_ledger || []).filter(r => r.kid === k.id && r.date === d && r.source !== "spend").reduce((a, r) => a + r.points, 0); return `<div class="meta">⭐ ${lang === "zh" ? `今天 +${td} · 可用 ${q.balance}` : `+${td} today · ${q.balance} to spend`}</div>`; })()}${(() => { const w7 = addDays(today(), -6), nf = (S.jreplies || []).filter(r => r.kid === k.id && r.flag && String(r.created_at).slice(0, 10) >= w7).length; return nf ? `<div class="meta jbflag" style="margin-top:6px">⚠️ ${lang === "zh" ? `Buddy 提醒：有 ${nf} 篇日记值得看看（家庭 → 日记）` : `Buddy flagged ${nf} journal entr${nf > 1 ? "ies" : "y"} for you (Family → Journals)`}</div>` : ""; })()}<button class="btn sm" style="margin-top:8px" data-pv="${esc(k.id)}">👀 ${T().viewHisPage}</button></div></div>`; }).join("")}</div>
     <div class="section-h" style="margin-top:22px"><h3>📖 ${lang === "zh" ? "Abby 的英语学习" : "Abby's English"}</h3><a class="btn sm" href="abby/" target="_blank" rel="noopener">${lang === "zh" ? "打开 →" : "Open →"}</a></div><div class="tcard" id="abbyCard"><span class="meta">…</span></div>
     <div class="section-h" style="margin-top:22px"><h3>📅 ${CL().upcoming}</h3><a class="btn sm" href="#calendar">${CL().h} →</a></div><div class="tcard">${calUpcoming("all", 14, true)}</div>${marquee()}`;
   $("#goKids").onclick = openKidMode; $("#goQuick").onclick = openQuick; $("#goLog").onclick = () => openEntry();
@@ -873,7 +875,7 @@ async function viewFamily() {
     <div class="coach" style="margin-top:16px"><h4>${t.proposals}</h4>
       ${props.length ? props.map(g => `<div class="goal"><span class="dot" style="--kc:${kidColor(g.kid)};margin-top:6px"></span><span><b>${esc(kidName(g.kid))}:</b> ${esc(g.text)}</span><span style="margin-left:auto;display:flex;gap:6px"><button class="btn sm primary" data-approve="${g.id}">${t.approve}</button><button class="btn sm" data-decline="${g.id}">${t.decline}</button></span></div>`).join("") : `<div class="meta">${t.noProposals}</div>`}</div>
     <div class="coach" style="margin-top:16px"><h4>${t.journals}</h4><p class="meta">${t.journalsHelp}</p>
-      ${S.kids.map(k => { const js = jByKid(k.id); return `<details style="margin-top:8px"><summary><b>${esc(kidName(k.id))}</b> <span class="meta">(${js.length})</span></summary>${js.length ? js.map(j => `<div class="rec info"><div class="meta">${fmtDate(j.date)}</div><div class="n" style="white-space:pre-wrap">${esc(j.body)}</div></div>`).join("") : `<div class="meta">—</div>`}</details>`; }).join("")}</div>`;
+      ${S.kids.map(k => { const js = jByKid(k.id), nf = js.filter(j => (buddyOf(j) || {}).flag).length; return `<details style="margin-top:8px"${nf ? " open" : ""}><summary><b>${esc(kidName(k.id))}</b> <span class="meta">(${js.length})</span>${nf ? ` <span class="jbflag" style="display:inline">⚠️ ${nf}</span>` : ""}</summary>${js.length ? js.map(j => `<div class="rec info"><div class="meta">${fmtDate(j.date)}</div><div class="n" style="white-space:pre-wrap">${esc(j.body)}</div>${buddyNote(j, true)}</div>`).join("") : `<div class="meta">—</div>`}</details>`; }).join("")}</div>`;
   $("#view").onclick = async e => {
     const x = e.target;
     try {
@@ -1572,7 +1574,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261125mp1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">← ${t.appBack}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261125jb1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && (cfg.id !== "space" || kid === "jonah")) ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
@@ -1849,6 +1851,43 @@ const jToday = kid => (S.journal || []).filter(j => j.kid === kid && j.date === 
 const jLockAt = (k, words) => Math.max(1, Math.floor(Math.max(words || 0, k.journal_min_words || 250) / Math.max(k.journal_err_per || 50, 10)));
 const jBad = k => k && k.journal_required ? (S.journal || []).filter(j => j.kid === k.id && j.mistakes != null && j.date >= "2026-11-21" && j.mistakes >= jLockAt(k, j.words)).sort((a, b) => b.date.localeCompare(a.date))[0] || null : null;
 const jEditing = k => jBad(k) || jToday(k.id);
+/* ---- 📬 Journal Buddy (Bobby 11/25): a reader that writes back to every entry (edge function journal-buddy):
+   a specific reaction, one question for tomorrow, one tip from his writing targets. Flags are parent-only. ---- */
+const buddyOf = j => (S.jreplies || []).find(x => x.journal_id === j.id) || null;
+const buddyNote = (j, parent) => { const r = buddyOf(j); if (!r) return ""; const zh = lang === "zh";
+  return `<div class="jbuddy${parent && r.flag ? " flag" : ""}">${parent && r.flag ? `<div class="jbflag">⚠️ ${zh ? "Buddy 提醒家长看看" : "Buddy flagged this for you"}: ${esc(r.flag_reason || "")}</div>` : ""}<b>📬 ${zh ? "Buddy 的回信" : "Buddy's note"}${parent && r.source === "basic" ? ` <span class="meta" style="font-weight:500">(${zh ? "简单版：AI 未开启" : "simple version: AI not switched on"})</span>` : ""}</b>${esc(r.reaction)}${r.question ? `<div class="jbq2">💭 ${esc(r.question)}</div>` : ""}${r.tip ? `<div class="jbq2">✏️ ${esc(r.tip)}</div>` : ""}</div>`; };
+const buddyLastQ = kid => { const j = (S.jreplies || []).filter(r => r.kid === kid && r.question).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0]; return j ? j.question : null; };
+async function buddyAsk(id) { if (!id) return null;
+  try { const { data, error } = await sb.functions.invoke("journal-buddy", { body: { journal_id: id } }); if (error || !data || !data.reaction) return null; return data; } catch (e) { return null; } }
+/* ---- 🔊 Hear it (Bobby 11/25): reads writing aloud one sentence at a time and highlights each one, so a run-on is
+   heard (no pause) and seen (one giant highlight). Uses the browser's voice. ---- */
+let hearTok = 0;
+const hearSplit = t => (String(t || "").match(/[^.!?\n]+(?:[.!?]+["')\]]*)?/g) || []).map(s => s.replace(/\s+/g, " ").trim()).filter(s => /[A-Za-z0-9]/.test(s));
+function hearReset(panel, btn, done) { if (btn) { delete btn.dataset.playing; btn.textContent = btn.dataset.label || "▶ Hear it"; }
+  if (panel) { panel.querySelectorAll("span.on").forEach(x => x.classList.remove("on")); const f = panel.querySelector(".jread-f"); if (f && done) f.hidden = false; } }
+function hearIt(text, panel, btn) {
+  const ss = window.speechSynthesis, zh = lang === "zh";
+  if (!ss || !window.SpeechSynthesisUtterance) return setStatus(zh ? "这个浏览器不能朗读。" : "This browser can't read aloud.", true);
+  const stopping = btn && btn.dataset.playing; hearTok++; ss.cancel();
+  document.querySelectorAll("[data-playing]").forEach(b => hearReset(null, b));
+  if (stopping) return hearReset(panel, btn);
+  const parts = hearSplit(text); if (!parts.length || !panel) return;
+  const tok = hearTok, long = n => n > 30;
+  panel.innerHTML = `<div class="jread-h">🔊 ${zh ? "每个高亮的部分是一句话。高亮特别长、中间不停顿 = 连写句，试着拆开。" : "Each highlight is one sentence. A really long highlight with no pause is a run-on. Try splitting it."}</div>`
+    + parts.map((s, i) => `<span data-s="${i}" class="${long(s.split(" ").length) ? "long" : ""}">${esc(s)}</span> `).join("")
+    + `<div class="jread-f" hidden>✅ ${zh ? "读完了！有没有哪句话听起来一直停不下来？" : "Done! Did any sentence sound like it never stopped?"}${parts.some(s => long(s.split(" ").length)) ? (zh ? " 波浪线标出的是特别长的句子。" : " The wavy lines mark the longest sentences.") : ""}</div>`;
+  panel.hidden = false; if (btn) { btn.dataset.label = btn.dataset.label || btn.textContent; btn.dataset.playing = 1; btn.textContent = zh ? "⏹ 停止" : "⏹ Stop"; }
+  const vs = ss.getVoices() || [], voice = vs.find(v => /^en[-_]US/i.test(v.lang) && /natural|samantha|google|aria|jenny/i.test(v.name)) || vs.find(v => /^en[-_]US/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang));
+  const ka = setInterval(() => { if (tok !== hearTok) return clearInterval(ka); if (ss.speaking && !ss.paused) { ss.pause(); ss.resume(); } }, 10000);
+  let i = 0;
+  const next = () => { if (tok !== hearTok) return; if (!panel.isConnected) { hearTok++; ss.cancel(); return; }
+    panel.querySelectorAll("span.on").forEach(x => x.classList.remove("on"));
+    if (i >= parts.length) { clearInterval(ka); return hearReset(panel, btn, true); }
+    const sp = panel.querySelector(`[data-s="${i}"]`); if (sp) { sp.classList.add("on"); sp.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+    const u = new SpeechSynthesisUtterance(parts[i]); if (voice) u.voice = voice; u.lang = "en-US"; u.rate = 0.95;
+    u.onend = u.onerror = () => { i++; setTimeout(next, 280); }; ss.speak(u); };
+  next();
+}
 const JST = {};
 async function jState(k) {
   const rule = jRule(k); if (!rule) return { ok: true };
@@ -2135,13 +2174,15 @@ function kidRender() {
       </section><section id="ks-note" class="kw-sec">
       ${little ? "" : `${kwH("book", "note", t.secretNotebook, `<span class="tagc">${KI("lock", 14)}</span>`)}
       <div class="kw-notebook"><div style="font:600 12px var(--kfont);color:#888;line-height:20px">${t.journalPrivate}</div>
+        ${buddyLastQ(k.id) ? `<div class="jbq">💭 ${lang === "zh" ? "Buddy 问你" : "Buddy asked you"}: ${esc(buddyLastQ(k.id))} <span style="font-weight:500;opacity:.7">${lang === "zh" ? "（可以在今天的日记里回答）" : "(you can answer it in today's entry)"}</span></div>` : ""}
         <form id="jForm"><textarea id="jIn" maxlength="30000" placeholder="${t.journalPh}" required>${jRule(k) && jEditing(k) ? esc(jSplit(jEditing(k).body).main) : ""}</textarea>
           ${jRule(k) && JREFLECT[k.id] ? `<div class="jrefl" style="margin-top:10px"><div style="font-weight:700;margin-bottom:4px">🪞 ${lang === "zh" ? `回答 3 个问题（每个至少 ${JREFLECT_MIN} 个词，算在总字数里）` : `Answer 3 questions (at least ${JREFLECT_MIN} words each; they count toward your total)`}</div>${JREFLECT[k.id].map((q, i) => `<label style="display:block;margin:6px 0"><span style="font-size:14px">${i + 1}. ${esc(lang === "zh" ? q[1] : q[0])}</span><textarea id="jR${i}" rows="2" maxlength="2000" style="width:100%;margin-top:3px">${jEditing(k) ? esc(jSplit(jEditing(k).body).ans[i] || "") : ""}</textarea></label>`).join("")}</div>` : ""}
           <div class="kw-wc" id="jWc">${jMin() ? (lang === "zh" ? `0 / ${jMin()} 字 · 写满 ${jMin()} 字才能得 +12 分` : `0 / ${jMin()} words · write ${jMin()} to earn +12 points`) : (lang === "zh" ? "写完保存就能得 +12 分" : "Save an entry to earn +12 points")}</div><div class="kw-wcbar"><i id="jWcBar"></i></div>
           ${jRule(k) ? `<div id="jChk" class="jchk"></div>` : ""}
           ${jRule(k) && jBad(k) && jBad(k).date !== today() ? `<div class="kw-sub" style="opacity:1;font-weight:700">${lang === "zh" ? `正在改 ${fmtDate(jBad(k).date)} 的日记。改好后再写今天的。` : `You're fixing your journal from ${fmtDate(jBad(k).date)}. After that, write today's.`}</div>` : ""}
-          <button class="btn sm primary">${jRule(k) && jEditing(k) ? (lang === "zh" ? "更新这篇日记" : "Update this entry") : t.saveEntry}</button></form>
-        ${journal.map(j => `<div class="entry"><small>${fmtDate(j.date)} · ${wordCount(j.body)} ${lang === "zh" ? "字" : "words"}${journalCounts(j) ? " ⭐+12" : ""} <button class="x" style="opacity:.5;color:#888" data-delj="${j.id}">✕</button></small>${esc(j.body)}</div>`).join("")}</div>`}
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn sm primary">${jRule(k) && jEditing(k) ? (lang === "zh" ? "更新这篇日记" : "Update this entry") : t.saveEntry}</button><button type="button" class="btn sm" id="jHear">${lang === "zh" ? "▶ 读给我听" : "▶ Hear it"}</button></div></form>
+        <div id="jRead" class="jread" hidden></div><div id="jBuddyNew"></div>
+        ${journal.map(j => `<div class="entry"><small>${fmtDate(j.date)} · ${wordCount(j.body)} ${lang === "zh" ? "字" : "words"}${journalCounts(j) ? " ⭐+12" : ""} <button class="x" style="opacity:.5;color:#888" data-delj="${j.id}">✕</button></small>${esc(j.body)}<div class="jhear-row"><button type="button" class="btn sm" data-hear="${j.id}">${lang === "zh" ? "▶ 读给我听" : "▶ Hear it"}</button></div><div class="jread" data-readfor="${j.id}" hidden></div>${buddyNote(j)}</div>`).join("")}</div>`}
       </section></div><aside class="kw-side">
       <section id="ks-cal" class="kw-sec">
       ${kidCalendarHtml(k.id)}
@@ -2231,15 +2272,27 @@ function kidRender() {
   }
   if ($("#jChk")) $("#jChk").onclick = e => { const b = e.target.closest("[data-ji]"); if (!b || !jLast) return; const x = jLast.issues[+b.dataset.ji], ta = $("#jIn"); if (!x || !ta) return;
     ta.focus(); ta.setSelectionRange(x.start, x.end); const lh = parseFloat(getComputedStyle(ta).lineHeight) || 20; const before = ta.value.slice(0, x.start).split("\n").length; ta.scrollTop = Math.max(0, before * lh - ta.clientHeight / 2); };
+  // 📬 after a save: show "Buddy is reading…", then his note (it also appears under the entry after the refresh)
+  const jBuddyAfterSave = async id => { if (!id) return; const box = () => document.getElementById("jBuddyNew");
+    if (box()) box().innerHTML = `<div class="jbuddy"><b>📬 ${zhJ ? "Buddy 正在读你的日记…" : "Buddy is reading your entry…"}</b></div>`;
+    const rep = await buddyAsk(id);
+    if (!rep) { if (box()) box().innerHTML = ""; return; }
+    try { const jr2 = await sb.from("my_journal_replies").select("*"); if (!jr2.error) S.jreplies = jr2.data || S.jreplies; } catch (e) {}
+    kidRender(); const n = document.querySelector(".kw-notebook .entry .jbuddy"); if (n) n.scrollIntoView({ behavior: "smooth", block: "center" }); };
+  if ($("#jHear")) $("#jHear").onclick = () => hearIt(jFull(k.id), $("#jRead"), $("#jHear"));
+  document.querySelectorAll("[data-hear]").forEach(b => b.onclick = () => { const j = (S.journal || []).find(x => x.id === b.dataset.hear); if (j) hearIt(j.body, document.querySelector(`[data-readfor="${b.dataset.hear}"]`), b); });
   if ($("#jForm")) $("#jForm").onsubmit = async e => { e.preventDefault(); const v = jFull(k.id).trim(); if (!v) return;
     if (jr) { const g = jReflectGap(k.id); if (g >= 0) { const el2 = document.getElementById("jR" + g); if (el2) el2.focus(); return setStatus(zhJ ? `第 ${g + 1} 个问题至少写 ${JREFLECT_MIN} 个词。` : `Question ${g + 1} needs at least ${JREFLECT_MIN} words.`, true); } }
-    if (!jr) { const n = wordCount(v);
-      return R(async () => { const { error } = await sb.from("journal").insert({ kid: k.id, date: today(), body: v }); if (error) throw error; })
-        .then(() => { const JOURNAL_MIN_WORDS = jMin(); if (!preview && n < JOURNAL_MIN_WORDS) setStatus(zhJ ? `已保存（${n} 字）。写满 ${JOURNAL_MIN_WORDS} 字的日记才能得分哦。` : `Saved (${n} words). Entries with ${JOURNAL_MIN_WORDS}+ words earn points.`); }); }
+    if (!jr) { const n = wordCount(v); let savedId = null;
+      return R(async () => { const { data, error } = await sb.from("journal").insert({ kid: k.id, date: today(), body: v }).select("id").single(); if (error) throw error; savedId = data && data.id; })
+        .then(() => { const JOURNAL_MIN_WORDS = jMin(); if (!preview && n < JOURNAL_MIN_WORDS) setStatus(zhJ ? `已保存（${n} 字）。写满 ${JOURNAL_MIN_WORDS} 字的日记才能得分哦。` : `Saved (${n} words). Entries with ${JOURNAL_MIN_WORDS}+ words earn points.`); if (!preview) jBuddyAfterSave(savedId); }); }
     let r; try { const J = await jLoad(); r = await J.check(v); } catch (err) { r = { words: wordCount(v), mistakes: null, issues: [] }; }
     if (r.words < jr.min || wordCount(v) < jr.min) return setStatus(zhJ ? `还差 ${jr.min - Math.min(r.words, wordCount(v))} 字才能保存（至少 ${jr.min} 字）。` : `${jr.min - Math.min(r.words, wordCount(v))} more words before you can save (at least ${jr.min}).`, true);
     const ex = jEditing(k), row = { body: v, words: r.words, mistakes: r.mistakes };
-    await R(async () => { const { error } = ex ? await sb.from("journal").update(row).eq("id", ex.id) : await sb.from("journal").insert({ kid: k.id, date: today(), ...row }); if (error) throw error; });
+    let savedId = ex ? ex.id : null;
+    await R(async () => { if (ex) { const { error } = await sb.from("journal").update(row).eq("id", ex.id); if (error) throw error; }
+      else { const { data, error } = await sb.from("journal").insert({ kid: k.id, date: today(), ...row }).select("id").single(); if (error) throw error; savedId = data && data.id; } });
+    if (!preview) jBuddyAfterSave(savedId);
     if (preview || r.mistakes == null) return;
     const vd = window.JCHECK.verdict(r, jr.min, jr.per);
     if (vd.pass) { setStatus(zhJ ? "✅ 日记完成！所有功能都打开了，积分照常。" : "✅ Journal done! Everything is open and points are on."); try { confetti(); } catch (e2) {} }

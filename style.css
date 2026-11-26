@@ -903,3 +903,17 @@ button:focus:not(:focus-visible),a:focus:not(:focus-visible){outline:none}
 .jtrait{border:1.5px solid #d4d4dc;border-radius:12px;padding:8px 10px;font:500 13.5px/1.4 var(--kfont,inherit)}
 .jtrait ul{margin:6px 0 0;padding-left:18px}.jtrait li{margin:3px 0}
 .jt-h{display:flex;justify-content:space-between;align-items:center;gap:6px}.jt-s{color:#e0a800;letter-spacing:1px;white-space:nowrap}.jt-ok{color:#166534;margin-top:4px}
+/* 📬 Journal Buddy + 🔊 Hear it (2026-11-25) */
+.jbuddy{margin-top:8px;padding:10px 12px;border-radius:12px;background:#eef6ff;border:2px solid #9cc3ff;white-space:normal;font:500 15px/1.5 var(--kfont,inherit);color:#123}
+.jbuddy b{display:block;margin-bottom:2px}
+.jbuddy.flag{border-color:#f08c00;background:#fff4e6}
+.jbq2{margin-top:6px}
+.jbflag{color:#c2410c;font-weight:700}
+.jbq{margin:0 0 8px;padding:8px 12px;border-radius:12px;background:#f3f0ff;border:2px solid #c5b8ff;font:600 15px/1.4 var(--kfont,inherit);color:#222}
+.jread{margin-top:10px;padding:10px 12px;border:2px dashed #bbb;border-radius:12px;background:#fffef6;font:500 16px/1.7 var(--kfont,inherit);white-space:normal;color:#222}
+.jread span{border-radius:4px;transition:background .15s}
+.jread span.on{background:#ffe066}
+.jread span.long{text-decoration:underline wavy #f08c00;text-underline-offset:4px}
+.jread-h,.jread-f{font-size:13px;line-height:1.4;opacity:.8;margin-bottom:6px}
+.jread-f{margin:8px 0 0}
+.jhear-row{margin-top:4px;white-space:normal}

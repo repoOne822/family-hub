@@ -18,7 +18,6 @@ create table if not exists public.journal_replies (
 );
 create index if not exists journal_replies_kid on public.journal_replies (kid, created_at desc);
 alter table public.journal_replies enable row level security;
-drop policy if exists "adults read journal replies" on public.journal_replies;
 create policy "adults read journal replies" on public.journal_replies for select using (private.is_family());
 grant select on public.journal_replies to authenticated;
 
