@@ -182,10 +182,11 @@ async function boot() {
 }
 
 /* ---------------- shell + routing ---------------- */
-const ROUTES = ["today", "calendar", "rewards", "dashboard", "learning", "brain", "roadmap", "performance", "feedback", "subjects", "log", "plans", "reports", "family"];
-const NAVKEY = { today: "Today", calendar: "Cal", rewards: "Rewards", dashboard: "Dash", learning: "Learn", brain: "Brain", roadmap: "Roadmap", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" };
+const ROUTES = ["glance", "today", "calendar", "rewards", "dashboard", "learning", "brain", "roadmap", "performance", "feedback", "subjects", "log", "plans", "reports", "family"];
+const NAVKEY = { glance: "Glance", today: "Today", calendar: "Cal", rewards: "Rewards", dashboard: "Dash", learning: "Learn", brain: "Brain", roadmap: "Roadmap", performance: "Perf", feedback: "Feedback", subjects: "Subjects", log: "Log", plans: "Plans", reports: "Reports", family: "Family" };
 const navLabel = r => T()["nav" + NAVKEY[r]] || r;
 const PICON = {
+  glance: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   calendar: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   rewards: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8c-2-4-6-4-6-1.5S9 8 12 8zm0 0c2-4 6-4 6-1.5S15 8 12 8z"/>',
@@ -205,8 +206,8 @@ const PICON = {
   globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/>',
   out: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/>' };
 const pIcon = n => `<svg class="pico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PICON[n] || ""}</svg>`;
-const NAVGROUPS = [[null, ["today", "calendar", "rewards"]], [{ en: "Kids", zh: "孩子" }, ["dashboard", "learning", "brain", "subjects", "roadmap", "performance", "feedback"]], [{ en: "Records", zh: "记录" }, ["log", "plans", "reports"]], [{ en: "Home", zh: "家庭" }, ["family"]]];
-const TABS = ["today", "calendar", "dashboard", "rewards"];
+const NAVGROUPS = [[null, ["glance", "today", "calendar", "rewards"]], [{ en: "Kids", zh: "孩子" }, ["dashboard", "learning", "brain", "subjects", "roadmap", "performance", "feedback"]], [{ en: "Records", zh: "记录" }, ["log", "plans", "reports"]], [{ en: "Home", zh: "家庭" }, ["family"]]];
+const TABS = ["glance", "today", "dashboard", "rewards"];
 function renderShell() {
   const t = T(), zh = lang === "zh", lk = (r, cls = "") => `<a href="#${r}" data-r="${r}" class="${cls}">${pIcon(r)}<span>${r === "dashboard" && cls.includes("tab") ? (zh ? "孩子" : "Kids") : navLabel(r)}</span></a>`;
   const tools = `<button class="pside-btn" id="langBtn">${pIcon("globe")}<span>${lang === "en" ? "中文" : "English"}</span></button>
@@ -233,7 +234,7 @@ function route() {
   if (!S.user || isKid()) return;
   if (!$("#view")) return;
   if (isLocked()) { document.querySelectorAll(".pside .pnav,.ptabs").forEach(n => n.style.display = "none"); openLobby(); return; }
-  let h = location.hash.slice(1) || "today";
+  let h = location.hash.slice(1) || (() => { try { return localStorage.getItem("fh_parent_home") || "today"; } catch (e) { return "today"; } })();
   let doc = null;
   if (h.startsWith("doc-")) { doc = h.slice(4); h = "doc"; }
   if (!ROUTES.includes(h) && h !== "doc") h = "today";
@@ -243,7 +244,85 @@ function route() {
   if ($("#pgTitle")) $("#pgTitle").textContent = navLabel(onR); window.scrollTo(0, 0);
   const waiting = (S.redemptions || []).filter(r => r.status === "requested").length; // badge: reward requests waiting for a parent
   document.querySelectorAll('[data-r="rewards"]').forEach(a => { let b = a.querySelector(".pbadge"); if (!waiting) { b && b.remove(); return; } if (!b) { b = document.createElement("span"); b.className = "pbadge"; a.appendChild(b); } b.textContent = waiting; b.setAttribute("aria-label", waiting + " waiting"); });
-  ({ today: viewToday, calendar: viewCalendar, rewards: viewRewards, dashboard: viewDash, learning: viewLearning, brain: viewBrain, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, roadmap: viewRoadmap, doc: () => viewDoc(doc) })[h]();
+  ({ glance: viewGlance, today: viewToday, calendar: viewCalendar, rewards: viewRewards, dashboard: viewDash, learning: viewLearning, brain: viewBrain, log: viewLog, plans: () => viewDocs("plan"), reports: () => viewDocs("report"), family: viewFamily, subjects: viewSubjects, feedback: viewFeedback, performance: viewPerformance, roadmap: viewRoadmap, doc: () => viewDoc(doc) })[h]();
+}
+
+/* ---------------- 👀 AT A GLANCE (Bobby 2026-11-26) ----------------
+   "A dashboard for my wife and I … user friendly. The daily email is a bit too complicated for Abby to read."
+   One card per boy, plain sentences, big text, traffic-light status. Each boy only vs his own goals; no ranking. */
+const GL_AMC = { eric: 90, ellis: 60 }; // same daily AMC targets as amc/index.html AMC_DAILY
+const GL_MIN_JONAH = 20;
+function glanceKid(k) {
+  const zh = lang === "zh", L = (en, z) => zh ? z : en, d = today(), hr = new Date().getHours();
+  const secsOn = (day, app) => (S.app_time || []).filter(x => x.kid === k.id && x.date === day && (!app || x.app === app)).reduce((a, x) => a + (+x.secs || 0), 0);
+  const tot = secsOn(d), amc = secsOn(d, "amc"), goal = GL_AMC[k.id], minNow = Math.round(tot / 60), amcMin = Math.round(amc / 60);
+  const top = Object.entries((S.app_time || []).filter(x => x.kid === k.id && x.date === d).reduce((o, x) => (o[x.app] = (o[x.app] || 0) + (+x.secs || 0), o), {})).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const jt = jToday(k.id), bad = jBad(k), jReq = !!k.journal_required, minW = k.journal_min_words || 250;
+  const flags = (S.integrity_flags || []).filter(f => f.kid === k.id && f.status === "open" && f.points > 0 && f.severity !== "low");
+  const c = (S.checkins || []).find(x => x.kid === k.id && x.date === d) || {};
+  const wkGoal = k.weekly_goal || 500, wk = mondayOf(d), stars = weekStars(k.id, wk), pct = Math.min(100, Math.round(100 * stars / wkGoal));
+  const tdPts = (S.point_ledger || []).filter(r => r.kid === k.id && r.date === d && r.source !== "spend").reduce((a, r) => a + r.points, 0);
+  // journal line
+  let jLine = null, jState = "na";
+  if (jReq) {
+    if (bad) { jState = "bad"; jLine = L(`⚠️ Journal has too many mistakes. Points are paused until he fixes it.`, `⚠️ 日记错误太多，改正之前积分暂停。`); }
+    else if (jt && (jt.words || 0) >= minW) { jState = "ok"; jLine = L(`✅ Journal done (${jt.words} words)`, `✅ 日记写好了（${jt.words} 字）`); }
+    else if (jt) { jState = "part"; jLine = L(`✏️ Journal started: ${jt.words || 0} of ${minW} words`, `✏️ 日记写了 ${jt.words || 0} / ${minW} 字`); }
+    else { jState = "no"; jLine = L(`⏳ Journal not written yet (apps open after it)`, `⏳ 还没写日记（写完才能用 App）`); }
+  }
+  // study line
+  const studyOk = goal ? amcMin >= goal : minNow >= GL_MIN_JONAH;
+  const sLine = goal ? L(`⏱️ Studied ${hm(tot) || "0m"} today · AMC ${amcMin} of ${goal} min`, `⏱️ 今天学习 ${hm(tot) || "0 分钟"} · AMC ${amcMin} / ${goal} 分钟`)
+                     : L(`⏱️ Learning games today: ${hm(tot) || "0m"}`, `⏱️ 今天学习游戏 ${hm(tot) || "0 分钟"}`);
+  const sBar = goal ? Math.min(100, Math.round(100 * amcMin / goal)) : Math.min(100, Math.round(100 * minNow / 60));
+  // status
+  let st;
+  if (jState === "bad" || flags.length || (jReq && jState !== "ok" && hr >= 19)) st = ["warn", "⚠️", L("Needs a look", "需要关注"), "#fde2e1", "#b42318"];
+  else if ((!jReq || jState === "ok") && studyOk) st = ["good", "😀", L("Great day", "今天很好"), "#dcfce7", "#166534"];
+  else st = ["mid", "🙂", L("In progress", "进行中"), "#fef3c7", "#92400e"];
+  // talk tip (one, plain)
+  let tip;
+  if (jState === "bad") tip = L("Sit with him for 5 minutes and fix the journal together. Praise the effort, not the mistakes.", "陪他坐 5 分钟一起改日记。夸他认真改，不要盯着错误说。");
+  else if (flags.length) tip = L("Some points are on hold (looked like rushing or repeating). Ask him calmly how he practiced today.", "有些积分在核查（像是赶快乱做或重复做）。平静地问问他今天是怎么练习的。");
+  else if (jReq && jState !== "ok") tip = L("Remind him gently: journal first, then apps.", "温柔提醒：先写日记，再用 App。");
+  else if (goal && !studyOk) tip = L(`About ${goal - amcMin} more AMC minutes to reach today's goal.`, `离今天的 AMC 目标还差约 ${goal - amcMin} 分钟。`);
+  else if (pct >= 80 && pct < 100) tip = L(`Almost at his weekly star goal: only ${wkGoal - stars} to go!`, `快到本周星星目标了，只差 ${wkGoal - stars}！`);
+  else if (studyOk) tip = L("He hit today's goal. Tell him one specific thing he did well.", "他完成了今天的目标。具体地夸他一件做得好的事。");
+  else tip = L("Ask him what he learned today; let him teach you one thing.", "问问他今天学了什么，让他教你一件事。");
+  // 7-day dots
+  const days = []; for (let i = 6; i >= 0; i--) days.push(daysAgo(i));
+  const dots = days.map(day => { const m = Math.round((goal ? secsOn(day, "amc") : secsOn(day)) / 60), tgt = goal || GL_MIN_JONAH, col = m >= tgt ? "#22c55e" : m > 0 ? "#facc15" : "#e5e7eb";
+    const lab = day === d ? L("Today", "今天") : new Date(day + "T12:00").toLocaleDateString(zh ? "zh-CN" : "en-US", { weekday: "short" });
+    return `<div style="text-align:center;flex:1"><div title="${m} min" style="height:30px;border-radius:9px;background:${col};display:grid;place-items:center;font-weight:800;font-size:13px;color:#333">${m || ""}</div><div style="font-size:12px;color:#666;margin-top:3px">${lab}</div></div>`; }).join("");
+  const bar = (v, col) => `<div style="height:12px;border-radius:9px;background:#0000000f;overflow:hidden;margin-top:6px"><i style="display:block;height:100%;width:${v}%;background:${col};border-radius:9px"></i></div>`;
+  const row = (html, extra = "") => `<div style="padding:12px 0;border-top:1px solid #0000000d;font-size:18px;line-height:1.4">${html}${extra}</div>`;
+  return `<div class="card glk" style="border-top:6px solid ${KCOL[k.id] || "var(--k0)"};padding:18px 18px 12px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px"><span style="width:56px;height:56px;border-radius:16px;background:#fff;display:grid;place-items:center;box-shadow:0 2px 0 #0001">${avatarHtml(k.avatar, 50)}</span>
+      <div style="flex:1"><div style="font-size:24px;font-weight:800">${esc(kidName(k.id))}</div><div style="font-size:15px;color:#666">${c.kid_mood ? L(`Feels ${FACES[c.kid_mood - 1]} today`, `今天心情 ${FACES[c.kid_mood - 1]}`) : L("No mood check-in yet", "今天还没打卡心情")}</div></div>
+      <span style="background:${st[3]};color:${st[4]};font-weight:800;font-size:17px;padding:8px 14px;border-radius:999px;white-space:nowrap">${st[1]} ${st[2]}</span></div>
+    ${jLine ? row(jLine) : ""}
+    ${row(sLine + (top.length ? `<div style="font-size:14px;color:#666">${top.map(([a, v]) => `${esc(appSubjName(k.id, a))} ${hm(v)}`).join(" · ")}</div>` : ""), bar(sBar, studyOk ? "#22c55e" : "#facc15"))}
+    ${row(L(`⭐ This week: ${stars} of ${wkGoal} stars${stars >= wkGoal ? " — goal reached! 🎉" : ` · +${tdPts} today`}`, `⭐ 本周星星 ${stars} / ${wkGoal}${stars >= wkGoal ? "，目标达成！🎉" : ` · 今天 +${tdPts}`}`) + `<div style="font-size:14px;color:#666">${L(stars >= wkGoal ? "He can take the weekly exam for his $20." : `Reach ${wkGoal} to unlock the weekly exam ($20).`, stars >= wkGoal ? "他可以参加每周考试赢 $20 零花钱。" : `到 ${wkGoal} 颗星就能考试赢 $20 零花钱。`)}</div>`, bar(pct, "#6d4aff"))}
+    ${flags.length ? row(L(`🛡️ ${flags.length} point item${flags.length > 1 ? "s" : ""} on hold for review`, `🛡️ 有 ${flags.length} 项积分在核查`) + ` <a href="#dashboard" style="font-size:15px">${L("see why →", "看原因 →")}</a>`) : ""}
+    ${row(`<div style="font-size:15px;color:#666;margin-bottom:6px">${goal ? L(`Last 7 days · AMC minutes (green = goal met)`, `最近 7 天 · AMC 分钟（绿色 = 达标）`) : L(`Last 7 days · learning minutes (green = ${GL_MIN_JONAH}+)`, `最近 7 天 · 学习分钟（绿色 = ${GL_MIN_JONAH} 分钟以上）`)}</div><div style="display:flex;gap:6px">${dots}</div>`)}
+    <div style="margin-top:6px;padding:12px 14px;border-radius:14px;background:#f5f3ff;font-size:17px;line-height:1.45">💬 <b>${L("Tonight", "今晚")}:</b> ${tip}</div>
+  </div>`;
+}
+function viewGlance() {
+  const zh = lang === "zh", L = (en, z) => zh ? z : en, d = today();
+  const waiting = (S.redemptions || []).filter(r => r.status === "requested");
+  let isHome = false; try { isHome = localStorage.getItem("fh_parent_home") === "glance"; } catch (e) {}
+  const dstr = new Date(d + "T12:00").toLocaleDateString(zh ? "zh-CN" : "en-US", { weekday: "long", month: "long", day: "numeric" });
+  $("#view").innerHTML = `
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:4px 0 12px">
+      <div><h2 style="margin:0;font-size:28px">👀 ${L("Kids at a glance", "孩子们今天怎么样")}</h2><div style="font-size:17px;color:#666">${dstr}</div></div>
+      <div class="row" style="gap:8px"><button class="btn sm" id="glLang">${zh ? "English" : "中文"}</button><button class="btn sm ${isHome ? "" : "primary"}" id="glHome">${isHome ? L("✓ My start page", "✓ 已设为首页") : L("Make this my start page", "设为我的首页")}</button></div></div>
+    ${waiting.length ? `<a class="reqbanner" href="#rewards" style="font-size:18px">🎁 <b>${L(`${waiting.length} reward request${waiting.length > 1 ? "s" : ""} waiting for you`, `${waiting.length} 个奖励兑换等你确认`)}</b><em>→</em></a>` : ""}
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;font-size:15px"><span style="background:#dcfce7;color:#166534;padding:5px 10px;border-radius:999px">😀 ${L("Great day", "今天很好")}</span><span style="background:#fef3c7;color:#92400e;padding:5px 10px;border-radius:999px">🙂 ${L("In progress", "进行中")}</span><span style="background:#fde2e1;color:#b42318;padding:5px 10px;border-radius:999px">⚠️ ${L("Needs a look", "需要关注")}</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:14px;align-items:start">${S.kids.map(glanceKid).join("")}</div>
+    <p class="meta" style="margin-top:12px;font-size:14px">${L("Each boy is compared only with his own goals. Updates when you open or refresh this page. More detail: Kids → Dashboard.", "每个孩子只和自己的目标比，不和兄弟比较。打开或刷新页面就会更新。想看更多：孩子 → 总览。")}</p>`;
+  $("#glHome").onclick = () => { try { if (localStorage.getItem("fh_parent_home") === "glance") localStorage.removeItem("fh_parent_home"); else localStorage.setItem("fh_parent_home", "glance"); } catch (e) {} viewGlance(); };
+  $("#glLang").onclick = () => { const b = document.getElementById("langBtn"); if (b) b.click(); };
 }
 
 /* ---------------- 🧠 BRAIN DEVELOPMENT (2026-11-26) ----------------
