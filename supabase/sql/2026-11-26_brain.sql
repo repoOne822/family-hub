@@ -1,0 +1,5 @@
+-- 🧠 Brain development tracking (2026-11-26) — waiting for Bobby's approval to apply (apply_migration asked; no answer yet).
+-- Tables: brain_checks (Brain Check results; Jonah's Brain Park checks imported), brain_signals (nightly 14-day app signals),
+-- body_log (sleep / exercise / outdoor, parent-logged), home_ratings (monthly 8-question parent rating).
+-- Domains: wm, attn, inhib, flex, speed, reason, plan, emo. Each boy is compared only with his own past.
+-- Full SQL is identical to the migration attempted in chat on 2026-11-26 (see family/brain-development.md once live).
