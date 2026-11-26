@@ -205,6 +205,13 @@ let P = load(); P.lessons = P.lessons || {}; P.mixed = P.mixed || []; P.tests = 
 const REP_DAYS = 3;
 const dMinus = n => { const x = new Date(); x.setDate(x.getDate() - n); return x.toLocaleDateString("en-CA"); };
 const qKey = q => String(q || "").slice(0, 90);
+// 🔁 Repeated-mistake rule (Bobby 11/25): missing the same KIND of problem (numbers ignored) on the first try on a 3rd different day
+// within 2 weeks costs 5 ⭐ that night (at most 20 a day; private.mistake_penalties). Same shape formula as the database.
+const kindOf = q => qKey(q).toLowerCase().replace(/-?\d+([.,/]\d+)?/g, "#").replace(/\s+/g, " ").slice(0, 60);
+const missDays = q => { const k = kindOf(q), since = dMinus(13), days = new Set(); P.events.forEach(e => { if (e.q && e.ok === false && !e.left && e.m !== "read" && e.m !== "scratch" && e.d >= since && kindOf(e.q) === k) days.add(e.d); }); return days.size; };
+const missNote = q => { if (PARENT || (KID !== "eric" && KID !== "ellis")) return ""; const n = missDays(q);
+  return n >= 3 ? `<div class="fb no" style="margin-top:6px">🔁 <b>Day ${n} missing this kind of problem.</b> Repeated mistakes cost 5 ⭐ tonight. Memorizing this answer won't help, because it comes back with new numbers. Learn the method in the steps below.</div>`
+    : n === 2 ? `<div class="fb hint" style="margin-top:6px">⚠️ <b>2nd day missing this kind of problem.</b> Miss it on one more day and it costs 5 ⭐. Read every step below and write it in your error log.</div>` : ""; };
 function recentlyRight(q, beforeTs) { const k = qKey(q), since = dMinus(REP_DAYS); return P.events.some(e => e.ok && e.q === k && e.d >= since && (!beforeTs || (e.ts || 0) < beforeTs)); }
 (function backfillRep() { // mark old repeats once, so the parent view and the nightly model count fresh problems only
   if (P.repMarked) return; const lastRight = {};
@@ -777,13 +784,13 @@ function practice(list, i, mode) {
       if (j === p.a) {
         b.classList.add("right"); box.querySelectorAll("[data-j]").forEach(x => x.disabled = true);
         const star = tries === 1 && !rep; if (star) right++; log(tries === 1); const mv = rep ? null : adRecord(p, true, star, firstSecs);
-        $("#fb").innerHTML = `${rep ? `<div class="fb hint">🔁 You already solved this one in the last few days, so it's practice only: no points or stars. New problems earn points: try the ♾️ Practice gym.</div>` : ""}<div class="fb ok">${star ? "⭐ First try! " : "✅ Got it! "}${esc(p.why)}</div>${mv && mv.moved > 0 ? `<div class="fb ok" style="margin-top:6px">⬆️ <b>Level up!</b> ${esc(p.from.title)} is now Level ${mv.lv}/5 (${LVNAME[mv.lv]}). Harder problems are coming.</div>` : ""}${solution()}`;
+        $("#fb").innerHTML = `${rep ? `<div class="fb hint">🔁 You already solved this one in the last few days, so it's practice only: no points or stars. New problems earn points: try the ♾️ Practice gym.</div>` : ""}<div class="fb ok">${star ? "⭐ First try! " : "✅ Got it! "}${esc(p.why)}</div>${tries > 1 ? missNote(p.q) : ""}${mv && mv.moved > 0 ? `<div class="fb ok" style="margin-top:6px">⬆️ <b>Level up!</b> ${esc(p.from.title)} is now Level ${mv.lv}/5 (${LVNAME[mv.lv]}). Harder problems are coming.</div>` : ""}${solution()}`;
         $("#nx").style.display = ""; $("#hint").style.display = "none";
       } else {
         b.classList.add("wrong"); b.disabled = true;
         if (tries >= 2) { log(false); const mv = rep ? null : adRecord(p, false, false, firstSecs);
           box.querySelectorAll("[data-j]").forEach(x => x.disabled = true); box.querySelector(`[data-j="${p.a}"]`).classList.add("right");
-          $("#fb").innerHTML = `<div class="fb no">The answer is <b>${LET[p.a]}</b>. Read the steps below, then write this one in your error log. 📒${AD ? " A fresh version of this one will come back soon." : ""}</div>${mv && mv.moved < 0 ? `<div class="fb hint" style="margin-top:6px">⬇️ Let's build it up: ${esc(p.from.title)} goes to Level ${mv.lv}/5 for a bit.</div>` : ""}${solution()}`;
+          $("#fb").innerHTML = `<div class="fb no">The answer is <b>${LET[p.a]}</b>. Read the steps below, then write this one in your error log. 📒${AD ? " A fresh version of this one will come back soon." : ""}</div>${missNote(p.q)}${mv && mv.moved < 0 ? `<div class="fb hint" style="margin-top:6px">⬇️ Let's build it up: ${esc(p.from.title)} goes to Level ${mv.lv}/5 for a bit.</div>` : ""}${solution()}`;
           $("#nx").style.display = ""; $("#hint").style.display = "none";
         } else $("#fb").innerHTML = `<div class="fb no">Not quite. Try again! ${hints ? "" : "Tap 💡 for a hint."}</div>${hints ? `<div class="fb hint"><b>👀 What to notice:</b> ${esc(p.steps[0])}${hints > 1 ? `<div style="margin-top:6px"><b>🧠 The plan:</b> ${esc(p.steps[1])}</div>` : ""}</div>` : ""}`;
       }
