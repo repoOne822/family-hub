@@ -2103,7 +2103,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">🏠 ${lang === "zh" ? "首页" : "Home"}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261126fb1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">🏠 ${lang === "zh" ? "首页" : "Home"}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261127jr1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && !cfg.free && (cfg.id !== "space" || kid === "jonah")) ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
@@ -3032,7 +3032,8 @@ async function habitCheck(kid, r, R) {
 const winOk = v => { const cjk = (v.match(/[\u4e00-\u9fff]/g) || []).length; return cjk >= 8 || v.split(/\s+/).filter(w => /[a-z0-9]/i.test(w)).length + Math.floor(cjk / 2) >= 5; };
 /* ---- 🪞 Journal reflection (Bobby 2026-11-25): Ellis's entries were written to exactly the 250-word minimum. The minimum stays, but 3 reflection
    questions (10+ words each) are part of every entry, so the words go into thinking about the day, not padding. Saved at the end of the body. ---- */
-const JREFLECT = { ellis: [["What did I learn or get better at today?", "今天我学会了什么，或者哪里进步了？"], ["What was hard, and what did I do about it?", "什么事情很难？我是怎么做的？"], ["What will I do differently tomorrow?", "明天我要怎么做得不一样？"]] };
+const JREFLECT_Q = [["What did I learn or get better at today?", "今天我学会了什么，或者哪里进步了？"], ["What was hard, and what did I do about it?", "什么事情很难？我是怎么做的？"], ["What will I do differently tomorrow?", "明天我要怎么做得不一样？"]];
+const JREFLECT = { ellis: JREFLECT_Q, eric: JREFLECT_Q }; // Eric added 2026-11-27 (Bobby: his entries stopped at exactly the 250-word minimum)
 const JREFLECT_MIN = 10, J_MARK = "\n\n🪞 Reflection\n";
 const jSplit = body => { const s = String(body || ""), i = s.indexOf(J_MARK); if (i < 0) return { main: s, ans: [] };
   const ans = s.slice(i + J_MARK.length).split(/\n(?=\d\. )/).map(x => x.replace(/^\d\. /, "").trim()); return { main: s.slice(0, i), ans }; };
