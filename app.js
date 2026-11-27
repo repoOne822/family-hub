@@ -2103,7 +2103,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">🏠 ${lang === "zh" ? "首页" : "Home"}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261127jr1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">🏠 ${lang === "zh" ? "首页" : "Home"}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261127dw2${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && !cfg.free && (cfg.id !== "space" || kid === "jonah")) ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
@@ -2194,10 +2194,11 @@ const FP_RULE = {
   weekly_bonus_unsupported: ["🎯", "Weekly bonus without backed taps", "每周奖励缺少真实打卡"], away_in_checkpoint: ["🚪", "Left the page during a checkpoint", "关卡中离开了页面"],
   checkpoint_review: ["👀", "Checkpoint points waiting for a parent look", "关卡分数等家长查看"], win_before_exam: ["⏱️", "Win logged right before the $20 exam", "考试前刚记了一个成就"],
   repeat_answers: ["♻️", "Same problem answered again and again", "同一道题反复做"], rushing: ["⚡", "Answering faster than reading", "答题快到来不及读题"],
-  exam_seen_questions: ["📋", "Exam used questions he had seen", "考试题以前做过"], drift: ["😴", "Apps open, mostly away", "应用开着但人不在"], journal_minimum: ["✍️", "Journal stops at the word minimum", "日记刚好写到最低字数"] };
+  exam_seen_questions: ["📋", "Exam used questions he had seen", "考试题以前做过"], drift: ["😴", "Apps open, mostly away", "应用开着但人不在"], journal_minimum: ["✍️", "Journal stops at the word minimum", "日记刚好写到最低字数"],
+  burst_taps: ["👆", "Same reward tapped many times in a minute", "一分钟内反复点同一个奖励"], cp_reward_no_pass: ["🚫", "Checkpoint reward without a checkpoint", "没过关却拿了关卡分"], replay_paid: ["🔁", "Same mission replayed for stars", "同一关反复玩拿星星"] };
 const FP_SET = { self_habits_parent_only: ["Self-report habits: parent marks them", "自报习惯由家长打卡"], cp_review: ["Checkpoint points wait for a parent look", "关卡分数等家长查看"], min_answer_secs: ["Checkpoint answers under 6 s don't count", "关卡里 6 秒内的答案不算"] };
 function fairPanel(kid) {
-  if (isKid() || !["eric", "ellis"].includes(kid)) return "";
+  if (isKid() || !["eric", "ellis", "jonah"].includes(kid)) return "";
   const zh = lang === "zh", fl = (S.integrity_flags || []).filter(f => f.kid === kid), open = fl.filter(f => f.status === "open" && f.points > 0 && f.severity !== "low");
   const notes = fl.filter(f => f.severity === "low" && f.date >= daysAgo(6)), sets = (S.integrity_settings || []).filter(x => x.kid === kid);
   const nm = r => (FP_RULE[r] || ["•", r, r]), held = open.reduce((a, f) => a + f.points, 0);
@@ -2227,8 +2228,19 @@ document.addEventListener("click", async e => {
    Builds SELF-MONITORING: before a task he writes what "done well" means (2–3 points, his own words); after it he checks himself against each.
    A parent spot-checks: 👍 agree (+5 ⭐, so points reward HONEST self-checking, not high self-scores) or 〽️ not quite.
    Stored in app_saves (app "donewell", key <kid>_donewell); no points for writing or rating, only for a parent agreeing. ---- */
-const DW_KIDS = ["eric"];
-const DW_TASKS = [["📚", "Homework", "作业"], ["🎒", "Launch pad", "出门准备"], ["🧹", "Room / chore", "房间/家务"], ["🤖", "Onshape build", "Onshape 建模"], ["🏁", "Checkpoint", "关卡"], ["✏️", "Other", "其他"]];
+const DW_KIDS = ["eric", "ellis", "jonah"]; // Ellis + Jonah added 2026-11-27 (Bobby: "afraid Ellis and Jonah pick up those habits from Eric")
+const DW_TASKS_ALL = { eric: [["📚", "Homework", "作业"], ["🎒", "Launch pad", "出门准备"], ["🧹", "Room / chore", "房间/家务"], ["🤖", "Onshape build", "Onshape 建模"], ["🏁", "Checkpoint", "关卡"], ["✏️", "Other", "其他"]],
+  ellis: [["📚", "Homework", "作业"], ["🎒", "Launch pad", "出门准备"], ["🧹", "Room / chore", "房间/家务"], ["🤺", "Fencing practice", "击剑练习"], ["🏁", "Checkpoint", "关卡"], ["✏️", "Other", "其他"]] };
+let DW_TASKS = DW_TASKS_ALL.eric;
+// Jonah (5): picture checklists he hears read aloud, done together with a grown-up. No writing.
+const DW_LITTLE = { jonah: [
+  { n: ["Toys away", "收玩具"], i: "🧸", st: [["🧸", "Toys in the box", "玩具放进箱子"], ["📚", "Books on the shelf", "书放回书架"], ["🧹", "Floor is clear", "地上干干净净"]] },
+  { n: ["Brush teeth", "刷牙"], i: "🦷", st: [["🪥", "Brush top and bottom", "上下都刷"], ["⏱️", "Count to 60", "数到 60"], ["💧", "Rinse and put the brush away", "漱口，牙刷放好"]] },
+  { n: ["Get dressed", "穿衣服"], i: "👕", st: [["👕", "Shirt on the right way", "衣服穿正"], ["👖", "Pants on", "穿好裤子"], ["🧦", "Socks and shoes", "穿袜子和鞋"]] },
+  { n: ["Bag ready", "准备书包"], i: "🎒", st: [["📁", "Folder in the bag", "文件夹放进书包"], ["🥤", "Water bottle", "水瓶"], ["🚪", "Bag by the door", "书包放门口"]] },
+  { n: ["After dinner", "吃完饭"], i: "🍽️", st: [["🍽️", "Plate to the sink", "盘子放进水池"], ["🧻", "Wipe my spot", "擦干净我的位置"], ["🪑", "Push in my chair", "椅子推回去"]] },
+  { n: ["Reading time", "读书时间"], i: "📖", st: [["📖", "Pick a book", "选一本书"], ["👀", "Look at every page", "每一页都看"], ["🗣️", "Tell a grown-up one thing", "跟大人说一件书里的事"]] } ] };
+const dwSay = t => { try { const u = new SpeechSynthesisUtterance(t); u.lang = lang === "zh" ? "zh-CN" : "en-US"; u.rate = 0.9; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} };
 const DW_HINT = { "Homework": "e.g. every question answered, work shown, name on it, in my folder", "Launch pad": "e.g. bag zipped by the door, homework inside, water bottle filled", "Room / chore": "e.g. floor clear, clothes in the hamper, bed made",
   "Onshape build": "e.g. parts fit, measurements checked twice, saved with a clear name", "Checkpoint": "e.g. read every question twice, checked the units, no guessing", "Other": "what will it look like when it's done well?" };
 const dwSave = kid => { const r = (S.donewell || []).find(x => x.kid === kid); return (r && r.data && r.data[`${kid}_donewell`]) || { items: [] }; };
@@ -2236,7 +2248,24 @@ async function dwWrite(kid, P) { const { error } = await sb.from("app_saves").up
   const r = (S.donewell || []).find(x => x.kid === kid); if (r) r.data = { [`${kid}_donewell`]: P }; else (S.donewell = S.donewell || []).push({ kid, data: { [`${kid}_donewell`]: P } }); }
 const dwWords = t => String(t || "").trim().split(/\s+/).filter(Boolean).length;
 const RATE = [["❌", "No", "没有"], ["〽️", "Partly", "部分"], ["✅", "Yes", "做到了"]];
+function doneWellLittleHtml(k) {
+  const zh = lang === "zh", P = dwSave(k.id), d = today(), T = DW_LITTLE[k.id], open = P.items.find(x => !x.done), todayN = P.items.filter(x => x.d === d).length;
+  const waiting = P.items.filter(x => x.done && !x.parent && x.d === d), L = a => zh ? a[1] : a[0];
+  let body;
+  if (open) { const t = T.find(x => L(x.n) === open.task || x.n[0] === open.task) || T[0];
+    body = `<div style="text-align:center"><div style="font-size:54px">${t.i}</div><b style="font-size:20px">${esc(L(t.n))}</b>
+      <p class="meta">${zh ? "做好了是这样的：" : "Done looks like this:"}</p>
+      ${t.st.map(x => `<button class="dwbig" data-dwsay="${esc(L(x.slice(1)))}"><span style="font-size:34px">${x[0]}</span> ${esc(zh ? x[2] : x[1])} 🔊</button>`).join("")}
+      <div class="row" style="justify-content:center;gap:10px;margin-top:10px"><button class="btn primary" id="dwLDone" style="font-size:18px">🙋 ${zh ? "我做好了！给大人看" : "I did it! Show a grown-up"}</button><button class="btn sm ghost" id="dwDrop">${zh ? "换一个" : "Pick another"}</button></div></div>`; }
+  else if (todayN >= 4) body = `<p style="text-align:center">🌟 ${zh ? "今天做了好多，太棒了！" : "Lots done today. Great job!"}</p>`;
+  else body = `<p class="meta" style="text-align:center">${zh ? "选一件事，看看“做好了”是什么样子：" : "Pick a job and see what done looks like:"}</p>
+      <div class="dwlittle">${T.map((t, i) => `<button class="dwbig" data-dwl="${i}"><span style="font-size:40px">${t.i}</span><b>${esc(L(t.n))}</b></button>`).join("")}</div>`;
+  return `<div class="kw-h"><span class="kw-ht">🎯 ${zh ? "做好了吗？" : "Did I do it well?"}</span></div><div class="kw-card">${body}
+    ${waiting.length ? `<p class="meta" style="text-align:center;margin-top:8px">⏳ ${zh ? "等大人来看：" : "Waiting for a grown-up to look:"} ${waiting.map(x => esc(x.task)).join(", ")}</p>` : ""}</div>`;
+}
 function doneWellKidHtml(k) {
+  if (DW_LITTLE[k.id]) return doneWellLittleHtml(k);
+  DW_TASKS = DW_TASKS_ALL[k.id] || DW_TASKS_ALL.eric;
   const zh = lang === "zh", P = dwSave(k.id), d = today(), open = P.items.find(x => !x.done), todayN = P.items.filter(x => x.d === d).length;
   const recent = P.items.filter(x => x.done).slice(-3).reverse();
   let body;
@@ -2259,9 +2288,14 @@ function doneWellKidHtml(k) {
     ${recent.length ? `<div style="margin-top:10px">${recent.map(x => `<div class="meta">${x.parent ? (x.parent.agree ? "👍" : "〽️") : "⏳"} ${esc(x.task)} · ${x.done.rates.map(v => RATE[v][0]).join("")}${x.parent && !x.parent.agree && x.parent.note ? ` · ${esc(x.parent.note)}` : ""}</div>`).join("")}</div>` : ""}</div>`;
 }
 document.addEventListener("click", async e => {
-  const t = e.target.closest("[data-dwt],[data-dwr],#dwStart,#dwDone,#dwDrop"); if (!t || !isKid()) return;
+  const t = e.target.closest("[data-dwt],[data-dwr],#dwStart,#dwDone,#dwDrop,[data-dwl],[data-dwsay],#dwLDone"); if (!t || !isKid()) return;
   const k = S.kids[0], zh = lang === "zh", P = dwSave(k.id);
   try {
+    if (t.dataset.dwsay) return dwSay(t.dataset.dwsay);
+    if (t.dataset.dwl != null) { const T = DW_LITTLE[k.id][+t.dataset.dwl]; P.items.push({ id: Date.now().toString(36), d: today(), task: zh ? T.n[1] : T.n[0], crit: T.st.map(x => zh ? x[2] : x[1]), at: Date.now(), little: true });
+      P.items = P.items.slice(-200); await dwWrite(k.id, P); kidRender(); dwSay((zh ? "做好了是这样：" : "Done looks like this: ") + T.st.map(x => zh ? x[2] : x[1]).join(". ")); return; }
+    if (t.id === "dwLDone") { const open = P.items.find(x => !x.done); if (!open) return; open.done = { rates: open.crit.map(() => 2), next: "", at: Date.now() };
+      await dwWrite(k.id, P); kidRender(); dwSay(zh ? "太好了！去找大人来看看吧。" : "Great! Go get a grown-up to look."); return; }
     if (t.dataset.dwt) { const inp = $("#dwTask"); if (inp) inp.value = t.dataset.dwt === "Other" ? "" : t.dataset.dwt; const h = $("#dwHint"); if (h) h.textContent = "💡 " + (DW_HINT[t.dataset.dwt] || ""); return; }
     if (t.dataset.dwr != null) { const row = t.closest(".dwrate"); row.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === t)); return; }
     if (t.id === "dwStart") { const task = ($("#dwTask").value || "").trim(), crit = [...document.querySelectorAll(".dwc")].map(x => x.value.trim()).filter(Boolean);
@@ -2324,21 +2358,35 @@ const WATCH = [
     d: ["Compare him only with himself last month. Point to his own progress numbers (checkpoints passed, self-check agreement).", "只拿他和上个月的自己比。用他自己的进步数据（通过的关卡、自查一致率）。"],
     q: ["“Last month you couldn't do this. Look at you now.”", "“上个月你还做不到这个。看看你现在。”"] } ];
 const WATCH_HELP = ["When to ask his pediatrician: forgetfulness, losing track of tasks, acting before thinking and needing adults to check his work keep showing up together, at home and at school, for 6+ months, and they get in the way of grades or friendships. That isn't a diagnosis. Asking about an attention evaluation helps you choose strategies that fit.", "什么时候问儿科医生：健忘、做事丢三落四、不经思考就行动、需要大人检查，这些在家和学校同时出现 6 个月以上，并影响成绩或交友。这不是诊断；问一问注意力评估，能帮你选更合适的方法。"];
+// Jonah (5): the same idea, at kindergarten level
+const WATCH_J = [
+  { i: "👆", s: ["Taps through screens without listening; picks answers before the question is read", "不听题就乱点；题还没读完就选答案"], m: ["Normal at 5, and he may be copying a big brother's speed. Stars feel like the goal.", "5 岁很常见，也可能在学哥哥的速度。他觉得星星才是目标。"], d: ["Sit with him for a few rounds; hands on the table until the question finishes; cheer listening, not stars.", "陪他玩几轮；题读完前手放桌上；为认真听欢呼，而不是为星星。"], q: ["“Ears first, then fingers!”", "“先用耳朵，再用手指！”"] },
+  { i: "🤥", s: ["Says he did something he didn't (teeth, toys)", "说做了其实没做（刷牙、收玩具）"], m: ["At 5 this is wishful thinking or avoiding trouble, not real lying. It's also something he may see older kids get away with.", "5 岁时这是愿望式思考或想躲开麻烦，不是真正的撒谎。也可能看到大孩子这样没事。"], d: ["Don't ask a question you know the answer to. Go together and look at the picture checklist. Thank him when he tells the truth, especially about not doing it.", "不要问你已经知道答案的问题。一起去对照图片清单看。他说实话时（尤其是承认没做）要谢谢他。"], q: ["“Let's go look together. Thank you for telling me the truth!”", "“我们一起去看看。谢谢你跟我说实话！”"] },
+  { i: "🎮", s: ["Only wants the easiest games, or replays the same one for stars", "只想玩最简单的游戏，或为了星星反复玩同一个"], m: ["Easy wins feel good. Normal, but he's not stretching.", "简单的胜利感觉很好。正常，但没有挑战自己。"], d: ["Offer a choice of two new ones. Celebrate trying something hard, even when he doesn't get stars.", "给他两个新游戏选一个。为尝试难的东西庆祝，即使没拿星星。"], q: ["“That one's easy for you now. Want to try a tricky one with me?”", "“这个对你太简单了。想和我试个难一点的吗？”"] },
+  { i: "😤", s: ["Meltdown or quitting when something is hard", "遇到难的就发脾气或放弃"], m: ["Frustration tolerance is still growing. Tiredness and hunger make it much worse.", "耐受挫折的能力还在长。累了饿了会更严重。"], d: ["Name the feeling, take a short break, then help with just the first step. Stop while it's still going well.", "说出他的感受，休息一下，然后只帮他迈第一步。在顺利的时候结束。"], q: ["“That's tricky and you feel mad. Let's do just the first one together.”", "“这个很难，你生气了。我们一起只做第一个。”"] },
+  { i: "👦", s: ["Copies big brothers' shortcuts or words (“that's good enough”)", "学哥哥的捷径或说法（“这样就够了”）"], m: ["Little brothers copy what seems to work for the big kids.", "弟弟会学哥哥那些看起来管用的做法。"], d: ["Point out when the big brothers do it properly, in front of him. Give him his own 'big job' he's proud of.", "当哥哥做得认真时，当着他的面说出来。给他一个让他自豪的“大任务”。"], q: ["“Look how Eric checked his work. You're a careful checker too!”", "“看哥哥是怎么检查的。你也是个仔细的检查员！”"] } ];
+const WATCH_HELP_J = ["When to ask his pediatrician: if, by the end of kindergarten, he still can't sit for a 5-minute activity he likes, or frustration meltdowns happen most days at home and at school.", "什么时候问儿科医生：如果到幼儿园结束时，他还是无法坐下来做 5 分钟喜欢的活动，或者在家和学校几乎每天都因挫折崩溃。"];
 const watchFor = rule => WATCH.find(w => w.rules.includes(rule));
 function watchGuideHtml(kid) {
-  if (isKid() || !["eric", "ellis"].includes(kid)) return "";
-  const zh = lang === "zh", L = a => esc(zh ? a[1] : a[0]);
+  if (isKid() || !["eric", "ellis", "jonah"].includes(kid)) return "";
+  const zh = lang === "zh", L = a => esc(zh ? a[1] : a[0]), list = kid === "jonah" ? WATCH_J : WATCH;
   return `<details style="margin-top:12px"><summary><b>🧭 ${zh ? "家长观察指南：信号与应对" : "Watch-for guide: signs and how to respond"}</b></summary>
     <div class="meta" style="margin:6px 0">${zh ? "原则：平静地说出看到的行为，保持好奇，让小后果教他，表扬努力和诚实，绝不拿兄弟比较。" : "Ground rules: name the behavior calmly, stay curious, let small consequences teach, praise effort and honesty, never compare brothers."}</div>
-    ${WATCH.map(w => `<details style="border-top:1px dashed #ddd;padding:6px 0"><summary>${w.i} ${L(w.s)}</summary>
+    ${list.map(w => `<details style="border-top:1px dashed #ddd;padding:6px 0"><summary>${w.i} ${L(w.s)}</summary>
       <div style="font-size:13px;margin:6px 0 0 4px"><div><b>${zh ? "可能意味着" : "What it usually means"}:</b> ${L(w.m)}</div><div style="margin-top:4px"><b>${zh ? "怎么做" : "What to do"}:</b> ${L(w.d)}</div><div style="margin-top:4px"><b>💬 ${zh ? "可以这样说" : "Try saying"}:</b> ${L(w.q)}</div></div></details>`).join("")}
-    <div class="meta" style="margin-top:8px">🩺 ${L(WATCH_HELP)}</div></details>`;
+    <div class="meta" style="margin-top:8px">🩺 ${L(kid === "jonah" ? WATCH_HELP_J : WATCH_HELP)}</div></details>`;
 }
 function doneWellParentHtml(kid) {
   if (isKid() || !DW_KIDS.includes(kid)) return "";
   const zh = lang === "zh", P = dwSave(kid), wk = P.items.filter(x => x.d >= daysAgo(6)), done = wk.filter(x => x.done), pending = P.items.filter(x => x.done && !x.parent).slice(-5).reverse();
   const checked = P.items.filter(x => x.parent).slice(-20), agreeRate = checked.length ? Math.round(100 * checked.filter(x => x.parent.agree).length / checked.length) : null;
   const self = done.length ? Math.round(100 * done.reduce((a, x) => a + x.done.rates.reduce((b, v) => b + v, 0) / (2 * x.done.rates.length), 0) / done.length) : null;
+  const little = !!DW_LITTLE[kid], pts = little ? 3 : 5;
+  if (little) return `<div style="margin-top:12px"><b>🎯 ${zh ? "做好了吗？（和他一起看）" : "Did I do it well? (check it together)"}</b>
+    ${pending.length ? pending.map(x => `<div style="border-top:1px dashed #ddd;padding:6px 0;font-size:13px"><b>${esc(x.task)}</b> <span class="meta">${fmtDate(x.d)}</span><div class="meta">${x.crit.map(esc).join(" · ")}</div>
+      <div class="row" style="gap:6px;margin-top:4px"><button class="btn sm" data-dwp="${x.id}" data-kid="${kid}" data-agree="1">👍 ${zh ? "做好了 (+3)" : "Looks done (+3)"}</button><button class="btn sm" data-dwp="${x.id}" data-kid="${kid}" data-agree="0">🔁 ${zh ? "一起再弄一下" : "Let's fix it together"}</button></div></div>`).join("")
+      : `<div class="meta">${zh ? "没有等你查看的。" : "Nothing waiting for you."}</div>`}
+    <div class="meta" style="margin-top:4px">${zh ? "和他一起走过去看每张图：“牙刷放好了吗？”让他自己指出来。没做好就一起改，不批评。" : "Walk over with him and go through each picture: \"Is the brush put away?\" Let him point it out himself. If it isn't done, fix it together, no scolding."}</div></div>`;
   return `<div style="margin-top:12px"><b>🎯 ${zh ? "做得好吗？（自查）" : "Done well? (self-checks)"}</b>
     <div class="meta">${zh ? `本周 ${wk.length} 次计划，${done.length} 次完成自查` : `This week: ${wk.length} planned, ${done.length} self-checked`}${self != null ? ` · ${zh ? "自评" : "self-rating"} ${self}%` : ""}${agreeRate != null ? ` · ${zh ? "你同意他的自查" : "you agreed"} ${agreeRate}% ${zh ? "（越高说明他越会检查自己）" : "(higher = better self-judgment)"}` : ""}</div>
     ${pending.length ? pending.map(x => `<div style="border-top:1px dashed #ddd;padding:6px 0;font-size:13px"><b>${esc(x.task)}</b> <span class="meta">${fmtDate(x.d)}</span>
@@ -2351,9 +2399,9 @@ document.addEventListener("click", async e => {
   const t = e.target.closest("[data-dwp]"); if (!t || isKid()) return;
   const kid = t.dataset.kid, P = dwSave(kid), x = P.items.find(i => i.id === t.dataset.dwp); if (!x) return; const agree = t.dataset.agree === "1";
   try {
-    const note = agree ? "" : (prompt(lang === "zh" ? "哪里不太对？（他会看到，可以不写）" : "What wasn't quite right? (he'll see this; optional)") || "").slice(0, 120);
+    const note = agree || DW_LITTLE[kid] ? "" : (prompt(lang === "zh" ? "哪里不太对？（他会看到，可以不写）" : "What wasn't quite right? (he'll see this; optional)") || "").slice(0, 120);
     x.parent = { agree, note, at: Date.now() }; await dwWrite(kid, P);
-    if (agree) await sb.from("point_ledger").insert({ kid, date: today(), points: 5, source: "habit", ref: "donewell:" + x.id, label: "🎯 Done-well self-check (parent agreed)", label_zh: "🎯 自查做得好（家长同意）" });
+    if (agree) await sb.from("point_ledger").insert({ kid, date: today(), points: DW_LITTLE[kid] ? 3 : 5, source: "habit", ref: "donewell:" + x.id, label: "🎯 Done-well self-check (parent agreed)", label_zh: "🎯 自查做得好（家长同意）" });
     await loadAll(); route();
   } catch (err) { setStatus(err.message, true); }
 });
