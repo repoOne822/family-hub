@@ -2074,6 +2074,7 @@ async function openApp(url, kid) {
     if (!(await amcGateOk(cfg, kid))) return;
     if (!gameMixGate(cfg, kid)) return;
   }
+  if (!jrGate(kid)) return; // 🌙 Jonah's bedtime + daily budget applies to every app
   const t = T(), mark = `fh_save_${kid}_${cfg.id}`, pre = typeof cfg.prefix === "function" ? cfg.prefix(kid) : cfg.prefix;
   try {
     const { data } = await sb.from("app_saves").select("data,updated_at").eq("kid", kid).eq("app", cfg.id).maybeSingle();
@@ -2103,12 +2104,12 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">🏠 ${lang === "zh" ? "首页" : "Home"}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261127dw2${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">🏠 ${lang === "zh" ? "首页" : "Home"}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261127jr1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && !cfg.free && (cfg.id !== "space" || kid === "jonah")) ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
-  const stopTime = appTimeTrack(kid, cfg, fs);
-  appOpen = async () => { stopCoach(); stopMix(); stopTime(); window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
+  const stopTime = appTimeTrack(kid, cfg, fs), stopJr = jrTrack(kid, fs);
+  appOpen = async () => { stopCoach(); stopMix(); stopTime(); stopJr(); window.removeEventListener("storage", onStore); if (preview) localStorage.removeItem(mark); if (timer) { clearTimeout(timer); await push(); } fs.remove(); document.body.style.overflow = ""; appOpen = null; if (awardsDirty && isKid() && !preview) { awardsDirty = false; try { await loadAll(); kidRender(); } catch (e) {} } };
   fs.querySelector(".appclose").onclick = () => appOpen();
 }
 /* ---- ⏱️ Time per subject (Bobby 2026-11-23): the hub measures every app the same way. A second counts when the app is open,
@@ -2447,6 +2448,32 @@ function gmRestCard(kid, id, need, onClose) {
   ov.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { ov.remove(); onClose && onClose(); openApp(b.dataset.go, kid); });
 }
 function gameMixGate(cfg, kid) { if (!isKid() || preview || !GAMEMIX[kid]) return true; const need = gmNeed(kid, cfg.id, gmLoad(kid)); if (!need) return true; gmRestCard(kid, cfg.id, need); return false; }
+/* ---- 🌙 Jonah's screen rhythm (2026-11-27, Bobby: "isolate Jonah from those negative behaviors").
+   His brothers model late nights and an always-on device; Jonah (5) gets his own fixed rhythm instead:
+   apps sleep at bedtime until morning, plus a daily play budget (active minutes only, idle doesn't count).
+   Only on Jonah's own device as a kid; parents/preview are never blocked. ---- */
+const JRHYTHM = { jonah: { bed: "19:30", wake: "06:30", schoolMin: 60, weekendMin: 90 } };
+const jrNowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+const jrHM = s => +s.slice(0, 2) * 60 + +s.slice(3, 5);
+function jrState(kid) { const r = JRHYTHM[kid]; if (!r) return null;
+  const n = jrNowMin(), night = n >= jrHM(r.bed) || n < jrHM(r.wake);
+  const wd = new Date().getDay(), cap = (wd === 0 || wd === 6) ? r.weekendMin : r.schoolMin;
+  const used = Math.round(Object.values(gmLoad(kid).sec || {}).reduce((a, x) => a + x, 0) / 60);
+  return { night, cap, used, left: cap - used, out: night || used >= cap }; }
+function jrCard(kid, st, onClose) { const zh = lang === "zh", nm = kidName(kid);
+  const ov = document.createElement("div"); ov.className = "amcgate";
+  const h = st.night ? (zh ? "太空站睡觉了 🌙" : "The space station is asleep 🌙") : (zh ? "今天的屏幕时间用完啦 🔋" : "Screen time is done for today 🔋");
+  const p = st.night ? (zh ? `${nm}，大脑在睡觉的时候长得最快。明天早上再见！` : `${nm}, your brain grows the most while you sleep. See you in the morning!`)
+                     : (zh ? `你今天玩了 ${st.used} 分钟，很棒！现在去搭积木、画画、看书或者到外面玩吧。` : `You played ${st.used} minutes today. Great job! Now let's build, draw, read a book or play outside.`);
+  ov.innerHTML = `<div class="amcgate-box"><div style="font-size:58px">${st.night ? "🌙" : "🔋"}</div><h2>${h}</h2><p style="font-size:19px">${p}</p><div class="amcgate-row"><button class="btn primary" data-x="1">${zh ? "好的" : "OK"}</button></div></div>`;
+  document.body.appendChild(ov); gmSay(h.replace(/[🌙🔋]/g, "") + " " + p);
+  ov.querySelector("[data-x]").onclick = () => { ov.remove(); onClose && onClose(); }; }
+function jrGate(kid) { if (!isKid() || preview || !JRHYTHM[kid]) return true; const st = jrState(kid); if (!st.out) return true; jrCard(kid, st); return false; }
+function jrTrack(kid, fs) { if (!isKid() || preview || !JRHYTHM[kid]) return () => {}; let warned = false;
+  const tick = setInterval(() => { const st = jrState(kid); if (!st) return;
+    if (st.out) { clearInterval(tick); appOpen && appOpen().then(() => jrCard(kid, st)); return; }
+    if (!warned && st.left <= 5) { warned = true; gmSay(lang === "zh" ? "还有五分钟，准备说再见吧。" : "Five more minutes. Get ready to say bye-bye."); } }, 30000);
+  return () => clearInterval(tick); }
 function gameMixTrack(kid, cfg, fs) {
   if (!isKid() || preview || !GAMEMIX[kid]) return () => {};
   const key = `fh_gmix_${kid}`, zh = lang === "zh";
