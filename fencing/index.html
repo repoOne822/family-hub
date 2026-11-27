@@ -2490,10 +2490,11 @@ function pdPoint(w){
 }
 // 🔎 Pattern spotter (nightly polish 11/25): when the SAME opponent move scores twice in a bout, Hoot names it before the next touch
 function pdPatTip(o,n){const a=PD_ACTS[o];if(!a)return '';
-  const tip=o==='lunge'?`When you see the coiled back leg, step <b>BACK fast</b> (Coach: 对方准备进攻，拉开距离). His lunge falls short, then YOU hit. Try the 🪤 idea!`
-    :o==='counter'?`He waits and hits you as you step in. Don't walk in while he stands still: test with a fake (👀 idea), or let HIM step in first.`
-    :`Tap his touches in the 📜 step list to see why, then pick an idea that beats it.`;
+  const tip=pdPatAdvice(o);
   return `<div class="pattip" style="background:#fff6c7;border:2px solid var(--line);border-radius:12px;padding:6px 10px;margin-bottom:6px;text-align:left">🔎 <b>Pattern spotted:</b> ${n} of his touches came from his ${a.i} <b>${a.n.toUpperCase()}${o==='lunge'?' (LUNGE)':''}</b>. ${tip}</div>`}
+function pdPatAdvice(o){return o==='lunge'?`When you see the coiled back leg, step <b>BACK fast</b> (Coach: 对方准备进攻，拉开距离). His lunge falls short, then YOU hit. Try the 🪤 idea!`
+    :o==='counter'?`He waits and hits you as you step in. Don't walk in while he stands still: test with a fake (👀 idea), or let HIM step in first.`
+    :`Tap his touches in the 📜 step list to see why, then pick an idea that beats it.`}
 function pdNextOpp(id){const o=ALLOPP[id],T=PTIERS[o.tier];if(o.rival||o.real)return null;
   if(o.idx<T.opps.length-1)return T.opps[o.idx+1];const N=PTIERS[o.tier+1];return N&&pdLv()>=N.req?N.opps[0]:null}
 let pdLossRun={id:null,n:0};
@@ -2529,10 +2530,11 @@ function pdEnd(){
 function pdMenu(){const quitNote=PD&&!PD.over&&PD.raw&&PD.raw.length>=3&&PD.score[1]>PD.score[0]?pdQuitNote():'';if($('pdQuitNote'))$('pdQuitNote').innerHTML=quitNote;
   if(PD&&!PD.over&&PD.raw&&PD.raw.length>=3)perfDuel(false);document.body.classList.remove('duelfocus');clearInterval(pdTimerI);clearTimeout(pdLaterT);if(PD)PD.over=true;$('pdGame').style.display='none';$('pdPick').style.display='block';pdLevels()}
 // 🚪 Leaving a bout while behind (nightly polish 11/25): he often quits tough bouts before the loss screen, so he missed its Brave Mind reset
+// (11/26) leave card now shows the concrete counter-plan for lunge/counter, since he left at 0–2 before the pattern tip appeared
 function pdQuitNote(){const o=PD.L,frz=PD.hist.filter(h=>h.e==='freeze').length,pw=(()=>{try{return store.get('powerWord','')||'Next touch'}catch(e){return 'Next touch'}})();
   const top=Object.entries(PD.oh||{}).sort((a,b)=>b[1]-a[1])[0],ta=top&&top[1]>=2?PD_ACTS[top[0]]:null;
   return `<div class="hoot" style="text-align:left;margin:0 0 10px"><div class="owl">🦉</div><div class="say"><b>Leaving a tough bout is OK.</b> You scored ${PD.score[0]} touch${PD.score[0]===1?'':'es'} against ${esc(o.n)}, and every touch taught you how he fences.
-    ${ta?`<div style="margin-top:4px">🔎 His best move was the ${ta.i} <b>${ta.n}${top[0]==='lunge'?' (lunge)':''}</b>: ${top[1]} touches. Make a plan for it before you try again.</div>`:''}
+    ${ta?`<div style="margin-top:4px">🔎 His best move was the ${ta.i} <b>${ta.n}${top[0]==='lunge'?' (lunge)':''}</b>: ${top[1]} touches.${top[0]==='lunge'||top[0]==='counter'?` <b>Your plan:</b> ${pdPatAdvice(top[0])}`:' Make a plan for it before you try again.'}</div>`:''}
     ${frz>=3?`<div style="margin-top:4px">❄️ You froze ${frz} times. Next time pick ANY move, even a small step back. A choice beats waiting.</div>`:''}
     <div style="margin-top:4px">🔁 Reset: turn away, one big breath, say "<b>${esc(pw)}</b>".</div>
     <div style="margin-top:6px"><a href="#" onclick="event.preventDefault();this.closest('#pdQuitNote').innerHTML='';goTo('brave')">💪 Open Brave Mind</a> · <a href="#" onclick="event.preventDefault();this.closest('#pdQuitNote').innerHTML='';pdScout('${o.id}')">⚔️ Try ${esc(o.n)} again</a></div></div></div>`}

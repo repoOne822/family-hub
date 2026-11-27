@@ -2103,7 +2103,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">🏠 ${lang === "zh" ? "首页" : "Home"}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261126hm1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">🏠 ${lang === "zh" ? "首页" : "Home"}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261126fb1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && !cfg.free && (cfg.id !== "space" || kid === "jonah")) ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
