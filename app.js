@@ -97,6 +97,7 @@ async function loadAll() {
   try { const r = await sb.from("integrity_flags").select("*").gte("date", daysAgo(21)).order("date", { ascending: false }); S.integrity_flags = r.data || []; } catch (e) { S.integrity_flags = []; } // 🛡️ fair play
   try { const r = await sb.from("integrity_settings").select("*"); S.integrity_settings = r.data || []; } catch (e) { S.integrity_settings = []; }
   try { const r = await sb.from("app_saves").select("kid,data").eq("app", "donewell"); S.donewell = r.data || []; } catch (e) { S.donewell = []; } // 🎯 done-well self-checks
+  try { const r = await sb.from("app_saves").select("kid,data").eq("app", "morning"); S.morning = r.data || []; } catch (e) { S.morning = []; } // 🌅 morning launch
   try { const r = await sb.from("brain_checks").select("*").order("taken_at"); S.brain_checks = r.data || []; } catch (e) { S.brain_checks = []; } // 🧠 brain development
   try { const r = await sb.from("brain_signals").select("*").gte("date", daysAgo(180)).order("date"); S.brain_signals = r.data || []; } catch (e) { S.brain_signals = []; }
   try { const r = await sb.from("body_log").select("*").gte("date", daysAgo(120)).order("date"); S.body_log = r.data || []; } catch (e) { S.body_log = []; }
@@ -1131,6 +1132,7 @@ function viewDash() {
       ${timePanel(k.id)}
       ${fairPanel(k.id)}
       ${doneWellParentHtml(k.id)}
+      ${morningParentHtml(k.id)}
       ${watchGuideHtml(k.id)}
       ${behaviorPanel(k.id)}
       <div class="goals"><h4>${t.goals}</h4>${kg.length ? kg.map(g => `<div class="goal ${g.done ? "done" : ""}"><input type="checkbox" ${g.done ? "checked" : ""} data-goal="${g.id}"><span>${esc(g.text)}</span><button class="x" data-delgoal="${g.id}">✕</button></div>`).join("") : `<div class="meta empty">${t.noGoals}</div>`}
@@ -2104,7 +2106,7 @@ async function openApp(url, kid) {
   const onStore = e => { if (e.key && e.key.startsWith(pre) && !cfg.skip.includes(e.key) && !(cfg.skipPre || []).some(x => e.key.startsWith(x))) { clearTimeout(timer); timer = setTimeout(push, 1500); } };
   window.addEventListener("storage", onStore);
   const fs = document.createElement("div"); fs.id = "appFs"; fs.className = "appfs";
-  fs.innerHTML = `<div class="appbar"><button class="appclose">🏠 ${lang === "zh" ? "首页" : "Home"}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261127jr1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
+  fs.innerHTML = `<div class="appbar"><button class="appclose">🏠 ${lang === "zh" ? "首页" : "Home"}</button><span class="appst">${preview ? "👀 " + t.previewNoSave : ""}</span></div><iframe src="${url}?v=20261128ml1${cfg.perKid ? "&k=" + encodeURIComponent(kid) : ""}${!isKid() && !preview ? "&p=1" : ""}" title="app" allow="fullscreen"></iframe>`;
   document.body.appendChild(fs); document.body.style.overflow = "hidden";
   const stopCoach = (isKid() && !preview && !cfg.free && (cfg.id !== "space" || kid === "jonah")) ? playCoach(kid, fs) : () => {};
   const stopMix = gameMixTrack(kid, cfg, fs);
@@ -2354,6 +2356,10 @@ const WATCH = [
     m: ["Could be tiredness, too much load, a social or school worry, or something more. Days of it matter more than one bad evening.", "可能是累、任务太多、社交或学校的烦恼，或者更多。连续几天比一个糟糕的晚上更值得注意。"],
     d: ["Lighten the load for a day. Check in one-on-one doing something side by side (a walk, the car). Listen more than you fix. If it lasts 2+ weeks, or he talks about hurting himself, call his pediatrician.", "减轻一天的任务。一对一在并肩做事时聊（散步、开车）。多听少给办法。如果持续 2 周以上，或说到伤害自己，联系儿科医生。"],
     q: ["“You seem tired lately. What's been the hardest part of your week?”", "“你最近好像很累。这周最难的是什么？”"] },
+  { k: "noise", i: "🦶", rules: [], s: ["Stomps, slams doors or talks loudly while others are still asleep", "别人还在睡时，他重重地走、摔门或大声说话"],
+    m: ["Usually not defiance: he isn't thinking about how his actions land on others, and growing kids are often clumsy and less aware of their bodies. It's a perspective-taking skill to teach.", "通常不是故意的：他没想到自己的动作会影响别人；正在长个子的孩子也常常对身体不太敏感。这是要教的“换位思考”能力。"],
+    d: ["Talk once at a calm time (not in the morning) and let him suggest the fix. Agree on 'library mode' before 8 on weekends. Leave slippers by his bed and a quiet first job ready. If he wakes someone, he makes it up to them, with no lecture. Notice quiet mornings out loud. If his body needs to move, schedule it later (jumping jacks, a run).", "在平静的时候（不是早上）谈一次，让他自己想办法。约定周末 8 点前是“图书馆模式”。床边放拖鞋，准备好一件安静的早晨小事。吵醒了人就去弥补，不说教。安静的早晨要说出来表扬。身体需要动，就安排在之后（开合跳、跑步）。"],
+    q: ["“When you walk hard in the morning, Jonah and Mom wake up. What could you do instead?” / “You were so quiet this morning. Everyone slept in. Thank you.”", "“你早上走路重，弟弟和妈妈就被吵醒了。你可以怎么做？”／“你今天早上好安静，大家都睡了个好觉，谢谢你。”"] },
   { k: "compare", i: "⚖️", rules: [], s: ["You notice yourself comparing him with his brother or with classmates", "你发现自己拿他和弟弟或同学比较"],
     m: ["Comparison makes kids feel ranked, not motivated. Brothers develop on different timelines.", "比较让孩子觉得被排名，而不是被激励。兄弟发育的时间表不一样。"],
     d: ["Compare him only with himself last month. Point to his own progress numbers (checkpoints passed, self-check agreement).", "只拿他和上个月的自己比。用他自己的进步数据（通过的关卡、自查一致率）。"],
@@ -2405,6 +2411,55 @@ document.addEventListener("click", async e => {
     if (agree) await sb.from("point_ledger").insert({ kid, date: today(), points: DW_LITTLE[kid] ? 3 : 5, source: "habit", ref: "donewell:" + x.id, label: "🎯 Done-well self-check (parent agreed)", label_zh: "🎯 自查做得好（家长同意）" });
     await loadAll(); route();
   } catch (err) { setStatus(err.message, true); }
+});
+/* ---- 🌅 Morning launch (2026-11-28; Bobby: Eric sits ~30 min after waking then rushes, Ellis too; Eric stomps while others sleep).
+   Kid taps each step as he does it; parents see wake→ready minutes and confirm "quiet morning" (+3, parent-verified only).
+   Steps tapped all within 60 s are shown to parents as "tapped in one go". ---- */
+const ML_KIDS = ["eric", "ellis"];
+const ML_STEPS = [["up", "🌅", "I'm up (out of bed)", "我起床了（下床）"], ["feet", "🦶", "Quiet feet: socks or slippers on, close doors gently", "轻轻走：穿袜子或拖鞋，轻轻关门"],
+  ["dress", "👕", "Dressed", "穿好衣服"], ["teeth", "🪥", "Teeth + face", "刷牙洗脸"], ["eat", "🥣", "Breakfast", "吃早餐"], ["bag", "🎒", "Bag packed, shoes by the door", "书包收好，鞋放门口"]];
+const mlSave = kid => { const r = (S.morning || []).find(x => x.kid === kid); return (r && r.data && r.data[`${kid}_morning`]) || { days: {} }; };
+async function mlWrite(kid, P) { const { error } = await sb.from("app_saves").upsert({ kid, app: "morning", data: { [`${kid}_morning`]: P }, updated_at: new Date().toISOString() }); if (error) throw error;
+  const r = (S.morning || []).find(x => x.kid === kid); if (r) r.data = { [`${kid}_morning`]: P }; else (S.morning = S.morning || []).push({ kid, data: { [`${kid}_morning`]: P } }); }
+const mlSchool = (d, D) => D && D.noSchool != null ? !D.noSchool : ![0, 6].includes(new Date(d + "T12:00:00").getDay());
+const mlSteps = (d, D) => ML_STEPS.filter(x => x[0] !== "bag" || mlSchool(d, D));
+const mlHM = ts => { const x = new Date(ts); return `${x.getHours()}:${String(x.getMinutes()).padStart(2, "0")}`; };
+function mlStats(d, D) { if (!D || !D.t) return null; const st = mlSteps(d, D), ts = st.map(x => D.t[x[0]]).filter(Boolean);
+  const done = ts.length === st.length, first = D.t.up || Math.min(...ts), last = Math.max(...ts);
+  return { done, n: ts.length, of: st.length, up: first, mins: done ? Math.round((last - first) / 60000) : null, batched: ts.length >= 3 && last - Math.min(...ts) < 60000 }; }
+function morningKidHtml(k) {
+  if (!ML_KIDS.includes(k.id)) return ""; const zh = lang === "zh", d = today(), P = mlSave(k.id), D = P.days[d] || {}, h = new Date().getHours();
+  const st = mlStats(d, D); if ((h < 5 || h >= 11) && !(st && !st.done && h < 13)) return "";
+  const weekendEarly = !mlSchool(d, D) && h < 8, steps = mlSteps(d, D);
+  return `<div class="card" style="padding:14px"><b style="font-size:18px">🌅 ${zh ? "早晨启动" : "Morning launch"}</b>
+    <div class="meta">${weekendEarly ? (zh ? "🤫 8 点前是图书馆模式：大家还在睡，轻轻走、小声说。" : "🤫 Library mode until 8:00: people are still asleep. Soft feet, quiet voice.") : (zh ? "起床后马上开始，一步一步点。目标：30 分钟内准备好。" : "Start as soon as you're up and tap each step as you do it. Goal: ready within 30 minutes.")}</div>
+    <div style="display:grid;gap:6px;margin-top:8px">${steps.map(x => { const on = D.t && D.t[x[0]];
+      return `<button class="btn ${on ? "" : "primary"}" data-ml="${x[0]}" ${on ? "disabled" : ""} style="text-align:left;justify-content:flex-start">${on ? "✅" : x[1]} ${zh ? x[3] : x[2]}${on ? ` <span class="meta">${mlHM(on)}</span>` : ""}</button>`; }).join("")}</div>
+    ${st && st.done ? `<div style="margin-top:8px;font-weight:700">${zh ? `🚀 ${st.mins} 分钟就准备好了！` : `🚀 Ready in ${st.mins} minutes!`}</div>` : D.t && D.t.up ? `<div class="meta" style="margin-top:6px">${zh ? `已经 ${Math.round((Date.now() - D.t.up) / 60000)} 分钟` : `${Math.round((Date.now() - D.t.up) / 60000)} min since you got up`}</div>` : ""}
+    ${!st ? `<button class="btn sm" data-mlns="1" style="margin-top:6px">${mlSchool(d, D) ? (zh ? "今天不上学" : "No school today") : (zh ? "今天要上学" : "School today")}</button>` : ""}</div>`;
+}
+document.addEventListener("click", async e => {
+  const t = e.target.closest("[data-ml],[data-mlns]"); if (!t || !isKid() || preview) return;
+  const kid = S.kids[0]?.id; if (!ML_KIDS.includes(kid)) return; const P = mlSave(kid), d = today(), D = P.days[d] = P.days[d] || {};
+  if (t.dataset.mlns) D.noSchool = mlSchool(d, D); else { D.t = D.t || {}; if (D.t[t.dataset.ml]) return; D.t[t.dataset.ml] = Date.now(); }
+  Object.keys(P.days).sort().slice(0, -60).forEach(x => delete P.days[x]); // keep 60 days
+  try { await mlWrite(kid, P); kidRender(); } catch (err) { setStatus(err.message, true); }
+});
+function morningParentHtml(kid) {
+  if (isKid() || !ML_KIDS.includes(kid)) return ""; const zh = lang === "zh", P = mlSave(kid), rows = [];
+  for (let i = 6; i >= 0; i--) { const d = daysAgo(i), D = P.days[d], st = mlStats(d, D), q = D && D.quiet;
+    rows.push(`<tr><td>${fmtDate(d)}${mlSchool(d, D) ? "" : " 🏖️"}</td><td>${st ? mlHM(st.up) : "—"}</td><td>${st ? (st.done ? `${st.mins} ${zh ? "分" : "min"}` : `${st.n}/${st.of}`) : "—"}${st && st.batched ? ` <span title="${zh ? "一分钟内全部点完" : "all tapped within one minute"}">⚠️</span>` : ""}</td>
+      <td>${q ? (q.ok ? "🤫" : "🔊") : `<button class="btn sm" data-mlq="${d}" data-kid="${kid}" data-ok="1">🤫 ${zh ? "安静 (+3)" : "Quiet (+3)"}</button> <button class="btn sm" data-mlq="${d}" data-kid="${kid}" data-ok="0">🔊</button>`}</td></tr>`); }
+  return `<div style="margin-top:12px"><b>🌅 ${zh ? "早晨启动" : "Morning launch"}</b>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:4px;text-align:left"><tr><th>${zh ? "日期" : "Day"}</th><th>${zh ? "起床" : "Up"}</th><th>${zh ? "到准备好" : "Up → ready"}</th><th>${zh ? "安静早晨？" : "Quiet morning?"}</th></tr>${rows.join("")}</table>
+    <div class="meta" style="margin-top:4px">${zh ? "⚠️ = 一分钟内全部点完（可能是补点的，问问他）。“安静”只有你亲眼/亲耳确认才给分。吵醒了人：不罚，让他去弥补（给弟弟倒杯水、帮妈妈做件小事）。" : "⚠️ = all steps tapped within a minute (probably tapped after the fact; ask him). Give \"Quiet\" only for what you actually heard. If he woke someone, no punishment: he makes it up to that person (water for Jonah, a small job for Mom)."}</div></div>`;
+}
+document.addEventListener("click", async e => {
+  const t = e.target.closest("[data-mlq]"); if (!t || isKid()) return;
+  const kid = t.dataset.kid, d = t.dataset.mlq, ok = t.dataset.ok === "1", P = mlSave(kid); P.days[d] = P.days[d] || {}; if (P.days[d].quiet) return;
+  try { P.days[d].quiet = { ok, at: Date.now() }; await mlWrite(kid, P);
+    if (ok) await sb.from("point_ledger").insert({ kid, date: today(), points: 3, source: "habit", ref: `morning:quiet:${d}`, label: "🤫 Quiet morning (parent confirmed)", label_zh: "🤫 安静的早晨（家长确认）" });
+    await loadAll(); route(); } catch (err) { setStatus(err.message, true); }
 });
 function timePanel(kid) {
   const zh = lang === "zh", days = []; for (let i = 6; i >= 0; i--) days.push(daysAgo(i));
@@ -2897,6 +2952,7 @@ function kidRender() {
       <div class="kw-layout"><div class="kw-main"><section id="ks-home" class="kw-sec">
       ${little ? "" : brainCardHtml(k)}${little ? "" : kidPlanHtml(k)}
       <section id="ks-money" class="kw-sec">${kidChallengeHtml(k)}</section>
+      ${morningKidHtml(k) ? `<section id="ks-ml" class="kw-sec">${morningKidHtml(k)}</section>` : ""}
       ${DW_KIDS.includes(k.id) ? `<section id="ks-dw" class="kw-sec">${doneWellKidHtml(k)}</section>` : ""}
       ${S.subjects.filter(x => x.active && x.app_url === "space/").map(x => `<button class="kw-spacegame" data-app="space/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#fff;font:inherit;background:radial-gradient(circle at 85% 30%,#9b5de5 0,transparent 45%),linear-gradient(135deg,#1b1f4b,#3a2f7a);box-shadow:0 8px 0 #0003,0 10px 30px #3a2f7a66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.4s ease-in-out infinite">🚀</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "太空探险" : "Space Quest"}</b><span style="opacity:.9;font-size:17px">${lang === "zh" ? "一至三年级数学和单词：打陨石、救外星人、打败大怪兽！" : "Grade 1–3 math + words: blast asteroids, rescue aliens, beat bosses!"}</span></span><span style="background:linear-gradient(#ffd166,#f4a300);color:#3b2400;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0004">▶ ${lang === "zh" ? "开始" : "Play"}</span></button>`).join("")}
       ${S.subjects.filter(x => x.active && x.app_url === "robot/").map(x => `<button class="kw-spacegame" data-app="robot/" data-appkid="${esc(x.kid)}" style="display:flex;align-items:center;gap:16px;width:100%;margin:14px 0;padding:18px 20px;border:none;border-radius:26px;cursor:pointer;text-align:left;color:#fff;font:inherit;background:radial-gradient(circle at 85% 30%,#e2683c 0,transparent 45%),linear-gradient(135deg,#120c24,#3b1d5e);box-shadow:0 8px 0 #0003,0 10px 30px #3b1d5e66"><span style="font-size:64px;line-height:1;animation:kwfloat 2.6s ease-in-out infinite">🤖</span><span style="flex:1"><b style="display:block;font-size:28px;line-height:1.1">${lang === "zh" ? "机器人实验室" : "Robot Lab"}</b><span style="opacity:.9;font-size:17px">${lang === "zh" ? "用真正的 Python 编程，救援火星基地！" : "Code a Mars rover in real Python. Rescue the base!"}</span></span><span style="background:linear-gradient(#b8f34a,#7fc61c);color:#122000;font-weight:800;font-size:22px;padding:10px 20px;border-radius:16px;box-shadow:0 4px 0 #0004">▶ ${lang === "zh" ? "开始" : "Code"}</span></button>`).join("")}
